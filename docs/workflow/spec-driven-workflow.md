@@ -95,6 +95,24 @@ Human review is required before proceeding to design.
 
 ---
 
+## Validate Gap (optional)
+
+**Command**: `validate-gap <feature>`
+
+An optional analysis step that can be run after requirements are written, intended for use when the feature is being added to an **existing codebase**.
+
+Checks performed:
+
+- does the codebase already partially implement any of the requirements?
+- are there existing modules, patterns, or conventions that should be incorporated?
+- are there conflicting implementations that need to be resolved first?
+
+Outputs a gap report identifying what is already present and what is genuinely missing.
+
+This step prevents the agent from duplicating existing functionality and ensures the design phase starts with an accurate picture of the current codebase state.
+
+---
+
 ## Phase 3: Design
 
 **Command**: `spec-design <feature>`
@@ -262,6 +280,40 @@ The workflow enforces review gates at three critical points.
 | After Tasks | Approve task list | Review `tasks.md`, confirm implementation plan |
 
 Gates can be bypassed with `-y` for trusted fast-track executions, but human review is the default and recommended path.
+
+---
+
+## Checking Progress: spec-status
+
+**Command**: `spec-status <feature>`
+
+A utility command that can be run at any point in the workflow to inspect the current state of a specification.
+
+Outputs:
+
+- current phase (e.g., `DESIGN`, `IMPLEMENTATION`)
+- which artifacts exist and which are missing
+- task completion status (pending / in_progress / completed) when in the implementation phase
+- overall percentage progress
+
+This command is useful for resuming work after an interruption, auditing a spec mid-flight, or understanding what remains before a pull request.
+
+Example output:
+
+```
+Spec: tool-system
+Phase: IMPLEMENTATION
+Progress: 4 / 7 tasks completed (57%)
+
+Tasks:
+  [✓] Task 1: Implement Tool Interface
+  [✓] Task 2: Implement Tool Registry
+  [✓] Task 3: Implement Tool Executor
+  [✓] Task 4: Implement Filesystem Tools
+  [ ] Task 5: Implement Shell Tools
+  [ ] Task 6: Implement Git Tools
+  [ ] Task 7: Implement Knowledge Tools
+```
 
 ---
 
