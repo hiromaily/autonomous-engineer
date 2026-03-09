@@ -77,13 +77,10 @@ Examples include:
 The memory system consists of three primary layers.
 
 ```
-
 Memory System
-
-Short-Term Memory
-Project Memory
-Knowledge Memory
-
+├── Short-Term Memory   (current workflow execution)
+├── Project Memory      (.memory/ — repository-specific knowledge)
+└── Knowledge Memory    (rules/ — reusable engineering patterns)
 ```
 
 Each layer serves a different purpose.

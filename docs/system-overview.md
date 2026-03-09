@@ -433,3 +433,20 @@ Future versions may introduce specialized agents such as:
 These agents will collaborate to form a fully autonomous engineering team.
 
 The current system serves as the foundation for this evolution.
+
+---
+
+## Further Reading
+
+Detailed architecture documentation for each subsystem:
+
+- [Architecture Overview](architecture/architecture.md) — layered architecture, principles, directory structure
+- [Agent Loop](architecture/agent-loop-architecture.md) — PLAN→ACT→OBSERVE→REFLECT→UPDATE cycle
+- [Tool System](architecture/tool-system-architecture.md) — tool interface, registry, executor, categories
+- [Context Engineering](architecture/context-engineering-architecture.md) — context layers, planner, token budget
+- [Task Planning](architecture/task-planning-architecture.md) — goal→task→steps hierarchy, plan lifecycle
+- [Agent Safety](architecture/agent-safety-architecture.md) — permissions, workspace isolation, guardrails
+- [Codebase Intelligence](architecture/codebase-intelligence-architecture.md) — symbol index, dependency graph, semantic search
+- [Memory Architecture](memory/memory-architecture.md) — short-term, project, and knowledge memory layers
+- [Spec-Driven Workflow](workflow/spec-driven-workflow.md) — the full SDD phase workflow
+- [Spec Plan](specs.md) — breakdown of v1 implementation into 10 independent specs
