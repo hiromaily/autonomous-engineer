@@ -8,90 +8,185 @@ export default withMermaid(
       "Documentation for the Autonomous Engineer system — AI-driven spec-driven development.",
     base: "/autonomous-engineer/",
 
+    locales: {
+      root: {
+        label: "English",
+        lang: "en",
+        themeConfig: {
+          nav: [
+            { text: "Home", link: "/" },
+            { text: "Vision", link: "/vision" },
+            { text: "Specs", link: "/specs" },
+          ],
+          sidebar: [
+            {
+              text: "Overview",
+              items: [
+                { text: "Introduction", link: "/vision" },
+                { text: "System Overview", link: "/system-overview" },
+                { text: "Spec Plan", link: "/specs" },
+              ],
+            },
+            {
+              text: "Architecture",
+              collapsed: false,
+              items: [
+                { text: "Architecture", link: "/architecture/architecture" },
+                {
+                  text: "Agent Loop",
+                  link: "/architecture/agent-loop-architecture",
+                },
+                {
+                  text: "Tool System",
+                  link: "/architecture/tool-system-architecture",
+                },
+                {
+                  text: "Context Engineering",
+                  link: "/architecture/context-engineering-architecture",
+                },
+                {
+                  text: "Task Planning",
+                  link: "/architecture/task-planning-architecture",
+                },
+                {
+                  text: "Agent Safety",
+                  link: "/architecture/agent-safety-architecture",
+                },
+                {
+                  text: "Codebase Intelligence",
+                  link: "/architecture/codebase-intelligence-architecture",
+                },
+              ],
+            },
+            {
+              text: "Agent",
+              items: [{ text: "AI Dev Agent v1", link: "/agent/dev-agent-v1" }],
+            },
+            {
+              text: "Workflow",
+              items: [
+                {
+                  text: "Spec-Driven Workflow",
+                  link: "/workflow/spec-driven-workflow",
+                },
+              ],
+            },
+            {
+              text: "Memory",
+              items: [
+                {
+                  text: "Memory Architecture",
+                  link: "/memory/memory-architecture",
+                },
+              ],
+            },
+            {
+              text: "Development",
+              items: [
+                {
+                  text: "Development Environment",
+                  link: "/development/development-environment",
+                },
+                {
+                  text: "AI Agent Framework Policy",
+                  link: "/development/ai-agent-framework-policy",
+                },
+              ],
+            },
+          ],
+        },
+      },
+      ja: {
+        label: "日本語",
+        lang: "ja",
+        link: "/ja/",
+        themeConfig: {
+          nav: [
+            { text: "ホーム", link: "/ja/" },
+            { text: "ビジョン", link: "/ja/vision" },
+            { text: "仕様", link: "/ja/specs" },
+          ],
+          sidebar: [
+            {
+              text: "概要",
+              items: [
+                { text: "はじめに", link: "/ja/vision" },
+                { text: "システム概要", link: "/ja/system-overview" },
+                { text: "仕様計画", link: "/ja/specs" },
+              ],
+            },
+            {
+              text: "アーキテクチャ",
+              collapsed: false,
+              items: [
+                { text: "アーキテクチャ", link: "/ja/architecture/architecture" },
+                {
+                  text: "エージェントループ",
+                  link: "/ja/architecture/agent-loop-architecture",
+                },
+                {
+                  text: "ツールシステム",
+                  link: "/ja/architecture/tool-system-architecture",
+                },
+                {
+                  text: "コンテキストエンジニアリング",
+                  link: "/ja/architecture/context-engineering-architecture",
+                },
+                {
+                  text: "タスク計画",
+                  link: "/ja/architecture/task-planning-architecture",
+                },
+                {
+                  text: "エージェント安全性",
+                  link: "/ja/architecture/agent-safety-architecture",
+                },
+                {
+                  text: "コードベース解析",
+                  link: "/ja/architecture/codebase-intelligence-architecture",
+                },
+              ],
+            },
+            {
+              text: "エージェント",
+              items: [{ text: "AI Dev Agent v1", link: "/ja/agent/dev-agent-v1" }],
+            },
+            {
+              text: "ワークフロー",
+              items: [
+                {
+                  text: "仕様駆動ワークフロー",
+                  link: "/ja/workflow/spec-driven-workflow",
+                },
+              ],
+            },
+            {
+              text: "メモリ",
+              items: [
+                {
+                  text: "メモリアーキテクチャ",
+                  link: "/ja/memory/memory-architecture",
+                },
+              ],
+            },
+            {
+              text: "開発",
+              items: [
+                {
+                  text: "開発環境",
+                  link: "/ja/development/development-environment",
+                },
+                {
+                  text: "AIエージェントフレームワークポリシー",
+                  link: "/ja/development/ai-agent-framework-policy",
+                },
+              ],
+            },
+          ],
+        },
+      },
+    },
+
     themeConfig: {
-      nav: [
-        { text: "Home", link: "/" },
-        { text: "Vision", link: "/vision" },
-        { text: "Specs", link: "/specs" },
-      ],
-
-      sidebar: [
-        {
-          text: "Overview",
-          items: [
-            { text: "Introduction", link: "/vision" },
-            { text: "System Overview", link: "/system-overview" },
-            { text: "Spec Plan", link: "/specs" },
-          ],
-        },
-        {
-          text: "Architecture",
-          collapsed: false,
-          items: [
-            { text: "Architecture", link: "/architecture/architecture" },
-            {
-              text: "Agent Loop",
-              link: "/architecture/agent-loop-architecture",
-            },
-            {
-              text: "Tool System",
-              link: "/architecture/tool-system-architecture",
-            },
-            {
-              text: "Context Engineering",
-              link: "/architecture/context-engineering-architecture",
-            },
-            {
-              text: "Task Planning",
-              link: "/architecture/task-planning-architecture",
-            },
-            {
-              text: "Agent Safety",
-              link: "/architecture/agent-safety-architecture",
-            },
-            {
-              text: "Codebase Intelligence",
-              link: "/architecture/codebase-intelligence-architecture",
-            },
-          ],
-        },
-        {
-          text: "Agent",
-          items: [{ text: "AI Dev Agent v1", link: "/agent/dev-agent-v1" }],
-        },
-        {
-          text: "Workflow",
-          items: [
-            {
-              text: "Spec-Driven Workflow",
-              link: "/workflow/spec-driven-workflow",
-            },
-          ],
-        },
-        {
-          text: "Memory",
-          items: [
-            {
-              text: "Memory Architecture",
-              link: "/memory/memory-architecture",
-            },
-          ],
-        },
-        {
-          text: "Development",
-          items: [
-            {
-              text: "Development Environment",
-              link: "/development/development-environment",
-            },
-            {
-              text: "AI Agent Framework Policy",
-              link: "/development/ai-agent-framework-policy",
-            },
-          ],
-        },
-      ],
-
       socialLinks: [
         {
           icon: "github",
