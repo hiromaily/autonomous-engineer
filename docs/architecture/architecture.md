@@ -544,9 +544,20 @@ autonomous-engineer/
 │     └─ file-manager.ts
 │
 ├─ docs/
+│  ├─ README.md
+│  ├─ index.md
 │  ├─ vision.md
 │  ├─ system-overview.md
-│  ├─ architecture.md
+│  ├─ specs.md
+│  │
+│  ├─ architecture/
+│  │  ├─ architecture.md
+│  │  ├─ agent-loop-architecture.md
+│  │  ├─ agent-safety-architecture.md
+│  │  ├─ codebase-intelligence-architecture.md
+│  │  ├─ context-engineering-architecture.md
+│  │  ├─ task-planning-architecture.md
+│  │  └─ tool-system-architecture.md
 │  │
 │  ├─ agent/
 │  │  └─ dev-agent-v1.md
@@ -554,8 +565,12 @@ autonomous-engineer/
 │  ├─ workflow/
 │  │  └─ spec-driven-workflow.md
 │  │
-│  └─ memory/
-│     └─ memory-architecture.md
+│  ├─ memory/
+│  │  └─ memory-architecture.md
+│  │
+│  └─ development/
+│     ├─ development-environment.md
+│     └─ ai-agent-framework-policy.md
 │
 ├─ rules/
 │  ├─ coding_rules.md

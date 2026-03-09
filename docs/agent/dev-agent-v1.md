@@ -361,28 +361,26 @@ Achieving these goals establishes a strong foundation for autonomous software en
 
 The system will be implemented incrementally through multiple specifications.
 
-Each specification defines a specific development milestone.
+Each specification defines a specific development milestone with clear boundaries, dependencies, and acceptance criteria.
 
-Examples may include:
+The full specification breakdown is maintained in **[docs/specs.md](../specs.md)**.
 
-```
-spec-1
-workflow engine foundation
+Summary of the v1 spec plan:
 
-spec-2
-spec engine integration
+| Spec | Name | Focus |
+|---|---|---|
+| spec1 | orchestrator-core | CLI, workflow state machine, cc-sdd adapter, LLM abstraction |
+| spec2 | tool-system | Tool interface, registry, executor, 5 tool categories |
+| spec3 | agent-safety | Workspace isolation, guardrails, sandboxing, human approval |
+| spec4 | agent-loop | PLAN→ACT→OBSERVE→REFLECT→UPDATE, agent state, iteration control |
+| spec5 | memory-system | Project memory, knowledge memory, failure memory, retrieval |
+| spec6 | context-engine | 7-layer context, planner, token budget, compression |
+| spec7 | task-planning | Goal→task→steps hierarchy, dynamic revision, persistence |
+| spec8 | git-integration | Branch, commit, push, pull request |
+| spec9 | implementation-loop | Implement→review→improve→commit, quality gate |
+| spec10 | self-healing-loop | Failure analysis, rule updates, retry |
 
-spec-3
-implementation loop
-
-spec-4
-review system
-
-spec-5
-memory system
-```
-
-This staged approach ensures the system evolves in a controlled and testable manner.
+This staged approach ensures the system evolves in a controlled and testable manner, with each spec delivering independently usable functionality.
 
 ---
 
