@@ -24,7 +24,6 @@ export default withMermaid(
               items: [
                 { text: "Introduction", link: "/vision" },
                 { text: "System Overview", link: "/system-overview" },
-                { text: "Spec Plan", link: "/specs" },
               ],
             },
             {
@@ -83,6 +82,7 @@ export default withMermaid(
             {
               text: "Development",
               items: [
+                { text: "Spec Plan", link: "/specs" },
                 {
                   text: "Development Environment",
                   link: "/development/development-environment",
@@ -112,7 +112,6 @@ export default withMermaid(
               items: [
                 { text: "はじめに", link: "/ja/vision" },
                 { text: "システム概要", link: "/ja/system-overview" },
-                { text: "仕様計画", link: "/ja/specs" },
               ],
             },
             {
@@ -171,6 +170,7 @@ export default withMermaid(
             {
               text: "開発",
               items: [
+                { text: "仕様計画", link: "/ja/specs" },
                 {
                   text: "開発環境",
                   link: "/ja/development/development-environment",
