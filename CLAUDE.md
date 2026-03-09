@@ -4,6 +4,13 @@ Kiro-style Spec Driven Development implementation on AI-DLC (AI Development Life
 
 ## Project Context
 
+### Documentation
+- Index: `docs/README.md` — categorized index of all docs with one-line summaries; start here when looking for project knowledge
+- Architecture: `docs/architecture/` — layered architecture, agent loop, safety, context engineering, tool system, codebase intelligence, task planning
+- Vision & Overview: `docs/vision.md`, `docs/system-overview.md`
+- Memory system: `docs/memory/memory-architecture.md`
+- Development: `docs/development/` — toolchain setup and framework policy
+
 ### Paths
 - Steering: `.kiro/steering/`
 - Specs: `.kiro/specs/`
