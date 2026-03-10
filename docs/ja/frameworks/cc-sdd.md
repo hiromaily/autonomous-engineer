@@ -1,0 +1,117 @@
+# cc-sdd
+
+[cc-sdd](https://github.com/gotalab/cc-sdd)は、Autonomous Engineerに最初に統合されるSDDフレームワークです。
+
+CLIを通じて仕様ワークフローを提供し、実装前に構造化されたアーティファクト（要件、設計、タスク）を生成します。
+
+---
+
+## フェーズ構造
+
+cc-sddは7つの順次フェーズに従います：
+
+```
+SPEC_INIT
+    ↓
+REQUIREMENTS
+    ↓
+DESIGN
+    ↓
+VALIDATE_DESIGN  （オプション）
+    ↓
+TASK_GENERATION
+    ↓
+IMPLEMENTATION
+    ↓
+PULL_REQUEST
+```
+
+---
+
+## コマンド
+
+| コマンド | フェーズ | 説明 |
+|---|---|---|
+| `spec-init "description"` | 初期化 | 仕様ディレクトリと初期メタデータを作成 |
+| `spec-requirements <feature>` | 要件 | `requirements.md` を生成 |
+| `validate-gap <feature>` | オプション | 要件と既存コードベースの差分を確認 |
+| `spec-design <feature>` | 設計 | `design.md` を生成 |
+| `validate-design <feature>` | オプション | 設計品質と整合性を検証 |
+| `spec-tasks <feature>` | タスク | `tasks.md` を生成 |
+| `spec-impl <feature> [task-ids]` | 実装 | 実装ループを実行 |
+| `validate-impl <feature>` | オプション | 要件に対して実装を検証 |
+| `spec-status <feature>` | 任意 | 現在のフェーズとタスク進捗を表示 |
+
+---
+
+## アーティファクト
+
+すべてのアーティファクトは `.kiro/specs/<feature-name>/` 以下に格納されます。
+
+| アーティファクト | フェーズ | 説明 |
+|---|---|---|
+| `spec.json` | 初期化 | 仕様メタデータ（名前、言語、作成日） |
+| `requirements.md` | 要件 | チェックボックス付きEARS形式の要件 |
+| `design.md` | 設計 | 技術アーキテクチャ、データモデル、図 |
+| `validation-report.md` | 設計検証（オプション） | 設計レビューの合否レポート |
+| `tasks.md` | タスク | 受け入れ基準付きの順序付き実装タスク |
+
+---
+
+## 人間によるレビューゲート
+
+cc-sddは3つのポイントでレビューゲートを設けます：
+
+| ゲート | フェーズ後 | 必要なアクション |
+|---|---|---|
+| 要件承認 | 要件 | `requirements.md` をレビューし、スコープを確認 |
+| 設計承認 | 設計 | `design.md` をレビューし、アーキテクチャを確認 |
+| タスクリスト承認 | タスク | `tasks.md` をレビューし、実装計画を確認 |
+
+ゲートは `-y` でバイパスできますが、人間によるレビューが推奨デフォルトです。
+
+---
+
+## 要件フォーマット
+
+要件はEARS（Easy Approach to Requirements Syntax）形式のチェックボックスで記述します：
+
+```markdown
+- [ ] システムは...しなければならない
+- [ ] Xが発生した場合、システムは...しなければならない
+```
+
+---
+
+## タスクフォーマット
+
+タスクにはタイトル、説明、依存関係、要件に紐づいた受け入れ基準が含まれます：
+
+```markdown
+## タスク1: ツールインターフェースの実装
+
+**依存関係**: なし
+
+`Tool<Input, Output>` インターフェースと `ToolContext` 型を実装する。
+
+**受け入れ基準**:
+- [ ] ツールインターフェースが正しいジェネリクスで定義されている
+- [ ] ToolContextにworkspaceRoot、permissions、memory、loggerが含まれている
+- [ ] ユニットテストがインターフェース仕様を網羅している
+```
+
+---
+
+## 設定
+
+cc-sddは各仕様ディレクトリのルートにある `spec.json` にメタデータを格納します：
+
+```json
+{
+  "name": "feature-name",
+  "language": "en",
+  "created": "2026-03-10"
+}
+```
+
+`language` フィールドは、生成されるアーティファクトコンテンツの言語を制御します。

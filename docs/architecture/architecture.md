@@ -94,30 +94,30 @@ The system is organized into several layers.
 │             CLI               │
 │        User Interface         │
 └───────────────┬───────────────┘
-│
-▼
+                │
+                ▼
 
 ┌───────────────────────────────┐
 │       Use Case Layer          │
 │  Application Business Rules   │
 │  & Development Orchestration  │
 └───────────────┬───────────────┘
-│
-▼
+                │
+                ▼
 
 ┌───────────────────────────────┐
 │        Domain Layer           │
 │      Core System Logic        │
 └───────────────┬───────────────┘
-│
-▼
+                │
+                ▼
 
 ┌───────────────────────────────┐
 │        Adapter Layer          │
 │     External System Bridges   │
 └───────────────┬───────────────┘
-│
-▼
+                │
+                ▼
 
 ┌───────────────────────────────┐
 │      Infrastructure Layer     │
@@ -146,7 +146,7 @@ Examples:
 - `ExecuteTaskUseCase` — manages the implement → review → improve → commit loop
 - `ValidateDesignUseCase` — coordinates design validation across reviewers
 
-Use cases depend only on domain interfaces, never on adapters or infrastructure directly.
+Use cases depend only on domain interfaces at the code level, never importing from adapter or infrastructure packages directly. At runtime, concrete adapter implementations are injected via dependency injection, allowing use cases to access infrastructure through those interfaces without coupling to specific implementations.
 
 ---
 
@@ -524,28 +524,40 @@ autonomous-engineer/
 ├─ cli/
 │  └─ index.ts
 │
-├─ core/
+├─ application/
+│  ├─ usecases/
+│  │  ├─ initialize-spec-usecase.ts
+│  │  ├─ execute-task-usecase.ts
+│  │  └─ validate-design-usecase.ts
+│  │
+│  ├─ facades/
+│  │  ├─ workflow-facade.ts
+│  │  └─ spec-facade.ts
+│  │
+│  └─ ports/
+│     ├─ spec-engine-port.ts
+│     ├─ llm-provider-port.ts
+│     └─ git-controller-port.ts
+│
+├─ domain/
+│  ├─ engines/
+│  │  ├─ spec/
+│  │  │  └─ spec-engine.ts
+│  │  │
+│  │  ├─ implementation/
+│  │  │  └─ implementation-engine.ts
+│  │  │
+│  │  └─ review/
+│  │     └─ review-engine.ts
+│  │
 │  ├─ workflow/
 │  │  └─ workflow-engine.ts
 │  │
 │  ├─ memory/
 │  │  └─ memory-manager.ts
 │  │
-│  ├─ llm/
-│  │  └─ llm-provider.ts
-│  │
 │  └─ self-healing/
 │     └─ self-healing-engine.ts
-│
-├─ engines/
-│  ├─ spec/
-│  │  └─ spec-engine.ts
-│  │
-│  ├─ implementation/
-│  │  └─ implementation-engine.ts
-│  │
-│  └─ review/
-│     └─ review-engine.ts
 │
 ├─ adapters/
 │  ├─ sdd/
@@ -613,12 +625,16 @@ Each directory corresponds to a logical component of the system.
 
 ### Structure Philosophy
 
-The directory structure separates core system logic from external integrations.
+The directory structure maps directly to Clean Architecture layers, making each layer's role explicit.
 
-- `core/` contains fundamental system components
-- `engines/` contain domain-specific execution logic
-- `adapters/` connect the system to external tools
-- `infra/` handles infrastructure concerns
+- `cli/` is the entry point and user interface layer
+- `application/` is the application layer, grouped into three concerns:
+  - `usecases/` — application business rules and workflow orchestration
+  - `facades/` — simplified interfaces to complex domain subsystems
+  - `ports/` — input/output port definitions (interfaces required by the application)
+- `domain/` contains core domain logic independent of all external concerns
+- `adapters/` implement the ports defined in `application/`, bridging to external systems
+- `infra/` provides concrete infrastructure implementations (git, filesystem, etc.)
 - `docs/` provides architectural knowledge for both developers and AI agents
 
 This structure allows the system to evolve while keeping the core logic independent from external dependencies.

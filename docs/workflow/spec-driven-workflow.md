@@ -8,7 +8,7 @@ Rather than starting with code, every feature begins with structured specificati
 
 This approach improves AI reasoning quality, reduces hallucination, enables structured review loops, and makes the development process deterministic and auditable.
 
-The system integrates SDD via the [cc-sdd](https://github.com/gotalab/cc-sdd) framework.
+The system initially integrates SDD via the [cc-sdd](https://github.com/gotalab/cc-sdd) framework. Future versions plan to support additional SDD frameworks, including OpenSpec and SpecKit. See [SDD Frameworks](../frameworks/) for details on each supported framework.
 
 ---
 
@@ -29,7 +29,9 @@ SDD solves these problems by creating a structured, reviewable record of intent 
 
 ## Workflow Phases
 
-The spec-driven workflow follows seven sequential phases.
+The workflow phases depend on the SDD framework being integrated. Each framework defines its own phase structure, commands, and artifact conventions, which must be carefully documented before integration.
+
+The example below shows the phases for **cc-sdd**, the initial supported framework.
 
 ```
 SPEC_INIT
@@ -48,6 +50,8 @@ PULL_REQUEST
 ```
 
 Each phase produces structured artifacts that guide the next phase.
+
+> **Note**: When integrating a new SDD framework (e.g., OpenSpec, SpecKit), its phase structure, commands, and artifact formats must be fully documented before implementation begins.
 
 ---
 

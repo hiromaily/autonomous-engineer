@@ -65,6 +65,8 @@ Each subsystem has a clearly defined responsibility and communicates through wel
 
 The CLI layer provides the entry point for running the system.
 
+The command is named `aes`, which stands for **Autonomous Engineer System**.
+
 Example command:
 
 ```sh

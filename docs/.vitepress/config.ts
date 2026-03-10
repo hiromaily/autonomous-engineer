@@ -55,6 +55,10 @@ export default withMermaid(
                   text: "Codebase Intelligence",
                   link: "/architecture/codebase-intelligence-architecture",
                 },
+                {
+                  text: "Memory Architecture",
+                  link: "/memory/memory-architecture",
+                },
               ],
             },
             {
@@ -71,12 +75,11 @@ export default withMermaid(
               ],
             },
             {
-              text: "Memory",
+              text: "Frameworks",
               items: [
-                {
-                  text: "Memory Architecture",
-                  link: "/memory/memory-architecture",
-                },
+                { text: "Overview", link: "/frameworks/" },
+                { text: "cc-sdd", link: "/frameworks/cc-sdd" },
+                { text: "OpenSpec", link: "/frameworks/openspec" },
               ],
             },
             {
@@ -143,6 +146,10 @@ export default withMermaid(
                   text: "コードベース解析",
                   link: "/ja/architecture/codebase-intelligence-architecture",
                 },
+                {
+                  text: "メモリアーキテクチャ",
+                  link: "/ja/memory/memory-architecture",
+                },
               ],
             },
             {
@@ -159,12 +166,11 @@ export default withMermaid(
               ],
             },
             {
-              text: "メモリ",
+              text: "フレームワーク",
               items: [
-                {
-                  text: "メモリアーキテクチャ",
-                  link: "/ja/memory/memory-architecture",
-                },
+                { text: "概要", link: "/ja/frameworks/" },
+                { text: "cc-sdd", link: "/ja/frameworks/cc-sdd" },
+                { text: "OpenSpec", link: "/ja/frameworks/openspec" },
               ],
             },
             {
