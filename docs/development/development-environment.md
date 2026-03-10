@@ -107,6 +107,26 @@ This allows high-performance operations while keeping most system logic in TypeS
 
 ---
 
+## TypeScript vs Rust: Division of Roles
+
+TypeScript and Rust serve distinct purposes in the system.
+
+| Concern | TypeScript | Rust |
+|---|---|---|
+| Core business logic | ✓ | |
+| Workflow orchestration | ✓ | |
+| AI/LLM interaction | ✓ | |
+| CLI interface | ✓ | |
+| Adapter implementations | ✓ | |
+| Memory indexing | | ✓ |
+| Semantic search | | ✓ |
+| Context diffing | | ✓ |
+| Knowledge retrieval | | ✓ |
+
+The general rule: implement in TypeScript first. Migrate to Rust only when performance profiling identifies a concrete bottleneck.
+
+---
+
 ## Linting
 
 Linting is performed using **Biome**.
@@ -185,31 +205,41 @@ Using Bun simplifies dependency management compared to traditional Node environm
 
 ## Repository Structure
 
-The project combines TypeScript and Rust components.
+The project follows a modular directory structure aligned with Clean Architecture and Hexagonal Architecture principles.
 
-Example structure:
+See [Architecture — Directory Structure](/architecture/architecture#directory-structure) for the full canonical structure.
 
 ```
 autonomous-engineer/
-
-├─ src/
-│  ├─ core/
-│  ├─ engines/
-│  ├─ adapters/
-│  └─ cli/
+├─ cli/
 │
-├─ rust/
-│  └─ memory-engine/
+├─ application/
+│  ├─ usecases/
+│  ├─ facades/
+│  └─ ports/
+│
+├─ domain/
+│  ├─ engines/
+│  ├─ workflow/
+│  ├─ memory/
+│  └─ self-healing/
+│
+├─ adapters/
+│  ├─ sdd/
+│  └─ llm/
+│
+├─ infra/
+│  ├─ git/
+│  └─ filesystem/
 │
 ├─ docs/
 │
 ├─ package.json
 ├─ tsconfig.json
-└─ bun.lock
-
+└─ README.md
 ```
 
-This structure separates JavaScript/TypeScript logic from Rust-based performance modules.
+This structure maps directly to Clean Architecture layers, keeping core logic independent from external dependencies.
 
 ---
 
