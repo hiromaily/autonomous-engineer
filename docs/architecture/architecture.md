@@ -98,8 +98,9 @@ The system is organized into several layers.
 ▼
 
 ┌───────────────────────────────┐
-│        Workflow Layer         │
-│     Development Orchestration │
+│       Use Case Layer          │
+│  Application Business Rules   │
+│  & Development Orchestration  │
 └───────────────┬───────────────┘
 │
 ▼
@@ -125,6 +126,27 @@ The system is organized into several layers.
 ```
 
 Each layer has strict responsibilities.
+
+### Use Case Layer
+
+The Use Case Layer encodes application-specific business rules and orchestrates development workflows.
+
+In this system, workflow orchestration (driving phases such as spec-init → requirements → design → tasks → implementation) is itself a use case concern — it coordinates domain entities to fulfill application goals without depending on UI, frameworks, or external systems.
+
+Responsibilities:
+
+- orchestrate development lifecycle phases
+- coordinate domain entities to fulfill a single application goal
+- enforce business constraints specific to each use case
+- remain independent of UI, frameworks, and external systems
+
+Examples:
+
+- `InitializeSpecUseCase` — drives the spec initialization flow
+- `ExecuteTaskUseCase` — manages the implement → review → improve → commit loop
+- `ValidateDesignUseCase` — coordinates design validation across reviewers
+
+Use cases depend only on domain interfaces, never on adapters or infrastructure directly.
 
 ---
 
