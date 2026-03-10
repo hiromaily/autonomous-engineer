@@ -85,7 +85,7 @@ This improves reasoning quality and reduces token consumption.
 
 ---
 
-## Layered Architecture
+## Clean Architecture
 
 The system is organized into several layers.
 
