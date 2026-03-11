@@ -52,7 +52,7 @@
 ---
 
 - [ ] 3. Build the Permission System
-- [ ] 3.1 (P) Implement the four execution mode profiles and permission checking logic
+- [x] 3.1 (P) Implement the four execution mode profiles and permission checking logic
   - Define the four `ExecutionMode` profiles as frozen compile-time constants:
     - ReadOnly: filesystemRead only
     - Dev: filesystemRead + filesystemWrite
@@ -63,7 +63,7 @@
   - Define `IPermissionSystem` port interface
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5_
 
-- [ ] 3.2 Test the Permission System
+- [x] 3.2 Test the Permission System
   - Verify each mode resolves to exactly the correct set of flags
   - Verify `checkPermissions` correctly identifies missing flags for each combination
   - Verify `checkPermissions` grants permission when all required flags are present
