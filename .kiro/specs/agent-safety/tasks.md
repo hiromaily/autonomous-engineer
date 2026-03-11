@@ -1,7 +1,7 @@
 # Implementation Plan
 
 - [ ] 1. Domain Foundation
-- [ ] 1.1 Define immutable safety configuration and session state types
+- [x] 1.1 Define immutable safety configuration and session state types
   - Create `SafetyConfig` as an immutable value object with all policy thresholds and operator-configurable lists: workspace root, protected file patterns (defaults: `.env`, `secrets.json`, `.git/config`), protected branches (defaults: `main`, `production`), branch naming regex, max files per commit, shell blocklist/allowlist, max iterations, max runtime, max file deletes, rate limit config, and approval timeout
   - Create `SafetySession` as a mutable per-session aggregate holding: session ID, start timestamp, iteration count, repo write count, rolling timestamp windows for tool invocations and API requests, consecutive failure signature map, pause state, and emergency stop flag
   - Define `SafetyRateLimitConfig` embedded in `SafetyConfig` with defaults for tool invocations per minute, repo writes per session, and API requests per minute
@@ -9,14 +9,14 @@
   - Validate `SafetyConfig` at construction time; expose all array fields as `ReadonlyArray` to prevent post-construction mutation
   - _Requirements: 1.1, 2.1, 3.1, 3.3, 3.4, 4.1, 5.4, 6.1, 6.2, 6.5, 7.1, 7.5, 9.1, 9.2, 9.3, 9.5, 11.3, 12.1_
 
-- [ ] 1.2 Define the guard interface and shared value objects
+- [x] 1.2 Define the guard interface and shared value objects
   - Build the `ISafetyGuard` contract: a single check operation that receives the tool name, raw input, and safety context, and returns a check result without side effects and without ever rejecting
   - Build `SafetyCheckResult` as a discriminated value object with three outcomes: allowed (proceed), blocked (carry the specific `ToolError`), and requires-approval (carry a populated `ApprovalRequest`)
   - Build `SafetyContext` as an extension of the existing `ToolContext` that adds session and config references alongside existing fields — callers receive this type transparently
   - Build `ApprovalRequest` value object carrying the description, risk classification, expected impact, and proposed action needed to present an approval prompt
   - _Requirements: 1.1, 2.1, 3.1, 4.1, 6.1, 7.1, 8.1, 9.1, 10.1, 11.1_
 
-- [ ] 1.3 Define application port interfaces for adapters
+- [x] 1.3 Define application port interfaces for adapters
   - Build the `IAuditLogger` port with write and flush operations; build the `AuditEntry` value object with ISO 8601 timestamp, session ID, iteration number, tool name, sanitized input summary, outcome classification (`success | blocked | error | emergency-stop`), block reason, approval decision, and error details
   - Build the `IApprovalGateway` port with a single request-approval operation that accepts a request and a timeout, and returns one of three outcomes: approved, denied, or timeout
   - Build the `ISandboxExecutor` port with a single execute operation; build the sandbox request value object (command, args, working directory, method, optional container image) and the sandbox result value object (stdout, stderr, exit code, duration)
