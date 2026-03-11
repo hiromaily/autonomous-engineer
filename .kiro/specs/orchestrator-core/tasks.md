@@ -79,13 +79,13 @@ Task 6 (phase execution engine)
 
 - [ ] 4. (P) Build SDD framework adapter for cc-sdd
 
-- [ ] 4.1 Define the SDD framework port contract
+- [x] 4.1 Define the SDD framework port contract
   - Define the adapter interface with four operations mapping to workflow phases: generate requirements, generate design, validate design, and generate tasks
   - Define the context input (spec name, spec directory path, language) and result type (success with artifact path, or failure with exit code and stderr)
   - Establish invariants: each operation writes only to the spec directory; side effects must not modify workflow state
   - _Requirements: 6.5, 6.6, 6.7_
 
-- [ ] 4.2 Build the cc-sdd subprocess adapter
+- [x] 4.2 Build the cc-sdd subprocess adapter
   - Implement the SDD framework contract by shelling out to the `cc-sdd` CLI binary using subprocess execution (not shell interpolation) to prevent command injection
   - Pass spec name, language, and spec directory path as separate argument array entries to each invocation
   - Capture stdout and stderr; map non-zero exit codes to a structured failure result carrying exit code and stderr
