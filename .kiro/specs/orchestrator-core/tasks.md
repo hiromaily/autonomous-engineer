@@ -144,14 +144,14 @@ Task 6 (phase execution engine)
 
 - [ ] 8. Build the application use case and aes CLI entry point
 
-- [ ] 8.1 Build the RunSpec use case that orchestrates workflow execution
+- [x] 8.1 Build the RunSpec use case that orchestrates workflow execution
   - Construct the workflow engine with all injected dependencies (adapters, infrastructure, ports) using constructor-based dependency injection
   - On `--resume`, restore the last persisted state before delegating to the workflow engine
   - On `--dry-run`, validate that the spec exists and configuration loads without errors; exit successfully without starting the workflow
   - Support `--provider` flag to override the LLM provider from configuration at runtime
   - _Requirements: 1.1, 1.6, 1.7, 3.6_
 
-- [ ] 8.2 Build the aes CLI command with run subcommand, flag parsing, and progress rendering
+- [x] 8.2 Build the aes CLI command with run subcommand, flag parsing, and progress rendering
   - Define the `aes run <spec-name>` command using the CLI framework with typed flag definitions: `--provider`, `--dry-run`, `--resume`, `--log-json <file>`
   - Exit with a non-zero status code and descriptive error message when spec name is invalid, spec does not exist, or configuration fails to load
   - Subscribe to the workflow event bus before starting the use case; render phase headers, elapsed time for the active phase, and error messages to the terminal

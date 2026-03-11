@@ -1,0 +1,130 @@
+#!/usr/bin/env bun
+import { defineCommand, runMain } from 'citty';
+import { ConfigLoader } from '../infra/config/config-loader';
+import { ConfigValidationError } from '../application/ports/config';
+import { WorkflowStateStore } from '../infra/state/workflow-state-store';
+import { WorkflowEventBus } from '../infra/events/workflow-event-bus';
+import { CcSddAdapter } from '../adapters/sdd/cc-sdd-adapter';
+import { ClaudeProvider } from '../adapters/llm/claude-provider';
+import { RunSpecUseCase } from '../application/use-cases/run-spec';
+import { CliRenderer } from './renderer';
+import { JsonLogWriter } from './json-log-writer';
+import type { AesConfig } from '../application/ports/config';
+import type { LlmProviderPort } from '../application/ports/llm';
+
+const runCommand = defineCommand({
+  meta: {
+    name: 'run',
+    description: 'Run a spec workflow',
+  },
+  args: {
+    specName: {
+      type: 'positional',
+      description: 'Name of the spec to run',
+      required: true,
+    },
+    provider: {
+      type: 'string',
+      description: 'Override the LLM provider',
+    },
+    'dry-run': {
+      type: 'boolean',
+      description: 'Validate spec and config without running the workflow',
+      default: false,
+    },
+    resume: {
+      type: 'boolean',
+      description: 'Resume from the last persisted state',
+      default: false,
+    },
+    'log-json': {
+      type: 'string',
+      description: 'Write workflow events as NDJSON to this file',
+    },
+  },
+  async run({ args }) {
+    const specName = args.specName as string;
+
+    if (!specName || specName.trim() === '') {
+      process.stderr.write('Error: spec name is required\n');
+      process.exit(1);
+    }
+
+    // Load configuration
+    const configLoader = new ConfigLoader();
+    let config: AesConfig;
+    try {
+      config = await configLoader.load();
+    } catch (err) {
+      if (err instanceof ConfigValidationError) {
+        process.stderr.write(`Error: configuration missing required fields: ${err.missingFields.join(', ')}\n`);
+      } else {
+        process.stderr.write(`Error: failed to load configuration: ${err instanceof Error ? err.message : String(err)}\n`);
+      }
+      process.exit(1);
+    }
+
+    // Set up event bus and subscribers
+    const eventBus = new WorkflowEventBus();
+    const renderer = new CliRenderer((text) => process.stdout.write(text));
+    eventBus.on((event) => renderer.handle(event));
+
+    // Set up optional JSON log writer
+    const logJsonPath = args['log-json'] as string | undefined;
+    let logWriter: JsonLogWriter | null = null;
+    if (logJsonPath) {
+      logWriter = new JsonLogWriter(logJsonPath);
+      const writer = logWriter;
+      eventBus.on((event) => {
+        writer.write(event).catch((err) => {
+          process.stderr.write(`Warning: failed to write to log file: ${err instanceof Error ? err.message : String(err)}\n`);
+        });
+      });
+    }
+
+    // Build use case with injected deps
+    const useCase = new RunSpecUseCase({
+      stateStore: new WorkflowStateStore(),
+      eventBus,
+      sdd: new CcSddAdapter(),
+      createLlmProvider: (cfg: AesConfig, providerOverride?: string): LlmProviderPort => {
+        // providerOverride may select a different provider in the future;
+        // for now only 'claude' is implemented
+        const provider = providerOverride ?? cfg.llm.provider;
+        if (provider !== 'claude') {
+          process.stderr.write(`Warning: unsupported provider '${provider}', falling back to 'claude'\n`);
+        }
+        return new ClaudeProvider({ apiKey: cfg.llm.apiKey, modelName: cfg.llm.modelName });
+      },
+    });
+
+    const providerArg = args.provider as string | undefined;
+    const result = await useCase.run(specName, config, {
+      resume: Boolean(args.resume),
+      dryRun: Boolean(args['dry-run']),
+      providerOverride: providerArg,
+    });
+
+    // Flush JSON log
+    if (logWriter) {
+      await logWriter.close();
+    }
+
+    if (result.status === 'failed') {
+      process.exit(1);
+    }
+  },
+});
+
+const mainCommand = defineCommand({
+  meta: {
+    name: 'aes',
+    description: 'Autonomous Engineer System CLI',
+    version: '0.1.0',
+  },
+  subCommands: {
+    run: runCommand,
+  },
+});
+
+runMain(mainCommand);
