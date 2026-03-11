@@ -119,7 +119,7 @@ Task 6 (phase execution engine)
 
 - [ ] 7. Build the workflow orchestration engine
 
-- [ ] 7.1 Implement the 7-phase sequential state machine with artifact validation and atomic state persistence
+- [x] 7.1 Implement the 7-phase sequential state machine with artifact validation and atomic state persistence
   - Drive the fixed phase sequence and advance to the next phase only after the current phase completes successfully
   - Before each phase, validate that all required artifacts from the previous phase exist on disk; reject the transition and halt if any are missing
   - Persist updated workflow state atomically to disk before invoking any operations in the next phase
@@ -127,13 +127,13 @@ Task 6 (phase execution engine)
   - Expose current workflow state (phase, completed phases, status) as a queryable data structure
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 4.4, 4.5_
 
-- [ ] 7.2 Integrate phase runner and emit progress events throughout execution
+- [x] 7.2 Integrate phase runner and emit progress events throughout execution
   - Invoke the phase runner for each phase and collect phase results
   - Emit phase-start before execution, phase-complete with duration and artifact list on success, and phase-error with operation name on failure
   - Transition to the failed state when a phase fails, persisting failure detail and emitting workflow-failed before returning
   - _Requirements: 4.1, 4.2, 8.1, 8.2, 8.3_
 
-- [ ] 7.3 Integrate approval gates and implement paused-for-approval state handling
+- [x] 7.3 Integrate approval gates and implement paused-for-approval state handling
   - After each SDD phase that requires approval (REQUIREMENTS, DESIGN, TASK_GENERATION), check the approval gate before advancing
   - When the gate returns pending, persist the `paused_for_approval` state with `currentPhase` set to the just-completed phase, emit approval-required event, and return to the caller
   - On the next run, re-check the approval gate for the stored `currentPhase` before advancing; never re-execute an already-completed phase
