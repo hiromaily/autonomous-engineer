@@ -93,7 +93,7 @@ Task 6 (phase execution engine)
 
 ---
 
-- [ ] 5. (P) Build the approval gate for human review checkpoints
+- [x] 5. (P) Build the approval gate for human review checkpoints
   - Read `spec.json` fresh on every check (no caching) to detect out-of-process approvals
   - Check the `approvals.requirements.approved`, `approvals.design.approved`, and `approvals.tasks.approved` fields for the appropriate phase gate
   - Return a pending result if `spec.json` is missing, malformed, or the approval field is false or absent (fail closed)
