@@ -182,13 +182,13 @@
 ---
 
 - [ ] 9. Implement knowledge tools
-- [ ] 9.1 (P) Implement `search_memory`, `retrieve_spec`, and `retrieve_design_doc`
+- [x] 9.1 (P) Implement `search_memory`, `retrieve_spec`, and `retrieve_design_doc`
   - `search_memory`: delegate entirely to `context.memory.search(query)`; return the ranked entry list; requires no file permissions; does not instantiate its own memory connection
   - `retrieve_spec`: read requirements, design, and tasks documents from `.kiro/specs/<specName>/`; return `null` for design and tasks when files are absent; requires `filesystemRead`; applies workspace path validation
   - `retrieve_design_doc`: read the specified architecture document from `docs/`; return `ToolError { type: 'runtime' }` when the path does not exist; requires `filesystemRead`; applies workspace path validation
   - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5_
 
-- [ ] 9.2 Integration-test knowledge tools
+- [x] 9.2 Integration-test knowledge tools
   - `search_memory` calls `MemoryClient.search` with the query and returns its result (test with a stub client)
   - `retrieve_spec` returns correct document contents for a known spec; returns null fields for missing design/tasks
   - `retrieve_design_doc` returns correct content for a known doc path; returns runtime error for a missing path
