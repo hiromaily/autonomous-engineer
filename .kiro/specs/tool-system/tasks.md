@@ -140,19 +140,19 @@
 ---
 
 - [ ] 7. Implement shell tools
-- [ ] 7.1 (P) Implement `run_command` with process execution and output capture
+- [x] 7.1 (P) Implement `run_command` with process execution and output capture
   - Accept `command`, `args` array, and optional `cwd`; execute via `execFile` with array arguments to prevent shell interpolation
   - Capture and return `stdout`, `stderr`, and `exitCode`; non-zero exit code is a valid result (not an error)
   - Requires `shellExecution` permission; respect per-tool timeout
   - _Requirements: 7.1, 7.4, 7.5_
 
-- [ ] 7.2 (P) Implement `run_test_suite` and `install_dependencies`
+- [x] 7.2 (P) Implement `run_test_suite` and `install_dependencies`
   - `run_test_suite`: invokes the specified test framework runner; parses output into a structured result with passed/failed counts and failure messages; requires `shellExecution`
   - `install_dependencies`: runs the appropriate package manager install command; returns stdout, stderr, and exit code; requires `shellExecution`
   - Both tools apply workspace path validation for any `cwd` parameter
   - _Requirements: 7.2, 7.3, 7.5_
 
-- [ ] 7.3 Integration-test shell tools
+- [x] 7.3 Integration-test shell tools
   - `run_command` captures stdout and stderr; exit code is correctly forwarded
   - Timeout causes process termination and returns a runtime error
   - `run_test_suite` produces a structured pass/fail result for a simple test fixture
