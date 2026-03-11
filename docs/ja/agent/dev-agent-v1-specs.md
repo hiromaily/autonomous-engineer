@@ -53,6 +53,22 @@ spec8: git-integration  （spec2: tool-systemに依存）
 spec11: codebase-intelligence  （v1.x — spec2, spec6に依存）
 ```
 
+> **注意:** 上のツリーは推移的な依存階層全体を示しており、`spec1`の直接の子のみを表しているわけではありません。
+> `spec1`のブランチとして表示されている仕様も、開始前に中間の仕様を必要とする場合があります。
+> 正確な前提条件については、各仕様の`Dependencies`フィールドを参照してください。
+
+以下の表は、並行して実装できる仕様をまとめたものです：
+
+| ウェーブ | 仕様 | 前提条件 |
+|---|---|---|
+| 1 | spec1 | — |
+| 2 | spec2, spec5 | spec1 |
+| 3 | spec3, spec4, spec6 | spec2（spec3, spec4の場合）；spec2 + spec5（spec6の場合） |
+| 4 | spec7, spec8 | spec4 + spec6（spec7の場合）；spec2 + spec3（spec8の場合） |
+| 5 | spec9 | spec4 + spec6 + spec7 + spec8 |
+| 6 | spec10 | spec5 + spec9 |
+| 7 | spec11 _(v1.x)_ | spec2 + spec6 |
+
 ---
 
 ## v1仕様

@@ -53,6 +53,22 @@ spec8: git-integration  (depends on spec2: tool-system)
 spec11: codebase-intelligence  (v1.x — depends on spec2, spec6)
 ```
 
+> **Note:** The tree above shows the full transitive hierarchy, not just direct `spec1` children.
+> Specs that appear as branches of `spec1` may still require intermediate specs before they can start.
+> Always refer to each spec's `Dependencies` field for the exact prerequisites.
+
+The following table summarizes which specs can be implemented in parallel:
+
+| Wave | Specs | Prerequisite |
+|---|---|---|
+| 1 | spec1 | — |
+| 2 | spec2, spec5 | spec1 |
+| 3 | spec3, spec4, spec6 | spec2 (for spec3, spec4); spec2 + spec5 (for spec6) |
+| 4 | spec7, spec8 | spec4 + spec6 (for spec7); spec2 + spec3 (for spec8) |
+| 5 | spec9 | spec4 + spec6 + spec7 + spec8 |
+| 6 | spec10 | spec5 + spec9 |
+| 7 | spec11 _(v1.x)_ | spec2 + spec6 |
+
 ---
 
 ## v1 Specs
