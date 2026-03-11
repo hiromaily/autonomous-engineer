@@ -1,7 +1,7 @@
 # Implementation Plan
 
 - [ ] 1. Domain layer types
-- [ ] 1.1 Define action planning and reflection value types
+- [x] 1.1 Define action planning and reflection value types
   - Define the action category union representing the four kinds of actions the agent can take: Exploration, Modification, Validation, and Documentation
   - Define the action plan type that captures what action the agent intends to take — which category, which tool, what inputs to pass, and the LLM's reasoning rationale
   - Define the reflection output type that captures how the agent evaluated the last action — the assessment result, new learnings, whether the plan should continue or be revised, and whether the task is complete or human intervention is needed
@@ -9,14 +9,14 @@
   - All types must be plain serializable records — no class instances, functions, or Symbols; all fields immutable
   - _Requirements: 2.2, 2.3, 2.5, 5.2, 5.3_
 
-- [ ] 1.2 Define agent state and observation types
+- [x] 1.2 Define agent state and observation types
   - Define the termination condition union for all five ways the loop can end: task completed, max iterations reached, human intervention required, safety stop, and recovery exhausted
   - Define the observation type that records a single tool invocation — tool identity, inputs given, raw output received (typed as unknown to be agnostic to content), whether it succeeded or failed (with the structured error if failed), when it was recorded, and optionally the reflection metadata added after evaluation
   - Define the agent state type as the root aggregate for a single loop execution, holding the task description, current plan steps, completed steps, active step, iteration count, all observations accumulated so far, and recovery attempt count — all fields immutable; the state is replaced rather than mutated after each step
   - The agent state must be serializable to JSON so that external consumers can persist and restore it; the loop itself does not persist state
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 4.1, 6.1, 6.2, 6.3, 6.4, 7.2, 7.3, 7.4, 7.5, 8.4_
 
-- [ ] 1.3 Define the agent loop event discriminated union
+- [x] 1.3 Define the agent loop event discriminated union
   - Define the event union covering all observable points in the loop lifecycle: iteration start, iteration complete, step start, step complete, recovery attempt, and termination
   - Each event variant must carry the minimal contextual fields needed for downstream analysis — iteration number, step identity, duration in milliseconds, reflection assessment, termination condition, and final state as appropriate per variant
   - All event fields must be immutable; the union discriminates on the `type` field to allow exhaustive narrowing by consumers
