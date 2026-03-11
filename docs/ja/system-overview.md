@@ -451,4 +451,4 @@ Gitコントローラーが変更をコミット
 - [コードベース解析](architecture/codebase-intelligence-architecture.md) — シンボルインデックス、依存グラフ、セマンティック検索
 - [メモリアーキテクチャ](memory/memory-architecture.md) — 短期、プロジェクト、知識メモリレイヤー
 - [仕様駆動ワークフロー](workflow/spec-driven-workflow.md) — 完全なSDDフェーズワークフロー
-- [仕様計画](specs.md) — v1実装を10の独立した仕様に分解
+- [仕様計画](../agent/dev-agent-v1-specs.md) — v1実装を10の独立した仕様に分解

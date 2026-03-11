@@ -94,6 +94,10 @@ export default withMermaid(
                   text: "AI Agent Framework Policy",
                   link: "/development/ai-agent-framework-policy",
                 },
+                {
+                  text: "Agent Configuration",
+                  link: "/development/agent-configuration",
+                },
               ],
             },
           ],
@@ -184,6 +188,10 @@ export default withMermaid(
                 {
                   text: "AIエージェントフレームワークポリシー",
                   link: "/ja/development/ai-agent-framework-policy",
+                },
+                {
+                  text: "エージェント設定",
+                  link: "/ja/development/agent-configuration",
                 },
               ],
             },

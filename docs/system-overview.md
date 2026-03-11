@@ -451,4 +451,4 @@ Detailed architecture documentation for each subsystem:
 - [Codebase Intelligence](architecture/codebase-intelligence-architecture.md) — symbol index, dependency graph, semantic search
 - [Memory Architecture](memory/memory-architecture.md) — short-term, project, and knowledge memory layers
 - [Spec-Driven Workflow](workflow/spec-driven-workflow.md) — the full SDD phase workflow
-- [Spec Plan](specs.md) — breakdown of v1 implementation into 10 independent specs
+- [Spec Plan](agent/dev-agent-v1-specs.md) — breakdown of v1 implementation into 10 independent specs

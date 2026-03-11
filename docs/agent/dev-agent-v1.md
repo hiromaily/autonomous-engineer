@@ -347,7 +347,7 @@ AI Dev Agent v1 is considered successful if it can:
 
 1. Execute a full spec-driven development workflow
 2. Implement tasks autonomously
-3. perform review loops
+3. Perform review loops
 4. commit changes automatically
 5. create pull requests
 6. manage LLM context efficiently
@@ -363,7 +363,7 @@ The system will be implemented incrementally through multiple specifications.
 
 Each specification defines a specific development milestone with clear boundaries, dependencies, and acceptance criteria.
 
-The full specification breakdown is maintained in **[docs/specs.md](../specs.md)**.
+The full specification breakdown is maintained in **[docs/agent/dev-agent-v1-specs.md](dev-agent-v1-specs.md)**.
 
 Summary of the v1 spec plan:
 

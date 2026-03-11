@@ -363,7 +363,7 @@ AI Dev Agent v1は以下ができれば成功とみなされます：
 
 各仕様は明確な境界、依存関係、受け入れ基準を持つ特定の開発マイルストーンを定義します。
 
-完全な仕様の詳細は **[docs/specs.md](../specs.md)** に維持されています。
+完全な仕様の詳細は **[docs/agent/dev-agent-v1-specs.md](dev-agent-v1-specs.md)** に維持されています。
 
 v1仕様計画の概要：
 

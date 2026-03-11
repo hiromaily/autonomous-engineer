@@ -10,11 +10,12 @@ This index helps AI agents and developers quickly locate relevant documentation.
 | System overview & components | [system-overview.md](system-overview.md) |
 | Architecture principles & structure | [architecture/architecture.md](architecture/architecture.md) |
 | AI Dev Agent v1 spec | [agent/dev-agent-v1.md](agent/dev-agent-v1.md) |
-| **Spec breakdown & implementation plan** | **[specs.md](specs.md)** |
+| **Spec breakdown & implementation plan** | **[agent/dev-agent-v1-specs.md](agent/dev-agent-v1-specs.md)** |
 | Spec-driven workflow | [workflow/spec-driven-workflow.md](workflow/spec-driven-workflow.md) |
 | Memory system design | [memory/memory-architecture.md](memory/memory-architecture.md) |
 | Development environment setup | [development/development-environment.md](development/development-environment.md) |
 | AI agent framework policy | [development/ai-agent-framework-policy.md](development/ai-agent-framework-policy.md) |
+| Agent configuration methodology | [development/agent-configuration.md](development/agent-configuration.md) |
 
 ---
 
@@ -81,3 +82,6 @@ Development toolchain setup — runtime, package manager, language, build tools,
 
 ### [development/ai-agent-framework-policy.md](development/ai-agent-framework-policy.md)
 Policy on intentionally avoiding large AI agent frameworks — rationale for building lightweight, custom components to maintain control, transparency, and minimal dependencies.
+
+### [development/agent-configuration.md](development/agent-configuration.md)
+Agent configuration methodology — how to configure which LLM provider and coding agent (Claude Code, Cursor, Codex, Copilot) to use, the configuration hierarchy (config file, env vars, CLI flags), per-agent native config integration, and dynamic per-phase provider selection.

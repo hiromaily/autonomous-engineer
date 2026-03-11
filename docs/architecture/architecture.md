@@ -582,7 +582,7 @@ autonomous-engineer/
 │  ├─ index.md
 │  ├─ vision.md
 │  ├─ system-overview.md
-│  ├─ specs.md
+│  ├─ agent/dev-agent-v1-specs.md
 │  │
 │  ├─ architecture/
 │  │  ├─ architecture.md

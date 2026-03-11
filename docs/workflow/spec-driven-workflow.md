@@ -348,4 +348,4 @@ The workflow is driven by the **Workflow Engine** (see [architecture](../archite
 
 The cc-sdd adapter translates workflow engine commands into cc-sdd CLI calls and parses the resulting artifacts for downstream use.
 
-For the complete spec breakdown of how this system is implemented, see [Spec Plan](../specs.md).
+For the complete spec breakdown of how this system is implemented, see [Spec Plan](../agent/dev-agent-v1-specs.md).

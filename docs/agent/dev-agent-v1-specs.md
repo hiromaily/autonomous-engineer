@@ -1,6 +1,6 @@
 # Spec Plan
 
-This document defines the specification breakdown for implementing AI Dev Agent v1, as described in [agent/dev-agent-v1.md](agent/dev-agent-v1.md).
+This document defines the specification breakdown for implementing AI Dev Agent v1, as described in [dev-agent-v1.md](dev-agent-v1.md).
 
 Each spec maps to one or more architecture documents under `docs/` and is designed to be independently implementable and deliverable via [cc-sdd](https://github.com/gotalab/cc-sdd).
 
