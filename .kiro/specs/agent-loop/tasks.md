@@ -36,14 +36,14 @@
   - _Requirements: 11.5, 9.1, 9.2, 9.3_
 
 - [ ] 3. AgentLoopService foundation
-- [ ] 3.1 Establish class structure and dependency injection
+- [x] 3.1 Establish class structure and dependency injection
   - Create the agent loop service class implementing the public loop interface, accepting the tool executor, tool registry, LLM provider, and tool context via constructor injection — all required at construction time; optional ports come in through the run call
   - Declare a private stop-requested flag as the only mutable class-level state, and a private current-state field for answering status queries during execution
   - Define a private defaults constant inside the service that fills in iteration limits and retry counts when the caller omits them; merge caller-supplied options with defaults at the start of each run
   - Enforce the dependency boundary: the service must not import tool implementations directly or any LLM provider SDK — all tool calls go through the executor interface and all LLM calls go through the provider port
   - _Requirements: 10.1, 10.2, 11.1, 11.6_
 
-- [ ] 3.2 Implement public interface and state initialization
+- [x] 3.2 Implement public interface and state initialization
   - Implement the stop signal method so external callers (e.g., orchestrator-core phase transitions) can request graceful termination; the loop will complete the in-progress sub-step before halting
   - Implement the state query method to return a consistent snapshot of the current agent state (iteration count, active step, completed step count) without blocking ongoing execution; return null when no run is active
   - Implement a private state initialization helper that produces a fresh agent state for a new task — empty plan, no completed steps, no observations, zero counts, and a start timestamp
