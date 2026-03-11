@@ -17,15 +17,15 @@ Task 6 (phase execution engine)
 
 ---
 
-- [ ] 1. Set up project infrastructure and build configuration loading
+- [x] 1. Set up project infrastructure and build configuration loading
 
-- [ ] 1.1 (P) Initialize the Bun project with TypeScript strict mode and install all runtime dependencies
+- [x] 1.1 (P) Initialize the Bun project with TypeScript strict mode and install all runtime dependencies
   - Configure Bun as the runtime and package manager with TypeScript strict mode enabled
   - Install the CLI framework, Anthropic SDK, and their required peer dependencies
   - Set up the source directory structure matching the Clean + Hexagonal Architecture layers (cli, application, domain, adapters, infra)
   - _Requirements: 2.1_
 
-- [ ] 1.2 (P) Build configuration loading with environment variable merging and validation
+- [x] 1.2 (P) Build configuration loading with environment variable merging and validation
   - Load `aes.config.json` from the project root at startup
   - Merge environment variables over file-based values, with env vars taking precedence
   - Validate required fields (LLM provider, model name, API key) and report all missing values by name before starting any workflow operation
