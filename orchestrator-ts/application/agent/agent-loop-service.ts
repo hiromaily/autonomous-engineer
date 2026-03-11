@@ -82,9 +82,12 @@ export class AgentLoopService implements IAgentLoop {
         // PLAN step — throws on exhausted retries (caught below → HUMAN_INTERVENTION_REQUIRED)
         const plan = await this.#planStep(state, toolSchemas, opts);
         // ACT step — throws on permission error (caught below → HUMAN_INTERVENTION_REQUIRED)
-        const _observation = await this.#actStep(plan);
-        // TODO: OBSERVE step (task 5.1), REFLECT (5.2), UPDATE_STATE (5.3), iteration counter
-        break; // placeholder until tasks 5.x are implemented
+        const observation = await this.#actStep(plan);
+        // OBSERVE step (task 5.1) — append observation to state (immutable)
+        state = this.#observeStep(observation, state);
+        this.#currentState = state;
+        // TODO: REFLECT (5.2), UPDATE_STATE (5.3), iteration counter
+        break; // placeholder until tasks 5.2-5.3 are implemented
       }
 
       return {
@@ -215,6 +218,21 @@ export class AgentLoopService implements IAgentLoop {
       error: result.error,
       success: false,
       recordedAt,
+    };
+  }
+
+  // ---------------------------------------------------------------------------
+  // OBSERVE step (task 5.1)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Appends the observation produced by the ACT step to the agent state.
+   * Never mutates the existing state — returns a replacement state object.
+   */
+  #observeStep(observation: Observation, state: AgentState): AgentState {
+    return {
+      ...state,
+      observations: [...state.observations, observation],
     };
   }
 

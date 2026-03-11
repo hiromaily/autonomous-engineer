@@ -563,3 +563,151 @@ describe('AgentLoopService ACT step', () => {
     expect(capturedInput).toEqual({ path: '/workspace/src/index.ts' });
   });
 });
+
+// ---------------------------------------------------------------------------
+// Task 5.1 — OBSERVE step: observation recording and immutable state update
+// ---------------------------------------------------------------------------
+
+describe('AgentLoopService OBSERVE step', () => {
+  function makeValidLlm(): LlmProviderPort {
+    return {
+      async complete(_prompt) {
+        return {
+          ok: true,
+          value: {
+            content: JSON.stringify({
+              category: 'Exploration',
+              toolName: 'read_file',
+              toolInput: { path: '/workspace/src/index.ts' },
+              rationale: 'Need to read the main file',
+            }),
+            usage: { inputTokens: 1, outputTokens: 1 },
+          },
+        };
+      },
+      clearContext() {},
+    };
+  }
+
+  it('after one iteration, finalState.observations has exactly one entry', async () => {
+    const executor: IToolExecutor = {
+      async invoke(_name, _input, _ctx) {
+        return { ok: true, value: { content: 'file contents' } };
+      },
+    };
+
+    const service = new AgentLoopService(executor, makeRegistry(), makeValidLlm(), makeToolContext());
+    const result = await service.run('test task', { maxIterations: 1 });
+
+    expect(result.finalState.observations).toHaveLength(1);
+  });
+
+  it('observation records the toolName from the ActionPlan', async () => {
+    const executor: IToolExecutor = {
+      async invoke(_name, _input, _ctx) {
+        return { ok: true, value: {} };
+      },
+    };
+
+    const service = new AgentLoopService(executor, makeRegistry(), makeValidLlm(), makeToolContext());
+    const result = await service.run('test task', { maxIterations: 1 });
+
+    expect(result.finalState.observations[0]!.toolName).toBe('read_file');
+  });
+
+  it('successful tool execution — observation has success=true and rawOutput set', async () => {
+    const rawOutput = { content: 'file contents here', lines: 42 };
+    const executor: IToolExecutor = {
+      async invoke(_name, _input, _ctx) {
+        return { ok: true, value: rawOutput };
+      },
+    };
+
+    const service = new AgentLoopService(executor, makeRegistry(), makeValidLlm(), makeToolContext());
+    const result = await service.run('test task', { maxIterations: 1 });
+
+    const obs = result.finalState.observations[0]!;
+    expect(obs.success).toBe(true);
+    expect(obs.rawOutput).toEqual(rawOutput);
+    expect(obs.error).toBeUndefined();
+  });
+
+  it('failed tool execution (non-permission) — observation has success=false and error set', async () => {
+    const executor: IToolExecutor = {
+      async invoke(_name, _input, _ctx) {
+        return { ok: false, error: { type: 'runtime', message: 'command failed' } };
+      },
+    };
+
+    const service = new AgentLoopService(executor, makeRegistry(), makeValidLlm(), makeToolContext());
+    const result = await service.run('test task', { maxIterations: 1 });
+
+    const obs = result.finalState.observations[0]!;
+    expect(obs.success).toBe(false);
+    expect(obs.error).toBeDefined();
+    expect(obs.error!.type).toBe('runtime');
+    expect(obs.error!.message).toBe('command failed');
+  });
+
+  it('observation records toolInput from the ActionPlan', async () => {
+    const executor: IToolExecutor = {
+      async invoke(_name, _input, _ctx) {
+        return { ok: true, value: {} };
+      },
+    };
+
+    const service = new AgentLoopService(executor, makeRegistry(), makeValidLlm(), makeToolContext());
+    const result = await service.run('test task', { maxIterations: 1 });
+
+    const obs = result.finalState.observations[0]!;
+    expect(obs.toolInput).toEqual({ path: '/workspace/src/index.ts' });
+  });
+
+  it('observation has a valid ISO 8601 recordedAt timestamp', async () => {
+    const before = Date.now();
+    const executor: IToolExecutor = {
+      async invoke(_name, _input, _ctx) {
+        return { ok: true, value: {} };
+      },
+    };
+
+    const service = new AgentLoopService(executor, makeRegistry(), makeValidLlm(), makeToolContext());
+    const result = await service.run('test task', { maxIterations: 1 });
+
+    const obs = result.finalState.observations[0]!;
+    const parsed = Date.parse(obs.recordedAt);
+    expect(Number.isNaN(parsed)).toBe(false);
+    expect(parsed).toBeGreaterThanOrEqual(before);
+    expect(obs.recordedAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+  });
+
+  it('state is never mutated — initial state has empty observations, new state has one', async () => {
+    const executor: IToolExecutor = {
+      async invoke(_name, _input, _ctx) {
+        return { ok: true, value: {} };
+      },
+    };
+
+    const service = new AgentLoopService(executor, makeRegistry(), makeValidLlm(), makeToolContext());
+
+    // Run with maxIterations: 0 to capture empty initial state
+    const emptyResult = await service.run('test task', { maxIterations: 0 });
+    expect(emptyResult.finalState.observations).toHaveLength(0);
+
+    // Run with maxIterations: 1 to get one observation
+    const oneIterResult = await service.run('test task', { maxIterations: 1 });
+    expect(oneIterResult.finalState.observations).toHaveLength(1);
+  });
+
+  it('zero iterations — finalState.observations remains empty', async () => {
+    const service = new AgentLoopService(
+      makeExecutor(),
+      makeRegistry(),
+      makeValidLlm(),
+      makeToolContext(),
+    );
+
+    const result = await service.run('test task', { maxIterations: 0 });
+    expect(result.finalState.observations).toHaveLength(0);
+  });
+});
