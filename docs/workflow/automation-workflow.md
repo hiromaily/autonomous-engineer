@@ -34,7 +34,7 @@ flowchart TD
             REQ_OK --> REQ_KNOW["AI captures learnings\nto steering/rules"]
             REQ_KNOW --> REQ_CLR["/clear"]
 
-            REQ_CLR --> DESIGN["/kiro:spec-design"] --> VAL_D["/kiro:validate-design"] --> DESIGN_LOOP
+            REQ_CLR --> VAL_GAP["/kiro:validate-gap\n(optional)"] --> DESIGN["/kiro:spec-design"] --> VAL_D["/kiro:validate-design"] --> DESIGN_LOOP
             subgraph DESIGN_LOOP ["Review Loop (max N iterations)"]
                 DESIGN_R["AI reviews design.md"] --> DESIGN_F["AI fixes issues"]
                 DESIGN_F --> DESIGN_R
@@ -144,6 +144,25 @@ flowchart TD
 - After the loop, the AI writes `approved: true` to `spec.json` for the corresponding phase
 - Before `/clear`, the AI captures accumulated learnings to persistent resources (see [Knowledge Capture](#knowledge-capture-before-context-reset))
 - `/clear` is executed after each phase approval to prevent context from carrying over into the next phase
+
+---
+
+## Validate Gap (Optional)
+
+After requirements are approved and before design begins, `/kiro:validate-gap` can be run to analyze the gap between the new feature requirements and the existing codebase:
+
+- **Identifies reusable components** already present in the codebase
+- **Detects missing functionality** that must be newly implemented
+- **Maps integration points** where the new feature connects to existing modules
+- **Flags areas requiring new implementation** so the design phase starts with full context
+
+Typical position in the flow:
+
+```text
+spec-requirements → validate-gap (optional) → spec-design → spec-tasks → spec-impl
+```
+
+This step is most valuable when working in an existing codebase. It prevents the design from duplicating existing work or missing integration constraints that are only visible from the current code.
 
 ---
 

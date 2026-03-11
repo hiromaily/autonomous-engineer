@@ -34,7 +34,7 @@ flowchart TD
             REQ_OK --> REQ_KNOW["AI が学習内容を\nsteering/rules に記録"]
             REQ_KNOW --> REQ_CLR["/clear"]
 
-            REQ_CLR --> DESIGN["/kiro:spec-design"] --> VAL_D["/kiro:validate-design"] --> DESIGN_LOOP
+            REQ_CLR --> VAL_GAP["/kiro:validate-gap\n（オプション）"] --> DESIGN["/kiro:spec-design"] --> VAL_D["/kiro:validate-design"] --> DESIGN_LOOP
             subgraph DESIGN_LOOP ["レビューループ（最大 N 回）"]
                 DESIGN_R["AI が design.md をレビュー"] --> DESIGN_F["AI が問題を修正"]
                 DESIGN_F --> DESIGN_R
@@ -144,6 +144,25 @@ flowchart TD
 - ループ後、AI は対応するフェーズの `spec.json` に `approved: true` を書き込みます
 - `/clear` の前に、AI は蓄積した学習内容を永続リソースに記録します（[コンテキストリセット前の知識記録](#コンテキストリセット前の知識記録)を参照）
 - `/clear` は各フェーズ承認後に実行され、コンテキストが次のフェーズに持ち越されるのを防ぎます
+
+---
+
+## ギャップ検証（オプション）
+
+要件が承認された後、設計を始める前に `/kiro:validate-gap` を実行することで、新機能の要件と既存コードベースとのギャップを分析できます：
+
+- **再利用可能なコンポーネントを特定** — すでにコードベースに存在するものを把握する
+- **不足している機能を検出** — 新規実装が必要なものを明確にする
+- **統合ポイントをマッピング** — 新機能が既存モジュールとどこで接続するかを把握する
+- **新規実装が必要な領域をフラグ** — 設計フェーズが完全なコンテキストから始められるようにする
+
+フローにおける典型的な位置：
+
+```text
+spec-requirements → validate-gap（オプション）→ spec-design → spec-tasks → spec-impl
+```
+
+このステップは既存コードベースで作業する場合に特に有用です。既存の実装の重複や、現在のコードからしか見えない統合上の制約の見落としを防ぎます。
 
 ---
 
