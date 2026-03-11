@@ -91,14 +91,14 @@
   - _Requirements: 7.2, 7.3, 7.4_
 
 - [ ] 5. Unit tests for memory components
-- [ ] 5.1 (P) Unit tests for the in-process short-term store
+- [x] 5.1 (P) Unit tests for the in-process short-term store
   - Test that read immediately after construction returns the empty initial state
   - Test that write with a partial object merges only the provided keys, leaving others at their previous values
   - Test that clear resets all fields to the empty initial state regardless of previous writes
   - Test that two separate instances are fully isolated (writing to one does not affect the other)
   - _Requirements: 1.1, 1.2, 1.3_
 
-- [ ] 5.2 (P) Unit tests for the file-based memory store
+- [x] 5.2 (P) Unit tests for the file-based memory store
   - Use a temporary directory as base dir for all tests to avoid touching real project files
   - Test append: new entry is written; subsequent append with the same title (different case) returns `skipped_duplicate` without modifying the file; missing directory is created automatically
   - Test append validation: blank title returns `invalid_entry` before any I/O

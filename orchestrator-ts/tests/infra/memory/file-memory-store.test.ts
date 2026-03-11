@@ -710,6 +710,24 @@ describe('FileMemoryStore - Task 3.4: writeFailure() and getFailures()', () => {
   });
 
   // -------------------------------------------------------------------------
+  // writeFailure(): IO error returns failure result without throwing
+  // -------------------------------------------------------------------------
+
+  it('returns failure result without throwing when IO error occurs during write', async () => {
+    // Place a FILE at the failures path so mkdir fails with ENOTDIR
+    await mkdir(join(tmpDir, '.memory'), { recursive: true });
+    await writeFile(join(tmpDir, '.memory', 'failures'), 'not a directory', 'utf-8');
+
+    const record = makeRecord({ taskId: 'io-error-task' });
+    // Must not throw — should return ok:false with io_error category
+    const result = await store.writeFailure(record);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.category).toBe('io_error');
+    }
+  });
+
+  // -------------------------------------------------------------------------
   // writeFailure(): multiple records accumulate independently
   // -------------------------------------------------------------------------
 
