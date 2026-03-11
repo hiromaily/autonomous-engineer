@@ -88,13 +88,13 @@ const runCommand = defineCommand({
       eventBus,
       sdd: new CcSddAdapter(),
       createLlmProvider: (cfg: AesConfig, providerOverride?: string): LlmProviderPort => {
-        // providerOverride may select a different provider in the future;
-        // for now only 'claude' is implemented
         const provider = providerOverride ?? cfg.llm.provider;
-        if (provider !== 'claude') {
-          process.stderr.write(`Warning: unsupported provider '${provider}', falling back to 'claude'\n`);
+        switch (provider) {
+          case 'claude':
+            return new ClaudeProvider({ apiKey: cfg.llm.apiKey, modelName: cfg.llm.modelName });
+          default:
+            throw new Error(`Unsupported LLM provider: '${provider}'`);
         }
-        return new ClaudeProvider({ apiKey: cfg.llm.apiKey, modelName: cfg.llm.modelName });
       },
     });
 

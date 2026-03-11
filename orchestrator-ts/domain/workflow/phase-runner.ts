@@ -43,6 +43,10 @@ export class PhaseRunner {
       case 'PULL_REQUEST':
         // Stubs: wired in spec4 and spec8; return success with no artifacts
         return { ok: true, artifacts: [] };
+      default: {
+        const _exhaustiveCheck: never = phase;
+        throw new Error(`Unhandled workflow phase: ${_exhaustiveCheck}`);
+      }
     }
   }
 

@@ -50,5 +50,9 @@ function artifactFilename(phase: ApprovalPhase): string {
     case 'requirements': return 'requirements.md';
     case 'design':       return 'design.md';
     case 'tasks':        return 'tasks.md';
+    default: {
+      const _exhaustiveCheck: never = phase;
+      throw new Error(`Unhandled approval phase: ${_exhaustiveCheck}`);
+    }
   }
 }
