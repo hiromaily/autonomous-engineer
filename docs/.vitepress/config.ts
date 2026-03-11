@@ -72,6 +72,10 @@ export default withMermaid(
                   text: "Spec-Driven Workflow",
                   link: "/workflow/spec-driven-workflow",
                 },
+                {
+                  text: "Automation Workflow",
+                  link: "/workflow/automation-workflow",
+                },
               ],
             },
             {
@@ -166,6 +170,10 @@ export default withMermaid(
                 {
                   text: "仕様駆動ワークフロー",
                   link: "/ja/workflow/spec-driven-workflow",
+                },
+                {
+                  text: "自動化ワークフロー",
+                  link: "/ja/workflow/automation-workflow",
                 },
               ],
             },
