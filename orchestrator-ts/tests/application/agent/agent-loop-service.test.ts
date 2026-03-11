@@ -1,10 +1,11 @@
 import { describe, it, expect } from 'bun:test';
 import { AgentLoopService } from '../../../application/agent/agent-loop-service';
-import type { IAgentLoop, AgentLoopOptions } from '../../../application/ports/agent-loop';
+import type { IAgentLoop, AgentLoopOptions, IContextProvider } from '../../../application/ports/agent-loop';
 import type { IToolExecutor } from '../../../application/tools/executor';
-import type { IToolRegistry } from '../../../domain/tools/registry';
+import type { IToolRegistry, ToolListEntry } from '../../../domain/tools/registry';
 import type { LlmProviderPort } from '../../../application/ports/llm';
 import type { ToolContext, MemoryEntry } from '../../../domain/tools/types';
+import type { AgentState } from '../../../domain/agent/types';
 
 // ---------------------------------------------------------------------------
 // Test helpers — minimal mocks satisfying each injected interface
@@ -302,5 +303,263 @@ describe('AgentLoopService.run() outer loop skeleton', () => {
     expect(result.terminationCondition).toBeDefined();
     expect(result.finalState).toBeDefined();
     expect(result.taskCompleted).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 4.1 — PLAN step: context building, LLM call, parse, validation, retry
+// ---------------------------------------------------------------------------
+
+function makeValidPlanJson(): string {
+  return JSON.stringify({
+    category: 'Exploration',
+    toolName: 'read_file',
+    toolInput: { path: '/workspace/src/index.ts' },
+    rationale: 'Need to read the main file to understand structure',
+  });
+}
+
+describe('AgentLoopService PLAN step', () => {
+  it('valid ActionPlan JSON on first LLM call — returns MAX_ITERATIONS_REACHED (not HUMAN_INTERVENTION_REQUIRED)', async () => {
+    const llm: LlmProviderPort = {
+      async complete(_prompt) {
+        return { ok: true, value: { content: makeValidPlanJson(), usage: { inputTokens: 1, outputTokens: 1 } } };
+      },
+      clearContext() {},
+    };
+
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), llm, makeToolContext());
+    const result = await service.run('test task', { maxIterations: 1 });
+
+    expect(result.terminationCondition).toBe('MAX_ITERATIONS_REACHED');
+  });
+
+  it('invalid JSON twice then valid JSON — retries and succeeds (MAX_ITERATIONS_REACHED)', async () => {
+    let callCount = 0;
+    const llm: LlmProviderPort = {
+      async complete(_prompt) {
+        callCount++;
+        if (callCount <= 2) {
+          return { ok: true, value: { content: 'not valid json', usage: { inputTokens: 1, outputTokens: 1 } } };
+        }
+        return { ok: true, value: { content: makeValidPlanJson(), usage: { inputTokens: 1, outputTokens: 1 } } };
+      },
+      clearContext() {},
+    };
+
+    // maxPlanParseRetries: 2 → 3 total attempts (initial + 2 retries)
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), llm, makeToolContext());
+    const result = await service.run('test task', { maxIterations: 1, maxPlanParseRetries: 2 });
+
+    expect(callCount).toBe(3);
+    expect(result.terminationCondition).toBe('MAX_ITERATIONS_REACHED');
+  });
+
+  it('always invalid JSON beyond retry limit — returns HUMAN_INTERVENTION_REQUIRED', async () => {
+    const llm: LlmProviderPort = {
+      async complete(_prompt) {
+        return { ok: true, value: { content: 'not valid json at all', usage: { inputTokens: 1, outputTokens: 1 } } };
+      },
+      clearContext() {},
+    };
+
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), llm, makeToolContext());
+    const result = await service.run('test task', { maxIterations: 1, maxPlanParseRetries: 2 });
+
+    expect(result.terminationCondition).toBe('HUMAN_INTERVENTION_REQUIRED');
+    expect(result.taskCompleted).toBe(false);
+  });
+
+  it('delegates to contextProvider.buildContext() when provided in options', async () => {
+    let contextProviderCalled = false;
+
+    const contextProvider: IContextProvider = {
+      async buildContext(_state, _toolSchemas) {
+        contextProviderCalled = true;
+        return 'custom context';
+      },
+    };
+
+    const llm: LlmProviderPort = {
+      async complete(_prompt) {
+        return { ok: true, value: { content: makeValidPlanJson(), usage: { inputTokens: 1, outputTokens: 1 } } };
+      },
+      clearContext() {},
+    };
+
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), llm, makeToolContext());
+    await service.run('test task', { maxIterations: 1, contextProvider });
+
+    expect(contextProviderCalled).toBe(true);
+  });
+
+  it('uses inline fallback context when no contextProvider — prompt contains task string', async () => {
+    let promptReceived = '';
+
+    const llm: LlmProviderPort = {
+      async complete(prompt) {
+        promptReceived = prompt;
+        return { ok: true, value: { content: makeValidPlanJson(), usage: { inputTokens: 1, outputTokens: 1 } } };
+      },
+      clearContext() {},
+    };
+
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), llm, makeToolContext());
+    await service.run('my special task', { maxIterations: 1 });
+
+    expect(promptReceived).toContain('my special task');
+  });
+
+  it('ActionPlan with invalid category — returns HUMAN_INTERVENTION_REQUIRED', async () => {
+    const badCategoryJson = JSON.stringify({
+      category: 'InvalidCategory',
+      toolName: 'read_file',
+      toolInput: {},
+      rationale: 'test',
+    });
+
+    const llm: LlmProviderPort = {
+      async complete(_prompt) {
+        return { ok: true, value: { content: badCategoryJson, usage: { inputTokens: 1, outputTokens: 1 } } };
+      },
+      clearContext() {},
+    };
+
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), llm, makeToolContext());
+    const result = await service.run('test task', { maxIterations: 1, maxPlanParseRetries: 0 });
+
+    expect(result.terminationCondition).toBe('HUMAN_INTERVENTION_REQUIRED');
+  });
+
+  it('ActionPlan with empty toolName — returns HUMAN_INTERVENTION_REQUIRED', async () => {
+    const emptyToolNameJson = JSON.stringify({
+      category: 'Exploration',
+      toolName: '',
+      toolInput: {},
+      rationale: 'test',
+    });
+
+    const llm: LlmProviderPort = {
+      async complete(_prompt) {
+        return { ok: true, value: { content: emptyToolNameJson, usage: { inputTokens: 1, outputTokens: 1 } } };
+      },
+      clearContext() {},
+    };
+
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), llm, makeToolContext());
+    const result = await service.run('test task', { maxIterations: 1, maxPlanParseRetries: 0 });
+
+    expect(result.terminationCondition).toBe('HUMAN_INTERVENTION_REQUIRED');
+  });
+
+  it('retry prompt includes error hint after first parse failure', async () => {
+    const prompts: string[] = [];
+
+    const llm: LlmProviderPort = {
+      async complete(prompt) {
+        prompts.push(prompt);
+        if (prompts.length === 1) {
+          return { ok: true, value: { content: 'bad json', usage: { inputTokens: 1, outputTokens: 1 } } };
+        }
+        return { ok: true, value: { content: makeValidPlanJson(), usage: { inputTokens: 1, outputTokens: 1 } } };
+      },
+      clearContext() {},
+    };
+
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), llm, makeToolContext());
+    await service.run('test task', { maxIterations: 1, maxPlanParseRetries: 1 });
+
+    expect(prompts.length).toBe(2);
+    // Second prompt should contain some hint about the previous failure
+    expect(prompts[1]).not.toBe(prompts[0]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 4.2 — ACT step: tool invocation, observation construction, permission bypass
+// ---------------------------------------------------------------------------
+
+describe('AgentLoopService ACT step', () => {
+  function makeValidLlm(): LlmProviderPort {
+    return {
+      async complete(_prompt) {
+        return { ok: true, value: { content: makeValidPlanJson(), usage: { inputTokens: 1, outputTokens: 1 } } };
+      },
+      clearContext() {},
+    };
+  }
+
+  it('successful tool execution — returns MAX_ITERATIONS_REACHED (no error)', async () => {
+    const executor: IToolExecutor = {
+      async invoke(_name, _input, _ctx) {
+        return { ok: true, value: { result: 'file contents here' } };
+      },
+    };
+
+    const service = new AgentLoopService(executor, makeRegistry(), makeValidLlm(), makeToolContext());
+    const result = await service.run('test task', { maxIterations: 1 });
+
+    expect(result.terminationCondition).toBe('MAX_ITERATIONS_REACHED');
+    expect(result.taskCompleted).toBe(false);
+  });
+
+  it('runtime tool error — does not return HUMAN_INTERVENTION_REQUIRED (non-permission errors do not bypass loop)', async () => {
+    const executor: IToolExecutor = {
+      async invoke(_name, _input, _ctx) {
+        return { ok: false, error: { type: 'runtime', message: 'command failed' } };
+      },
+    };
+
+    const service = new AgentLoopService(executor, makeRegistry(), makeValidLlm(), makeToolContext());
+    const result = await service.run('test task', { maxIterations: 1 });
+
+    expect(result.terminationCondition).toBe('MAX_ITERATIONS_REACHED');
+  });
+
+  it('validation tool error — does not return HUMAN_INTERVENTION_REQUIRED (non-permission errors do not bypass loop)', async () => {
+    const executor: IToolExecutor = {
+      async invoke(_name, _input, _ctx) {
+        return { ok: false, error: { type: 'validation', message: 'invalid input' } };
+      },
+    };
+
+    const service = new AgentLoopService(executor, makeRegistry(), makeValidLlm(), makeToolContext());
+    const result = await service.run('test task', { maxIterations: 1 });
+
+    expect(result.terminationCondition).toBe('MAX_ITERATIONS_REACHED');
+  });
+
+  it('permission tool error — returns HUMAN_INTERVENTION_REQUIRED immediately (bypasses recovery)', async () => {
+    const executor: IToolExecutor = {
+      async invoke(_name, _input, _ctx) {
+        return { ok: false, error: { type: 'permission', message: 'write not permitted' } };
+      },
+    };
+
+    const service = new AgentLoopService(executor, makeRegistry(), makeValidLlm(), makeToolContext());
+    const result = await service.run('test task', { maxIterations: 1 });
+
+    expect(result.terminationCondition).toBe('HUMAN_INTERVENTION_REQUIRED');
+    expect(result.taskCompleted).toBe(false);
+  });
+
+  it('executor is called with the toolName and toolInput from the ActionPlan', async () => {
+    let capturedName = '';
+    let capturedInput: unknown = null;
+
+    const executor: IToolExecutor = {
+      async invoke(name, input, _ctx) {
+        capturedName = name;
+        capturedInput = input;
+        return { ok: true, value: {} };
+      },
+    };
+
+    const service = new AgentLoopService(executor, makeRegistry(), makeValidLlm(), makeToolContext());
+    await service.run('test task', { maxIterations: 1 });
+
+    // makeValidPlanJson returns toolName: 'read_file', toolInput: { path: '/workspace/src/index.ts' }
+    expect(capturedName).toBe('read_file');
+    expect(capturedInput).toEqual({ path: '/workspace/src/index.ts' });
   });
 });

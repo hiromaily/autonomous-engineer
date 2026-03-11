@@ -51,14 +51,14 @@
   - _Requirements: 1.2, 1.3, 7.6, 10.3, 11.1, 11.2, 11.3_
 
 - [ ] 4. PLAN and ACT steps
-- [ ] 4.1 Implement the PLAN step
+- [x] 4.1 Implement the PLAN step
   - When the context provider is available, delegate context assembly for the PLAN prompt to it; otherwise fall back to an inline builder that uses a sliding window of the most recent observations bounded by a fixed token budget
   - Send the assembled context to the LLM and parse the response into a structured action plan — verify the action category is one of the four supported values and the tool name is present
   - On a parse failure, retry the LLM call with a clarification prompt up to the configured maximum; if all retries are exhausted without a valid plan, halt the loop with the human-intervention-required termination condition
   - Preserve the reasoning rationale from the parsed plan for use in REFLECT step prompts and observability logs
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 4.4, 11.5, 11.6_
 
-- [ ] 4.2 Implement the ACT step
+- [x] 4.2 Implement the ACT step
   - Execute the action from the plan by invoking the tool executor with the planned tool name and input parameters — all tool calls must be routed through the executor so that permission checks, schema validation, and timeout enforcement are applied
   - On a successful tool result, capture the raw output and construct a partial observation (without reflection metadata yet) indicating success
   - On a failed tool result, capture the structured error — its type (validation, runtime, or permission), message, and context — and construct a partial observation indicating failure; permission errors must bypass the recovery sub-loop and immediately trigger human-intervention-required termination

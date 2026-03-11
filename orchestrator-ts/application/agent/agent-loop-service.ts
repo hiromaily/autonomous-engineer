@@ -1,9 +1,10 @@
-import type { IAgentLoop, AgentLoopOptions, AgentLoopResult } from '../ports/agent-loop';
+import type { IAgentLoop, AgentLoopOptions, AgentLoopResult, IContextProvider } from '../ports/agent-loop';
 import type { IToolExecutor } from '../tools/executor';
-import type { IToolRegistry } from '../../domain/tools/registry';
+import type { IToolRegistry, ToolListEntry } from '../../domain/tools/registry';
 import type { LlmProviderPort } from '../ports/llm';
 import type { ToolContext } from '../../domain/tools/types';
-import type { AgentState } from '../../domain/agent/types';
+import type { AgentState, ActionPlan, ActionCategory, Observation } from '../../domain/agent/types';
+import { ACTION_CATEGORIES } from '../../domain/agent/types';
 
 // ---------------------------------------------------------------------------
 // Default option values — applied when callers omit a field
@@ -74,14 +75,16 @@ export class AgentLoopService implements IAgentLoop {
 
     try {
       // Retrieve available tool schemas once at startup (req 10.3)
-      // Passed to PLAN step context — tasks 4.x
-      const _toolSchemas = this.#registry.list();
+      const toolSchemas = this.#registry.list();
 
       // Outer iteration loop — PLAN→ACT→OBSERVE→REFLECT→UPDATE (tasks 4.x–8.x)
       while (!this.#stopRequested && state.iterationCount < opts.maxIterations) {
-        // TODO: execute one full iteration cycle (tasks 4.1, 4.2, 5.1–5.3, 6.x, 7.x, 8.x)
-        // Placeholder: break so the loop exits via maxIterations check below
-        break;
+        // PLAN step — throws on exhausted retries (caught below → HUMAN_INTERVENTION_REQUIRED)
+        const plan = await this.#planStep(state, toolSchemas, opts);
+        // ACT step — throws on permission error (caught below → HUMAN_INTERVENTION_REQUIRED)
+        const _observation = await this.#actStep(plan);
+        // TODO: OBSERVE step (task 5.1), REFLECT (5.2), UPDATE_STATE (5.3), iteration counter
+        break; // placeholder until tasks 5.x are implemented
       }
 
       return {
@@ -129,5 +132,140 @@ export class AgentLoopService implements IAgentLoop {
       recoveryAttempts: 0,
       startedAt: new Date().toISOString(),
     };
+  }
+
+  // ---------------------------------------------------------------------------
+  // PLAN step (task 4.1)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Assembles context, calls the LLM, and parses the response into an ActionPlan.
+   * Retries on parse failure up to opts.maxPlanParseRetries times.
+   * Throws if all attempts are exhausted — caught by run()'s outer catch.
+   */
+  async #planStep(
+    state: AgentState,
+    toolSchemas: ReadonlyArray<ToolListEntry>,
+    opts: { maxPlanParseRetries: number; contextProvider?: IContextProvider },
+  ): Promise<ActionPlan> {
+    const baseContext = opts.contextProvider
+      ? await opts.contextProvider.buildContext(state, toolSchemas)
+      : this.#buildFallbackContext(state, toolSchemas);
+
+    const totalAttempts = 1 + opts.maxPlanParseRetries;
+    let lastError = '';
+
+    for (let attempt = 0; attempt < totalAttempts; attempt++) {
+      const prompt = attempt === 0
+        ? baseContext
+        : `${baseContext}\n\nPrevious attempt failed: ${lastError}. Please respond with valid JSON.`;
+
+      const result = await this.#llm.complete(prompt);
+
+      if (!result.ok) {
+        lastError = result.error.message;
+        continue;
+      }
+
+      const plan = this.#parseActionPlan(result.value.content);
+      if (plan !== null) {
+        return plan;
+      }
+
+      lastError = `Invalid plan format: ${result.value.content.slice(0, 100)}`;
+    }
+
+    throw new Error(`PLAN step failed after ${totalAttempts} attempt(s): ${lastError}`);
+  }
+
+  // ---------------------------------------------------------------------------
+  // ACT step (task 4.2)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Invokes the tool executor with the planned tool name and inputs.
+   * - On success: returns an Observation with success=true and the raw output.
+   * - On non-permission failure: returns an Observation with success=false (recovery in task 7.x).
+   * - On permission failure: throws immediately (caught by run() → HUMAN_INTERVENTION_REQUIRED).
+   */
+  async #actStep(plan: ActionPlan): Promise<Observation> {
+    const result = await this.#executor.invoke(plan.toolName, plan.toolInput, this.#toolContext);
+    const recordedAt = new Date().toISOString();
+
+    if (result.ok) {
+      return {
+        toolName: plan.toolName,
+        toolInput: plan.toolInput,
+        rawOutput: result.value,
+        success: true,
+        recordedAt,
+      };
+    }
+
+    // Permission errors bypass the recovery sub-loop — throw immediately
+    if (result.error.type === 'permission') {
+      throw new Error(`ACT step: permission denied — ${result.error.message}`);
+    }
+
+    // Non-permission failures return a failure observation (recovery handled in task 7.x)
+    return {
+      toolName: plan.toolName,
+      toolInput: plan.toolInput,
+      rawOutput: undefined,
+      error: result.error,
+      success: false,
+      recordedAt,
+    };
+  }
+
+  /** Inline context builder used when no IContextProvider is injected. */
+  #buildFallbackContext(state: AgentState, toolSchemas: ReadonlyArray<ToolListEntry>): string {
+    const toolList = toolSchemas.map((t) => `- ${t.name}: ${t.description}`).join('\n');
+    const recentObs = state.observations.slice(-5).map((o) =>
+      `Tool: ${o.toolName}, Success: ${o.success}`,
+    ).join('\n');
+
+    return [
+      `Task: ${state.task}`,
+      `Available tools:\n${toolList || '(none)'}`,
+      `Recent observations:\n${recentObs || '(none)'}`,
+      `Iteration: ${state.iterationCount}`,
+      '\nRespond with JSON: { "category": "Exploration"|"Modification"|"Validation"|"Documentation", "toolName": string, "toolInput": object, "rationale": string }',
+    ].join('\n\n');
+  }
+
+  /** Parses and validates LLM response content into an ActionPlan, or returns null on failure. */
+  #parseActionPlan(content: string): ActionPlan | null {
+    try {
+      // Strip markdown code fences if present
+      const fenceMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
+      const jsonStr = fenceMatch ? fenceMatch[1] : content;
+
+      const parsed: unknown = JSON.parse(jsonStr ?? content);
+      if (typeof parsed !== 'object' || parsed === null) return null;
+
+      const obj = parsed as Record<string, unknown>;
+
+      const category = obj['category'];
+      if (!ACTION_CATEGORIES.includes(category as ActionCategory)) return null;
+
+      const toolName = obj['toolName'];
+      if (typeof toolName !== 'string' || toolName.length === 0) return null;
+
+      const toolInput = obj['toolInput'];
+      if (typeof toolInput !== 'object' || toolInput === null || Array.isArray(toolInput)) return null;
+
+      const rationale = obj['rationale'];
+      if (typeof rationale !== 'string') return null;
+
+      return {
+        category: category as ActionCategory,
+        toolName,
+        toolInput: toolInput as Readonly<Record<string, unknown>>,
+        rationale,
+      };
+    } catch {
+      return null;
+    }
   }
 }
