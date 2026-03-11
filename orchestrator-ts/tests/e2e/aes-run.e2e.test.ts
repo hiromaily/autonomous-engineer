@@ -27,6 +27,7 @@ import type { SddFrameworkPort } from '../../application/ports/sdd';
 import type { LlmProviderPort } from '../../application/ports/llm';
 import type { AesConfig } from '../../application/ports/config';
 import type { WorkflowPhase, WorkflowState } from '../../domain/workflow/types';
+import type { MemoryPort, ShortTermMemoryPort } from '../../application/ports/memory';
 
 // ---------------------------------------------------------------------------
 // Fake cc-sdd binary (reused across E2E tests)
@@ -104,6 +105,22 @@ function makeLlmProvider(): LlmProviderPort {
   };
 }
 
+function makeMemoryPort(): MemoryPort {
+  const shortTerm: ShortTermMemoryPort = {
+    read: mock(() => ({ recentFiles: [] })),
+    write: mock(() => {}),
+    clear: mock(() => {}),
+  };
+  return {
+    shortTerm,
+    query: mock(() => Promise.resolve({ entries: [] })),
+    append: mock(() => Promise.resolve({ ok: true as const, action: 'appended' as const })),
+    update: mock(() => Promise.resolve({ ok: true as const, action: 'updated' as const })),
+    writeFailure: mock(() => Promise.resolve({ ok: true as const, action: 'appended' as const })),
+    getFailures: mock(() => Promise.resolve([])),
+  };
+}
+
 function makeStubSdd(): SddFrameworkPort {
   return {
     generateRequirements: mock(() => Promise.resolve({ ok: true as const, artifactPath: '' })),
@@ -172,6 +189,7 @@ describe('E2E: --dry-run', () => {
         eventBus: env.eventBus,
         sdd: makeStubSdd(),
         createLlmProvider: () => makeLlmProvider(),
+        memory: makeMemoryPort(),
       });
 
       const result = await useCase.run(env.specName, env.config, { resume: false, dryRun: true });
@@ -193,6 +211,7 @@ describe('E2E: --dry-run', () => {
         eventBus: env.eventBus,
         sdd: makeStubSdd(),
         createLlmProvider: () => makeLlmProvider(),
+        memory: makeMemoryPort(),
       });
 
       await useCase.run(env.specName, env.config, { resume: false, dryRun: true });
@@ -219,6 +238,7 @@ describe('E2E: --dry-run', () => {
         eventBus: env.eventBus,
         sdd: makeStubSdd(),
         createLlmProvider: () => makeLlmProvider(),
+        memory: makeMemoryPort(),
       });
 
       const result = await useCase.run('nonexistent-spec', env.config, { resume: false, dryRun: true });
@@ -262,6 +282,7 @@ describe('E2E: full 7-phase workflow', () => {
         eventBus: env.eventBus,
         sdd: makeStubSdd(),
         createLlmProvider: () => makeLlmProvider(),
+        memory: makeMemoryPort(),
       });
 
       const result = await useCase.run(env.specName, env.config, { resume: false, dryRun: false });
@@ -303,6 +324,7 @@ describe('E2E: full 7-phase workflow', () => {
         eventBus: env.eventBus,
         sdd: makeStubSdd(),
         createLlmProvider: () => makeLlmProvider(),
+        memory: makeMemoryPort(),
       });
 
       await useCase.run(env.specName, env.config, { resume: false, dryRun: false });
@@ -362,6 +384,7 @@ describe('E2E: --resume after simulated REQUIREMENTS interruption', () => {
         eventBus: env.eventBus,
         sdd: trackingSdd,
         createLlmProvider: () => makeLlmProvider(),
+        memory: makeMemoryPort(),
       });
 
       const result = await useCase.run(env.specName, env.config, { resume: true, dryRun: false });
@@ -421,6 +444,7 @@ describe('E2E: --resume after simulated REQUIREMENTS interruption', () => {
         eventBus: env.eventBus,
         sdd: trackingSdd,
         createLlmProvider: () => makeLlmProvider(),
+        memory: makeMemoryPort(),
       });
 
       // Without --resume, starts from scratch
@@ -471,6 +495,7 @@ describe('E2E: --log-json writes all events as newline-delimited JSON', () => {
         eventBus: env.eventBus,
         sdd: makeStubSdd(),
         createLlmProvider: () => makeLlmProvider(),
+        memory: makeMemoryPort(),
       });
 
       await useCase.run(env.specName, env.config, { resume: false, dryRun: false });
@@ -525,6 +550,7 @@ describe('E2E: --log-json writes all events as newline-delimited JSON', () => {
         eventBus: env.eventBus,
         sdd: makeStubSdd(),
         createLlmProvider: () => makeLlmProvider(),
+        memory: makeMemoryPort(),
       });
 
       await useCase.run(env.specName, env.config, { resume: false, dryRun: false });
@@ -568,6 +594,7 @@ describe('E2E: --log-json writes all events as newline-delimited JSON', () => {
         eventBus: env.eventBus,
         sdd: makeStubSdd(),
         createLlmProvider: () => makeLlmProvider(),
+        memory: makeMemoryPort(),
       });
 
       await useCase.run(env.specName, env.config, { resume: false, dryRun: false });

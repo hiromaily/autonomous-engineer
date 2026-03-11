@@ -8,6 +8,7 @@ import type { SddFrameworkPort } from '../../application/ports/sdd';
 import type { LlmProviderPort } from '../../application/ports/llm';
 import type { AesConfig } from '../../application/ports/config';
 import type { WorkflowState } from '../../domain/workflow/types';
+import type { MemoryPort, ShortTermMemoryPort } from '../../application/ports/memory';
 
 // ─── Stub factories ─────────────────────────────────────────────────────────
 
@@ -52,6 +53,26 @@ function makeLlm(): LlmProviderPort {
   };
 }
 
+function makeShortTerm(): ShortTermMemoryPort {
+  return {
+    read: mock(() => ({ recentFiles: [] })),
+    write: mock(() => {}),
+    clear: mock(() => {}),
+  };
+}
+
+function makeMemoryPort(shortTerm?: ShortTermMemoryPort): MemoryPort {
+  const st = shortTerm ?? makeShortTerm();
+  return {
+    shortTerm: st,
+    query: mock(() => Promise.resolve({ entries: [] })),
+    append: mock(() => Promise.resolve({ ok: true as const, action: 'appended' as const })),
+    update: mock(() => Promise.resolve({ ok: true as const, action: 'updated' as const })),
+    writeFailure: mock(() => Promise.resolve({ ok: true as const, action: 'appended' as const })),
+    getFailures: mock(() => Promise.resolve([])),
+  };
+}
+
 const baseConfig: AesConfig = {
   llm: { provider: 'claude', modelName: 'claude-sonnet-4-6', apiKey: 'test-key' },
   specDir: '/tmp/specs',
@@ -78,6 +99,7 @@ describe('RunSpecUseCase', () => {
         eventBus: makeEventBus(),
         sdd: makeSdd(),
         createLlmProvider: () => makeLlm(),
+        memory: makeMemoryPort(),
       });
 
       const result = await useCase.run(specName, { ...baseConfig, specDir: specParent }, {
@@ -94,6 +116,7 @@ describe('RunSpecUseCase', () => {
         eventBus: makeEventBus(),
         sdd: makeSdd(),
         createLlmProvider: () => makeLlm(),
+        memory: makeMemoryPort(),
       });
 
       const result = await useCase.run('missing-spec', { ...baseConfig, specDir: '/nonexistent/path/xyz' }, {
@@ -113,6 +136,7 @@ describe('RunSpecUseCase', () => {
         eventBus: makeEventBus(),
         sdd: makeSdd(),
         createLlmProvider: () => makeLlm(),
+        memory: makeMemoryPort(),
       });
 
       await useCase.run(specName, { ...baseConfig, specDir: specParent }, {
@@ -155,6 +179,7 @@ describe('RunSpecUseCase', () => {
         eventBus: makeEventBus(),
         sdd: makeSdd(),
         createLlmProvider: () => makeLlm(),
+        memory: makeMemoryPort(),
       });
 
       await useCase.run('test-spec', { ...baseConfig, specDir }, { resume: true, dryRun: false });
@@ -173,6 +198,7 @@ describe('RunSpecUseCase', () => {
         eventBus: makeEventBus(),
         sdd: makeSdd(),
         createLlmProvider: () => makeLlm(),
+        memory: makeMemoryPort(),
       });
 
       await useCase.run('test-spec', { ...baseConfig, specDir: tmpDir }, { resume: true, dryRun: false });
@@ -190,6 +216,7 @@ describe('RunSpecUseCase', () => {
         eventBus: makeEventBus(),
         sdd: makeSdd(),
         createLlmProvider: () => makeLlm(),
+        memory: makeMemoryPort(),
       });
 
       await useCase.run('test-spec', { ...baseConfig, specDir: tmpDir }, { resume: false, dryRun: false });
@@ -207,6 +234,7 @@ describe('RunSpecUseCase', () => {
         eventBus: makeEventBus(),
         sdd: makeSdd(),
         createLlmProvider,
+        memory: makeMemoryPort(),
       });
 
       await useCase.run('test-spec', { ...baseConfig, specDir: tmpDir }, {
@@ -225,6 +253,7 @@ describe('RunSpecUseCase', () => {
         eventBus: makeEventBus(),
         sdd: makeSdd(),
         createLlmProvider,
+        memory: makeMemoryPort(),
       });
 
       await useCase.run('test-spec', { ...baseConfig, specDir: tmpDir }, { resume: false, dryRun: false });
@@ -261,6 +290,7 @@ describe('RunSpecUseCase', () => {
         eventBus,
         sdd: makeSdd(),
         createLlmProvider: () => makeLlm(),
+        memory: makeMemoryPort(),
       });
 
       const result = await useCase.run('test-spec', { ...baseConfig, specDir: tmpDir }, {
@@ -281,6 +311,7 @@ describe('RunSpecUseCase', () => {
         eventBus: makeEventBus(),
         sdd: makeSdd(),
         createLlmProvider: () => makeLlm(),
+        memory: makeMemoryPort(),
       });
 
       const result = await useCase.run('test-spec', { ...baseConfig, specDir: tmpDir }, {
@@ -289,6 +320,42 @@ describe('RunSpecUseCase', () => {
       });
 
       expect(result).toBeDefined();
+    });
+  });
+
+  describe('memory lifecycle', () => {
+    it('calls memory.shortTerm.clear() at the start of a non-dry-run execution', async () => {
+      const shortTerm = makeShortTerm();
+      const memory = makeMemoryPort(shortTerm);
+      const useCase = new RunSpecUseCase({
+        stateStore: makeStateStore({ persist: mock(() => Promise.resolve()) }),
+        eventBus: makeEventBus(),
+        sdd: makeSdd(),
+        createLlmProvider: () => makeLlm(),
+        memory,
+      });
+
+      await useCase.run('test-spec', { ...baseConfig, specDir: tmpDir }, { resume: false, dryRun: false });
+
+      expect(shortTerm.clear).toHaveBeenCalledTimes(1);
+    });
+
+    it('does NOT call memory.shortTerm.clear() during dry-run', async () => {
+      const specParent = join(tmpDir, '..');
+      const specName = tmpDir.split('/').at(-1) ?? 'test-spec';
+      const shortTerm = makeShortTerm();
+      const memory = makeMemoryPort(shortTerm);
+      const useCase = new RunSpecUseCase({
+        stateStore: makeStateStore(),
+        eventBus: makeEventBus(),
+        sdd: makeSdd(),
+        createLlmProvider: () => makeLlm(),
+        memory,
+      });
+
+      await useCase.run(specName, { ...baseConfig, specDir: specParent }, { resume: false, dryRun: true });
+
+      expect(shortTerm.clear).not.toHaveBeenCalled();
     });
   });
 });
