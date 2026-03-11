@@ -58,14 +58,14 @@
 ---
 
 - [ ] 3. Stateful Safety Guards
-- [ ] 3.1 (P) Implement session iteration count and runtime limit enforcement guard
+- [x] 3.1 (P) Implement session iteration count and runtime limit enforcement guard
   - Build a guard that reads `session.iterationCount` and `Date.now() - session.startedAtMs` from `SafetyContext` and rejects the invocation if either exceeds the configured limit
   - Include the limit type ("iterations" or "runtime") and current value in the rejection error message to support human-readable graceful stop messages
   - Produce a structured error carrying a progress summary string so the agent loop can record state before halting
   - Make `iterationCount` and elapsed runtime observable via session state for external monitoring consumers
   - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5_
 
-- [ ] 3.2 (P) Implement consecutive failure detection and session pause guard
+- [x] 3.2 (P) Implement consecutive failure detection and session pause guard
   - Build a guard with two responsibilities: a pre-check that rejects all invocations when `session.paused` is true (with a human-review-required error), and a post-execution update (called by the executor after each result) that tracks failure signatures
   - Compute a failure signature by concatenating the tool name, error type, and the first 120 characters of the error message into a stable fingerprint for each failed invocation result
   - When the same failure signature occurs 3 or more consecutive times, set `session.paused = true`, set `session.pauseReason`, and emit a structured notification identifying the repeated failure signature and occurrence count
@@ -73,14 +73,14 @@
   - Do not resume from the paused state except via an explicit external resume signal that clears `session.paused`
   - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
 
-- [ ] 3.3 (P) Implement per-category rolling rate limit guard
+- [x] 3.3 (P) Implement per-category rolling rate limit guard
   - Build a guard enforcing three independent rate categories using session state: per-minute rolling window for total tool invocations (`session.toolInvocationTimestamps`), per-session counter for repository write operations (`session.repoWriteCount`), and per-minute rolling window for external API requests (`session.apiRequestTimestamps`)
   - Prune timestamps older than 60 seconds from each rolling window before counting; compare current count against the configured limit for each category
   - Reject invocations that would exceed any category's limit with a `"runtime"` category `ToolError` that includes the limit category name and current count in the error message
   - Expose all three counters through session state for observability consumers
   - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5_
 
-- [ ] 3.4 (P) Implement destructive action classification and approval routing guard
+- [x] 3.4 (P) Implement destructive action classification and approval routing guard
   - Build a guard that classifies an operation as destructive when: the number of files to be deleted exceeds `maxFileDeletes`, a force-push flag is detected in a git push input, or the write target matches a protected file pattern
   - When a destructive operation is detected, return a check result signalling that approval is required along with a populated approval request (description, risk classification, expected impact, proposed action); return with allowed=true so the executor — not this guard — is responsible for calling the approval gateway and acting on the decision
   - This guard must run before `RateLimitGuard` in the ordered pipeline
