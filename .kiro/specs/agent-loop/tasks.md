@@ -23,13 +23,13 @@
   - _Requirements: 9.1, 9.2, 9.3, 7.2, 8.4_
 
 - [ ] 2. Application ports
-- [ ] 2.1 Define the primary service contract
+- [x] 2.1 Define the primary service contract
   - Define the options type that callers use to configure a loop run — maximum iterations (default 50), maximum recovery attempts (default 3), maximum plan parse retries (default 2), an optional context provider for spec6 delegation, an optional event bus for observability, an optional logger, and an optional safety-stop callback
   - Define the result type that the loop returns on every termination path — the specific termination condition, the final agent state, the total iteration count consumed, and a boolean indicating whether the task was completed successfully
   - Define the public loop interface with three methods: execute a task and return when done (never throws), signal a graceful stop from outside, and query the current state snapshot without interrupting execution
   - _Requirements: 7.1, 7.2, 7.3, 7.6, 9.4, 11.1, 11.2, 11.3, 11.4_
 
-- [ ] 2.2 Define integration and observability port interfaces
+- [x] 2.2 Define integration and observability port interfaces
   - Define the optional context provider interface that the loop delegates to when spec6 is available — given the current state and available tool schemas, assemble the LLM prompt context for the PLAN step
   - Define the event bus interface for emitting and subscribing to agent loop events — matching the emit/on/off shape used by the existing workflow event bus
   - Define the logger interface for injecting structured logging — info and error methods accepting a message and optional metadata record
