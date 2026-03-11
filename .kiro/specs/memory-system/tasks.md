@@ -21,7 +21,7 @@
   - Confirm no imports from the application use-case layer or CLI layer
   - _Requirements: 2.1, 2.5, 3.1, 4.1, 4.2, 5.1, 5.6, 6.3, 6.5, 7.1, 7.5_
 
-- [ ] 2. (P) Implement in-process short-term memory store
+- [x] 2. (P) Implement in-process short-term memory store
   - Implement the class in the infrastructure memory directory, satisfying the `ShortTermMemoryPort` interface
   - Initialize state to an empty value (no spec, no phase, no task progress, empty recent-files list) on construction
   - Implement write with partial-merge semantics: replace only the provided keys, leave others unchanged
