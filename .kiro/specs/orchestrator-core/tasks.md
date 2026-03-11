@@ -37,7 +37,7 @@ Task 6 (phase execution engine)
 
 - [ ] 2. Establish the workflow state model, crash-safe persistence, and event bus
 
-- [ ] 2.1 Define the 7-phase workflow lifecycle data model
+- [x] 2.1 Define the 7-phase workflow lifecycle data model
   - Define the ordered 7-phase sequence: SPEC_INIT → REQUIREMENTS → DESIGN → VALIDATE_DESIGN → TASK_GENERATION → IMPLEMENTATION → PULL_REQUEST
   - Define workflow status variants: running, paused_for_approval, completed, failed
   - Define the workflow state structure capturing current phase, completed phases, status, failure detail, and timestamps
@@ -45,14 +45,14 @@ Task 6 (phase execution engine)
   - Define the port contracts for state persistence and event emission that isolate the workflow engine from infrastructure
   - _Requirements: 3.1, 3.4, 3.5, 4.3_
 
-- [ ] 2.2 (P) Build crash-safe workflow state persistence
+- [x] 2.2 (P) Build crash-safe workflow state persistence
   - Implement atomic JSON state writes using the write-then-rename pattern (write to temp file, sync to disk, rename over destination) to survive process crashes
   - Store state at `.aes/state/<specName>.json`; create the directory if it does not exist
   - Implement state restoration that reads the last persisted state and returns null when no state file exists
   - Implement state initialization for new workflow runs
   - _Requirements: 3.2, 3.3, 3.6_
 
-- [ ] 2.3 (P) Build typed workflow event bus
+- [x] 2.3 (P) Build typed workflow event bus
   - Implement a typed event bus backed by Node.js `EventEmitter` with a unified subscribe/unsubscribe interface
   - Define the full event shape: phase-start (with timestamp), phase-complete (with duration and artifact list), phase-error (with operation name and error), approval-required (with artifact path and human instruction), workflow-complete, and workflow-failed
   - Guarantee synchronous delivery in phase execution order with no buffering
