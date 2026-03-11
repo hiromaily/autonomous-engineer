@@ -4,6 +4,7 @@ import type { IWorkflowStateStore, IWorkflowEventBus } from '../ports/workflow';
 import type { SddFrameworkPort } from '../ports/sdd';
 import type { LlmProviderPort } from '../ports/llm';
 import type { AesConfig } from '../ports/config';
+import type { MemoryPort } from '../ports/memory';
 import type { WorkflowResult } from '../../domain/workflow/workflow-engine';
 import type { WorkflowPhase } from '../../domain/workflow/types';
 import { WorkflowEngine } from '../../domain/workflow/workflow-engine';
@@ -21,6 +22,7 @@ export interface RunSpecUseCaseDeps {
   readonly eventBus: IWorkflowEventBus;
   readonly sdd: SddFrameworkPort;
   readonly createLlmProvider: (config: AesConfig, providerOverride?: string) => LlmProviderPort;
+  readonly memory: MemoryPort;
 }
 
 export class RunSpecUseCase {
@@ -43,6 +45,9 @@ export class RunSpecUseCase {
       }
       return { status: 'completed', completedPhases: [] };
     }
+
+    // Reset ephemeral short-term memory before each workflow run
+    this.deps.memory.shortTerm.clear();
 
     // Resolve initial workflow state
     let state = options.resume ? await stateStore.restore(specName) : null;

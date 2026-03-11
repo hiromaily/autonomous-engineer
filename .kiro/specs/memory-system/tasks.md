@@ -77,13 +77,13 @@
   - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7_
 
 - [ ] 4. Wire memory system into the orchestrator
-- [ ] 4.1 (P) Add memory port to the workflow use case and manage short-term lifecycle
+- [x] 4.1 (P) Add memory port to the workflow use case and manage short-term lifecycle
   - Extend the `RunSpecUseCase` dependency injection object with a `memory` field of type `MemoryPort`
   - At the start of each non-dry-run workflow execution, call `memory.shortTerm.clear()` to reset any leftover state from a prior in-process run before the workflow begins
   - Verify that the existing dry-run early-return path already prevents all memory write calls from being reached — no new guard code is needed
   - _Requirements: 1.4, 6.6, 7.3_
 
-- [ ] 4.2 Wire memory implementations into the CLI entry point
+- [x] 4.2 Wire memory implementations into the CLI entry point
   - Depends on 4.1: `RunSpecUseCase.deps` must include the `memory` field before this wiring can compile
   - Construct a `FileMemoryStore` instance in the CLI wiring with base directory derived from the runtime working directory
   - Pass the instance as the `memory` dependency when constructing `RunSpecUseCase`

@@ -6,6 +6,7 @@ import { WorkflowStateStore } from '../infra/state/workflow-state-store';
 import { WorkflowEventBus } from '../infra/events/workflow-event-bus';
 import { CcSddAdapter } from '../adapters/sdd/cc-sdd-adapter';
 import { ClaudeProvider } from '../adapters/llm/claude-provider';
+import { FileMemoryStore } from '../infra/memory/file-memory-store';
 import { RunSpecUseCase } from '../application/usecases/run-spec';
 import { CliRenderer } from './renderer';
 import { JsonLogWriter } from './json-log-writer';
@@ -83,10 +84,12 @@ const runCommand = defineCommand({
     }
 
     // Build use case with injected deps
+    const memory = new FileMemoryStore({ baseDir: process.cwd() });
     const useCase = new RunSpecUseCase({
       stateStore: new WorkflowStateStore(),
       eventBus,
       sdd: new CcSddAdapter(),
+      memory,
       createLlmProvider: (cfg: AesConfig, providerOverride?: string): LlmProviderPort => {
         const provider = providerOverride ?? cfg.llm.provider;
         switch (provider) {
