@@ -113,7 +113,7 @@
 
 ---
 
-- [ ] 5. Implement the SafetyGuardedToolExecutor decorator
+- [x] 5. Implement the SafetyGuardedToolExecutor decorator
   - Construct and hold the ordered guard list at initialization in the pipeline sequence: iteration-limit guard, failure-detection guard (pre-check), workspace isolation guard, filesystem guard, git safety guard, shell restriction guard, destructive action guard, then rate-limit guard
   - On each invocation: check the emergency stop flag first and reject immediately if set; then run each guard in order, stopping at the first rejection; write the blocked audit entry before returning the error
   - When the destructive action guard signals approval is required, call the approval gateway; if denied or timed out, write a blocked audit entry and return a permission error; if approved, continue to execution
