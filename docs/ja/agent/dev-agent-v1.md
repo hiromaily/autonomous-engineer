@@ -379,6 +379,7 @@ v1仕様計画の概要：
 | spec8 | git-integration | ブランチ、コミット、プッシュ、プルリクエスト |
 | spec9 | implementation-loop | Implement→review→improve→commit、品質ゲート |
 | spec10 | self-healing-loop | 失敗分析、ルール更新、再試行 |
+| spec11 _(v1.x)_ | codebase-intelligence | ファイルスキャナー、パーサー、シンボルインデックス、依存グラフ、セマンティック検索 |
 
 この段階的アプローチにより、各仕様が独立して使用可能な機能を提供しながら、システムが制御可能でテスト可能な方法で進化します。
 

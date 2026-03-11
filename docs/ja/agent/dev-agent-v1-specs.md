@@ -1,6 +1,6 @@
 # 仕様計画
 
-このドキュメントは、[agent/dev-agent-v1.md](agent/dev-agent-v1.md)で説明されているAI Dev Agent v1を実装するための仕様分解を定義します。
+このドキュメントは、[dev-agent-v1.md](dev-agent-v1.md)で説明されているAI Dev Agent v1を実装するための仕様分解を定義します。
 
 各仕様は`docs/`配下の1つ以上のアーキテクチャドキュメントに対応し、[cc-sdd](https://github.com/gotalab/cc-sdd)を介して独立して実装・提供できるよう設計されています。
 

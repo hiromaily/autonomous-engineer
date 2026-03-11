@@ -379,6 +379,7 @@ Summary of the v1 spec plan:
 | spec8 | git-integration | Branch, commit, push, pull request |
 | spec9 | implementation-loop | Implement→review→improve→commit, quality gate |
 | spec10 | self-healing-loop | Failure analysis, rule updates, retry |
+| spec11 _(v1.x)_ | codebase-intelligence | File scanner, parser, symbol index, dependency graph, semantic search |
 
 This staged approach ensures the system evolves in a controlled and testable manner, with each spec delivering independently usable functionality.
 

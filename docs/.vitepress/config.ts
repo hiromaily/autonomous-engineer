@@ -85,7 +85,7 @@ export default withMermaid(
             {
               text: "Development",
               items: [
-                { text: "Spec Plan", link: "/specs" },
+                { text: "Spec Plan", link: "/agent/dev-agent-v1-specs" },
                 {
                   text: "Development Environment",
                   link: "/development/development-environment",
@@ -180,7 +180,7 @@ export default withMermaid(
             {
               text: "開発",
               items: [
-                { text: "仕様計画", link: "/ja/specs" },
+                { text: "仕様計画", link: "/ja/agent/dev-agent-v1-specs" },
                 {
                   text: "開発環境",
                   link: "/ja/development/development-environment",
