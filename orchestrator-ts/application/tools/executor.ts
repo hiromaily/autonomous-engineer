@@ -127,11 +127,14 @@ export class ToolExecutor implements IToolExecutor {
         };
       }
       const originalMessage = err instanceof Error ? err.message : String(err);
+      // If the thrown error carries a typed toolErrorType (e.g. PathTraversalError),
+      // propagate that type rather than defaulting to 'runtime'.
+      const errorType = isTypedToolError(err) ? err.toolErrorType : 'runtime';
       const message = `Tool '${name}' threw an unhandled exception: ${originalMessage}`;
-      context.logger.error(this.#buildLog(name, rawInput, startedAt, durationMs, 'runtime', message));
+      context.logger.error(this.#buildLog(name, rawInput, startedAt, durationMs, errorType, message));
       return {
         ok: false,
-        error: { type: 'runtime', message, details: { originalMessage } },
+        error: { type: errorType, message, details: { originalMessage } },
       };
     }
 
@@ -238,8 +241,22 @@ export class ToolExecutor implements IToolExecutor {
 }
 
 // ---------------------------------------------------------------------------
-// Internal error types
+// Internal error types and helpers
 // ---------------------------------------------------------------------------
+
+/** Type guard: returns true when the thrown value is an Error that carries a
+ *  `toolErrorType` discriminant (e.g. PathTraversalError from filesystem tools). */
+function isTypedToolError(
+  err: unknown,
+): err is Error & { readonly toolErrorType: 'permission' | 'runtime' | 'validation' } {
+  return (
+    err instanceof Error &&
+    'toolErrorType' in err &&
+    (err.toolErrorType === 'permission' ||
+      err.toolErrorType === 'runtime' ||
+      err.toolErrorType === 'validation')
+  );
+}
 
 class TimeoutError extends Error {
   constructor(message: string) {

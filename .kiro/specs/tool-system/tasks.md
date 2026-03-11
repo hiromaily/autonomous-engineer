@@ -93,19 +93,19 @@
 ---
 
 - [ ] 5. Implement filesystem tools
-- [ ] 5.1 (P) Implement `read_file` and `write_file` with workspace path validation
+- [x] 5.1 (P) Implement `read_file` and `write_file` with workspace path validation
   - Implement shared `resolveWorkspacePath` utility: resolves the requested path, rejects traversal outside `workspaceRoot` with `ToolError { type: 'permission' }`
   - `read_file`: reads UTF-8 content; returns `ToolError { type: 'runtime' }` when the file does not exist
   - `write_file`: writes UTF-8 content, creates parent directories; requires `filesystemWrite` in `requiredPermissions`
   - Both tools declare correct JSON Schema for input and output
   - _Requirements: 5.1, 5.2, 5.5_
 
-- [ ] 5.2 Implement `list_directory` and `search_files`
+- [x] 5.2 Implement `list_directory` and `search_files`
   - `list_directory`: returns structured entries (name, type: file/directory, size); requires `filesystemRead`; applies workspace path validation
   - `search_files`: returns matching file paths for a given glob or regex pattern within the specified directory; requires `filesystemRead`; applies workspace path validation
   - _Requirements: 5.3, 5.4, 5.5_
 
-- [ ] 5.3 Integration-test filesystem tools
+- [x] 5.3 Integration-test filesystem tools
   - `read_file` returns correct content for a known file; returns runtime error for missing file
   - `write_file` creates the file and can be read back; parent directories are created when absent
   - `list_directory` returns the correct entry list for a known directory
