@@ -110,14 +110,14 @@
   - _Requirements: 2.6, 3.4, 3.5, 4.4, 5.2, 5.6, 5.7, 6.2, 6.4_
 
 - [ ] 6. Integration tests for memory lifecycle
-- [ ] 6.1 (P) Integration test for end-to-end memory operations with a real temp directory
+- [x] 6.1 (P) Integration test for end-to-end memory operations with a real temp directory
   - Execute the full append → query → retrieve cycle: append an entry, query with a matching keyword, confirm the result contains the entry with a non-zero relevance score and correct source file
   - Simulate a restart by constructing a new `FileMemoryStore` instance against the same temp directory and confirm that previously appended entries and failure records are still retrievable
   - Test the update → query cycle: update an entry's description, query again, confirm the updated content is returned and no duplicate entry exists
   - Test that a `getFailures` call after `writeFailure` returns the written record with correct field values and passes the specName filter
   - _Requirements: 2.1, 4.3, 4.5, 5.1, 6.4_
 
-- [ ] 6.2 (P) Integration test for RunSpecUseCase with MemoryPort injected
+- [x] 6.2 (P) Integration test for RunSpecUseCase with MemoryPort injected
   - Construct a `RunSpecUseCase` with a real `FileMemoryStore` pointing to a temp directory
   - Execute a dry-run: confirm no files are written to the temp directory after the run completes
   - Verify that short-term memory is cleared at the start of each run by checking that state from a previous run does not appear in a subsequent run's initial read
