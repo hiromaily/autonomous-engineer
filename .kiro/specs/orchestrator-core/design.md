@@ -146,7 +146,7 @@ stateDiagram-v2
     [*] --> SPEC_INIT
     SPEC_INIT --> REQUIREMENTS
     REQUIREMENTS --> PAUSED_FOR_APPROVAL: approval.requirements = false
-    PAUSED_FOR_APPROVAL --> DESIGN: re-run after approval.requirements = true
+    PAUSED_FOR_APPROVAL --> DESIGN: approval.requirements = true
     REQUIREMENTS --> DESIGN: approval.requirements = true
     DESIGN --> VALIDATE_DESIGN
     VALIDATE_DESIGN --> PAUSED_FOR_APPROVAL: approval.design = false

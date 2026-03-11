@@ -30,8 +30,10 @@ export class ClaudeProvider implements LlmProviderPort {
         messages: [...this.messages],
       });
 
-      const firstBlock = response.content[0];
-      const text = firstBlock?.type === 'text' ? firstBlock.text : '';
+      const text = response.content
+        .filter((block): block is Anthropic.TextBlock => block.type === 'text')
+        .map(block => block.text)
+        .join('');
       this.messages.push({ role: 'assistant', content: text });
 
       return {

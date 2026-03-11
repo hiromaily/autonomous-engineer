@@ -192,8 +192,11 @@ export class WorkflowEngine {
     }
 
     // Approved — mark paused phase as completed, update status to running.
+    const currentIndex = WORKFLOW_PHASES.indexOf(pausedPhase);
+    const nextPhase = WORKFLOW_PHASES[currentIndex + 1];
     const advancedState: WorkflowState = {
       ...this.currentState,
+      currentPhase: nextPhase ?? pausedPhase,
       completedPhases: [...this.currentState.completedPhases, pausedPhase],
       status: 'running',
       updatedAt: new Date().toISOString(),
