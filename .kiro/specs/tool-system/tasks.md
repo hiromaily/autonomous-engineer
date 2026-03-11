@@ -18,14 +18,14 @@
 ---
 
 - [ ] 1. Define core tool system types and error model
-- [ ] 1.1 Define the shared tool interface and execution context types
+- [x] 1.1 Define the shared tool interface and execution context types
   - Declare `Tool<Input, Output>` with `name`, `description`, `requiredPermissions`, optional `timeoutMs`, `schema.input`, `schema.output`, and `execute`
   - Declare `ToolContext` with `workspaceRoot`, `workingDirectory`, `permissions`, `memory`, and `logger`
   - Declare `PermissionFlag` union, `PermissionSet` (frozen record), `ExecutionMode` union, and `JSONSchema` type alias
   - All types use strict TypeScript; no `any`; all fields `readonly`
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 4.1, 4.2, 4.4_
 
-- [ ] 1.2 Define the error model, result type, and observability types
+- [x] 1.2 Define the error model, result type, and observability types
   - Declare `ToolErrorType` union (`validation | runtime | permission`), `ToolError` with `type`, `message`, and optional `details`
   - Declare `ToolResult<T>` as a discriminated union mirroring the existing `LlmResult` pattern
   - Declare forward-reference ports: minimal `MemoryClient` (search method), `MemoryEntry`, `Logger` (info/error), and `ToolInvocationLog` with all required fields
