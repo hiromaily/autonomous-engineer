@@ -161,20 +161,20 @@
 ---
 
 - [ ] 8. Implement code analysis tools
-- [ ] 8.1 (P) Implement `parse_typescript_ast`
+- [x] 8.1 (P) Implement `parse_typescript_ast`
   - Use `ts.createProgram` with the file path and the project's `tsconfig.json` to build a typed AST
   - Extract and return top-level declarations (kind, name, line), import module specifiers, and export names
   - Return `ToolError { type: 'runtime' }` with parse error details when the file cannot be parsed
   - Requires `filesystemRead` permission; applies workspace path validation
   - _Requirements: 8.1, 8.5_
 
-- [ ] 8.2 Implement `find_symbol_definition` and `find_references`
+- [x] 8.2 Implement `find_symbol_definition` and `find_references`
   - `find_symbol_definition`: search the program for a function, class, or type declaration by name within the configured scope; return file path, line number, and signature; return `null` in output when not found
   - `find_references`: return all usage sites of the symbol across workspace files with file path and line number per reference
   - Both tools reuse the shared program creation approach from 8.1
   - _Requirements: 8.2, 8.3, 8.5_
 
-- [ ] 8.3 Implement `dependency_graph` and integration-test all code analysis tools
+- [x] 8.3 Implement `dependency_graph` and integration-test all code analysis tools
   - `dependency_graph`: traverse imports from the given entry point; build and return a list of nodes each with its direct dependency module specifiers; include both direct and transitive dependencies
   - Integration tests: `parse_typescript_ast` returns correct declarations for a known file; `find_symbol_definition` locates a known symbol; `find_references` returns expected sites; `dependency_graph` produces correct nodes; parse error produces a typed runtime error
   - _Requirements: 8.4, 8.5_
