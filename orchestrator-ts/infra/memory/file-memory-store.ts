@@ -361,7 +361,9 @@ export class FileMemoryStore implements MemoryPort {
   // -------------------------------------------------------------------------
 
   async writeFailure(record: FailureRecord): Promise<MemoryWriteResult> {
-    // Sanitize timestamp for use in filename (replace colons with dashes)
+    // Sanitize timestamp for use in filename: ISO 8601 timestamps contain ':'
+    // characters (e.g. "2026-03-11T09:12:15Z") which are illegal in filenames
+    // on Windows and some other filesystems, so replace them with '-'.
     const safeTs = record.timestamp.replace(/:/g, '-');
     const filename = `failure_${safeTs}_${record.taskId}.json`;
     const failuresDir = join(this.baseDir, '.memory', 'failures');
@@ -382,7 +384,6 @@ export class FileMemoryStore implements MemoryPort {
       await rename(tmpPath, destPath);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      process.stderr.write(`[memory] writeFailure error: ${message}\n`);
       return { ok: false, error: { category: 'io_error', message } };
     }
 
