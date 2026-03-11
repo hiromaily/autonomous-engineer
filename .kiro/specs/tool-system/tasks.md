@@ -116,21 +116,21 @@
 ---
 
 - [ ] 6. Implement git tools
-- [ ] 6.1 (P) Implement `git_status` and `git_diff`
+- [x] 6.1 (P) Implement `git_status` and `git_diff`
   - `git_status`: returns structured output with staged, unstaged, and untracked file lists; no permission required
   - `git_diff`: accepts optional `staged`, `base`, and `head` options; returns raw diff string; no permission required
   - All git invocations use `execFile('git', args, { cwd: workingDirectory })` for injection safety
   - Git errors are surfaced as `ToolError { type: 'runtime' }` with stderr in `details`
   - _Requirements: 6.1, 6.2, 6.5_
 
-- [ ] 6.2 (P) Implement `git_commit`, `git_branch_list`, `git_branch_create`, and `git_branch_switch`
+- [x] 6.2 (P) Implement `git_commit`, `git_branch_list`, `git_branch_create`, and `git_branch_switch`
   - `git_commit`: creates a commit from currently staged changes with the provided message; requires `gitWrite`; returns commit hash
   - `git_branch_list`: lists all branches and identifies current branch; no permission required
   - `git_branch_create`: creates a new branch at HEAD; requires `gitWrite`; returns the new branch name
   - `git_branch_switch`: checks out an existing branch; requires `gitWrite`; returns the branch switched to
   - _Requirements: 6.3, 6.4, 6.5_
 
-- [ ] 6.3 Integration-test git tools
+- [x] 6.3 Integration-test git tools
   - `git_status` returns correct staged/unstaged/untracked lists in a test repository
   - `git_commit` creates a real commit and returns a valid hash
   - `git_branch_list` returns all branches with current branch identified
