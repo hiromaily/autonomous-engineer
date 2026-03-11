@@ -90,7 +90,7 @@
 ---
 
 - [ ] 4. Safety Adapters
-- [ ] 4.1 (P) Implement append-only NDJSON audit logger adapter
+- [x] 4.1 (P) Implement append-only NDJSON audit logger adapter
   - Build an adapter that opens the configured log file exclusively in append mode and writes exactly one serialized JSON line followed by a newline per `write()` call; flush each write to disk before resolving
   - Create the log directory on the first write if it does not exist; never overwrite or modify existing entries
   - Include all `AuditEntry` fields in every write: ISO 8601 timestamp, session ID, iteration number, tool name, sanitized input summary (capped at 512 bytes), outcome classification, block reason, approval decision, and error details
@@ -98,13 +98,13 @@
   - Expose a `flush()` method that waits for all pending writes to complete; used by `EmergencyStopHandler` before process termination
   - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5_
 
-- [ ] 4.2 (P) Implement CLI readline approval gateway adapter
+- [x] 4.2 (P) Implement CLI readline approval gateway adapter
   - Build an adapter that presents approval requests to the human operator via a terminal readline prompt displaying the operation description, risk classification, and expected impact
   - Accept operator input within the configured timeout using an `AbortController`-based mechanism; if the timeout expires before input is received, return `'timeout'` immediately without waiting further
   - Map `'y'`/`'yes'` input to `'approved'`, any other input to `'denied'`, and timeout to `'timeout'`; never throw and always resolve to exactly one `ApprovalDecision`
   - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5_
 
-- [ ] 4.3 (P) Implement temp-directory sandbox executor adapter
+- [x] 4.3 (P) Implement temp-directory sandbox executor adapter
   - Build an adapter that creates a fresh temporary directory for each `execute()` call and runs the command with its working directory set to the temp location, preventing writes to the workspace root
   - After execution completes (success, failure, or timeout), remove the temporary directory and all its contents; guarantee cleanup even when execution times out
   - When `method === 'container'`, pass the configured `containerImage` to the subprocess invocation; for `'temp-directory'` and `'restricted-shell'` methods, use Bun's subprocess API with the temp directory as the cwd
