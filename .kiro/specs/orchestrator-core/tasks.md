@@ -62,13 +62,13 @@ Task 6 (phase execution engine)
 
 - [ ] 3. (P) Build LLM provider abstraction and Claude implementation
 
-- [ ] 3.1 Define the LLM provider port contract
+- [x] 3.1 Define the LLM provider port contract
   - Define the unified provider interface with a prompt completion operation and a context reset operation
   - Define result types: a successful response carrying the content string and token usage, and a structured error carrying the failure category (`network`, `rate_limit`, or `api_error`) with the original error detail
   - Establish the contract invariant: after context reset, the next completion call must not include prior conversation history; the interface never throws — errors are always returned in the result value
   - _Requirements: 7.1, 7.2, 7.4, 7.5_
 
-- [ ] 3.2 Build the Claude provider adapter
+- [x] 3.2 Build the Claude provider adapter
   - Implement the LLM provider contract using `@anthropic-ai/sdk`, accepting model name and API key from configuration
   - Maintain internal message history; `clearContext()` discards that history so the next call starts from a clean context
   - Map SDK-specific error types to the three structured failure categories: connection errors to `network`, rate limit errors to `rate_limit`, all others to `api_error`

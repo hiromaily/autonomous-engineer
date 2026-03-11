@@ -203,6 +203,30 @@ Using Bun simplifies dependency management compared to traditional Node environm
 
 ---
 
+## Anthropic AI SDK
+
+The project integrates with Claude models via the official Anthropic SDK for TypeScript.
+
+Version used in this project:
+
+```
+@anthropic-ai/sdk 0.78.0
+```
+
+This version provides:
+
+- explicit Bun 1.0+ runtime support
+- `zod ^3.25.0` as a peer dependency (also a direct runtime dependency)
+- the `client.messages.create()` API used by the Claude provider adapter
+
+The SDK is installed as a runtime dependency:
+
+```
+bun add @anthropic-ai/sdk
+```
+
+---
+
 ## Repository Structure
 
 The project follows a modular directory structure aligned with Clean Architecture and Hexagonal Architecture principles.
@@ -279,6 +303,7 @@ Language: TypeScript 5.9.3
 Systems Language: Rust (Edition 2024)
 Linter: Biome
 Formatter: dprint
+AI SDK: @anthropic-ai/sdk 0.78.0
 ```
 
 This stack provides a fast, consistent, and AI-friendly development environment for building autonomous engineering systems.
