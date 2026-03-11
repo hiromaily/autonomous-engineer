@@ -13,7 +13,9 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
+    "ajv": "^8.17",
     "citty": "^0.2.1",
+    "typescript": "^5.9.3",
     "zod": "^3.25.0"
   },
   "devDependencies": {
