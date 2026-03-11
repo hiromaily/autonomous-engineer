@@ -31,7 +31,7 @@
   - _Requirements: 1.1, 1.2, 1.3, 1.4_
 
 - [ ] 3. Implement the file-based memory store
-- [ ] 3.1 Build path resolution, directory initialization, and Markdown entry formatting
+- [x] 3.1 Build path resolution, directory initialization, and Markdown entry formatting
   - Implement the class constructor accepting an optional base directory (defaulting to `process.cwd()`) and initialize the composed short-term store instance
   - Map each project memory file name to its path under `.memory/` and each knowledge memory file name to its path under `rules/`, both resolved from base directory
   - Implement directory creation with recursive flag so neither `.memory/` nor `rules/` need to exist in advance
@@ -40,7 +40,7 @@
   - Return an empty entry list (not an error) when a file is missing
   - _Requirements: 2.1, 2.5, 2.6, 3.1, 6.3, 7.2, 7.4_
 
-- [ ] 3.2 Implement append with entry validation, deduplication, and atomic write
+- [x] 3.2 Implement append with entry validation, deduplication, and atomic write
   - Validate that the incoming entry title is non-empty before any I/O; return `invalid_entry` error immediately if blank
   - Read the target file (or treat missing file as empty) and parse existing entries
   - Perform case-insensitive title comparison against all existing entries; return `skipped_duplicate` result without writing if a match is found
@@ -50,7 +50,7 @@
   - Return `appended` on success
   - _Requirements: 2.2, 2.3, 2.4, 3.2, 3.3, 3.4, 6.1, 6.2, 6.4_
 
-- [ ] 3.3 Implement in-place entry update for the self-healing rule path
+- [x] 3.3 Implement in-place entry update for the self-healing rule path
   - Parse the full target file into its entry list using the parser from 3.1
   - Find the entry whose title matches the provided title (case-insensitive); return `not_found` error if absent
   - Replace the matched entry with the new entry content, preserving all other entries and their order
@@ -58,7 +58,7 @@
   - Restrict this operation to knowledge memory targets only (per design constraint)
   - _Requirements: 3.5, 6.5_
 
-- [ ] 3.4 Implement failure record persistence and filtered retrieval
+- [x] 3.4 Implement failure record persistence and filtered retrieval
   - Build the failure file path from base directory, `.memory/failures/` subdirectory, and a filename combining ISO timestamp and task ID
   - Ensure the failures subdirectory is created before writing using `mkdir({ recursive: true })`
   - Write the failure record as formatted JSON to a temp file and rename atomically
@@ -67,7 +67,7 @@
   - Apply spec name and task ID filters in-memory after loading all records
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5_
 
-- [ ] 3.5 Implement keyword-based query with relevance scoring and type filtering
+- [x] 3.5 Implement keyword-based query with relevance scoring and type filtering
   - Determine which memory files to scan based on the optional `memoryTypes` filter (project files, knowledge files, or both when omitted)
   - Read each applicable file; treat missing files as empty without error
   - Parse all files into their constituent entry lists using the shared parser from 3.1
