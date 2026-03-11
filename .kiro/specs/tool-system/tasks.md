@@ -34,7 +34,7 @@
 ---
 
 - [ ] 2. Build the Tool Registry
-- [ ] 2.1 (P) Implement the ToolRegistry with register, retrieve, and list operations
+- [x] 2.1 (P) Implement the ToolRegistry with register, retrieve, and list operations
   - Implement in-memory `Map<string, Tool<unknown, unknown>>` keyed by tool name
   - `register` rejects duplicate names with a typed `RegistryResult { ok: false }` — never silently overwrites
   - `get` returns `RegistryResult { ok: false, error: { type: 'not_found' } }` for unknown names; never throws
@@ -42,7 +42,7 @@
   - Define `IToolRegistry` port interface for dependency injection
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5_
 
-- [ ] 2.2 Test the ToolRegistry
+- [x] 2.2 Test the ToolRegistry
   - Verify successful registration and retrieval by name
   - Verify duplicate registration is rejected with a conflict error
   - Verify `get` on an unregistered name returns a typed not-found error
