@@ -517,88 +517,84 @@ Rustメモリエンジン
 
 ## ディレクトリ構造
 
-プロジェクトはシステムアーキテクチャに沿ったモジュラーなディレクトリ構造に従っています。
+プロジェクトは実装境界によって整理されたモジュラーなディレクトリ構造に従っています。
+
+### 命名規則
+
+実装ディレクトリは `<責務>-<言語サフィックス>` の形式で命名されます：
+
+- プレフィックスはそのコンポーネントのドメイン上の責務を示す
+- サフィックスは実装言語を示す（`-ts`、`-rs`、`-rb` など）
+
+この規則により、意味的な役割を言語名に埋没させることなく、開発者とAIエージェントの両方に対して技術的な境界を明示できます。
+
+例：
+- `orchestrator-ts/` — TypeScriptで実装されたワークフローオーケストレーションエンジン
+- `memory-rs/` — 将来Rustで実装予定のメモリインデックス/検索コンポーネント
+
+### 現在の構造
 
 ```
 autonomous-engineer/
-├─ cli/
-│  └─ index.ts
-│
-├─ application/
-│  ├─ usecases/
-│  │  ├─ initialize-spec-usecase.ts
-│  │  ├─ execute-task-usecase.ts
-│  │  └─ validate-design-usecase.ts
+├─ orchestrator-ts/          # ワークフローオーケストレーションエンジン + aes CLI（TypeScript/Bun）
 │  │
-│  ├─ facades/
-│  │  ├─ workflow-facade.ts
-│  │  └─ spec-facade.ts
+│  ├─ cli/
+│  │  └─ index.ts
 │  │
-│  └─ ports/
-│     ├─ spec-engine-port.ts
-│     ├─ llm-provider-port.ts
-│     └─ git-controller-port.ts
-│
-├─ domain/
-│  ├─ engines/
-│  │  ├─ spec/
-│  │  │  └─ spec-engine.ts
+│  ├─ application/
+│  │  ├─ usecases/
+│  │  │  ├─ initialize-spec-usecase.ts
+│  │  │  ├─ execute-task-usecase.ts
+│  │  │  └─ validate-design-usecase.ts
 │  │  │
-│  │  ├─ implementation/
-│  │  │  └─ implementation-engine.ts
+│  │  ├─ facades/
+│  │  │  ├─ workflow-facade.ts
+│  │  │  └─ spec-facade.ts
 │  │  │
-│  │  └─ review/
-│  │     └─ review-engine.ts
+│  │  └─ ports/
+│  │     ├─ spec-engine-port.ts
+│  │     ├─ llm-provider-port.ts
+│  │     └─ git-controller-port.ts
 │  │
-│  ├─ workflow/
-│  │  └─ workflow-engine.ts
+│  ├─ domain/
+│  │  ├─ engines/
+│  │  │  ├─ spec/
+│  │  │  ├─ implementation/
+│  │  │  └─ review/
+│  │  │
+│  │  ├─ workflow/
+│  │  ├─ memory/
+│  │  └─ self-healing/
 │  │
-│  ├─ memory/
-│  │  └─ memory-manager.ts
+│  ├─ adapters/
+│  │  ├─ sdd/
+│  │  └─ llm/
 │  │
-│  └─ self-healing/
-│     └─ self-healing-engine.ts
-│
-├─ adapters/
-│  ├─ sdd/
-│  │  ├─ cc-sdd-adapter.ts
-│  │  ├─ openspec-adapter.ts
-│  │  └─ speckit-adapter.ts
+│  ├─ infra/
+│  │  ├─ git/
+│  │  └─ filesystem/
 │  │
-│  └─ llm/
-│     ├─ claude-provider.ts
-│     ├─ codex-provider.ts
-│     └─ cursor-provider.ts
-│
-├─ infra/
-│  ├─ git/
-│  │  └─ git-controller.ts
-│  │
-│  └─ filesystem/
-│     └─ file-manager.ts
+│  ├─ tests/
+│  ├─ package.json
+│  └─ tsconfig.json
 │
 ├─ docs/
+│  ├─ architecture/
+│  ├─ agent/
+│  ├─ workflow/
+│  ├─ memory/
+│  └─ development/
 │
-├─ rules/
-│  ├─ coding_rules.md
-│  ├─ review_rules.md
-│  └─ implementation_patterns.md
+├─ .kiro/
+│  ├─ specs/
+│  └─ steering/
 │
-├─ .memory/
-│  ├─ project_rules.md
-│  ├─ coding_patterns.md
-│  └─ review_feedback.md
-│
-├─ package.json
-├─ tsconfig.json
 └─ README.md
 ```
 
-各ディレクトリはシステムの論理的なコンポーネントに対応します。
-
 ### 構造の哲学
 
-ディレクトリ構造はクリーンアーキテクチャのレイヤーに直接対応しており、各レイヤーの役割を明確にします。
+各実装ディレクトリ（`*-ts`、`*-rs` など）は、独自のツールチェーン、依存関係、内部アーキテクチャを持つ自己完結したコンポーネントです。`orchestrator-ts/` 内では、ディレクトリ構造がクリーンアーキテクチャのレイヤーに直接対応します：
 
 - `cli/` はエントリーポイントであるユーザーインターフェースレイヤー
 - `application/` はアプリケーションレイヤーで、3つの関心事に分けられる：

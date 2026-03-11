@@ -203,43 +203,53 @@ Using Bun simplifies dependency management compared to traditional Node environm
 
 ---
 
+## Anthropic AI SDK
+
+The project integrates with Claude models via the official Anthropic SDK for TypeScript.
+
+Version used in this project:
+
+```
+@anthropic-ai/sdk 0.78.0
+```
+
+This version provides:
+
+- explicit Bun 1.0+ runtime support
+- `zod ^3.25.0` as a peer dependency (also a direct runtime dependency)
+- the `client.messages.create()` API used by the Claude provider adapter
+
+The SDK is installed as a runtime dependency:
+
+```
+bun add @anthropic-ai/sdk
+```
+
+---
+
 ## Repository Structure
 
-The project follows a modular directory structure aligned with Clean Architecture and Hexagonal Architecture principles.
+The project uses a `<responsibility>-<lang-suffix>` naming convention for implementation directories (e.g., `orchestrator-ts/`, `memory-rs/`). Each directory is a self-contained component with its own toolchain.
 
-See [Architecture — Directory Structure](/architecture/architecture#directory-structure) for the full canonical structure.
+See [Architecture — Directory Structure](/architecture/architecture#directory-structure) for the full canonical structure and naming convention rationale.
 
 ```
 autonomous-engineer/
-├─ cli/
-│
-├─ application/
-│  ├─ usecases/
-│  ├─ facades/
-│  └─ ports/
-│
-├─ domain/
-│  ├─ engines/
-│  ├─ workflow/
-│  ├─ memory/
-│  └─ self-healing/
-│
-├─ adapters/
-│  ├─ sdd/
-│  └─ llm/
-│
-├─ infra/
-│  ├─ git/
-│  └─ filesystem/
+├─ orchestrator-ts/      # Workflow orchestration engine + aes CLI (TypeScript/Bun)
+│  ├─ cli/
+│  ├─ application/
+│  ├─ domain/
+│  ├─ adapters/
+│  ├─ infra/
+│  ├─ tests/
+│  ├─ package.json
+│  └─ tsconfig.json
 │
 ├─ docs/
-│
-├─ package.json
-├─ tsconfig.json
 └─ README.md
 ```
 
-This structure maps directly to Clean Architecture layers, keeping core logic independent from external dependencies.
+Within `orchestrator-ts/`, the structure maps directly to Clean Architecture layers, keeping core logic independent from external dependencies.
 
 ---
 
@@ -279,6 +289,7 @@ Language: TypeScript 5.9.3
 Systems Language: Rust (Edition 2024)
 Linter: Biome
 Formatter: dprint
+AI SDK: @anthropic-ai/sdk 0.78.0
 ```
 
 This stack provides a fast, consistent, and AI-friendly development environment for building autonomous engineering systems.
