@@ -3,14 +3,14 @@
 ## Tasks
 
 - [ ] 1. Define memory port contracts
-- [ ] 1.1 Define short-term memory types and interface
+- [x] 1.1 Define short-term memory types and interface
   - Define the state shape that holds the active spec name, current workflow phase, task progress detail, and a list of recently accessed files
   - Define the task progress structure that captures current and completed step identifiers
   - Define the synchronous port interface with read, write (partial-merge), and clear operations — no async methods
   - Ensure `currentPhase` references the `WorkflowPhase` union type from the domain layer via an import that respects Clean Architecture direction
   - _Requirements: 1.1, 1.2, 1.3, 7.5_
 
-- [ ] 1.2 Define persistent memory port types and MemoryPort interface
+- [x] 1.2 Define persistent memory port types and MemoryPort interface
   - Define discriminated union types for the two memory layer targets (project files and knowledge files) with their allowed file name values
   - Define the entry format type with mandatory title, context, description, and date fields
   - Define the write trigger union covering the four allowed trigger sources
