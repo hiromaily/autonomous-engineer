@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
+    "ajv": "^8.17",
     "citty": "^0.2.1",
     "zod": "^3.25.0"
   },

@@ -73,7 +73,7 @@
 ---
 
 - [ ] 4. Build the Tool Executor
-- [ ] 4.1 Implement the full tool invocation pipeline with schema validation, timeout, and logging
+- [x] 4.1 Implement the full tool invocation pipeline with schema validation, timeout, and logging
   - Integrate `ajv v8` as the JSON Schema validator; compile schemas on first invocation and cache per tool name
   - Pipeline order: registry lookup → permission check (using `requiredPermissions`) → input schema validation → `execute` with timeout race → output schema validation → log emission
   - Resolve per-invocation timeout as `tool.timeoutMs ?? config.defaultTimeoutMs`; abort via `AbortController` on expiry
@@ -83,7 +83,7 @@
   - Define `IToolExecutor` port with `invoke(name, rawInput, context): Promise<ToolResult<unknown>>`; callers narrow the result type at call site
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 4.3, 11.1, 11.2, 11.3, 11.4, 11.5_
 
-- [ ] 4.2 Test the Tool Executor
+- [x] 4.2 Test the Tool Executor
   - Unit test each error path: tool not found, permission denied, input validation failure, output validation failure, timeout exceeded, unhandled exception
   - Unit test success path: correct output returned, log entry emitted with duration and output size
   - Verify log sanitization: input larger than threshold is truncated with a size annotation
