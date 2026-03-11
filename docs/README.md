@@ -12,6 +12,7 @@ This index helps AI agents and developers quickly locate relevant documentation.
 | AI Dev Agent v1 spec | [agent/dev-agent-v1.md](agent/dev-agent-v1.md) |
 | **Spec breakdown & implementation plan** | **[agent/dev-agent-v1-specs.md](agent/dev-agent-v1-specs.md)** |
 | Spec-driven workflow | [workflow/spec-driven-workflow.md](workflow/spec-driven-workflow.md) |
+| Automation workflow (human vs. AI boundary) | [workflow/automation-workflow.md](workflow/automation-workflow.md) |
 | Memory system design | [memory/memory-architecture.md](memory/memory-architecture.md) |
 | Development environment setup | [development/development-environment.md](development/development-environment.md) |
 | AI agent framework policy | [development/ai-agent-framework-policy.md](development/ai-agent-framework-policy.md) |
@@ -65,6 +66,9 @@ Specification for the first practical implementation of the Autonomous Engineer 
 
 ### [workflow/spec-driven-workflow.md](workflow/spec-driven-workflow.md)
 Spec-Driven Development (SDD) workflow: the phase-by-phase development process from `spec-init` through `requirements`, `design`, `validate-design`, `tasks`, `implementation`, to `pull-request`.
+
+### [workflow/automation-workflow.md](workflow/automation-workflow.md)
+Human vs. AI responsibility boundary: what humans do (initial docs + final PR review) versus what is fully automated (branch creation, spec generation, review loops, approvals, implementation, commits, PR creation). Includes Mermaid diagrams for the full flow, review loop, and implementation loop.
 
 ---
 
