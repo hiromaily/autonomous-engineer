@@ -153,17 +153,15 @@ export const listDirectoryTool: Tool<ListDirectoryInput, ListDirectoryOutput> = 
   },
   async execute(input: ListDirectoryInput, context: ToolContext): Promise<ListDirectoryOutput> {
     const resolved = resolveWorkspacePath(context.workspaceRoot, input.path);
-    const names = await readdir(resolved);
+    // withFileTypes avoids a stat call per entry to determine type.
+    // We still stat files for size, but skip the call entirely for directories.
+    const dirents = await readdir(resolved, { withFileTypes: true });
 
     const entries: ListDirectoryEntry[] = await Promise.all(
-      names.map(async (name) => {
-        const entryPath = join(resolved, name);
-        const info = await stat(entryPath);
-        return {
-          name,
-          type: info.isDirectory() ? ('directory' as const) : ('file' as const),
-          size: info.size,
-        };
+      dirents.map(async (dirent) => {
+        const isDir = dirent.isDirectory();
+        const size = isDir ? 0 : (await stat(join(resolved, dirent.name))).size;
+        return { name: dirent.name, type: isDir ? ('directory' as const) : ('file' as const), size };
       }),
     );
 
@@ -201,6 +199,7 @@ export const searchFilesTool: Tool<SearchFilesInput, SearchFilesOutput> = {
   async execute(input: SearchFilesInput, context: ToolContext): Promise<SearchFilesOutput> {
     const resolvedDir = resolveWorkspacePath(context.workspaceRoot, input.directory);
 
+    // Bun.Glob is Bun-specific; this tool requires the Bun runtime.
     const glob = new Bun.Glob(input.pattern);
     const paths: string[] = [];
     for await (const match of glob.scan({ cwd: resolvedDir, absolute: true })) {

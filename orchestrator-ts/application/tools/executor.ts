@@ -2,11 +2,12 @@ import Ajv, { type ValidateFunction as AjvValidateFunction } from 'ajv';
 import type { IToolRegistry } from '../../domain/tools/registry';
 import type { IPermissionSystem } from '../../domain/tools/permissions';
 import type { Tool } from '../../domain/tools/types';
-import type {
-  ToolContext,
-  ToolResult,
-  ToolInvocationLog,
-  JSONSchema,
+import {
+  isTypedToolError,
+  type ToolContext,
+  type ToolResult,
+  type ToolInvocationLog,
+  type JSONSchema,
 } from '../../domain/tools/types';
 
 // ---------------------------------------------------------------------------
@@ -127,8 +128,6 @@ export class ToolExecutor implements IToolExecutor {
         };
       }
       const originalMessage = err instanceof Error ? err.message : String(err);
-      // If the thrown error carries a typed toolErrorType (e.g. PathTraversalError),
-      // propagate that type rather than defaulting to 'runtime'.
       const errorType = isTypedToolError(err) ? err.toolErrorType : 'runtime';
       const message = `Tool '${name}' threw an unhandled exception: ${originalMessage}`;
       context.logger.error(this.#buildLog(name, rawInput, startedAt, durationMs, errorType, message));
@@ -243,20 +242,6 @@ export class ToolExecutor implements IToolExecutor {
 // ---------------------------------------------------------------------------
 // Internal error types and helpers
 // ---------------------------------------------------------------------------
-
-/** Type guard: returns true when the thrown value is an Error that carries a
- *  `toolErrorType` discriminant (e.g. PathTraversalError from filesystem tools). */
-function isTypedToolError(
-  err: unknown,
-): err is Error & { readonly toolErrorType: 'permission' | 'runtime' | 'validation' } {
-  return (
-    err instanceof Error &&
-    'toolErrorType' in err &&
-    (err.toolErrorType === 'permission' ||
-      err.toolErrorType === 'runtime' ||
-      err.toolErrorType === 'validation')
-  );
-}
 
 class TimeoutError extends Error {
   constructor(message: string) {

@@ -48,6 +48,24 @@ export interface ToolError {
   readonly details?: Readonly<Record<string, unknown>>;
 }
 
+/**
+ * Type guard: returns true when the thrown value is an Error that carries a
+ * `toolErrorType` discriminant (e.g. PathTraversalError from filesystem tools).
+ * Tool adapters can attach this property to signal a specific error category
+ * so that ToolExecutor propagates the correct type instead of defaulting to 'runtime'.
+ */
+export function isTypedToolError(
+  err: unknown,
+): err is Error & { readonly toolErrorType: ToolErrorType } {
+  return (
+    err instanceof Error &&
+    'toolErrorType' in err &&
+    (err.toolErrorType === 'permission' ||
+      err.toolErrorType === 'runtime' ||
+      err.toolErrorType === 'validation')
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Forward-reference ports (fulfilled by spec5 and infrastructure logger)
 // ---------------------------------------------------------------------------
