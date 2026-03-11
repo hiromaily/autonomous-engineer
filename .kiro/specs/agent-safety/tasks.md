@@ -26,7 +26,7 @@
 ---
 
 - [ ] 2. Stateless Safety Guards
-- [ ] 2.1 (P) Implement workspace boundary enforcement guard
+- [x] 2.1 (P) Implement workspace boundary enforcement guard
   - Build a guard that extracts every file path field from incoming tool inputs; use an exhaustive, statically-defined mapping from tool name to path field names so no tool category can bypass the check through an omitted field
   - Normalize each extracted path to its canonical absolute form before comparing against the workspace root; the check always operates on the fully resolved path, never the raw input string
   - Reject traversal sequences (e.g., `../`) through the same normalization step — traversal is defused by resolving first, then comparing
@@ -34,21 +34,21 @@
   - Apply to all four filesystem tool categories and to any git or shell tool inputs that include file paths
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5_
 
-- [ ] 2.2 (P) Implement protected file pattern matching guard
+- [x] 2.2 (P) Implement protected file pattern matching guard
   - Build a guard that applies only to write tools (`write_file`) and checks the target file path against the operator-configured list of protected file patterns; pass all read operations without checking
   - Normalize the path before matching; match by both the file's base name and the full-path substring to cover directory-anchored patterns like `.git/config`
   - Reject writes targeting any protected pattern — default or operator-added — with a `"permission"` category `ToolError`
   - Enforce that this guard runs after the workspace isolation guard in the ordered pipeline
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5_
 
-- [ ] 2.3 (P) Implement git operation safety enforcement guard
+- [x] 2.3 (P) Implement git operation safety enforcement guard
   - Build a guard covering `git_commit`, `git_branch_create`, and `git_branch_switch` operations
   - For commit operations: read the current branch name via `git rev-parse --abbrev-ref HEAD` (direct subprocess call, not routed through the tool system) and reject commits on any protected branch with a `"permission"` category `ToolError`; count staged files via `git diff --staged --name-only` and reject if the count exceeds `maxFilesPerCommit` with a `"validation"` category `ToolError`
   - For branch creation: validate the proposed branch name against `branchNamePattern` regex and reject non-conforming names with a `"validation"` category `ToolError`
   - Apply the same protected-branch rejection policy to all operator-configured branches alongside the defaults
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
 
-- [ ] 2.4 (P) Implement shell command blocklist and allowlist validation guard
+- [x] 2.4 (P) Implement shell command blocklist and allowlist validation guard
   - Build a guard covering `run_command`, `run_test_suite`, and `install_dependencies` tools
   - Compile blocklist patterns from `SafetyConfig` to `RegExp` objects at configuration construction time; reject commands matching any blocklist pattern with a `"permission"` category `ToolError` that includes the matched pattern name in the error message
   - When `shellAllowlist` is non-null, additionally reject any command that does not match at least one allowlist pattern even if it passes the blocklist
