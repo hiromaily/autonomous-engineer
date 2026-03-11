@@ -104,13 +104,13 @@ Task 6 (phase execution engine)
 
 - [ ] 6. Build the phase execution engine
 
-- [ ] 6.1 Implement per-phase dispatch routing phases to the appropriate adapter operations
+- [x] 6.1 Implement per-phase dispatch routing phases to the appropriate adapter operations
   - Dispatch REQUIREMENTS, DESIGN, VALIDATE_DESIGN, and TASK_GENERATION to the corresponding SDD adapter operations
   - Return a structured result from each phase carrying the list of artifact paths produced on success, or an error description on failure
   - Implement no-op stubs for SPEC_INIT, IMPLEMENTATION, and PULL_REQUEST phases (these are wired in spec4 and spec8); stubs return success with an empty artifact list
   - _Requirements: 4.1, 6.1, 6.2, 6.3, 6.4_
 
-- [ ] 6.2 Implement phase lifecycle hooks with LLM context isolation
+- [x] 6.2 Implement phase lifecycle hooks with LLM context isolation
   - Invoke the phase pre-exit hook before leaving any phase and the post-enter hook before executing the new phase's operations
   - Reset the active LLM context at every phase transition to prevent accumulated conversation state from carrying over between phases
   - _Requirements: 4.2, 4.3_
