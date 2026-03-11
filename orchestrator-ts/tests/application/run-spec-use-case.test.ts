@@ -2,7 +2,7 @@ import { describe, it, expect, mock, beforeEach } from 'bun:test';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { RunSpecUseCase } from '../../application/use-cases/run-spec';
+import { RunSpecUseCase } from '../../application/usecases/run-spec';
 import type { IWorkflowStateStore, IWorkflowEventBus } from '../../application/ports/workflow';
 import type { SddFrameworkPort } from '../../application/ports/sdd';
 import type { LlmProviderPort } from '../../application/ports/llm';

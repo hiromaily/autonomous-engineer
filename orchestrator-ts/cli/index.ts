@@ -6,7 +6,7 @@ import { WorkflowStateStore } from '../infra/state/workflow-state-store';
 import { WorkflowEventBus } from '../infra/events/workflow-event-bus';
 import { CcSddAdapter } from '../adapters/sdd/cc-sdd-adapter';
 import { ClaudeProvider } from '../adapters/llm/claude-provider';
-import { RunSpecUseCase } from '../application/use-cases/run-spec';
+import { RunSpecUseCase } from '../application/usecases/run-spec';
 import { CliRenderer } from './renderer';
 import { JsonLogWriter } from './json-log-writer';
 import type { AesConfig } from '../application/ports/config';

@@ -517,115 +517,84 @@ Examples:
 
 ## Directory Structure
 
-The project follows a modular directory structure aligned with the system architecture.
+The project follows a modular directory structure organized by implementation boundary.
+
+### Naming Convention
+
+Implementation directories are named `<responsibility>-<lang-suffix>`:
+
+- The prefix reflects the domain responsibility of that component
+- The suffix reflects the implementation language (`-ts`, `-rs`, `-rb`, etc.)
+
+This convention makes technology boundaries explicit for both developers and AI agents without burying the semantic meaning in the language name alone.
+
+Examples:
+- `orchestrator-ts/` — the workflow orchestration engine, implemented in TypeScript
+- `memory-rs/` — a future memory indexing/search component, to be implemented in Rust
+
+### Current Structure
 
 ```
 autonomous-engineer/
-├─ cli/
-│  └─ index.ts
-│
-├─ application/
-│  ├─ usecases/
-│  │  ├─ initialize-spec-usecase.ts
-│  │  ├─ execute-task-usecase.ts
-│  │  └─ validate-design-usecase.ts
+├─ orchestrator-ts/          # Workflow orchestration engine + aes CLI (TypeScript/Bun)
 │  │
-│  ├─ facades/
-│  │  ├─ workflow-facade.ts
-│  │  └─ spec-facade.ts
+│  ├─ cli/
+│  │  └─ index.ts
 │  │
-│  └─ ports/
-│     ├─ spec-engine-port.ts
-│     ├─ llm-provider-port.ts
-│     └─ git-controller-port.ts
-│
-├─ domain/
-│  ├─ engines/
-│  │  ├─ spec/
-│  │  │  └─ spec-engine.ts
+│  ├─ application/
+│  │  ├─ usecases/
+│  │  │  ├─ initialize-spec-usecase.ts
+│  │  │  ├─ execute-task-usecase.ts
+│  │  │  └─ validate-design-usecase.ts
 │  │  │
-│  │  ├─ implementation/
-│  │  │  └─ implementation-engine.ts
+│  │  ├─ facades/
+│  │  │  ├─ workflow-facade.ts
+│  │  │  └─ spec-facade.ts
 │  │  │
-│  │  └─ review/
-│  │     └─ review-engine.ts
+│  │  └─ ports/
+│  │     ├─ spec-engine-port.ts
+│  │     ├─ llm-provider-port.ts
+│  │     └─ git-controller-port.ts
 │  │
-│  ├─ workflow/
-│  │  └─ workflow-engine.ts
+│  ├─ domain/
+│  │  ├─ engines/
+│  │  │  ├─ spec/
+│  │  │  ├─ implementation/
+│  │  │  └─ review/
+│  │  │
+│  │  ├─ workflow/
+│  │  ├─ memory/
+│  │  └─ self-healing/
 │  │
-│  ├─ memory/
-│  │  └─ memory-manager.ts
+│  ├─ adapters/
+│  │  ├─ sdd/
+│  │  └─ llm/
 │  │
-│  └─ self-healing/
-│     └─ self-healing-engine.ts
-│
-├─ adapters/
-│  ├─ sdd/
-│  │  ├─ cc-sdd-adapter.ts
-│  │  ├─ openspec-adapter.ts
-│  │  └─ speckit-adapter.ts
+│  ├─ infra/
+│  │  ├─ git/
+│  │  └─ filesystem/
 │  │
-│  └─ llm/
-│     ├─ claude-provider.ts
-│     ├─ codex-provider.ts
-│     └─ cursor-provider.ts
-│
-├─ infra/
-│  ├─ git/
-│  │  └─ git-controller.ts
-│  │
-│  └─ filesystem/
-│     └─ file-manager.ts
+│  ├─ tests/
+│  ├─ package.json
+│  └─ tsconfig.json
 │
 ├─ docs/
-│  ├─ README.md
-│  ├─ index.md
-│  ├─ vision.md
-│  ├─ system-overview.md
-│  ├─ agent/dev-agent-v1-specs.md
-│  │
 │  ├─ architecture/
-│  │  ├─ architecture.md
-│  │  ├─ agent-loop-architecture.md
-│  │  ├─ agent-safety-architecture.md
-│  │  ├─ codebase-intelligence-architecture.md
-│  │  ├─ context-engineering-architecture.md
-│  │  ├─ task-planning-architecture.md
-│  │  └─ tool-system-architecture.md
-│  │
 │  ├─ agent/
-│  │  └─ dev-agent-v1.md
-│  │
 │  ├─ workflow/
-│  │  └─ spec-driven-workflow.md
-│  │
 │  ├─ memory/
-│  │  └─ memory-architecture.md
-│  │
 │  └─ development/
-│     ├─ development-environment.md
-│     └─ ai-agent-framework-policy.md
 │
-├─ rules/
-│  ├─ coding_rules.md
-│  ├─ review_rules.md
-│  └─ implementation_patterns.md
+├─ .kiro/
+│  ├─ specs/
+│  └─ steering/
 │
-├─ .memory/
-│  ├─ project_rules.md
-│  ├─ coding_patterns.md
-│  └─ review_feedback.md
-│
-├─ package.json
-├─ tsconfig.json
 └─ README.md
 ```
 
-Each directory corresponds to a logical component of the system.
-
 ### Structure Philosophy
 
-The directory structure maps directly to Clean Architecture layers, making each layer's role explicit.
+Each implementation directory (`*-ts`, `*-rs`, etc.) is a self-contained component with its own toolchain, dependencies, and internal architecture. Within `orchestrator-ts/`, the directory structure maps directly to Clean Architecture layers:
 
 - `cli/` is the entry point and user interface layer
 - `application/` is the application layer, grouped into three concerns:

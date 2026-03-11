@@ -18,11 +18,19 @@ Topic-based documentation structure with bilingual support. Source code will fol
 ### Steering (`.kiro/steering/`)
 **Purpose**: Persistent project memory — patterns, principles, conventions loaded as AI context
 
-### Architecture Layers (planned source structure)
-- **CLI Layer**: User-facing entry point (`aes` command)
-- **Use Case Layer**: Application business rules and workflow orchestration
-- **Domain Layer**: Core system logic, SDD state machine, agent coordination
-- **Adapter Layer**: LLM providers, Git, SDD framework bridges
+### Implementation Directories
+
+Directories are named `<responsibility>-<lang-suffix>`. The prefix reflects domain responsibility; the suffix reflects the implementation language.
+
+- `orchestrator-ts/` — Workflow orchestration engine + `aes` CLI (TypeScript/Bun)
+  - **CLI Layer**: User-facing entry point (`aes` command)
+  - **Use Case Layer**: Application business rules and workflow orchestration
+  - **Domain Layer**: Core system logic, SDD state machine, agent coordination
+  - **Adapter Layer**: LLM providers, Git, SDD framework bridges
+  - **Infra Layer**: State persistence, event bus, config loading
+
+Future additions (not yet implemented):
+- `memory-rs/` — Memory indexing, semantic search, context diffing (Rust, planned)
 
 ## Naming Conventions
 

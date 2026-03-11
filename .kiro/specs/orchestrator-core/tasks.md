@@ -163,13 +163,13 @@ Task 6 (phase execution engine)
 
 - [ ] 9. Integration testing and end-to-end verification
 
-- [ ] 9.1 (P) Write integration tests for adapters, state store, and workflow engine sub-sequences
+- [x] 9.1 (P) Write integration tests for adapters, state store, and workflow engine sub-sequences
   - Test `CcSddAdapter` against the real cc-sdd binary in a temp directory: verify artifact creation and structured error result for each of the four operations
   - Test `WorkflowStateStore` persist and restore cycle: verify state file contents and restoration of each status variant including `paused_for_approval`
   - Test `WorkflowEngine` through a 3-phase sub-sequence (SPEC_INIT → REQUIREMENTS → paused for approval) with stub adapters: assert state file, events emitted, and approval gate check on resume
   - _Requirements: 3.1, 3.2, 3.3, 3.6, 6.1, 6.4_
 
-- [ ] 9.2 (P) Write end-to-end tests for full workflow execution including dry-run and resume
+- [x] 9.2 (P) Write end-to-end tests for full workflow execution including dry-run and resume
   - Test `aes run <spec> --dry-run`: assert no file writes occur and exit code is 0
   - Test `aes run <spec>` through all 7 phases against a real spec directory with cc-sdd installed: verify artifacts are produced at each gated boundary
   - Test `--resume` across a simulated interruption after REQUIREMENTS: assert SPEC_INIT is not re-executed and workflow continues from REQUIREMENTS approval gate

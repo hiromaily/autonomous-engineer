@@ -45,7 +45,15 @@ Bilingual (English + Japanese) via VitePress. English in `docs/`, Japanese in `d
 
 ## Common Commands
 ```bash
+# Orchestrator (from orchestrator-ts/)
+cd orchestrator-ts
 bun install           # Install dependencies
+bun run aes           # Run the aes CLI
+bun test              # Run tests
+bun run typecheck     # Type-check without emitting
+
+# Docs (from repo root)
+bun install           # Install VitePress and plugins
 bun run docs:dev      # Start VitePress dev server
 bun run docs:build    # Build documentation site
 bun run docs:preview  # Preview built site

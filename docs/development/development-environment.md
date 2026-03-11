@@ -229,41 +229,27 @@ bun add @anthropic-ai/sdk
 
 ## Repository Structure
 
-The project follows a modular directory structure aligned with Clean Architecture and Hexagonal Architecture principles.
+The project uses a `<responsibility>-<lang-suffix>` naming convention for implementation directories (e.g., `orchestrator-ts/`, `memory-rs/`). Each directory is a self-contained component with its own toolchain.
 
-See [Architecture — Directory Structure](/architecture/architecture#directory-structure) for the full canonical structure.
+See [Architecture — Directory Structure](/architecture/architecture#directory-structure) for the full canonical structure and naming convention rationale.
 
 ```
 autonomous-engineer/
-├─ cli/
-│
-├─ application/
-│  ├─ usecases/
-│  ├─ facades/
-│  └─ ports/
-│
-├─ domain/
-│  ├─ engines/
-│  ├─ workflow/
-│  ├─ memory/
-│  └─ self-healing/
-│
-├─ adapters/
-│  ├─ sdd/
-│  └─ llm/
-│
-├─ infra/
-│  ├─ git/
-│  └─ filesystem/
+├─ orchestrator-ts/      # Workflow orchestration engine + aes CLI (TypeScript/Bun)
+│  ├─ cli/
+│  ├─ application/
+│  ├─ domain/
+│  ├─ adapters/
+│  ├─ infra/
+│  ├─ tests/
+│  ├─ package.json
+│  └─ tsconfig.json
 │
 ├─ docs/
-│
-├─ package.json
-├─ tsconfig.json
 └─ README.md
 ```
 
-This structure maps directly to Clean Architecture layers, keeping core logic independent from external dependencies.
+Within `orchestrator-ts/`, the structure maps directly to Clean Architecture layers, keeping core logic independent from external dependencies.
 
 ---
 

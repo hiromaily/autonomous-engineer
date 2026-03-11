@@ -229,41 +229,27 @@ bun add @anthropic-ai/sdk
 
 ## リポジトリ構造
 
-プロジェクトはClean ArchitectureおよびHexagonal Architectureの原則に沿ったモジュラーなディレクトリ構造を採用しています。
+プロジェクトは実装ディレクトリに `<責務>-<言語サフィックス>` の命名規則を使用しています（例：`orchestrator-ts/`、`memory-rs/`）。各ディレクトリは独自のツールチェーンを持つ自己完結したコンポーネントです。
 
-正式な全体構造については[アーキテクチャ — ディレクトリ構造](/ja/architecture/architecture#directory-structure)を参照してください。
+全体構造と命名規則の詳細については[アーキテクチャ — ディレクトリ構造](/ja/architecture/architecture#directory-structure)を参照してください。
 
 ```
 autonomous-engineer/
-├─ cli/
-│
-├─ application/
-│  ├─ usecases/
-│  ├─ facades/
-│  └─ ports/
-│
-├─ domain/
-│  ├─ engines/
-│  ├─ workflow/
-│  ├─ memory/
-│  └─ self-healing/
-│
-├─ adapters/
-│  ├─ sdd/
-│  └─ llm/
-│
-├─ infra/
-│  ├─ git/
-│  └─ filesystem/
+├─ orchestrator-ts/      # ワークフローオーケストレーションエンジン + aes CLI（TypeScript/Bun）
+│  ├─ cli/
+│  ├─ application/
+│  ├─ domain/
+│  ├─ adapters/
+│  ├─ infra/
+│  ├─ tests/
+│  ├─ package.json
+│  └─ tsconfig.json
 │
 ├─ docs/
-│
-├─ package.json
-├─ tsconfig.json
 └─ README.md
 ```
 
-この構造はClean Architectureの各層に直接対応しており、コアロジックを外部依存から独立した状態に保ちます。
+`orchestrator-ts/` 内では、構造がClean Architectureの各層に直接対応しており、コアロジックを外部依存から独立した状態に保ちます。
 
 ---
 
