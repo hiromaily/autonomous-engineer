@@ -126,7 +126,7 @@
 
 ---
 
-- [ ] 6. (P) Implement the EmergencyStopHandler
+- [x] 6. (P) Implement the EmergencyStopHandler
   - Register OS signal handlers for SIGINT and SIGTERM at agent session start; on signal receipt, set the emergency stop flag on the session, write a final audit entry recording the signal source and last known agent state, wait for the audit flush to complete, then terminate the process
   - Expose a programmatic trigger for safety-violation and resource-exhaustion detection paths; apply the same stop sequence (set flag → write audit entry → flush → exit) as the signal handler
   - Expose a deregister operation that removes the OS signal listeners when the agent session ends cleanly without triggering a stop
