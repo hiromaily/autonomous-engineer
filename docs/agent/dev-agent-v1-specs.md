@@ -2,7 +2,7 @@
 
 This document defines the specification breakdown for implementing AI Dev Agent v1, as described in [dev-agent-v1.md](dev-agent-v1.md).
 
-Each spec maps to one or more architecture documents under `docs/` and is designed to be independently implementable and deliverable via [cc-sdd](https://github.com/gotalab/cc-sdd).
+Each spec maps to one or more architecture documents under `docs/` and is designed to be independently implementable and deliverable via sdd framework like [cc-sdd](https://github.com/gotalab/cc-sdd) and [OpenSpec](https://openspec.dev/), [spec-kit](https://github.com/github/spec-kit).
 
 ---
 
