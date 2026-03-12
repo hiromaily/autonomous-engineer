@@ -1,32 +1,62 @@
-import { readdir } from 'node:fs/promises';
-import { join, resolve as resolvePath } from 'node:path';
-import * as ts from 'typescript';
-import type { Tool, ToolContext } from '../../domain/tools/types';
-import { resolveWorkspacePath } from './filesystem';
+import { readdir } from "node:fs/promises";
+import { join, resolve as resolvePath } from "node:path";
+import * as ts from "typescript";
+import type { Tool, ToolContext } from "../../domain/tools/types";
+import { resolveWorkspacePath } from "./filesystem";
 
 // ---------------------------------------------------------------------------
 // I/O types
 // ---------------------------------------------------------------------------
 
-export interface ParseTsAstInput  { readonly filePath: string }
-export interface TsDeclaration    { readonly kind: string; readonly name: string; readonly line: number }
+export interface ParseTsAstInput {
+  readonly filePath: string;
+}
+export interface TsDeclaration {
+  readonly kind: string;
+  readonly name: string;
+  readonly line: number;
+}
 export interface ParseTsAstOutput {
   readonly declarations: ReadonlyArray<TsDeclaration>;
-  readonly imports:      ReadonlyArray<string>;
-  readonly exports:      ReadonlyArray<string>;
+  readonly imports: ReadonlyArray<string>;
+  readonly exports: ReadonlyArray<string>;
 }
 
-export interface FindSymbolInput  { readonly symbolName: string; readonly scope?: string }
-export interface SymbolDefinition { readonly filePath: string; readonly line: number; readonly signature: string }
-export interface FindSymbolOutput { readonly definition: SymbolDefinition | null }
+export interface FindSymbolInput {
+  readonly symbolName: string;
+  readonly scope?: string;
+}
+export interface SymbolDefinition {
+  readonly filePath: string;
+  readonly line: number;
+  readonly signature: string;
+}
+export interface FindSymbolOutput {
+  readonly definition: SymbolDefinition | null;
+}
 
-export interface FindReferencesInput  { readonly symbolName: string; readonly scope?: string }
-export interface SymbolReference      { readonly filePath: string; readonly line: number }
-export interface FindReferencesOutput { readonly references: ReadonlyArray<SymbolReference> }
+export interface FindReferencesInput {
+  readonly symbolName: string;
+  readonly scope?: string;
+}
+export interface SymbolReference {
+  readonly filePath: string;
+  readonly line: number;
+}
+export interface FindReferencesOutput {
+  readonly references: ReadonlyArray<SymbolReference>;
+}
 
-export interface DependencyGraphInput  { readonly entryPoint: string }
-export interface DependencyNode        { readonly module: string; readonly dependencies: ReadonlyArray<string> }
-export interface DependencyGraphOutput { readonly nodes: ReadonlyArray<DependencyNode> }
+export interface DependencyGraphInput {
+  readonly entryPoint: string;
+}
+export interface DependencyNode {
+  readonly module: string;
+  readonly dependencies: ReadonlyArray<string>;
+}
+export interface DependencyGraphOutput {
+  readonly nodes: ReadonlyArray<DependencyNode>;
+}
 
 // ---------------------------------------------------------------------------
 // Shared utilities
@@ -37,10 +67,10 @@ export interface DependencyGraphOutput { readonly nodes: ReadonlyArray<Dependenc
  * Signals ToolError { type: 'runtime' }.
  */
 class ToolRuntimeError extends Error {
-  readonly toolErrorType = 'runtime' as const;
+  readonly toolErrorType = "runtime" as const;
   constructor(message: string) {
     super(message);
-    this.name = 'ToolRuntimeError';
+    this.name = "ToolRuntimeError";
   }
 }
 
@@ -49,14 +79,22 @@ class ToolRuntimeError extends Error {
  */
 function kindToString(kind: ts.SyntaxKind): string {
   switch (kind) {
-    case ts.SyntaxKind.FunctionDeclaration:      return 'function';
-    case ts.SyntaxKind.ClassDeclaration:         return 'class';
-    case ts.SyntaxKind.InterfaceDeclaration:     return 'interface';
-    case ts.SyntaxKind.TypeAliasDeclaration:     return 'type';
-    case ts.SyntaxKind.EnumDeclaration:          return 'enum';
-    case ts.SyntaxKind.VariableStatement:        return 'variable';
-    case ts.SyntaxKind.ModuleDeclaration:        return 'namespace';
-    default:                                      return ts.SyntaxKind[kind] ?? 'unknown';
+    case ts.SyntaxKind.FunctionDeclaration:
+      return "function";
+    case ts.SyntaxKind.ClassDeclaration:
+      return "class";
+    case ts.SyntaxKind.InterfaceDeclaration:
+      return "interface";
+    case ts.SyntaxKind.TypeAliasDeclaration:
+      return "type";
+    case ts.SyntaxKind.EnumDeclaration:
+      return "enum";
+    case ts.SyntaxKind.VariableStatement:
+      return "variable";
+    case ts.SyntaxKind.ModuleDeclaration:
+      return "namespace";
+    default:
+      return ts.SyntaxKind[kind] ?? "unknown";
   }
 }
 
@@ -78,11 +116,11 @@ async function collectTsFiles(dir: string): Promise<string[]> {
     const subdirWalks: Promise<void>[] = [];
     for (const entry of entries) {
       // Skip node_modules and hidden directories
-      if (entry.name === 'node_modules' || entry.name.startsWith('.')) continue;
+      if (entry.name === "node_modules" || entry.name.startsWith(".")) continue;
       const full = join(current, entry.name);
       if (entry.isDirectory()) {
         subdirWalks.push(walk(full));
-      } else if (entry.isFile() && (entry.name.endsWith('.ts') || entry.name.endsWith('.tsx'))) {
+      } else if (entry.isFile() && (entry.name.endsWith(".ts") || entry.name.endsWith(".tsx"))) {
         results.push(full);
       }
     }
@@ -101,7 +139,7 @@ function createProgram(rootNames: string[]): ts.Program {
     target: ts.ScriptTarget.ESNext,
     module: ts.ModuleKind.ESNext,
     moduleResolution: ts.ModuleResolutionKind.Bundler,
-    strict: false,        // lenient to allow analysis of arbitrary source
+    strict: false, // lenient to allow analysis of arbitrary source
     skipLibCheck: true,
     noEmit: true,
   };
@@ -114,7 +152,7 @@ function createProgram(rootNames: string[]): ts.Program {
 function nodeSignature(node: ts.Node, sourceFile: ts.SourceFile): string {
   // Return at most the first line of the node text as the signature
   const text = node.getText(sourceFile);
-  const firstLine = text.split('\n')[0] ?? '';
+  const firstLine = text.split("\n")[0] ?? "";
   return firstLine.slice(0, 200);
 }
 
@@ -123,37 +161,37 @@ function nodeSignature(node: ts.Node, sourceFile: ts.SourceFile): string {
 // ---------------------------------------------------------------------------
 
 export const parseTsAstTool: Tool<ParseTsAstInput, ParseTsAstOutput> = {
-  name: 'parse_typescript_ast',
+  name: "parse_typescript_ast",
   description:
-    'Parse a TypeScript source file and extract top-level declarations, import module specifiers, and export names using the TypeScript compiler API.',
-  requiredPermissions: ['filesystemRead'],
+    "Parse a TypeScript source file and extract top-level declarations, import module specifiers, and export names using the TypeScript compiler API.",
+  requiredPermissions: ["filesystemRead"],
   schema: {
     input: {
-      type: 'object',
-      properties: { filePath: { type: 'string' } },
-      required: ['filePath'],
+      type: "object",
+      properties: { filePath: { type: "string" } },
+      required: ["filePath"],
       additionalProperties: false,
     },
     output: {
-      type: 'object',
+      type: "object",
       properties: {
         declarations: {
-          type: 'array',
+          type: "array",
           items: {
-            type: 'object',
+            type: "object",
             properties: {
-              kind: { type: 'string' },
-              name: { type: 'string' },
-              line: { type: 'number' },
+              kind: { type: "string" },
+              name: { type: "string" },
+              line: { type: "number" },
             },
-            required: ['kind', 'name', 'line'],
+            required: ["kind", "name", "line"],
             additionalProperties: false,
           },
         },
-        imports: { type: 'array', items: { type: 'string' } },
-        exports: { type: 'array', items: { type: 'string' } },
+        imports: { type: "array", items: { type: "string" } },
+        exports: { type: "array", items: { type: "string" } },
       },
-      required: ['declarations', 'imports', 'exports'],
+      required: ["declarations", "imports", "exports"],
       additionalProperties: false,
     },
   },
@@ -238,40 +276,40 @@ function hasExportModifier(node: ts.Node): boolean {
 // ---------------------------------------------------------------------------
 
 export const findSymbolDefinitionTool: Tool<FindSymbolInput, FindSymbolOutput> = {
-  name: 'find_symbol_definition',
+  name: "find_symbol_definition",
   description:
-    'Search workspace TypeScript files for a function, class, interface, or type declaration by name. Returns file path, line number, and signature, or null when not found.',
-  requiredPermissions: ['filesystemRead'],
+    "Search workspace TypeScript files for a function, class, interface, or type declaration by name. Returns file path, line number, and signature, or null when not found.",
+  requiredPermissions: ["filesystemRead"],
   schema: {
     input: {
-      type: 'object',
+      type: "object",
       properties: {
-        symbolName: { type: 'string' },
-        scope:      { type: 'string' },
+        symbolName: { type: "string" },
+        scope: { type: "string" },
       },
-      required: ['symbolName'],
+      required: ["symbolName"],
       additionalProperties: false,
     },
     output: {
-      type: 'object',
+      type: "object",
       properties: {
         definition: {
           oneOf: [
             {
-              type: 'object',
+              type: "object",
               properties: {
-                filePath:  { type: 'string' },
-                line:      { type: 'number' },
-                signature: { type: 'string' },
+                filePath: { type: "string" },
+                line: { type: "number" },
+                signature: { type: "string" },
               },
-              required: ['filePath', 'line', 'signature'],
+              required: ["filePath", "line", "signature"],
               additionalProperties: false,
             },
-            { type: 'null' },
+            { type: "null" },
           ],
         },
       },
-      required: ['definition'],
+      required: ["definition"],
       additionalProperties: false,
     },
   },
@@ -294,7 +332,7 @@ export const findSymbolDefinitionTool: Tool<FindSymbolInput, FindSymbolOutput> =
         return {
           definition: {
             filePath,
-            line:      found.line,
+            line: found.line,
             signature: found.signature,
           },
         };
@@ -305,7 +343,10 @@ export const findSymbolDefinitionTool: Tool<FindSymbolInput, FindSymbolOutput> =
   },
 };
 
-interface DeclFound { line: number; signature: string }
+interface DeclFound {
+  line: number;
+  signature: string;
+}
 
 function findDeclarationInFile(
   sourceFile: ts.SourceFile,
@@ -317,15 +358,15 @@ function findDeclarationInFile(
     if (result) return; // already found
 
     if (
-      (ts.isFunctionDeclaration(node) ||
-       ts.isClassDeclaration(node) ||
-       ts.isInterfaceDeclaration(node) ||
-       ts.isTypeAliasDeclaration(node) ||
-       ts.isEnumDeclaration(node)) &&
-      node.name?.text === symbolName
+      (ts.isFunctionDeclaration(node)
+        || ts.isClassDeclaration(node)
+        || ts.isInterfaceDeclaration(node)
+        || ts.isTypeAliasDeclaration(node)
+        || ts.isEnumDeclaration(node))
+      && node.name?.text === symbolName
     ) {
       result = {
-        line:      lineOf(node, sourceFile),
+        line: lineOf(node, sourceFile),
         signature: nodeSignature(node, sourceFile),
       };
       return;
@@ -335,7 +376,7 @@ function findDeclarationInFile(
       for (const decl of node.declarationList.declarations) {
         if (ts.isIdentifier(decl.name) && decl.name.text === symbolName) {
           result = {
-            line:      lineOf(node, sourceFile),
+            line: lineOf(node, sourceFile),
             signature: nodeSignature(node, sourceFile),
           };
           return;
@@ -355,37 +396,37 @@ function findDeclarationInFile(
 // ---------------------------------------------------------------------------
 
 export const findReferencesTool: Tool<FindReferencesInput, FindReferencesOutput> = {
-  name: 'find_references',
+  name: "find_references",
   description:
-    'Return all usage sites of a named symbol across workspace TypeScript files, with file path and line number per reference.',
-  requiredPermissions: ['filesystemRead'],
+    "Return all usage sites of a named symbol across workspace TypeScript files, with file path and line number per reference.",
+  requiredPermissions: ["filesystemRead"],
   schema: {
     input: {
-      type: 'object',
+      type: "object",
       properties: {
-        symbolName: { type: 'string' },
-        scope:      { type: 'string' },
+        symbolName: { type: "string" },
+        scope: { type: "string" },
       },
-      required: ['symbolName'],
+      required: ["symbolName"],
       additionalProperties: false,
     },
     output: {
-      type: 'object',
+      type: "object",
       properties: {
         references: {
-          type: 'array',
+          type: "array",
           items: {
-            type: 'object',
+            type: "object",
             properties: {
-              filePath: { type: 'string' },
-              line:     { type: 'number' },
+              filePath: { type: "string" },
+              line: { type: "number" },
             },
-            required: ['filePath', 'line'],
+            required: ["filePath", "line"],
             additionalProperties: false,
           },
         },
       },
-      required: ['references'],
+      required: ["references"],
       additionalProperties: false,
     },
   },
@@ -437,34 +478,34 @@ function collectImportSpecifiers(sourceFile: ts.SourceFile): string[] {
 }
 
 export const dependencyGraphTool: Tool<DependencyGraphInput, DependencyGraphOutput> = {
-  name: 'dependency_graph',
+  name: "dependency_graph",
   description:
-    'Traverse imports from a TypeScript entry point and build a dependency graph. Returns a list of nodes each with its module path and direct dependency module specifiers, including transitive dependencies.',
-  requiredPermissions: ['filesystemRead'],
+    "Traverse imports from a TypeScript entry point and build a dependency graph. Returns a list of nodes each with its module path and direct dependency module specifiers, including transitive dependencies.",
+  requiredPermissions: ["filesystemRead"],
   schema: {
     input: {
-      type: 'object',
-      properties: { entryPoint: { type: 'string' } },
-      required: ['entryPoint'],
+      type: "object",
+      properties: { entryPoint: { type: "string" } },
+      required: ["entryPoint"],
       additionalProperties: false,
     },
     output: {
-      type: 'object',
+      type: "object",
       properties: {
         nodes: {
-          type: 'array',
+          type: "array",
           items: {
-            type: 'object',
+            type: "object",
             properties: {
-              module:       { type: 'string' },
-              dependencies: { type: 'array', items: { type: 'string' } },
+              module: { type: "string" },
+              dependencies: { type: "array", items: { type: "string" } },
             },
-            required: ['module', 'dependencies'],
+            required: ["module", "dependencies"],
             additionalProperties: false,
           },
         },
       },
-      required: ['nodes'],
+      required: ["nodes"],
       additionalProperties: false,
     },
   },

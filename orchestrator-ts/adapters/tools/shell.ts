@@ -1,7 +1,7 @@
-import { execFile as execFileCb } from 'node:child_process';
-import { promisify } from 'node:util';
-import type { Tool, ToolContext } from '../../domain/tools/types';
-import { resolveWorkspacePath } from './filesystem';
+import { execFile as execFileCb } from "node:child_process";
+import { promisify } from "node:util";
+import type { Tool, ToolContext } from "../../domain/tools/types";
+import { resolveWorkspacePath } from "./filesystem";
 
 const execFile = promisify(execFileCb);
 
@@ -18,20 +18,20 @@ export interface RunCommandInput {
   readonly cwd?: string;
 }
 export interface RunCommandOutput {
-  readonly stdout:   string;
-  readonly stderr:   string;
+  readonly stdout: string;
+  readonly stderr: string;
   readonly exitCode: number;
 }
 
-export type TestFramework = 'bun' | 'jest' | 'vitest' | 'mocha';
+export type TestFramework = "bun" | "jest" | "vitest" | "mocha";
 export interface RunTestSuiteInput {
   readonly framework: TestFramework;
   readonly pattern?: string;
   readonly cwd?: string;
 }
 export interface TestResult {
-  readonly passed:   number;
-  readonly failed:   number;
+  readonly passed: number;
+  readonly failed: number;
   readonly failures: ReadonlyArray<string>;
 }
 export interface RunTestSuiteOutput {
@@ -40,14 +40,14 @@ export interface RunTestSuiteOutput {
   readonly stderr: string;
 }
 
-export type PackageManager = 'bun' | 'npm' | 'pnpm' | 'yarn';
+export type PackageManager = "bun" | "npm" | "pnpm" | "yarn";
 export interface InstallDependenciesInput {
   readonly packageManager: PackageManager;
   readonly cwd?: string;
 }
 export interface InstallDependenciesOutput {
-  readonly stdout:   string;
-  readonly stderr:   string;
+  readonly stdout: string;
+  readonly stderr: string;
   readonly exitCode: number;
 }
 
@@ -56,8 +56,8 @@ export interface InstallDependenciesOutput {
 // ---------------------------------------------------------------------------
 
 interface ExecResult {
-  stdout:   string;
-  stderr:   string;
+  stdout: string;
+  stderr: string;
   exitCode: number;
 }
 
@@ -71,10 +71,10 @@ async function runExec(command: string, args: readonly string[], cwd: string): P
     return { stdout, stderr, exitCode: 0 };
   } catch (err: unknown) {
     const e = err as { stdout?: string; stderr?: string; code?: number | string };
-    const exitCode = typeof e.code === 'number' ? e.code : 1;
+    const exitCode = typeof e.code === "number" ? e.code : 1;
     return {
-      stdout:   e.stdout  ?? '',
-      stderr:   e.stderr  ?? '',
+      stdout: e.stdout ?? "",
+      stderr: e.stderr ?? "",
       exitCode,
     };
   }
@@ -85,28 +85,29 @@ async function runExec(command: string, args: readonly string[], cwd: string): P
 // ---------------------------------------------------------------------------
 
 export const runCommandTool: Tool<RunCommandInput, RunCommandOutput> = {
-  name: 'run_command',
-  description: 'Execute a command with arguments via execFile (no shell interpolation). Captures stdout, stderr, and exit code; non-zero exit is a valid result, not an error.',
-  requiredPermissions: ['shellExecution'],
+  name: "run_command",
+  description:
+    "Execute a command with arguments via execFile (no shell interpolation). Captures stdout, stderr, and exit code; non-zero exit is a valid result, not an error.",
+  requiredPermissions: ["shellExecution"],
   schema: {
     input: {
-      type: 'object',
+      type: "object",
       properties: {
-        command: { type: 'string' },
-        args:    { type: 'array', items: { type: 'string' } },
-        cwd:     { type: 'string' },
+        command: { type: "string" },
+        args: { type: "array", items: { type: "string" } },
+        cwd: { type: "string" },
       },
-      required: ['command', 'args'],
+      required: ["command", "args"],
       additionalProperties: false,
     },
     output: {
-      type: 'object',
+      type: "object",
       properties: {
-        stdout:   { type: 'string' },
-        stderr:   { type: 'string' },
-        exitCode: { type: 'number' },
+        stdout: { type: "string" },
+        stderr: { type: "string" },
+        exitCode: { type: "number" },
       },
-      required: ['stdout', 'stderr', 'exitCode'],
+      required: ["stdout", "stderr", "exitCode"],
       additionalProperties: false,
     },
   },
@@ -128,12 +129,12 @@ export const runCommandTool: Tool<RunCommandInput, RunCommandOutput> = {
  * Failure markers: ✗ (bun), ● (jest), FAILED (vitest/mocha).
  */
 function parseTestOutput(stdout: string, stderr: string): TestResult {
-  const combined = stdout + '\n' + stderr;
+  const combined = stdout + "\n" + stderr;
   let passed = 0;
   let failed = 0;
   const failures: string[] = [];
 
-  for (const line of combined.split('\n')) {
+  for (const line of combined.split("\n")) {
     const passMatch = line.match(/(\d+)\s+pass/);
     const failMatch = line.match(/(\d+)\s+fail/);
     if (passMatch) passed = parseInt(passMatch[1]!, 10);
@@ -150,61 +151,62 @@ function parseTestOutput(stdout: string, stderr: string): TestResult {
 /** Build command args for the given test framework. */
 function buildTestArgs(framework: TestFramework, pattern?: string): { command: string; args: string[] } {
   switch (framework) {
-    case 'bun':
+    case "bun":
       return {
-        command: 'bun',
-        args: pattern ? ['test', pattern] : ['test'],
+        command: "bun",
+        args: pattern ? ["test", pattern] : ["test"],
       };
-    case 'jest':
+    case "jest":
       return {
-        command: 'npx',
-        args: pattern ? ['jest', '--testPathPattern', pattern] : ['jest'],
+        command: "npx",
+        args: pattern ? ["jest", "--testPathPattern", pattern] : ["jest"],
       };
-    case 'vitest':
+    case "vitest":
       return {
-        command: 'npx',
-        args: pattern ? ['vitest', 'run', pattern] : ['vitest', 'run'],
+        command: "npx",
+        args: pattern ? ["vitest", "run", pattern] : ["vitest", "run"],
       };
-    case 'mocha':
+    case "mocha":
       return {
-        command: 'npx',
-        args: pattern ? ['mocha', pattern] : ['mocha'],
+        command: "npx",
+        args: pattern ? ["mocha", pattern] : ["mocha"],
       };
   }
 }
 
 export const runTestSuiteTool: Tool<RunTestSuiteInput, RunTestSuiteOutput> = {
-  name: 'run_test_suite',
-  description: 'Invoke a test framework runner and parse output into a structured result with passed/failed counts and failure messages.',
-  requiredPermissions: ['shellExecution'],
+  name: "run_test_suite",
+  description:
+    "Invoke a test framework runner and parse output into a structured result with passed/failed counts and failure messages.",
+  requiredPermissions: ["shellExecution"],
   schema: {
     input: {
-      type: 'object',
+      type: "object",
       properties: {
-        framework: { type: 'string', enum: ['bun', 'jest', 'vitest', 'mocha'] },
-        pattern:   { type: 'string' },
-        cwd:       { type: 'string' },
+        framework: { type: "string", enum: ["bun", "jest", "vitest", "mocha"] },
+        pattern: { type: "string" },
+        cwd: { type: "string" },
       },
-      required: ['framework'],
+      required: ["framework"],
       additionalProperties: false,
     },
     output: {
-      type: 'object',
+      type: "object",
       properties: {
         result: {
-          type: 'object',
+          type: "object",
           properties: {
-            passed:   { type: 'number' },
-            failed:   { type: 'number' },
-            failures: { type: 'array', items: { type: 'string' } },
+            passed: { type: "number" },
+            failed: { type: "number" },
+            failures: { type: "array", items: { type: "string" } },
           },
-          required: ['passed', 'failed', 'failures'],
+          required: ["passed", "failed", "failures"],
           additionalProperties: false,
         },
-        stdout: { type: 'string' },
-        stderr: { type: 'string' },
+        stdout: { type: "string" },
+        stderr: { type: "string" },
       },
-      required: ['result', 'stdout', 'stderr'],
+      required: ["result", "stdout", "stderr"],
       additionalProperties: false,
     },
   },
@@ -226,35 +228,39 @@ export const runTestSuiteTool: Tool<RunTestSuiteInput, RunTestSuiteOutput> = {
 
 function buildInstallArgs(packageManager: PackageManager): { command: string; args: string[] } {
   switch (packageManager) {
-    case 'bun':  return { command: 'bun',  args: ['install'] };
-    case 'npm':  return { command: 'npm',  args: ['install'] };
-    case 'pnpm': return { command: 'pnpm', args: ['install'] };
-    case 'yarn': return { command: 'yarn', args: ['install'] };
+    case "bun":
+      return { command: "bun", args: ["install"] };
+    case "npm":
+      return { command: "npm", args: ["install"] };
+    case "pnpm":
+      return { command: "pnpm", args: ["install"] };
+    case "yarn":
+      return { command: "yarn", args: ["install"] };
   }
 }
 
 export const installDependenciesTool: Tool<InstallDependenciesInput, InstallDependenciesOutput> = {
-  name: 'install_dependencies',
-  description: 'Run the appropriate package manager install command and return stdout, stderr, and exit code.',
-  requiredPermissions: ['shellExecution'],
+  name: "install_dependencies",
+  description: "Run the appropriate package manager install command and return stdout, stderr, and exit code.",
+  requiredPermissions: ["shellExecution"],
   schema: {
     input: {
-      type: 'object',
+      type: "object",
       properties: {
-        packageManager: { type: 'string', enum: ['bun', 'npm', 'pnpm', 'yarn'] },
-        cwd:            { type: 'string' },
+        packageManager: { type: "string", enum: ["bun", "npm", "pnpm", "yarn"] },
+        cwd: { type: "string" },
       },
-      required: ['packageManager'],
+      required: ["packageManager"],
       additionalProperties: false,
     },
     output: {
-      type: 'object',
+      type: "object",
       properties: {
-        stdout:   { type: 'string' },
-        stderr:   { type: 'string' },
-        exitCode: { type: 'number' },
+        stdout: { type: "string" },
+        stderr: { type: "string" },
+        exitCode: { type: "number" },
       },
-      required: ['stdout', 'stderr', 'exitCode'],
+      required: ["stdout", "stderr", "exitCode"],
       additionalProperties: false,
     },
   },

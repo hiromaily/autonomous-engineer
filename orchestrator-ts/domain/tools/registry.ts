@@ -1,19 +1,19 @@
-import type { Tool } from './types';
+import type { Tool } from "./types";
 
 // ---------------------------------------------------------------------------
 // RegistryError discriminated union
 // ---------------------------------------------------------------------------
 
 export type RegistryError =
-  | { readonly type: 'duplicate_name'; readonly name: string }
-  | { readonly type: 'not_found';      readonly name: string };
+  | { readonly type: "duplicate_name"; readonly name: string }
+  | { readonly type: "not_found"; readonly name: string };
 
 // ---------------------------------------------------------------------------
 // RegistryResult discriminated union
 // ---------------------------------------------------------------------------
 
 export type RegistryResult<T> =
-  | { readonly ok: true;  readonly value: T }
+  | { readonly ok: true; readonly value: T }
   | { readonly ok: false; readonly error: RegistryError };
 
 // ---------------------------------------------------------------------------
@@ -23,7 +23,7 @@ export type RegistryResult<T> =
 export type ToolListEntry = {
   readonly name: string;
   readonly description: string;
-  readonly schema: Tool<unknown, unknown>['schema'];
+  readonly schema: Tool<unknown, unknown>["schema"];
 };
 
 export interface IToolRegistry {
@@ -47,7 +47,7 @@ export class ToolRegistry implements IToolRegistry {
 
   register(tool: Tool<unknown, unknown>): RegistryResult<void> {
     if (this.#tools.has(tool.name)) {
-      return { ok: false, error: { type: 'duplicate_name', name: tool.name } };
+      return { ok: false, error: { type: "duplicate_name", name: tool.name } };
     }
     this.#tools.set(tool.name, tool);
     return { ok: true, value: undefined };
@@ -56,7 +56,7 @@ export class ToolRegistry implements IToolRegistry {
   get(name: string): RegistryResult<Tool<unknown, unknown>> {
     const tool = this.#tools.get(name);
     if (tool === undefined) {
-      return { ok: false, error: { type: 'not_found', name } };
+      return { ok: false, error: { type: "not_found", name } };
     }
     return { ok: true, value: tool };
   }

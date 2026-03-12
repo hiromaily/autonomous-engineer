@@ -1,9 +1,9 @@
-import type { SddFrameworkPort, SpecContext } from '../../application/ports/sdd';
-import type { LlmProviderPort } from '../../application/ports/llm';
-import type { WorkflowPhase } from './types';
+import type { LlmProviderPort } from "../../application/ports/llm";
+import type { SddFrameworkPort, SpecContext } from "../../application/ports/sdd";
+import type { WorkflowPhase } from "./types";
 
 export type PhaseResult =
-  | { readonly ok: true;  readonly artifacts: readonly string[] }
+  | { readonly ok: true; readonly artifacts: readonly string[] }
   | { readonly ok: false; readonly error: string };
 
 export interface PhaseRunnerDeps {
@@ -22,25 +22,25 @@ export class PhaseRunner {
 
   async execute(phase: WorkflowPhase, ctx: SpecContext): Promise<PhaseResult> {
     switch (phase) {
-      case 'REQUIREMENTS': {
+      case "REQUIREMENTS": {
         const result = await this.sdd.generateRequirements(ctx);
         return this.mapSddResult(result);
       }
-      case 'DESIGN': {
+      case "DESIGN": {
         const result = await this.sdd.generateDesign(ctx);
         return this.mapSddResult(result);
       }
-      case 'VALIDATE_DESIGN': {
+      case "VALIDATE_DESIGN": {
         const result = await this.sdd.validateDesign(ctx);
         return this.mapSddResult(result);
       }
-      case 'TASK_GENERATION': {
+      case "TASK_GENERATION": {
         const result = await this.sdd.generateTasks(ctx);
         return this.mapSddResult(result);
       }
-      case 'SPEC_INIT':
-      case 'IMPLEMENTATION':
-      case 'PULL_REQUEST':
+      case "SPEC_INIT":
+      case "IMPLEMENTATION":
+      case "PULL_REQUEST":
         // Stubs: wired in spec4 and spec8; return success with no artifacts
         return { ok: true, artifacts: [] };
       default: {
@@ -60,7 +60,7 @@ export class PhaseRunner {
     // Lifecycle hook — extended in future specs
   }
 
-  private mapSddResult(result: Awaited<ReturnType<SddFrameworkPort['generateRequirements']>>): PhaseResult {
+  private mapSddResult(result: Awaited<ReturnType<SddFrameworkPort["generateRequirements"]>>): PhaseResult {
     if (result.ok) {
       return { ok: true, artifacts: [result.artifactPath] };
     }

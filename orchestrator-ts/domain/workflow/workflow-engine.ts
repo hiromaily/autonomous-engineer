@@ -1,23 +1,23 @@
-import { access, readFile } from 'node:fs/promises';
-import { join } from 'node:path';
-import { WORKFLOW_PHASES } from './types';
-import type { WorkflowPhase, WorkflowState } from './types';
-import type { IWorkflowStateStore, IWorkflowEventBus } from '../../application/ports/workflow';
-import type { PhaseRunner } from './phase-runner';
-import type { ApprovalGate, ApprovalPhase } from './approval-gate';
-import type { SpecContext } from '../../application/ports/sdd';
+import { access, readFile } from "node:fs/promises";
+import { join } from "node:path";
+import type { SpecContext } from "../../application/ports/sdd";
+import type { IWorkflowEventBus, IWorkflowStateStore } from "../../application/ports/workflow";
+import type { ApprovalGate, ApprovalPhase } from "./approval-gate";
+import type { PhaseRunner } from "./phase-runner";
+import { WORKFLOW_PHASES } from "./types";
+import type { WorkflowPhase, WorkflowState } from "./types";
 
 export type WorkflowResult =
-  | { readonly status: 'completed'; readonly completedPhases: readonly WorkflowPhase[] }
-  | { readonly status: 'paused'; readonly phase: WorkflowPhase; readonly reason: 'approval_required' }
-  | { readonly status: 'failed'; readonly phase: WorkflowPhase; readonly error: string };
+  | { readonly status: "completed"; readonly completedPhases: readonly WorkflowPhase[] }
+  | { readonly status: "paused"; readonly phase: WorkflowPhase; readonly reason: "approval_required" }
+  | { readonly status: "failed"; readonly phase: WorkflowPhase; readonly error: string };
 
 /** Artifact filenames (relative to specDir) that must exist before entering each phase. */
 const REQUIRED_ARTIFACTS: Partial<Record<WorkflowPhase, readonly string[]>> = {
-  DESIGN:          ['requirements.md'],
-  VALIDATE_DESIGN: ['design.md'],
-  TASK_GENERATION: ['design.md'],
-  IMPLEMENTATION:  ['tasks.md'],
+  DESIGN: ["requirements.md"],
+  VALIDATE_DESIGN: ["design.md"],
+  TASK_GENERATION: ["design.md"],
+  IMPLEMENTATION: ["tasks.md"],
 };
 
 /**
@@ -25,9 +25,9 @@ const REQUIRED_ARTIFACTS: Partial<Record<WorkflowPhase, readonly string[]>> = {
  * Maps workflow phase → approval gate key read from spec.json approvals object.
  */
 const APPROVAL_GATE_PHASES: Partial<Record<WorkflowPhase, ApprovalPhase>> = {
-  REQUIREMENTS:    'requirements',
-  VALIDATE_DESIGN: 'design',
-  TASK_GENERATION: 'tasks',
+  REQUIREMENTS: "requirements",
+  VALIDATE_DESIGN: "design",
+  TASK_GENERATION: "tasks",
 };
 
 export interface WorkflowEngineDeps {
@@ -55,7 +55,7 @@ export class WorkflowEngine {
    *  Throws if a concurrent execution is already in progress. */
   async execute(state: WorkflowState): Promise<WorkflowResult> {
     if (this.isRunning) {
-      throw new Error('WorkflowEngine is already running; concurrent execution is not allowed.');
+      throw new Error("WorkflowEngine is already running; concurrent execution is not allowed.");
     }
     this.isRunning = true;
     this.currentState = state;
@@ -76,7 +76,7 @@ export class WorkflowEngine {
 
     // Handle resume from paused_for_approval: re-check gate for the paused phase
     // without re-executing it (Req 5.5, 5.6, 4.6).
-    if (this.currentState.status === 'paused_for_approval') {
+    if (this.currentState.status === "paused_for_approval") {
       const resumeResult = await this.advancePausedPhase();
       if (resumeResult !== null) return resumeResult;
       // advancePausedPhase returned null → phase advanced, fall through to main loop.
@@ -84,20 +84,20 @@ export class WorkflowEngine {
 
     for (const phase of this.pendingPhases()) {
       // 1. Emit phase:start — always emitted at phase entry (Req 8.1).
-      eventBus.emit({ type: 'phase:start', phase, timestamp: new Date().toISOString() });
+      eventBus.emit({ type: "phase:start", phase, timestamp: new Date().toISOString() });
 
       // 2. Validate that required artifacts from prior phases exist on disk.
       const artifactError = await this.checkRequiredArtifacts(phase);
       if (artifactError !== null) {
-        eventBus.emit({ type: 'phase:error', phase, operation: 'artifact-validation', error: artifactError });
+        eventBus.emit({ type: "phase:error", phase, operation: "artifact-validation", error: artifactError });
         return await this.failAt(phase, artifactError);
       }
 
       // 3. Check ready_for_implementation before entering IMPLEMENTATION (Req 4.6).
-      if (phase === 'IMPLEMENTATION') {
+      if (phase === "IMPLEMENTATION") {
         const readyResult = await this.checkReadyForImplementation();
         if (!readyResult.ready) {
-          return await this.pauseAt('TASK_GENERATION', join(specDir, 'spec.json'), readyResult.instruction);
+          return await this.pauseAt("TASK_GENERATION", join(specDir, "spec.json"), readyResult.instruction);
         }
       }
 
@@ -106,7 +106,7 @@ export class WorkflowEngine {
       const runningState: WorkflowState = {
         ...this.currentState,
         currentPhase: phase,
-        status: 'running',
+        status: "running",
         updatedAt: new Date().toISOString(),
       };
       this.currentState = runningState;
@@ -124,12 +124,12 @@ export class WorkflowEngine {
       await phaseRunner.onExit(phase);
 
       if (!result.ok) {
-        eventBus.emit({ type: 'phase:error', phase, operation: phase, error: result.error });
+        eventBus.emit({ type: "phase:error", phase, operation: phase, error: result.error });
         return await this.failAt(phase, result.error);
       }
 
       // 8. Emit phase:complete with duration and artifacts (Req 8.2).
-      eventBus.emit({ type: 'phase:complete', phase, durationMs, artifacts: result.artifacts });
+      eventBus.emit({ type: "phase:complete", phase, durationMs, artifacts: result.artifacts });
 
       // 9. Check approval gate for phases that require human review (Req 5.1–5.6).
       const approvalType = APPROVAL_GATE_PHASES[phase];
@@ -151,16 +151,16 @@ export class WorkflowEngine {
     // All phases completed successfully.
     const finalState: WorkflowState = {
       ...this.currentState,
-      status: 'completed',
+      status: "completed",
       updatedAt: new Date().toISOString(),
     };
     this.currentState = finalState;
     await stateStore.persist(finalState);
 
     // Emit workflow:complete (Req 8.3).
-    eventBus.emit({ type: 'workflow:complete', completedPhases: finalState.completedPhases });
+    eventBus.emit({ type: "workflow:complete", completedPhases: finalState.completedPhases });
 
-    return { status: 'completed', completedPhases: finalState.completedPhases };
+    return { status: "completed", completedPhases: finalState.completedPhases };
   }
 
   /**
@@ -184,10 +184,10 @@ export class WorkflowEngine {
     }
 
     // Also check ready_for_implementation if the paused phase was TASK_GENERATION.
-    if (pausedPhase === 'TASK_GENERATION') {
+    if (pausedPhase === "TASK_GENERATION") {
       const readyResult = await this.checkReadyForImplementation();
       if (!readyResult.ready) {
-        return await this.pauseAt(pausedPhase, join(specDir, 'spec.json'), readyResult.instruction);
+        return await this.pauseAt(pausedPhase, join(specDir, "spec.json"), readyResult.instruction);
       }
     }
 
@@ -198,7 +198,7 @@ export class WorkflowEngine {
       ...this.currentState,
       currentPhase: nextPhase ?? pausedPhase,
       completedPhases: [...this.currentState.completedPhases, pausedPhase],
-      status: 'running',
+      status: "running",
       updatedAt: new Date().toISOString(),
     };
     this.currentState = advancedState;
@@ -235,12 +235,12 @@ export class WorkflowEngine {
    * is not `true` — fail closed.
    */
   private async checkReadyForImplementation(): Promise<{ ready: boolean; instruction: string }> {
-    const specJsonPath = join(this.deps.specDir, 'spec.json');
+    const specJsonPath = join(this.deps.specDir, "spec.json");
     try {
-      const raw = await readFile(specJsonPath, 'utf-8');
+      const raw = await readFile(specJsonPath, "utf-8");
       const parsed = JSON.parse(raw) as Record<string, unknown>;
-      if (parsed['ready_for_implementation'] === true) {
-        return { ready: true, instruction: '' };
+      if (parsed["ready_for_implementation"] === true) {
+        return { ready: true, instruction: "" };
       }
     } catch { /* missing or malformed → not ready */ }
 
@@ -262,27 +262,27 @@ export class WorkflowEngine {
     const pausedState: WorkflowState = {
       ...this.currentState,
       currentPhase: phase,
-      status: 'paused_for_approval',
+      status: "paused_for_approval",
       updatedAt: new Date().toISOString(),
     };
     this.currentState = pausedState;
     await this.deps.stateStore.persist(pausedState);
-    this.deps.eventBus.emit({ type: 'approval:required', phase, artifactPath, instruction });
-    return { status: 'paused', phase, reason: 'approval_required' };
+    this.deps.eventBus.emit({ type: "approval:required", phase, artifactPath, instruction });
+    return { status: "paused", phase, reason: "approval_required" };
   }
 
   /** Persist a failed state, emit workflow:failed, and return the failed WorkflowResult. */
   private async failAt(phase: WorkflowPhase, error: string): Promise<WorkflowResult> {
     const failedState: WorkflowState = {
       ...this.currentState,
-      status: 'failed',
+      status: "failed",
       failureDetail: { phase, error },
       updatedAt: new Date().toISOString(),
     };
     this.currentState = failedState;
     await this.deps.stateStore.persist(failedState);
     // Emit workflow:failed before returning to the caller (Req 8.3).
-    this.deps.eventBus.emit({ type: 'workflow:failed', phase, error });
-    return { status: 'failed', phase, error };
+    this.deps.eventBus.emit({ type: "workflow:failed", phase, error });
+    return { status: "failed", phase, error };
   }
 }

@@ -5,7 +5,7 @@ export interface SpecContext {
 }
 
 export type SddOperationResult =
-  | { readonly ok: true;  readonly artifactPath: string }
+  | { readonly ok: true; readonly artifactPath: string }
   | { readonly ok: false; readonly error: { readonly exitCode: number; readonly stderr: string } };
 
 export interface SddFrameworkPort {

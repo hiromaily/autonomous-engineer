@@ -13,21 +13,21 @@
  *
  * Task 9.2 — Requirements: 1.1, 1.6, 1.7, 1.8, 3.6, 5.1, 5.5
  */
-import { describe, it, expect, beforeEach, afterEach, beforeAll, afterAll, mock } from 'bun:test';
-import { mkdtemp, rm, writeFile, mkdir, readFile, readdir } from 'node:fs/promises';
-import { join } from 'node:path';
-import { tmpdir } from 'node:os';
-import { RunSpecUseCase } from '../../application/usecases/run-spec';
-import { WorkflowStateStore } from '../../infra/state/workflow-state-store';
-import { WorkflowEventBus } from '../../infra/events/workflow-event-bus';
-import { CcSddAdapter, type SpawnFn } from '../../adapters/sdd/cc-sdd-adapter';
-import { JsonLogWriter } from '../../cli/json-log-writer';
-import type { IWorkflowStateStore, IWorkflowEventBus, WorkflowEvent } from '../../application/ports/workflow';
-import type { SddFrameworkPort } from '../../application/ports/sdd';
-import type { LlmProviderPort } from '../../application/ports/llm';
-import type { AesConfig } from '../../application/ports/config';
-import type { WorkflowPhase, WorkflowState } from '../../domain/workflow/types';
-import type { MemoryPort, ShortTermMemoryPort } from '../../application/ports/memory';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { CcSddAdapter, type SpawnFn } from "../../adapters/sdd/cc-sdd-adapter";
+import type { AesConfig } from "../../application/ports/config";
+import type { LlmProviderPort } from "../../application/ports/llm";
+import type { MemoryPort, ShortTermMemoryPort } from "../../application/ports/memory";
+import type { SddFrameworkPort } from "../../application/ports/sdd";
+import type { IWorkflowEventBus, IWorkflowStateStore, WorkflowEvent } from "../../application/ports/workflow";
+import { RunSpecUseCase } from "../../application/usecases/run-spec";
+import { JsonLogWriter } from "../../cli/json-log-writer";
+import type { WorkflowPhase, WorkflowState } from "../../domain/workflow/types";
+import { WorkflowEventBus } from "../../infra/events/workflow-event-bus";
+import { WorkflowStateStore } from "../../infra/state/workflow-state-store";
 
 // ---------------------------------------------------------------------------
 // Fake cc-sdd binary (reused across E2E tests)
@@ -79,8 +79,8 @@ let fakeBinaryDir: string;
 let fakeBinaryPath: string;
 
 beforeAll(async () => {
-  fakeBinaryDir = await mkdtemp(join(tmpdir(), 'aes-e2e-bin-'));
-  fakeBinaryPath = join(fakeBinaryDir, 'fake-cc-sdd.ts');
+  fakeBinaryDir = await mkdtemp(join(tmpdir(), "aes-e2e-bin-"));
+  fakeBinaryPath = join(fakeBinaryDir, "fake-cc-sdd.ts");
   await writeFile(fakeBinaryPath, FAKE_CC_SDD_CONTENT);
 });
 
@@ -93,14 +93,16 @@ afterAll(async () => {
 // ---------------------------------------------------------------------------
 
 const BASE_CONFIG: AesConfig = {
-  llm: { provider: 'claude', modelName: 'claude-sonnet-4-6', apiKey: 'test-key' },
-  specDir: '',  // overridden per test
-  sddFramework: 'cc-sdd',
+  llm: { provider: "claude", modelName: "claude-sonnet-4-6", apiKey: "test-key" },
+  specDir: "", // overridden per test
+  sddFramework: "cc-sdd",
 };
 
 function makeLlmProvider(): LlmProviderPort {
   return {
-    complete: mock(() => Promise.resolve({ ok: true as const, value: { content: '', usage: { inputTokens: 0, outputTokens: 0 } } })),
+    complete: mock(() =>
+      Promise.resolve({ ok: true as const, value: { content: "", usage: { inputTokens: 0, outputTokens: 0 } } })
+    ),
     clearContext: mock(() => {}),
   };
 }
@@ -114,26 +116,26 @@ function makeMemoryPort(): MemoryPort {
   return {
     shortTerm,
     query: mock(() => Promise.resolve({ entries: [] })),
-    append: mock(() => Promise.resolve({ ok: true as const, action: 'appended' as const })),
-    update: mock(() => Promise.resolve({ ok: true as const, action: 'updated' as const })),
-    writeFailure: mock(() => Promise.resolve({ ok: true as const, action: 'appended' as const })),
+    append: mock(() => Promise.resolve({ ok: true as const, action: "appended" as const })),
+    update: mock(() => Promise.resolve({ ok: true as const, action: "updated" as const })),
+    writeFailure: mock(() => Promise.resolve({ ok: true as const, action: "appended" as const })),
     getFailures: mock(() => Promise.resolve([])),
   };
 }
 
 function makeStubSdd(): SddFrameworkPort {
   return {
-    generateRequirements: mock(() => Promise.resolve({ ok: true as const, artifactPath: '' })),
-    generateDesign: mock(() => Promise.resolve({ ok: true as const, artifactPath: '' })),
-    validateDesign: mock(() => Promise.resolve({ ok: true as const, artifactPath: '' })),
-    generateTasks: mock(() => Promise.resolve({ ok: true as const, artifactPath: '' })),
+    generateRequirements: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
+    generateDesign: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
+    validateDesign: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
+    generateTasks: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
   };
 }
 
 function makeFakeCcSddSpawnFn(): SpawnFn {
   return (argv) => {
     const [_ccSdd, ...rest] = argv;
-    return Bun.spawn(['bun', fakeBinaryPath, ...rest] as string[], { stderr: 'pipe' });
+    return Bun.spawn(["bun", fakeBinaryPath, ...rest] as string[], { stderr: "pipe" });
   };
 }
 
@@ -150,9 +152,9 @@ interface TestEnv {
 }
 
 async function setupTestEnv(): Promise<TestEnv> {
-  const tmpDir = await mkdtemp(join(tmpdir(), 'aes-e2e-'));
-  const specName = 'test-spec';
-  const specParentDir = join(tmpDir, '.kiro', 'specs');
+  const tmpDir = await mkdtemp(join(tmpdir(), "aes-e2e-"));
+  const specName = "test-spec";
+  const specParentDir = join(tmpDir, ".kiro", "specs");
   const specDir = join(specParentDir, specName);
   await mkdir(specDir, { recursive: true });
 
@@ -180,8 +182,8 @@ async function setupTestEnv(): Promise<TestEnv> {
 // dry-run: no file writes, exit code 0 (via RunSpecUseCase)
 // ---------------------------------------------------------------------------
 
-describe('E2E: --dry-run', () => {
-  it('returns completed with empty phases when spec directory exists', async () => {
+describe("E2E: --dry-run", () => {
+  it("returns completed with empty phases when spec directory exists", async () => {
     const env = await setupTestEnv();
     try {
       const useCase = new RunSpecUseCase({
@@ -194,8 +196,8 @@ describe('E2E: --dry-run', () => {
 
       const result = await useCase.run(env.specName, env.config, { resume: false, dryRun: true });
 
-      expect(result.status).toBe('completed');
-      if (result.status === 'completed') {
+      expect(result.status).toBe("completed");
+      if (result.status === "completed") {
         expect(result.completedPhases).toHaveLength(0);
       }
     } finally {
@@ -203,7 +205,7 @@ describe('E2E: --dry-run', () => {
     }
   });
 
-  it('does not write any state files in dry-run mode', async () => {
+  it("does not write any state files in dry-run mode", async () => {
     const env = await setupTestEnv();
     try {
       const useCase = new RunSpecUseCase({
@@ -217,20 +219,20 @@ describe('E2E: --dry-run', () => {
       await useCase.run(env.specName, env.config, { resume: false, dryRun: true });
 
       // .aes/state directory should not exist (or be empty)
-      const aesStateDir = join(env.tmpDir, '.aes', 'state');
+      const aesStateDir = join(env.tmpDir, ".aes", "state");
       let stateFiles: string[] = [];
       try {
         stateFiles = await readdir(aesStateDir);
       } catch {
         // Directory does not exist — that is fine
       }
-      expect(stateFiles.filter((f) => f.endsWith('.json'))).toHaveLength(0);
+      expect(stateFiles.filter((f) => f.endsWith(".json"))).toHaveLength(0);
     } finally {
       await env.cleanup();
     }
   });
 
-  it('returns failed when spec directory does not exist', async () => {
+  it("returns failed when spec directory does not exist", async () => {
     const env = await setupTestEnv();
     try {
       const useCase = new RunSpecUseCase({
@@ -241,9 +243,9 @@ describe('E2E: --dry-run', () => {
         memory: makeMemoryPort(),
       });
 
-      const result = await useCase.run('nonexistent-spec', env.config, { resume: false, dryRun: true });
+      const result = await useCase.run("nonexistent-spec", env.config, { resume: false, dryRun: true });
 
-      expect(result.status).toBe('failed');
+      expect(result.status).toBe("failed");
     } finally {
       await env.cleanup();
     }
@@ -254,28 +256,31 @@ describe('E2E: --dry-run', () => {
 // Full 7-phase workflow with fake cc-sdd
 // ---------------------------------------------------------------------------
 
-describe('E2E: full 7-phase workflow', () => {
+describe("E2E: full 7-phase workflow", () => {
   /**
    * Uses stub SDD (no subprocess) with pre-created artifact files.
    * CcSddAdapter subprocess integration is covered in tests/integration/.
    */
-  it('completes all 7 phases when all approvals are pre-granted', async () => {
+  it("completes all 7 phases when all approvals are pre-granted", async () => {
     const env = await setupTestEnv();
     try {
       // Pre-approve all gates and set ready_for_implementation
-      await writeFile(join(env.specDir, 'spec.json'), JSON.stringify({
-        approvals: {
-          requirements: { approved: true },
-          design: { approved: true },
-          tasks: { approved: true },
-        },
-        ready_for_implementation: true,
-      }));
+      await writeFile(
+        join(env.specDir, "spec.json"),
+        JSON.stringify({
+          approvals: {
+            requirements: { approved: true },
+            design: { approved: true },
+            tasks: { approved: true },
+          },
+          ready_for_implementation: true,
+        }),
+      );
 
       // Pre-create required artifacts (engine validates these before each phase)
-      await writeFile(join(env.specDir, 'requirements.md'), '# Requirements\n');
-      await writeFile(join(env.specDir, 'design.md'), '# Design\n');
-      await writeFile(join(env.specDir, 'tasks.md'), '# Tasks\n');
+      await writeFile(join(env.specDir, "requirements.md"), "# Requirements\n");
+      await writeFile(join(env.specDir, "design.md"), "# Design\n");
+      await writeFile(join(env.specDir, "tasks.md"), "# Tasks\n");
 
       const useCase = new RunSpecUseCase({
         stateStore: env.stateStore,
@@ -287,37 +292,40 @@ describe('E2E: full 7-phase workflow', () => {
 
       const result = await useCase.run(env.specName, env.config, { resume: false, dryRun: false });
 
-      expect(result.status).toBe('completed');
-      if (result.status === 'completed') {
+      expect(result.status).toBe("completed");
+      if (result.status === "completed") {
         const phases = result.completedPhases;
-        expect(phases).toContain('SPEC_INIT');
-        expect(phases).toContain('REQUIREMENTS');
-        expect(phases).toContain('DESIGN');
-        expect(phases).toContain('VALIDATE_DESIGN');
-        expect(phases).toContain('TASK_GENERATION');
-        expect(phases).toContain('IMPLEMENTATION');
-        expect(phases).toContain('PULL_REQUEST');
+        expect(phases).toContain("SPEC_INIT");
+        expect(phases).toContain("REQUIREMENTS");
+        expect(phases).toContain("DESIGN");
+        expect(phases).toContain("VALIDATE_DESIGN");
+        expect(phases).toContain("TASK_GENERATION");
+        expect(phases).toContain("IMPLEMENTATION");
+        expect(phases).toContain("PULL_REQUEST");
       }
     } finally {
       await env.cleanup();
     }
   });
 
-  it('emits workflow:complete event at end of successful run', async () => {
+  it("emits workflow:complete event at end of successful run", async () => {
     const env = await setupTestEnv();
     try {
-      await writeFile(join(env.specDir, 'spec.json'), JSON.stringify({
-        approvals: {
-          requirements: { approved: true },
-          design: { approved: true },
-          tasks: { approved: true },
-        },
-        ready_for_implementation: true,
-      }));
+      await writeFile(
+        join(env.specDir, "spec.json"),
+        JSON.stringify({
+          approvals: {
+            requirements: { approved: true },
+            design: { approved: true },
+            tasks: { approved: true },
+          },
+          ready_for_implementation: true,
+        }),
+      );
 
-      await writeFile(join(env.specDir, 'requirements.md'), '# Requirements\n');
-      await writeFile(join(env.specDir, 'design.md'), '# Design\n');
-      await writeFile(join(env.specDir, 'tasks.md'), '# Tasks\n');
+      await writeFile(join(env.specDir, "requirements.md"), "# Requirements\n");
+      await writeFile(join(env.specDir, "design.md"), "# Design\n");
+      await writeFile(join(env.specDir, "tasks.md"), "# Tasks\n");
 
       const useCase = new RunSpecUseCase({
         stateStore: env.stateStore,
@@ -329,7 +337,7 @@ describe('E2E: full 7-phase workflow', () => {
 
       await useCase.run(env.specName, env.config, { resume: false, dryRun: false });
 
-      expect(env.events.some((e) => e.type === 'workflow:complete')).toBe(true);
+      expect(env.events.some((e) => e.type === "workflow:complete")).toBe(true);
     } finally {
       await env.cleanup();
     }
@@ -340,43 +348,58 @@ describe('E2E: full 7-phase workflow', () => {
 // --resume: SPEC_INIT not re-executed after interruption at REQUIREMENTS
 // ---------------------------------------------------------------------------
 
-describe('E2E: --resume after simulated REQUIREMENTS interruption', () => {
-  it('SPEC_INIT is not re-executed when resuming from paused_for_approval at REQUIREMENTS', async () => {
+describe("E2E: --resume after simulated REQUIREMENTS interruption", () => {
+  it("SPEC_INIT is not re-executed when resuming from paused_for_approval at REQUIREMENTS", async () => {
     const env = await setupTestEnv();
     try {
       // Persist a paused_for_approval state (simulating interruption after REQUIREMENTS ran)
       const pausedState: WorkflowState = {
         specName: env.specName,
-        currentPhase: 'REQUIREMENTS',
-        completedPhases: ['SPEC_INIT', /* REQUIREMENTS was executed but not yet completed in the paused state */ ],
-        status: 'paused_for_approval',
+        currentPhase: "REQUIREMENTS",
+        completedPhases: ["SPEC_INIT" /* REQUIREMENTS was executed but not yet completed in the paused state */],
+        status: "paused_for_approval",
         startedAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
       await env.stateStore.persist(pausedState);
 
       // Grant requirements approval
-      await writeFile(join(env.specDir, 'spec.json'), JSON.stringify({
-        approvals: {
-          requirements: { approved: true },
-          design: { approved: true },
-          tasks: { approved: true },
-        },
-        ready_for_implementation: true,
-      }));
+      await writeFile(
+        join(env.specDir, "spec.json"),
+        JSON.stringify({
+          approvals: {
+            requirements: { approved: true },
+            design: { approved: true },
+            tasks: { approved: true },
+          },
+          ready_for_implementation: true,
+        }),
+      );
 
       // Pre-create artifact files so artifact validation passes
-      await writeFile(join(env.specDir, 'requirements.md'), '# Requirements\n');
-      await writeFile(join(env.specDir, 'design.md'), '# Design\n');
-      await writeFile(join(env.specDir, 'tasks.md'), '# Tasks\n');
+      await writeFile(join(env.specDir, "requirements.md"), "# Requirements\n");
+      await writeFile(join(env.specDir, "design.md"), "# Design\n");
+      await writeFile(join(env.specDir, "tasks.md"), "# Tasks\n");
 
       // Track SDD calls to verify SPEC_INIT is not re-executed
       const sddCalls: string[] = [];
       const trackingSdd: SddFrameworkPort = {
-        generateRequirements: mock(async () => { sddCalls.push('generateRequirements'); return { ok: true as const, artifactPath: join(env.specDir, 'requirements.md') }; }),
-        generateDesign: mock(async () => { sddCalls.push('generateDesign'); return { ok: true as const, artifactPath: join(env.specDir, 'design.md') }; }),
-        validateDesign: mock(async () => { sddCalls.push('validateDesign'); return { ok: true as const, artifactPath: join(env.specDir, 'design.md') }; }),
-        generateTasks: mock(async () => { sddCalls.push('generateTasks'); return { ok: true as const, artifactPath: join(env.specDir, 'tasks.md') }; }),
+        generateRequirements: mock(async () => {
+          sddCalls.push("generateRequirements");
+          return { ok: true as const, artifactPath: join(env.specDir, "requirements.md") };
+        }),
+        generateDesign: mock(async () => {
+          sddCalls.push("generateDesign");
+          return { ok: true as const, artifactPath: join(env.specDir, "design.md") };
+        }),
+        validateDesign: mock(async () => {
+          sddCalls.push("validateDesign");
+          return { ok: true as const, artifactPath: join(env.specDir, "design.md") };
+        }),
+        generateTasks: mock(async () => {
+          sddCalls.push("generateTasks");
+          return { ok: true as const, artifactPath: join(env.specDir, "tasks.md") };
+        }),
       };
 
       const useCase = new RunSpecUseCase({
@@ -389,54 +412,77 @@ describe('E2E: --resume after simulated REQUIREMENTS interruption', () => {
 
       const result = await useCase.run(env.specName, env.config, { resume: true, dryRun: false });
 
-      expect(result.status).toBe('completed');
+      expect(result.status).toBe("completed");
 
       // SPEC_INIT has no SDD call (it's a stub no-op); the key assertion is that
       // generateRequirements is also NOT called (REQUIREMENTS was already completed)
       // since SPEC_INIT was in completedPhases and REQUIREMENTS is the paused phase
-      expect(sddCalls).not.toContain('generateRequirements');
+      expect(sddCalls).not.toContain("generateRequirements");
       // DESIGN and onwards should be executed
-      expect(sddCalls).toContain('generateDesign');
+      expect(sddCalls).toContain("generateDesign");
     } finally {
       await env.cleanup();
     }
   });
 
-  it('without --resume, starts fresh even when state file exists', async () => {
+  it("without --resume, starts fresh even when state file exists", async () => {
     const env = await setupTestEnv();
     try {
       // Persist a "completed" state
       const completedState: WorkflowState = {
         specName: env.specName,
-        currentPhase: 'PULL_REQUEST',
-        completedPhases: ['SPEC_INIT', 'REQUIREMENTS', 'DESIGN', 'VALIDATE_DESIGN', 'TASK_GENERATION', 'IMPLEMENTATION', 'PULL_REQUEST'],
-        status: 'completed',
+        currentPhase: "PULL_REQUEST",
+        completedPhases: [
+          "SPEC_INIT",
+          "REQUIREMENTS",
+          "DESIGN",
+          "VALIDATE_DESIGN",
+          "TASK_GENERATION",
+          "IMPLEMENTATION",
+          "PULL_REQUEST",
+        ],
+        status: "completed",
         startedAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
       await env.stateStore.persist(completedState);
 
       // Grant all approvals
-      await writeFile(join(env.specDir, 'spec.json'), JSON.stringify({
-        approvals: {
-          requirements: { approved: true },
-          design: { approved: true },
-          tasks: { approved: true },
-        },
-        ready_for_implementation: true,
-      }));
+      await writeFile(
+        join(env.specDir, "spec.json"),
+        JSON.stringify({
+          approvals: {
+            requirements: { approved: true },
+            design: { approved: true },
+            tasks: { approved: true },
+          },
+          ready_for_implementation: true,
+        }),
+      );
 
       // Pre-create artifacts
-      await writeFile(join(env.specDir, 'requirements.md'), '# Requirements\n');
-      await writeFile(join(env.specDir, 'design.md'), '# Design\n');
-      await writeFile(join(env.specDir, 'tasks.md'), '# Tasks\n');
+      await writeFile(join(env.specDir, "requirements.md"), "# Requirements\n");
+      await writeFile(join(env.specDir, "design.md"), "# Design\n");
+      await writeFile(join(env.specDir, "tasks.md"), "# Tasks\n");
 
       const sddCalls: string[] = [];
       const trackingSdd: SddFrameworkPort = {
-        generateRequirements: mock(async () => { sddCalls.push('generateRequirements'); return { ok: true as const, artifactPath: join(env.specDir, 'requirements.md') }; }),
-        generateDesign: mock(async () => { sddCalls.push('generateDesign'); return { ok: true as const, artifactPath: join(env.specDir, 'design.md') }; }),
-        validateDesign: mock(async () => { sddCalls.push('validateDesign'); return { ok: true as const, artifactPath: join(env.specDir, 'design.md') }; }),
-        generateTasks: mock(async () => { sddCalls.push('generateTasks'); return { ok: true as const, artifactPath: join(env.specDir, 'tasks.md') }; }),
+        generateRequirements: mock(async () => {
+          sddCalls.push("generateRequirements");
+          return { ok: true as const, artifactPath: join(env.specDir, "requirements.md") };
+        }),
+        generateDesign: mock(async () => {
+          sddCalls.push("generateDesign");
+          return { ok: true as const, artifactPath: join(env.specDir, "design.md") };
+        }),
+        validateDesign: mock(async () => {
+          sddCalls.push("validateDesign");
+          return { ok: true as const, artifactPath: join(env.specDir, "design.md") };
+        }),
+        generateTasks: mock(async () => {
+          sddCalls.push("generateTasks");
+          return { ok: true as const, artifactPath: join(env.specDir, "tasks.md") };
+        }),
       };
 
       const useCase = new RunSpecUseCase({
@@ -450,9 +496,9 @@ describe('E2E: --resume after simulated REQUIREMENTS interruption', () => {
       // Without --resume, starts from scratch
       const result = await useCase.run(env.specName, env.config, { resume: false, dryRun: false });
 
-      expect(result.status).toBe('completed');
+      expect(result.status).toBe("completed");
       // Fresh run should execute all SDD phases
-      expect(sddCalls).toContain('generateRequirements');
+      expect(sddCalls).toContain("generateRequirements");
     } finally {
       await env.cleanup();
     }
@@ -463,26 +509,29 @@ describe('E2E: --resume after simulated REQUIREMENTS interruption', () => {
 // --log-json: all workflow events appear as valid NDJSON
 // ---------------------------------------------------------------------------
 
-describe('E2E: --log-json writes all events as newline-delimited JSON', () => {
-  it('all emitted events appear in the log file as valid NDJSON', async () => {
+describe("E2E: --log-json writes all events as newline-delimited JSON", () => {
+  it("all emitted events appear in the log file as valid NDJSON", async () => {
     const env = await setupTestEnv();
     try {
-      const logFilePath = join(env.tmpDir, 'workflow-events.ndjson');
+      const logFilePath = join(env.tmpDir, "workflow-events.ndjson");
 
       // Pre-approve all gates
-      await writeFile(join(env.specDir, 'spec.json'), JSON.stringify({
-        approvals: {
-          requirements: { approved: true },
-          design: { approved: true },
-          tasks: { approved: true },
-        },
-        ready_for_implementation: true,
-      }));
+      await writeFile(
+        join(env.specDir, "spec.json"),
+        JSON.stringify({
+          approvals: {
+            requirements: { approved: true },
+            design: { approved: true },
+            tasks: { approved: true },
+          },
+          ready_for_implementation: true,
+        }),
+      );
 
       // Pre-create artifacts
-      await writeFile(join(env.specDir, 'requirements.md'), '# Requirements\n');
-      await writeFile(join(env.specDir, 'design.md'), '# Design\n');
-      await writeFile(join(env.specDir, 'tasks.md'), '# Tasks\n');
+      await writeFile(join(env.specDir, "requirements.md"), "# Requirements\n");
+      await writeFile(join(env.specDir, "design.md"), "# Design\n");
+      await writeFile(join(env.specDir, "tasks.md"), "# Tasks\n");
 
       // Wire up JsonLogWriter to the event bus (same as CLI does for --log-json)
       const logWriter = new JsonLogWriter(logFilePath);
@@ -502,8 +551,8 @@ describe('E2E: --log-json writes all events as newline-delimited JSON', () => {
       await logWriter.close();
 
       // Read and parse the NDJSON log
-      const raw = await readFile(logFilePath, 'utf-8');
-      const lines = raw.trim().split('\n').filter((l) => l.length > 0);
+      const raw = await readFile(logFilePath, "utf-8");
+      const lines = raw.trim().split("\n").filter((l) => l.length > 0);
 
       expect(lines.length).toBeGreaterThan(0);
 
@@ -516,34 +565,39 @@ describe('E2E: --log-json writes all events as newline-delimited JSON', () => {
 
       // Must contain at least phase:start, phase:complete, workflow:complete
       const types = new Set(parsed.map((e) => e.type));
-      expect(types.has('phase:start')).toBe(true);
-      expect(types.has('phase:complete')).toBe(true);
-      expect(types.has('workflow:complete')).toBe(true);
+      expect(types.has("phase:start")).toBe(true);
+      expect(types.has("phase:complete")).toBe(true);
+      expect(types.has("workflow:complete")).toBe(true);
     } finally {
       await env.cleanup();
     }
   });
 
-  it('each log line has a type discriminant field', async () => {
+  it("each log line has a type discriminant field", async () => {
     const env = await setupTestEnv();
     try {
-      const logFilePath = join(env.tmpDir, 'events.ndjson');
+      const logFilePath = join(env.tmpDir, "events.ndjson");
 
-      await writeFile(join(env.specDir, 'spec.json'), JSON.stringify({
-        approvals: {
-          requirements: { approved: true },
-          design: { approved: true },
-          tasks: { approved: true },
-        },
-        ready_for_implementation: true,
-      }));
+      await writeFile(
+        join(env.specDir, "spec.json"),
+        JSON.stringify({
+          approvals: {
+            requirements: { approved: true },
+            design: { approved: true },
+            tasks: { approved: true },
+          },
+          ready_for_implementation: true,
+        }),
+      );
 
-      await writeFile(join(env.specDir, 'requirements.md'), '# Requirements\n');
-      await writeFile(join(env.specDir, 'design.md'), '# Design\n');
-      await writeFile(join(env.specDir, 'tasks.md'), '# Tasks\n');
+      await writeFile(join(env.specDir, "requirements.md"), "# Requirements\n");
+      await writeFile(join(env.specDir, "design.md"), "# Design\n");
+      await writeFile(join(env.specDir, "tasks.md"), "# Tasks\n");
 
       const logWriter = new JsonLogWriter(logFilePath);
-      env.eventBus.on((event) => { logWriter.write(event).catch(() => {}); });
+      env.eventBus.on((event) => {
+        logWriter.write(event).catch(() => {});
+      });
 
       const useCase = new RunSpecUseCase({
         stateStore: env.stateStore,
@@ -556,38 +610,43 @@ describe('E2E: --log-json writes all events as newline-delimited JSON', () => {
       await useCase.run(env.specName, env.config, { resume: false, dryRun: false });
       await logWriter.close();
 
-      const raw = await readFile(logFilePath, 'utf-8');
-      const lines = raw.trim().split('\n').filter((l) => l.length > 0);
+      const raw = await readFile(logFilePath, "utf-8");
+      const lines = raw.trim().split("\n").filter((l) => l.length > 0);
 
       for (const line of lines) {
         const obj = JSON.parse(line) as Record<string, unknown>;
-        expect(typeof obj['type']).toBe('string');
+        expect(typeof obj["type"]).toBe("string");
       }
     } finally {
       await env.cleanup();
     }
   });
 
-  it('log file contains all 7 phase:start events for a complete workflow', async () => {
+  it("log file contains all 7 phase:start events for a complete workflow", async () => {
     const env = await setupTestEnv();
     try {
-      const logFilePath = join(env.tmpDir, 'events.ndjson');
+      const logFilePath = join(env.tmpDir, "events.ndjson");
 
-      await writeFile(join(env.specDir, 'spec.json'), JSON.stringify({
-        approvals: {
-          requirements: { approved: true },
-          design: { approved: true },
-          tasks: { approved: true },
-        },
-        ready_for_implementation: true,
-      }));
+      await writeFile(
+        join(env.specDir, "spec.json"),
+        JSON.stringify({
+          approvals: {
+            requirements: { approved: true },
+            design: { approved: true },
+            tasks: { approved: true },
+          },
+          ready_for_implementation: true,
+        }),
+      );
 
-      await writeFile(join(env.specDir, 'requirements.md'), '# Requirements\n');
-      await writeFile(join(env.specDir, 'design.md'), '# Design\n');
-      await writeFile(join(env.specDir, 'tasks.md'), '# Tasks\n');
+      await writeFile(join(env.specDir, "requirements.md"), "# Requirements\n");
+      await writeFile(join(env.specDir, "design.md"), "# Design\n");
+      await writeFile(join(env.specDir, "tasks.md"), "# Tasks\n");
 
       const logWriter = new JsonLogWriter(logFilePath);
-      env.eventBus.on((event) => { logWriter.write(event).catch(() => {}); });
+      env.eventBus.on((event) => {
+        logWriter.write(event).catch(() => {});
+      });
 
       const useCase = new RunSpecUseCase({
         stateStore: env.stateStore,
@@ -600,14 +659,24 @@ describe('E2E: --log-json writes all events as newline-delimited JSON', () => {
       await useCase.run(env.specName, env.config, { resume: false, dryRun: false });
       await logWriter.close();
 
-      const raw = await readFile(logFilePath, 'utf-8');
-      const lines = raw.trim().split('\n').filter((l) => l.length > 0);
+      const raw = await readFile(logFilePath, "utf-8");
+      const lines = raw.trim().split("\n").filter((l) => l.length > 0);
       const parsed = lines.map((l) => JSON.parse(l) as WorkflowEvent);
 
-      const phaseStartEvents = parsed.filter((e) => e.type === 'phase:start') as Array<{ type: 'phase:start'; phase: WorkflowPhase }>;
+      const phaseStartEvents = parsed.filter((e) => e.type === "phase:start") as Array<
+        { type: "phase:start"; phase: WorkflowPhase }
+      >;
       const startedPhases = phaseStartEvents.map((e) => e.phase);
 
-      const expectedPhases: WorkflowPhase[] = ['SPEC_INIT', 'REQUIREMENTS', 'DESIGN', 'VALIDATE_DESIGN', 'TASK_GENERATION', 'IMPLEMENTATION', 'PULL_REQUEST'];
+      const expectedPhases: WorkflowPhase[] = [
+        "SPEC_INIT",
+        "REQUIREMENTS",
+        "DESIGN",
+        "VALIDATE_DESIGN",
+        "TASK_GENERATION",
+        "IMPLEMENTATION",
+        "PULL_REQUEST",
+      ];
       for (const phase of expectedPhases) {
         expect(startedPhases).toContain(phase);
       }
@@ -621,21 +690,24 @@ describe('E2E: --log-json writes all events as newline-delimited JSON', () => {
 // CLI subprocess: --dry-run exit code 0
 // ---------------------------------------------------------------------------
 
-describe('E2E: CLI subprocess dry-run exit code', () => {
-  it('exits with code 0 when spec directory exists and config is valid', async () => {
+describe("E2E: CLI subprocess dry-run exit code", () => {
+  it("exits with code 0 when spec directory exists and config is valid", async () => {
     const env = await setupTestEnv();
     try {
       // Write a valid aes.config.json in tmpDir (the CLI's CWD)
-      await writeFile(join(env.tmpDir, 'aes.config.json'), JSON.stringify({
-        llm: { provider: 'claude', modelName: 'claude-sonnet-4-6', apiKey: 'test-key' },
-        specDir: join(env.tmpDir, '.kiro', 'specs'),
-        sddFramework: 'cc-sdd',
-      }));
+      await writeFile(
+        join(env.tmpDir, "aes.config.json"),
+        JSON.stringify({
+          llm: { provider: "claude", modelName: "claude-sonnet-4-6", apiKey: "test-key" },
+          specDir: join(env.tmpDir, ".kiro", "specs"),
+          sddFramework: "cc-sdd",
+        }),
+      );
 
-      const cliPath = join(import.meta.dir, '../../cli/index.ts');
+      const cliPath = join(import.meta.dir, "../../cli/index.ts");
       const proc = Bun.spawn(
-        ['bun', cliPath, 'run', env.specName, '--dry-run'],
-        { cwd: env.tmpDir, stderr: 'pipe', stdout: 'pipe' },
+        ["bun", cliPath, "run", env.specName, "--dry-run"],
+        { cwd: env.tmpDir, stderr: "pipe", stdout: "pipe" },
       );
 
       const exitCode = await proc.exited;
@@ -645,19 +717,22 @@ describe('E2E: CLI subprocess dry-run exit code', () => {
     }
   });
 
-  it('exits with code 1 when spec directory does not exist', async () => {
+  it("exits with code 1 when spec directory does not exist", async () => {
     const env = await setupTestEnv();
     try {
-      await writeFile(join(env.tmpDir, 'aes.config.json'), JSON.stringify({
-        llm: { provider: 'claude', modelName: 'claude-sonnet-4-6', apiKey: 'test-key' },
-        specDir: join(env.tmpDir, '.kiro', 'specs'),
-        sddFramework: 'cc-sdd',
-      }));
+      await writeFile(
+        join(env.tmpDir, "aes.config.json"),
+        JSON.stringify({
+          llm: { provider: "claude", modelName: "claude-sonnet-4-6", apiKey: "test-key" },
+          specDir: join(env.tmpDir, ".kiro", "specs"),
+          sddFramework: "cc-sdd",
+        }),
+      );
 
-      const cliPath = join(import.meta.dir, '../../cli/index.ts');
+      const cliPath = join(import.meta.dir, "../../cli/index.ts");
       const proc = Bun.spawn(
-        ['bun', cliPath, 'run', 'nonexistent-spec', '--dry-run'],
-        { cwd: env.tmpDir, stderr: 'pipe', stdout: 'pipe' },
+        ["bun", cliPath, "run", "nonexistent-spec", "--dry-run"],
+        { cwd: env.tmpDir, stderr: "pipe", stdout: "pipe" },
       );
 
       const exitCode = await proc.exited;

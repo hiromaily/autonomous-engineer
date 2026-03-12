@@ -1,4 +1,4 @@
-import type { ExecutionMode, PermissionFlag, PermissionSet } from './types';
+import type { ExecutionMode, PermissionFlag, PermissionSet } from "./types";
 
 // ---------------------------------------------------------------------------
 // PermissionCheck result type
@@ -27,32 +27,32 @@ export interface IPermissionSystem {
 
 const MODE_PROFILES: Readonly<Record<ExecutionMode, PermissionSet>> = Object.freeze({
   ReadOnly: Object.freeze({
-    filesystemRead:  true,
+    filesystemRead: true,
     filesystemWrite: false,
-    shellExecution:  false,
-    gitWrite:        false,
-    networkAccess:   false,
+    shellExecution: false,
+    gitWrite: false,
+    networkAccess: false,
   }),
   Dev: Object.freeze({
-    filesystemRead:  true,
+    filesystemRead: true,
     filesystemWrite: true,
-    shellExecution:  false,
-    gitWrite:        false,
-    networkAccess:   false,
+    shellExecution: false,
+    gitWrite: false,
+    networkAccess: false,
   }),
   CI: Object.freeze({
-    filesystemRead:  true,
+    filesystemRead: true,
     filesystemWrite: false,
-    shellExecution:  true,
-    gitWrite:        false,
-    networkAccess:   false,
+    shellExecution: true,
+    gitWrite: false,
+    networkAccess: false,
   }),
   Full: Object.freeze({
-    filesystemRead:  true,
+    filesystemRead: true,
     filesystemWrite: true,
-    shellExecution:  true,
-    gitWrite:        true,
-    networkAccess:   true,
+    shellExecution: true,
+    gitWrite: true,
+    networkAccess: true,
   }),
 });
 

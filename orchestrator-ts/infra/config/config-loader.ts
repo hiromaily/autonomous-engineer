@@ -1,8 +1,8 @@
-import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
-import { type AesConfig, type IConfigLoader, ConfigValidationError } from '../../application/ports/config';
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
+import { type AesConfig, ConfigValidationError, type IConfigLoader } from "../../application/ports/config";
 
-const VALID_SDD_FRAMEWORKS = ['cc-sdd', 'openspec', 'speckit'] as const;
+const VALID_SDD_FRAMEWORKS = ["cc-sdd", "openspec", "speckit"] as const;
 
 export class ConfigLoader implements IConfigLoader {
   constructor(
@@ -17,12 +17,12 @@ export class ConfigLoader implements IConfigLoader {
   }
 
   private async readConfigFile(): Promise<Partial<RawConfig>> {
-    const configPath = join(this.cwd, 'aes.config.json');
+    const configPath = join(this.cwd, "aes.config.json");
     try {
-      const content = await readFile(configPath, 'utf-8');
+      const content = await readFile(configPath, "utf-8");
       return JSON.parse(content) as Partial<RawConfig>;
     } catch (err) {
-      if (isNodeError(err) && err.code === 'ENOENT') {
+      if (isNodeError(err) && err.code === "ENOENT") {
         return {};
       }
       throw err;
@@ -31,20 +31,20 @@ export class ConfigLoader implements IConfigLoader {
 
   private mergeWithEnv(file: Partial<RawConfig>): MergedConfig {
     return {
-      provider: this.env['AES_LLM_PROVIDER'] ?? file.llm?.provider,
-      modelName: this.env['AES_LLM_MODEL_NAME'] ?? file.llm?.modelName,
-      apiKey: this.env['AES_LLM_API_KEY'] ?? file.llm?.apiKey,
-      specDir: this.env['AES_SPEC_DIR'] ?? file.specDir,
-      sddFramework: this.env['AES_SDD_FRAMEWORK'] ?? file.sddFramework,
+      provider: this.env["AES_LLM_PROVIDER"] ?? file.llm?.provider,
+      modelName: this.env["AES_LLM_MODEL_NAME"] ?? file.llm?.modelName,
+      apiKey: this.env["AES_LLM_API_KEY"] ?? file.llm?.apiKey,
+      specDir: this.env["AES_SPEC_DIR"] ?? file.specDir,
+      sddFramework: this.env["AES_SDD_FRAMEWORK"] ?? file.sddFramework,
     };
   }
 
   private validate(merged: MergedConfig): AesConfig {
     const missing: string[] = [];
 
-    if (!merged.provider) missing.push('llm.provider');
-    if (!merged.modelName) missing.push('llm.modelName');
-    if (!merged.apiKey) missing.push('llm.apiKey');
+    if (!merged.provider) missing.push("llm.provider");
+    if (!merged.modelName) missing.push("llm.modelName");
+    if (!merged.apiKey) missing.push("llm.apiKey");
 
     if (missing.length > 0) {
       throw new ConfigValidationError(missing);
@@ -56,14 +56,14 @@ export class ConfigLoader implements IConfigLoader {
         modelName: merged.modelName!,
         apiKey: merged.apiKey!,
       },
-      specDir: merged.specDir ?? '.kiro/specs',
+      specDir: merged.specDir ?? ".kiro/specs",
       sddFramework: this.parseSddFramework(merged.sddFramework),
     };
   }
 
-  private parseSddFramework(value: string | undefined): 'cc-sdd' | 'openspec' | 'speckit' {
+  private parseSddFramework(value: string | undefined): "cc-sdd" | "openspec" | "speckit" {
     if (isValidSddFramework(value)) return value;
-    return 'cc-sdd';
+    return "cc-sdd";
   }
 }
 
@@ -85,10 +85,10 @@ interface MergedConfig {
   sddFramework: string | undefined;
 }
 
-function isValidSddFramework(value: string | undefined): value is 'cc-sdd' | 'openspec' | 'speckit' {
+function isValidSddFramework(value: string | undefined): value is "cc-sdd" | "openspec" | "speckit" {
   return value !== undefined && (VALID_SDD_FRAMEWORKS as readonly string[]).includes(value);
 }
 
 function isNodeError(err: unknown): err is NodeJS.ErrnoException {
-  return err instanceof Error && 'code' in err;
+  return err instanceof Error && "code" in err;
 }

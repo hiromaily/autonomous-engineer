@@ -1,21 +1,21 @@
-import { readFile, open, mkdir, rename, readdir } from 'node:fs/promises';
-import { join, dirname } from 'node:path';
+import { mkdir, open, readdir, readFile, rename } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import type {
-  MemoryPort,
-  ShortTermMemoryPort,
-  MemoryTarget,
+  FailureFilter,
+  FailureRecord,
+  KnowledgeMemoryFile,
   MemoryEntry,
+  MemoryPort,
   MemoryQuery,
   MemoryQueryResult,
+  MemoryTarget,
   MemoryWriteResult,
   MemoryWriteTrigger,
-  FailureRecord,
-  FailureFilter,
   ProjectMemoryFile,
-  KnowledgeMemoryFile,
   RankedMemoryEntry,
-} from '../../application/ports/memory';
-import { InProcessShortTermStore } from './short-term-store';
+  ShortTermMemoryPort,
+} from "../../application/ports/memory";
+import { InProcessShortTermStore } from "./short-term-store";
 
 // ---------------------------------------------------------------------------
 // Public options type
@@ -30,17 +30,17 @@ export interface FileMemoryStoreOptions {
 // ---------------------------------------------------------------------------
 
 const PROJECT_FILES: readonly ProjectMemoryFile[] = [
-  'project_rules',
-  'coding_patterns',
-  'review_feedback',
-  'architecture_notes',
+  "project_rules",
+  "coding_patterns",
+  "review_feedback",
+  "architecture_notes",
 ];
 
 const KNOWLEDGE_FILES: readonly KnowledgeMemoryFile[] = [
-  'coding_rules',
-  'review_rules',
-  'implementation_patterns',
-  'debugging_patterns',
+  "coding_rules",
+  "review_rules",
+  "implementation_patterns",
+  "debugging_patterns",
 ];
 
 // ---------------------------------------------------------------------------
@@ -48,7 +48,7 @@ const KNOWLEDGE_FILES: readonly KnowledgeMemoryFile[] = [
 // ---------------------------------------------------------------------------
 
 function isNodeError(err: unknown): err is NodeJS.ErrnoException {
-  return err instanceof Error && 'code' in err;
+  return err instanceof Error && "code" in err;
 }
 
 // ---------------------------------------------------------------------------
@@ -77,16 +77,16 @@ export class FileMemoryStore implements MemoryPort {
   // -------------------------------------------------------------------------
 
   private resolveProjectPath(file: ProjectMemoryFile): string {
-    return join(this.baseDir, '.memory', `${file}.md`);
+    return join(this.baseDir, ".memory", `${file}.md`);
   }
 
   private resolveKnowledgePath(file: KnowledgeMemoryFile): string {
-    return join(this.baseDir, 'rules', `${file}.md`);
+    return join(this.baseDir, "rules", `${file}.md`);
   }
 
   /** Map a MemoryTarget discriminated union to a concrete file path. */
   private resolveTargetPath(target: MemoryTarget): string {
-    if (target.type === 'project') {
+    if (target.type === "project") {
       return this.resolveProjectPath(target.file);
     }
     return this.resolveKnowledgePath(target.file);
@@ -99,9 +99,9 @@ export class FileMemoryStore implements MemoryPort {
   /** Read a file, returning an empty string if the file does not exist. */
   private async readFileSafe(filePath: string): Promise<string> {
     try {
-      return await readFile(filePath, 'utf-8');
+      return await readFile(filePath, "utf-8");
     } catch (err) {
-      if (isNodeError(err) && err.code === 'ENOENT') return '';
+      if (isNodeError(err) && err.code === "ENOENT") return "";
       throw err;
     }
   }
@@ -126,13 +126,13 @@ export class FileMemoryStore implements MemoryPort {
   formatEntry(entry: MemoryEntry): string {
     return [
       `## ${entry.title}`,
-      '',
+      "",
       `- **Date**: ${entry.date}`,
       `- **Context**: ${entry.context}`,
-      '',
+      "",
       entry.description,
-      '',
-    ].join('\n');
+      "",
+    ].join("\n");
   }
 
   // -------------------------------------------------------------------------
@@ -160,27 +160,27 @@ export class FileMemoryStore implements MemoryPort {
 
     for (const raw of rawSections) {
       const section = raw.trim();
-      if (!section.startsWith('## ')) continue;
+      if (!section.startsWith("## ")) continue;
 
-      const lines = section.split('\n');
-      const titleLine = lines[0] ?? '';
-      const title = titleLine.replace(/^## /, '').trim();
+      const lines = section.split("\n");
+      const titleLine = lines[0] ?? "";
+      const title = titleLine.replace(/^## /, "").trim();
       if (!title) continue;
 
-      let date = '';
-      let context = '';
+      let date = "";
+      let context = "";
       const descLines: string[] = [];
       let pastMeta = false;
 
       for (let i = 1; i < lines.length; i++) {
-        const line = lines[i] ?? '';
+        const line = lines[i] ?? "";
 
-        if (line.startsWith('- **Date**: ')) {
-          date = line.replace('- **Date**: ', '').trim();
-        } else if (line.startsWith('- **Context**: ')) {
-          context = line.replace('- **Context**: ', '').trim();
+        if (line.startsWith("- **Date**: ")) {
+          date = line.replace("- **Date**: ", "").trim();
+        } else if (line.startsWith("- **Context**: ")) {
+          context = line.replace("- **Context**: ", "").trim();
           pastMeta = true;
-        } else if (line === '---') {
+        } else if (line === "---") {
           // Entry separator — stop parsing this section
           break;
         } else if (pastMeta) {
@@ -189,7 +189,7 @@ export class FileMemoryStore implements MemoryPort {
         // else: empty/other line before metadata — skip
       }
 
-      const description = descLines.join('\n').trim();
+      const description = descLines.join("\n").trim();
 
       if (title && date) {
         entries.push({ title, context, description, date });
@@ -204,11 +204,11 @@ export class FileMemoryStore implements MemoryPort {
   // -------------------------------------------------------------------------
 
   async query(query: MemoryQuery): Promise<MemoryQueryResult> {
-    const memoryTypes = query.memoryTypes ?? ['project', 'knowledge'];
+    const memoryTypes = query.memoryTypes ?? ["project", "knowledge"];
     const topN = query.topN ?? 5;
     const allCandidates: RankedMemoryEntry[] = [];
 
-    if (memoryTypes.includes('project')) {
+    if (memoryTypes.includes("project")) {
       for (const file of PROJECT_FILES) {
         const content = await this.readFileSafe(this.resolveProjectPath(file));
         for (const entry of this.parseEntries(content)) {
@@ -217,7 +217,7 @@ export class FileMemoryStore implements MemoryPort {
       }
     }
 
-    if (memoryTypes.includes('knowledge')) {
+    if (memoryTypes.includes("knowledge")) {
       for (const file of KNOWLEDGE_FILES) {
         const content = await this.readFileSafe(this.resolveKnowledgePath(file));
         for (const entry of this.parseEntries(content)) {
@@ -231,13 +231,13 @@ export class FileMemoryStore implements MemoryPort {
       .toLowerCase()
       .split(/\s+/)
       .filter(t => t.length > 0);
-    const tokenRegexes = tokens.map(t => new RegExp(t, 'g'));
+    const tokenRegexes = tokens.map(t => new RegExp(t, "g"));
 
     // Score each candidate by token occurrence count in title + description + context
     const scored = allCandidates.map(candidate => {
       if (tokenRegexes.length === 0) return candidate;
-      const haystack =
-        `${candidate.entry.title} ${candidate.entry.description} ${candidate.entry.context}`.toLowerCase();
+      const haystack = `${candidate.entry.title} ${candidate.entry.description} ${candidate.entry.context}`
+        .toLowerCase();
       const score = tokenRegexes.reduce((acc, regex) => {
         const matches = (haystack.match(regex) ?? []).length;
         return acc + matches;
@@ -246,8 +246,7 @@ export class FileMemoryStore implements MemoryPort {
     });
 
     // When query has tokens, keep only entries with at least one match
-    const filtered =
-      tokens.length > 0 ? scored.filter(c => c.relevanceScore > 0) : scored;
+    const filtered = tokens.length > 0 ? scored.filter(c => c.relevanceScore > 0) : scored;
 
     // Sort descending by score and apply topN limit
     const top = filtered
@@ -277,7 +276,7 @@ export class FileMemoryStore implements MemoryPort {
     await mkdir(dir, { recursive: true });
 
     const tmpPath = `${destPath}.tmp`;
-    const fd = await open(tmpPath, 'w');
+    const fd = await open(tmpPath, "w");
     try {
       await fd.write(content);
       await fd.datasync();
@@ -300,7 +299,7 @@ export class FileMemoryStore implements MemoryPort {
     if (!entry.title.trim()) {
       return {
         ok: false,
-        error: { category: 'invalid_entry', message: 'entry title must not be blank' },
+        error: { category: "invalid_entry", message: "entry title must not be blank" },
       };
     }
 
@@ -311,7 +310,7 @@ export class FileMemoryStore implements MemoryPort {
     // Deduplication: case-insensitive title match
     const titleLower = entry.title.toLowerCase();
     if (existingEntries.some(e => e.title.toLowerCase() === titleLower)) {
-      return { ok: true, action: 'skipped_duplicate' };
+      return { ok: true, action: "skipped_duplicate" };
     }
 
     // Format new entry and build updated file content
@@ -321,7 +320,7 @@ export class FileMemoryStore implements MemoryPort {
       : newEntryMd;
 
     await this.atomicWrite(targetPath, updated);
-    return { ok: true, action: 'appended' };
+    return { ok: true, action: "appended" };
   }
 
   // -------------------------------------------------------------------------
@@ -343,7 +342,7 @@ export class FileMemoryStore implements MemoryPort {
     if (idx === -1) {
       return {
         ok: false,
-        error: { category: 'not_found', message: `entry not found: "${entryTitle}"` },
+        error: { category: "not_found", message: `entry not found: "${entryTitle}"` },
       };
     }
 
@@ -351,9 +350,9 @@ export class FileMemoryStore implements MemoryPort {
     const updated = entries.map((e, i) => (i === idx ? entry : e));
 
     // Serialize all entries back to Markdown, separated by ---
-    const content = updated.map(e => this.formatEntry(e)).join('\n---\n\n');
+    const content = updated.map(e => this.formatEntry(e)).join("\n---\n\n");
     await this.atomicWrite(targetPath, content);
-    return { ok: true, action: 'updated' };
+    return { ok: true, action: "updated" };
   }
 
   // -------------------------------------------------------------------------
@@ -364,9 +363,9 @@ export class FileMemoryStore implements MemoryPort {
     // Sanitize timestamp for use in filename: ISO 8601 timestamps contain ':'
     // characters (e.g. "2026-03-11T09:12:15Z") which are illegal in filenames
     // on Windows and some other filesystems, so replace them with '-'.
-    const safeTs = record.timestamp.replace(/:/g, '-');
+    const safeTs = record.timestamp.replace(/:/g, "-");
     const filename = `failure_${safeTs}_${record.taskId}.json`;
-    const failuresDir = join(this.baseDir, '.memory', 'failures');
+    const failuresDir = join(this.baseDir, ".memory", "failures");
     const destPath = join(failuresDir, filename);
 
     try {
@@ -374,7 +373,7 @@ export class FileMemoryStore implements MemoryPort {
 
       const content = JSON.stringify(record, null, 2);
       const tmpPath = `${destPath}.tmp`;
-      const fd = await open(tmpPath, 'w');
+      const fd = await open(tmpPath, "w");
       try {
         await fd.write(content);
         await fd.datasync();
@@ -384,10 +383,10 @@ export class FileMemoryStore implements MemoryPort {
       await rename(tmpPath, destPath);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      return { ok: false, error: { category: 'io_error', message } };
+      return { ok: false, error: { category: "io_error", message } };
     }
 
-    return { ok: true, action: 'appended' };
+    return { ok: true, action: "appended" };
   }
 
   // -------------------------------------------------------------------------
@@ -395,21 +394,21 @@ export class FileMemoryStore implements MemoryPort {
   // -------------------------------------------------------------------------
 
   async getFailures(filter?: FailureFilter): Promise<readonly FailureRecord[]> {
-    const failuresDir = join(this.baseDir, '.memory', 'failures');
+    const failuresDir = join(this.baseDir, ".memory", "failures");
 
     let filenames: string[];
     try {
       filenames = await readdir(failuresDir);
     } catch (err) {
-      if (isNodeError(err) && err.code === 'ENOENT') return [];
+      if (isNodeError(err) && err.code === "ENOENT") return [];
       throw err;
     }
 
     const records: FailureRecord[] = [];
     for (const filename of filenames) {
-      if (!filename.endsWith('.json')) continue;
+      if (!filename.endsWith(".json")) continue;
       try {
-        const raw = await readFile(join(failuresDir, filename), 'utf-8');
+        const raw = await readFile(join(failuresDir, filename), "utf-8");
         records.push(JSON.parse(raw) as FailureRecord);
       } catch {
         // Skip unparseable files

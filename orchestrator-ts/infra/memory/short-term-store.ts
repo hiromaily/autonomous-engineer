@@ -1,4 +1,4 @@
-import type { ShortTermMemoryPort, ShortTermState } from '../../application/ports/memory';
+import type { ShortTermMemoryPort, ShortTermState } from "../../application/ports/memory";
 
 /**
  * In-process, synchronous implementation of ShortTermMemoryPort.

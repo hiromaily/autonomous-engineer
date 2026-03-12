@@ -3,32 +3,36 @@
 // ---------------------------------------------------------------------------
 
 export type PermissionFlag =
-  | 'filesystemRead'
-  | 'filesystemWrite'
-  | 'shellExecution'
-  | 'gitWrite'
-  | 'networkAccess';
+  | "filesystemRead"
+  | "filesystemWrite"
+  | "shellExecution"
+  | "gitWrite"
+  | "networkAccess";
 
 /** Frozen tuple of all valid PermissionFlag values — useful for iteration and validation. */
-export const PERMISSION_FLAGS = Object.freeze([
-  'filesystemRead',
-  'filesystemWrite',
-  'shellExecution',
-  'gitWrite',
-  'networkAccess',
-] as const satisfies ReadonlyArray<PermissionFlag>);
+export const PERMISSION_FLAGS = Object.freeze(
+  [
+    "filesystemRead",
+    "filesystemWrite",
+    "shellExecution",
+    "gitWrite",
+    "networkAccess",
+  ] as const satisfies ReadonlyArray<PermissionFlag>,
+);
 
 export type PermissionSet = Readonly<Record<PermissionFlag, boolean>>;
 
-export type ExecutionMode = 'ReadOnly' | 'Dev' | 'CI' | 'Full';
+export type ExecutionMode = "ReadOnly" | "Dev" | "CI" | "Full";
 
 /** Frozen tuple of all valid ExecutionMode values. */
-export const EXECUTION_MODES = Object.freeze([
-  'ReadOnly',
-  'Dev',
-  'CI',
-  'Full',
-] as const satisfies ReadonlyArray<ExecutionMode>);
+export const EXECUTION_MODES = Object.freeze(
+  [
+    "ReadOnly",
+    "Dev",
+    "CI",
+    "Full",
+  ] as const satisfies ReadonlyArray<ExecutionMode>,
+);
 
 // ---------------------------------------------------------------------------
 // JSON Schema (minimal, compatible with JSON Schema Draft-07)
@@ -40,7 +44,7 @@ export type JSONSchema = Record<string, unknown>;
 // Error model
 // ---------------------------------------------------------------------------
 
-export type ToolErrorType = 'validation' | 'runtime' | 'permission';
+export type ToolErrorType = "validation" | "runtime" | "permission";
 
 export interface ToolError {
   readonly type: ToolErrorType;
@@ -58,11 +62,11 @@ export function isTypedToolError(
   err: unknown,
 ): err is Error & { readonly toolErrorType: ToolErrorType } {
   return (
-    err instanceof Error &&
-    'toolErrorType' in err &&
-    (err.toolErrorType === 'permission' ||
-      err.toolErrorType === 'runtime' ||
-      err.toolErrorType === 'validation')
+    err instanceof Error
+    && "toolErrorType" in err
+    && (err.toolErrorType === "permission"
+      || err.toolErrorType === "runtime"
+      || err.toolErrorType === "validation")
   );
 }
 
@@ -82,11 +86,11 @@ export interface MemoryClient {
 
 export interface ToolInvocationLog {
   readonly toolName: string;
-  readonly inputSummary: string;    // sanitized, max logMaxInputBytes chars
-  readonly startedAt: string;       // ISO 8601
+  readonly inputSummary: string; // sanitized, max logMaxInputBytes chars
+  readonly startedAt: string; // ISO 8601
   readonly durationMs: number;
-  readonly resultStatus: 'success' | ToolErrorType;
-  readonly outputSize?: number;     // byte count or entry count
+  readonly resultStatus: "success" | ToolErrorType;
+  readonly outputSize?: number; // byte count or entry count
   readonly errorMessage?: string;
 }
 
@@ -112,7 +116,7 @@ export interface ToolContext {
 // ---------------------------------------------------------------------------
 
 export type ToolResult<T> =
-  | { readonly ok: true;  readonly value: T }
+  | { readonly ok: true; readonly value: T }
   | { readonly ok: false; readonly error: ToolError };
 
 // ---------------------------------------------------------------------------

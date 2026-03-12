@@ -1,17 +1,13 @@
-import { describe, it, expect } from 'bun:test';
-import type {
-  ShortTermState,
-  TaskProgress,
-  ShortTermMemoryPort,
-} from '../../application/ports/memory';
-import type { WorkflowPhase } from '../../domain/workflow/types';
+import { describe, expect, it } from "bun:test";
+import type { ShortTermMemoryPort, ShortTermState, TaskProgress } from "../../application/ports/memory";
+import type { WorkflowPhase } from "../../domain/workflow/types";
 
 // ---------------------------------------------------------------------------
 // ShortTermState shape
 // ---------------------------------------------------------------------------
 
-describe('ShortTermState', () => {
-  it('holds required recentFiles array and all optional fields', () => {
+describe("ShortTermState", () => {
+  it("holds required recentFiles array and all optional fields", () => {
     const state: ShortTermState = { recentFiles: [] };
 
     expect(state.recentFiles).toEqual([]);
@@ -20,35 +16,35 @@ describe('ShortTermState', () => {
     expect(state.taskProgress).toBeUndefined();
   });
 
-  it('accepts all optional fields when provided', () => {
-    const phase: WorkflowPhase = 'IMPLEMENTATION';
+  it("accepts all optional fields when provided", () => {
+    const phase: WorkflowPhase = "IMPLEMENTATION";
     const progress: TaskProgress = {
-      taskId: 'task-1',
-      completedSteps: ['step-a', 'step-b'],
-      currentStep: 'step-c',
+      taskId: "task-1",
+      completedSteps: ["step-a", "step-b"],
+      currentStep: "step-c",
     };
     const state: ShortTermState = {
-      currentSpec: 'memory-system',
+      currentSpec: "memory-system",
       currentPhase: phase,
       taskProgress: progress,
-      recentFiles: ['src/foo.ts', 'src/bar.ts'],
+      recentFiles: ["src/foo.ts", "src/bar.ts"],
     };
 
-    expect(state.currentSpec).toBe('memory-system');
-    expect(state.currentPhase).toBe('IMPLEMENTATION');
-    expect(state.taskProgress?.taskId).toBe('task-1');
+    expect(state.currentSpec).toBe("memory-system");
+    expect(state.currentPhase).toBe("IMPLEMENTATION");
+    expect(state.taskProgress?.taskId).toBe("task-1");
     expect(state.recentFiles).toHaveLength(2);
   });
 
-  it('currentPhase is assignable from WorkflowPhase union', () => {
+  it("currentPhase is assignable from WorkflowPhase union", () => {
     const phases: WorkflowPhase[] = [
-      'SPEC_INIT',
-      'REQUIREMENTS',
-      'DESIGN',
-      'VALIDATE_DESIGN',
-      'TASK_GENERATION',
-      'IMPLEMENTATION',
-      'PULL_REQUEST',
+      "SPEC_INIT",
+      "REQUIREMENTS",
+      "DESIGN",
+      "VALIDATE_DESIGN",
+      "TASK_GENERATION",
+      "IMPLEMENTATION",
+      "PULL_REQUEST",
     ];
     for (const phase of phases) {
       const state: ShortTermState = { currentPhase: phase, recentFiles: [] };
@@ -61,26 +57,26 @@ describe('ShortTermState', () => {
 // TaskProgress shape
 // ---------------------------------------------------------------------------
 
-describe('TaskProgress', () => {
-  it('requires taskId and completedSteps; currentStep is optional', () => {
+describe("TaskProgress", () => {
+  it("requires taskId and completedSteps; currentStep is optional", () => {
     const progress: TaskProgress = {
-      taskId: 'task-2',
+      taskId: "task-2",
       completedSteps: [],
     };
 
-    expect(progress.taskId).toBe('task-2');
+    expect(progress.taskId).toBe("task-2");
     expect(progress.completedSteps).toEqual([]);
     expect(progress.currentStep).toBeUndefined();
   });
 
-  it('holds currentStep when provided', () => {
+  it("holds currentStep when provided", () => {
     const progress: TaskProgress = {
-      taskId: 'task-3',
-      completedSteps: ['step-1'],
-      currentStep: 'step-2',
+      taskId: "task-3",
+      completedSteps: ["step-1"],
+      currentStep: "step-2",
     };
 
-    expect(progress.currentStep).toBe('step-2');
+    expect(progress.currentStep).toBe("step-2");
     expect(progress.completedSteps).toHaveLength(1);
   });
 });
@@ -104,8 +100,8 @@ function makeShortTermStore(): ShortTermMemoryPort {
   };
 }
 
-describe('ShortTermMemoryPort contract (mock implementation)', () => {
-  it('read() after construction returns empty initial state', () => {
+describe("ShortTermMemoryPort contract (mock implementation)", () => {
+  it("read() after construction returns empty initial state", () => {
     const store = makeShortTermStore();
     const state = store.read();
 
@@ -115,33 +111,33 @@ describe('ShortTermMemoryPort contract (mock implementation)', () => {
     expect(state.taskProgress).toBeUndefined();
   });
 
-  it('write() with partial object merges only provided keys', () => {
+  it("write() with partial object merges only provided keys", () => {
     const store = makeShortTermStore();
-    store.write({ currentSpec: 'memory-system' });
+    store.write({ currentSpec: "memory-system" });
     const after = store.read();
 
-    expect(after.currentSpec).toBe('memory-system');
+    expect(after.currentSpec).toBe("memory-system");
     expect(after.recentFiles).toEqual([]); // unchanged
     expect(after.currentPhase).toBeUndefined(); // unchanged
   });
 
-  it('write() leaves unmentioned fields at their previous values', () => {
+  it("write() leaves unmentioned fields at their previous values", () => {
     const store = makeShortTermStore();
-    store.write({ currentSpec: 'spec-a', recentFiles: ['file.ts'] });
-    store.write({ currentPhase: 'DESIGN' });
+    store.write({ currentSpec: "spec-a", recentFiles: ["file.ts"] });
+    store.write({ currentPhase: "DESIGN" });
     const state = store.read();
 
-    expect(state.currentSpec).toBe('spec-a'); // preserved
-    expect(state.recentFiles).toEqual(['file.ts']); // preserved
-    expect(state.currentPhase).toBe('DESIGN'); // updated
+    expect(state.currentSpec).toBe("spec-a"); // preserved
+    expect(state.recentFiles).toEqual(["file.ts"]); // preserved
+    expect(state.currentPhase).toBe("DESIGN"); // updated
   });
 
-  it('clear() resets all fields to empty initial state', () => {
+  it("clear() resets all fields to empty initial state", () => {
     const store = makeShortTermStore();
     store.write({
-      currentSpec: 'spec-x',
-      currentPhase: 'IMPLEMENTATION',
-      recentFiles: ['a.ts', 'b.ts'],
+      currentSpec: "spec-x",
+      currentPhase: "IMPLEMENTATION",
+      recentFiles: ["a.ts", "b.ts"],
     });
     store.clear();
     const state = store.read();
@@ -152,7 +148,7 @@ describe('ShortTermMemoryPort contract (mock implementation)', () => {
     expect(state.taskProgress).toBeUndefined();
   });
 
-  it('read() returns synchronously without throwing', () => {
+  it("read() returns synchronously without throwing", () => {
     const store = makeShortTermStore();
     expect(() => store.read()).not.toThrow();
     // Return value is not a Promise
@@ -160,9 +156,9 @@ describe('ShortTermMemoryPort contract (mock implementation)', () => {
     expect(result).not.toBeInstanceOf(Promise);
   });
 
-  it('write() and clear() are synchronous (return undefined)', () => {
+  it("write() and clear() are synchronous (return undefined)", () => {
     const store = makeShortTermStore();
-    const writeResult = store.write({ currentSpec: 'test' });
+    const writeResult = store.write({ currentSpec: "test" });
     const clearResult = store.clear();
 
     expect(writeResult).toBeUndefined();
@@ -176,12 +172,19 @@ describe('ShortTermMemoryPort contract (mock implementation)', () => {
 
 const _exhaustivePhase = (phase: WorkflowPhase): string => {
   switch (phase) {
-    case 'SPEC_INIT': return 'SPEC_INIT';
-    case 'REQUIREMENTS': return 'REQUIREMENTS';
-    case 'DESIGN': return 'DESIGN';
-    case 'VALIDATE_DESIGN': return 'VALIDATE_DESIGN';
-    case 'TASK_GENERATION': return 'TASK_GENERATION';
-    case 'IMPLEMENTATION': return 'IMPLEMENTATION';
-    case 'PULL_REQUEST': return 'PULL_REQUEST';
+    case "SPEC_INIT":
+      return "SPEC_INIT";
+    case "REQUIREMENTS":
+      return "REQUIREMENTS";
+    case "DESIGN":
+      return "DESIGN";
+    case "VALIDATE_DESIGN":
+      return "VALIDATE_DESIGN";
+    case "TASK_GENERATION":
+      return "TASK_GENERATION";
+    case "IMPLEMENTATION":
+      return "IMPLEMENTATION";
+    case "PULL_REQUEST":
+      return "PULL_REQUEST";
   }
 };

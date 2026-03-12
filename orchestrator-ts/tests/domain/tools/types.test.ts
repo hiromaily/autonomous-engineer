@@ -1,65 +1,65 @@
-import { describe, it, expect } from 'bun:test';
+import { describe, expect, it } from "bun:test";
 import {
-  PERMISSION_FLAGS,
   EXECUTION_MODES,
-  type PermissionFlag,
-  type PermissionSet,
   type ExecutionMode,
   type JSONSchema,
-  type MemoryEntry,
-  type MemoryClient,
   type Logger,
-  type ToolInvocationLog,
-  type ToolContext,
-  type ToolErrorType,
-  type ToolError,
-  type ToolResult,
+  type MemoryClient,
+  type MemoryEntry,
+  PERMISSION_FLAGS,
+  type PermissionFlag,
+  type PermissionSet,
   type Tool,
-} from '../../../domain/tools/types';
+  type ToolContext,
+  type ToolError,
+  type ToolErrorType,
+  type ToolInvocationLog,
+  type ToolResult,
+} from "../../../domain/tools/types";
 
 // ---------------------------------------------------------------------------
 // PermissionFlag
 // ---------------------------------------------------------------------------
-describe('PERMISSION_FLAGS', () => {
-  it('contains exactly five flags', () => {
+describe("PERMISSION_FLAGS", () => {
+  it("contains exactly five flags", () => {
     expect(PERMISSION_FLAGS).toHaveLength(5);
   });
 
-  it('contains all required permission flag values', () => {
+  it("contains all required permission flag values", () => {
     const expected: PermissionFlag[] = [
-      'filesystemRead',
-      'filesystemWrite',
-      'shellExecution',
-      'gitWrite',
-      'networkAccess',
+      "filesystemRead",
+      "filesystemWrite",
+      "shellExecution",
+      "gitWrite",
+      "networkAccess",
     ];
     for (const flag of expected) {
       expect(PERMISSION_FLAGS).toContain(flag);
     }
   });
 
-  it('is frozen (runtime immutable)', () => {
+  it("is frozen (runtime immutable)", () => {
     expect(Object.isFrozen(PERMISSION_FLAGS)).toBe(true);
-    expect(() => (PERMISSION_FLAGS as unknown as string[]).push('extra')).toThrow();
+    expect(() => (PERMISSION_FLAGS as unknown as string[]).push("extra")).toThrow();
   });
 });
 
 // ---------------------------------------------------------------------------
 // EXECUTION_MODES
 // ---------------------------------------------------------------------------
-describe('EXECUTION_MODES', () => {
-  it('contains exactly four modes', () => {
+describe("EXECUTION_MODES", () => {
+  it("contains exactly four modes", () => {
     expect(EXECUTION_MODES).toHaveLength(4);
   });
 
-  it('contains all required execution mode values', () => {
-    const expected: ExecutionMode[] = ['ReadOnly', 'Dev', 'CI', 'Full'];
+  it("contains all required execution mode values", () => {
+    const expected: ExecutionMode[] = ["ReadOnly", "Dev", "CI", "Full"];
     for (const mode of expected) {
       expect(EXECUTION_MODES).toContain(mode);
     }
   });
 
-  it('is frozen (runtime immutable)', () => {
+  it("is frozen (runtime immutable)", () => {
     expect(Object.isFrozen(EXECUTION_MODES)).toBe(true);
   });
 });
@@ -67,8 +67,8 @@ describe('EXECUTION_MODES', () => {
 // ---------------------------------------------------------------------------
 // PermissionSet shape
 // ---------------------------------------------------------------------------
-describe('PermissionSet shape', () => {
-  it('accepts a valid PermissionSet with all flags', () => {
+describe("PermissionSet shape", () => {
+  it("accepts a valid PermissionSet with all flags", () => {
     const ps: PermissionSet = {
       filesystemRead: true,
       filesystemWrite: false,
@@ -84,18 +84,20 @@ describe('PermissionSet shape', () => {
     expect(ps.networkAccess).toBe(false);
   });
 
-  it('a frozen PermissionSet cannot be modified at runtime', () => {
-    const ps = Object.freeze({
-      filesystemRead: true,
-      filesystemWrite: false,
-      shellExecution: false,
-      gitWrite: false,
-      networkAccess: false,
-    } satisfies PermissionSet);
+  it("a frozen PermissionSet cannot be modified at runtime", () => {
+    const ps = Object.freeze(
+      {
+        filesystemRead: true,
+        filesystemWrite: false,
+        shellExecution: false,
+        gitWrite: false,
+        networkAccess: false,
+      } satisfies PermissionSet,
+    );
 
     expect(Object.isFrozen(ps)).toBe(true);
     expect(() => {
-      (ps as Record<string, boolean>)['filesystemRead'] = false;
+      (ps as Record<string, boolean>)["filesystemRead"] = false;
     }).toThrow();
   });
 });
@@ -103,34 +105,34 @@ describe('PermissionSet shape', () => {
 // ---------------------------------------------------------------------------
 // JSONSchema type alias
 // ---------------------------------------------------------------------------
-describe('JSONSchema type alias', () => {
-  it('accepts a typical JSON Schema object', () => {
+describe("JSONSchema type alias", () => {
+  it("accepts a typical JSON Schema object", () => {
     const schema: JSONSchema = {
-      type: 'object',
+      type: "object",
       properties: {
-        path: { type: 'string' },
+        path: { type: "string" },
       },
-      required: ['path'],
+      required: ["path"],
     };
 
-    expect(schema['type']).toBe('object');
-    expect(schema['required']).toEqual(['path']);
+    expect(schema["type"]).toBe("object");
+    expect(schema["required"]).toEqual(["path"]);
   });
 });
 
 // ---------------------------------------------------------------------------
 // MemoryEntry shape
 // ---------------------------------------------------------------------------
-describe('MemoryEntry shape', () => {
-  it('accepts a valid MemoryEntry', () => {
+describe("MemoryEntry shape", () => {
+  it("accepts a valid MemoryEntry", () => {
     const entry: MemoryEntry = {
-      id: 'entry-1',
-      content: 'Some memory content',
+      id: "entry-1",
+      content: "Some memory content",
       score: 0.95,
     };
 
-    expect(entry.id).toBe('entry-1');
-    expect(entry.content).toBe('Some memory content');
+    expect(entry.id).toBe("entry-1");
+    expect(entry.content).toBe("Some memory content");
     expect(entry.score).toBe(0.95);
   });
 });
@@ -138,11 +140,11 @@ describe('MemoryEntry shape', () => {
 // ---------------------------------------------------------------------------
 // MemoryClient contract (mock implementation)
 // ---------------------------------------------------------------------------
-describe('MemoryClient contract', () => {
-  it('can be implemented by a mock and used against the interface', async () => {
+describe("MemoryClient contract", () => {
+  it("can be implemented by a mock and used against the interface", async () => {
     const mockEntries: MemoryEntry[] = [
-      { id: 'a', content: 'result one', score: 0.9 },
-      { id: 'b', content: 'result two', score: 0.7 },
+      { id: "a", content: "result one", score: 0.9 },
+      { id: "b", content: "result two", score: 0.7 },
     ];
 
     const client: MemoryClient = {
@@ -151,11 +153,11 @@ describe('MemoryClient contract', () => {
       },
     };
 
-    const results = await client.search('test query');
+    const results = await client.search("test query");
     expect(results).toHaveLength(2);
-    expect(results[0]?.id).toBe('a');
+    expect(results[0]?.id).toBe("a");
 
-    const empty = await client.search('');
+    const empty = await client.search("");
     expect(empty).toHaveLength(0);
   });
 });
@@ -163,35 +165,35 @@ describe('MemoryClient contract', () => {
 // ---------------------------------------------------------------------------
 // ToolInvocationLog shape
 // ---------------------------------------------------------------------------
-describe('ToolInvocationLog shape', () => {
-  it('accepts a success log entry', () => {
+describe("ToolInvocationLog shape", () => {
+  it("accepts a success log entry", () => {
     const log: ToolInvocationLog = {
-      toolName: 'read_file',
-      inputSummary: '{"path":"/workspace/foo.ts"}',
-      startedAt: '2026-01-01T00:00:00.000Z',
+      toolName: "read_file",
+      inputSummary: "{\"path\":\"/workspace/foo.ts\"}",
+      startedAt: "2026-01-01T00:00:00.000Z",
       durationMs: 42,
-      resultStatus: 'success',
+      resultStatus: "success",
       outputSize: 1024,
     };
 
-    expect(log.toolName).toBe('read_file');
-    expect(log.resultStatus).toBe('success');
+    expect(log.toolName).toBe("read_file");
+    expect(log.resultStatus).toBe("success");
     expect(log.outputSize).toBe(1024);
     expect(log.errorMessage).toBeUndefined();
   });
 
-  it('accepts an error log entry with errorMessage', () => {
+  it("accepts an error log entry with errorMessage", () => {
     const log: ToolInvocationLog = {
-      toolName: 'write_file',
-      inputSummary: '{"path":"/workspace/out.ts","content":"..."}',
-      startedAt: '2026-01-01T00:00:00.000Z',
+      toolName: "write_file",
+      inputSummary: "{\"path\":\"/workspace/out.ts\",\"content\":\"...\"}",
+      startedAt: "2026-01-01T00:00:00.000Z",
       durationMs: 5,
-      resultStatus: 'permission',
-      errorMessage: 'filesystemWrite permission not granted',
+      resultStatus: "permission",
+      errorMessage: "filesystemWrite permission not granted",
     };
 
-    expect(log.resultStatus).toBe('permission');
-    expect(log.errorMessage).toBe('filesystemWrite permission not granted');
+    expect(log.resultStatus).toBe("permission");
+    expect(log.errorMessage).toBe("filesystemWrite permission not granted");
     expect(log.outputSize).toBeUndefined();
   });
 });
@@ -199,8 +201,8 @@ describe('ToolInvocationLog shape', () => {
 // ---------------------------------------------------------------------------
 // Logger contract (mock implementation)
 // ---------------------------------------------------------------------------
-describe('Logger contract', () => {
-  it('can be implemented by a mock and used against the interface', () => {
+describe("Logger contract", () => {
+  it("can be implemented by a mock and used against the interface", () => {
     const infoLogs: ToolInvocationLog[] = [];
     const errorLogs: ToolInvocationLog[] = [];
 
@@ -214,40 +216,40 @@ describe('Logger contract', () => {
     };
 
     const successLog: ToolInvocationLog = {
-      toolName: 'read_file',
-      inputSummary: '{"path":"/foo"}',
-      startedAt: '2026-01-01T00:00:00Z',
+      toolName: "read_file",
+      inputSummary: "{\"path\":\"/foo\"}",
+      startedAt: "2026-01-01T00:00:00Z",
       durationMs: 10,
-      resultStatus: 'success',
+      resultStatus: "success",
     };
 
     const errorLog: ToolInvocationLog = {
-      toolName: 'write_file',
-      inputSummary: '{"path":"/bar"}',
-      startedAt: '2026-01-01T00:00:01Z',
+      toolName: "write_file",
+      inputSummary: "{\"path\":\"/bar\"}",
+      startedAt: "2026-01-01T00:00:01Z",
       durationMs: 3,
-      resultStatus: 'runtime',
-      errorMessage: 'ENOENT',
+      resultStatus: "runtime",
+      errorMessage: "ENOENT",
     };
 
     logger.info(successLog);
     logger.error(errorLog);
 
     expect(infoLogs).toHaveLength(1);
-    expect(infoLogs[0]?.toolName).toBe('read_file');
+    expect(infoLogs[0]?.toolName).toBe("read_file");
     expect(errorLogs).toHaveLength(1);
-    expect(errorLogs[0]?.resultStatus).toBe('runtime');
+    expect(errorLogs[0]?.resultStatus).toBe("runtime");
   });
 });
 
 // ---------------------------------------------------------------------------
 // ToolContext shape
 // ---------------------------------------------------------------------------
-describe('ToolContext shape', () => {
-  it('accepts a valid ToolContext object', () => {
+describe("ToolContext shape", () => {
+  it("accepts a valid ToolContext object", () => {
     const ctx: ToolContext = {
-      workspaceRoot: '/workspace',
-      workingDirectory: '/workspace/src',
+      workspaceRoot: "/workspace",
+      workingDirectory: "/workspace/src",
       permissions: {
         filesystemRead: true,
         filesystemWrite: false,
@@ -266,8 +268,8 @@ describe('ToolContext shape', () => {
       },
     };
 
-    expect(ctx.workspaceRoot).toBe('/workspace');
-    expect(ctx.workingDirectory).toBe('/workspace/src');
+    expect(ctx.workspaceRoot).toBe("/workspace");
+    expect(ctx.workingDirectory).toBe("/workspace/src");
     expect(ctx.permissions.filesystemRead).toBe(true);
   });
 });
@@ -275,65 +277,65 @@ describe('ToolContext shape', () => {
 // ---------------------------------------------------------------------------
 // ToolError shape
 // ---------------------------------------------------------------------------
-describe('ToolError shape', () => {
-  it('accepts a validation error without details', () => {
+describe("ToolError shape", () => {
+  it("accepts a validation error without details", () => {
     const err: ToolError = {
-      type: 'validation',
-      message: 'Input field "path" is required',
+      type: "validation",
+      message: "Input field \"path\" is required",
     };
 
-    expect(err.type).toBe('validation');
+    expect(err.type).toBe("validation");
     expect(err.message).toBeDefined();
     expect(err.details).toBeUndefined();
   });
 
-  it('accepts a runtime error with details', () => {
+  it("accepts a runtime error with details", () => {
     const err: ToolError = {
-      type: 'runtime',
-      message: 'ENOENT: no such file or directory',
-      details: { stderr: '', exitCode: 1 },
+      type: "runtime",
+      message: "ENOENT: no such file or directory",
+      details: { stderr: "", exitCode: 1 },
     };
 
-    expect(err.type).toBe('runtime');
-    expect(err.details?.['exitCode']).toBe(1);
+    expect(err.type).toBe("runtime");
+    expect(err.details?.["exitCode"]).toBe(1);
   });
 
-  it('accepts a permission error', () => {
+  it("accepts a permission error", () => {
     const err: ToolError = {
-      type: 'permission',
-      message: 'filesystemWrite not granted in ReadOnly mode',
-      details: { requiredFlag: 'filesystemWrite', currentMode: 'ReadOnly' },
+      type: "permission",
+      message: "filesystemWrite not granted in ReadOnly mode",
+      details: { requiredFlag: "filesystemWrite", currentMode: "ReadOnly" },
     };
 
-    expect(err.type).toBe('permission');
+    expect(err.type).toBe("permission");
   });
 });
 
 // ---------------------------------------------------------------------------
 // ToolResult discriminated union
 // ---------------------------------------------------------------------------
-describe('ToolResult discriminated union', () => {
-  it('narrows to value on ok: true', () => {
-    const result: ToolResult<string> = { ok: true, value: 'hello' };
+describe("ToolResult discriminated union", () => {
+  it("narrows to value on ok: true", () => {
+    const result: ToolResult<string> = { ok: true, value: "hello" };
 
     if (result.ok) {
-      expect(result.value).toBe('hello');
+      expect(result.value).toBe("hello");
     } else {
-      throw new Error('Expected ok: true');
+      throw new Error("Expected ok: true");
     }
   });
 
-  it('narrows to error on ok: false', () => {
+  it("narrows to error on ok: false", () => {
     const result: ToolResult<string> = {
       ok: false,
-      error: { type: 'runtime', message: 'something failed' },
+      error: { type: "runtime", message: "something failed" },
     };
 
     if (!result.ok) {
-      expect(result.error.type).toBe('runtime');
-      expect(result.error.message).toBe('something failed');
+      expect(result.error.type).toBe("runtime");
+      expect(result.error.message).toBe("something failed");
     } else {
-      throw new Error('Expected ok: false');
+      throw new Error("Expected ok: false");
     }
   });
 });
@@ -341,22 +343,22 @@ describe('ToolResult discriminated union', () => {
 // ---------------------------------------------------------------------------
 // Tool interface (mock implementation)
 // ---------------------------------------------------------------------------
-describe('Tool interface', () => {
-  it('can be implemented by a mock tool with all required fields', async () => {
+describe("Tool interface", () => {
+  it("can be implemented by a mock tool with all required fields", async () => {
     const readFileTool: Tool<{ readonly path: string }, { readonly content: string }> = {
-      name: 'read_file',
-      description: 'Read the content of a file at the given path',
-      requiredPermissions: ['filesystemRead'],
+      name: "read_file",
+      description: "Read the content of a file at the given path",
+      requiredPermissions: ["filesystemRead"],
       schema: {
         input: {
-          type: 'object',
-          properties: { path: { type: 'string' } },
-          required: ['path'],
+          type: "object",
+          properties: { path: { type: "string" } },
+          required: ["path"],
         },
         output: {
-          type: 'object',
-          properties: { content: { type: 'string' } },
-          required: ['content'],
+          type: "object",
+          properties: { content: { type: "string" } },
+          required: ["content"],
         },
       },
       async execute(
@@ -367,13 +369,13 @@ describe('Tool interface', () => {
       },
     };
 
-    expect(readFileTool.name).toBe('read_file');
-    expect(readFileTool.requiredPermissions).toContain('filesystemRead');
+    expect(readFileTool.name).toBe("read_file");
+    expect(readFileTool.requiredPermissions).toContain("filesystemRead");
     expect(readFileTool.timeoutMs).toBeUndefined();
 
     const mockCtx: ToolContext = {
-      workspaceRoot: '/workspace',
-      workingDirectory: '/workspace',
+      workspaceRoot: "/workspace",
+      workingDirectory: "/workspace",
       permissions: {
         filesystemRead: true,
         filesystemWrite: false,
@@ -381,23 +383,27 @@ describe('Tool interface', () => {
         gitWrite: false,
         networkAccess: false,
       },
-      memory: { async search(): Promise<ReadonlyArray<MemoryEntry>> { return []; } },
+      memory: {
+        async search(): Promise<ReadonlyArray<MemoryEntry>> {
+          return [];
+        },
+      },
       logger: { info(): void {}, error(): void {} },
     };
 
-    const output = await readFileTool.execute({ path: '/workspace/foo.ts' }, mockCtx);
-    expect(output.content).toBe('contents of /workspace/foo.ts');
+    const output = await readFileTool.execute({ path: "/workspace/foo.ts" }, mockCtx);
+    expect(output.content).toBe("contents of /workspace/foo.ts");
   });
 
-  it('accepts optional timeoutMs field when provided', () => {
+  it("accepts optional timeoutMs field when provided", () => {
     const tool: Tool<Record<string, never>, { readonly ok: boolean }> = {
-      name: 'slow_tool',
-      description: 'A tool with a custom timeout',
+      name: "slow_tool",
+      description: "A tool with a custom timeout",
       requiredPermissions: [],
       timeoutMs: 30000,
       schema: {
-        input: { type: 'object' },
-        output: { type: 'object', properties: { ok: { type: 'boolean' } } },
+        input: { type: "object" },
+        output: { type: "object", properties: { ok: { type: "boolean" } } },
       },
       async execute(
         _input: Record<string, never>,
@@ -416,17 +422,24 @@ describe('Tool interface', () => {
 // ---------------------------------------------------------------------------
 const _exhaustiveErrorType = (t: ToolErrorType): string => {
   switch (t) {
-    case 'validation': return 'validation';
-    case 'runtime':    return 'runtime';
-    case 'permission': return 'permission';
+    case "validation":
+      return "validation";
+    case "runtime":
+      return "runtime";
+    case "permission":
+      return "permission";
   }
 };
 
 const _exhaustiveMode = (m: ExecutionMode): string => {
   switch (m) {
-    case 'ReadOnly': return 'read-only';
-    case 'Dev':      return 'dev';
-    case 'CI':       return 'ci';
-    case 'Full':     return 'full';
+    case "ReadOnly":
+      return "read-only";
+    case "Dev":
+      return "dev";
+    case "CI":
+      return "ci";
+    case "Full":
+      return "full";
   }
 };

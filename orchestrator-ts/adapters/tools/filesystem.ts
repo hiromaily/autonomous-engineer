@@ -1,27 +1,45 @@
-import { readFile, writeFile, mkdir, stat, readdir } from 'node:fs/promises';
-import { resolve, join, dirname } from 'node:path';
-import type { Tool, ToolContext } from '../../domain/tools/types';
+import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
+import { dirname, join, resolve } from "node:path";
+import type { Tool, ToolContext } from "../../domain/tools/types";
 
 // ---------------------------------------------------------------------------
 // I/O types
 // ---------------------------------------------------------------------------
 
-export interface ReadFileInput  { readonly path: string }
-export interface ReadFileOutput { readonly content: string }
+export interface ReadFileInput {
+  readonly path: string;
+}
+export interface ReadFileOutput {
+  readonly content: string;
+}
 
-export interface WriteFileInput  { readonly path: string; readonly content: string }
-export interface WriteFileOutput { readonly bytesWritten: number }
+export interface WriteFileInput {
+  readonly path: string;
+  readonly content: string;
+}
+export interface WriteFileOutput {
+  readonly bytesWritten: number;
+}
 
-export interface ListDirectoryInput  { readonly path: string }
-export interface ListDirectoryEntry  {
+export interface ListDirectoryInput {
+  readonly path: string;
+}
+export interface ListDirectoryEntry {
   readonly name: string;
-  readonly type: 'file' | 'directory';
+  readonly type: "file" | "directory";
   readonly size: number;
 }
-export interface ListDirectoryOutput { readonly entries: ReadonlyArray<ListDirectoryEntry> }
+export interface ListDirectoryOutput {
+  readonly entries: ReadonlyArray<ListDirectoryEntry>;
+}
 
-export interface SearchFilesInput  { readonly pattern: string; readonly directory: string }
-export interface SearchFilesOutput { readonly paths: ReadonlyArray<string> }
+export interface SearchFilesInput {
+  readonly pattern: string;
+  readonly directory: string;
+}
+export interface SearchFilesOutput {
+  readonly paths: ReadonlyArray<string>;
+}
 
 // ---------------------------------------------------------------------------
 // Shared utility
@@ -35,7 +53,7 @@ export interface SearchFilesOutput { readonly paths: ReadonlyArray<string> }
 export function resolveWorkspacePath(workspaceRoot: string, requestedPath: string): string {
   const resolved = resolve(workspaceRoot, requestedPath);
   // Normalise root with trailing separator to avoid false matches on prefixes
-  const rootWithSep = workspaceRoot.endsWith('/') ? workspaceRoot : workspaceRoot + '/';
+  const rootWithSep = workspaceRoot.endsWith("/") ? workspaceRoot : workspaceRoot + "/";
   if (resolved !== workspaceRoot && !resolved.startsWith(rootWithSep)) {
     throw new PathTraversalError(
       `Path traversal rejected: '${requestedPath}' resolves outside workspace root '${workspaceRoot}'`,
@@ -45,10 +63,10 @@ export function resolveWorkspacePath(workspaceRoot: string, requestedPath: strin
 }
 
 class PathTraversalError extends Error {
-  readonly toolErrorType = 'permission' as const;
+  readonly toolErrorType = "permission" as const;
   constructor(message: string) {
     super(message);
-    this.name = 'PathTraversalError';
+    this.name = "PathTraversalError";
   }
 }
 
@@ -57,26 +75,26 @@ class PathTraversalError extends Error {
 // ---------------------------------------------------------------------------
 
 export const readFileTool: Tool<ReadFileInput, ReadFileOutput> = {
-  name: 'read_file',
-  description: 'Read the UTF-8 content of a file within the workspace.',
-  requiredPermissions: ['filesystemRead'],
+  name: "read_file",
+  description: "Read the UTF-8 content of a file within the workspace.",
+  requiredPermissions: ["filesystemRead"],
   schema: {
     input: {
-      type: 'object',
-      properties: { path: { type: 'string' } },
-      required: ['path'],
+      type: "object",
+      properties: { path: { type: "string" } },
+      required: ["path"],
       additionalProperties: false,
     },
     output: {
-      type: 'object',
-      properties: { content: { type: 'string' } },
-      required: ['content'],
+      type: "object",
+      properties: { content: { type: "string" } },
+      required: ["content"],
       additionalProperties: false,
     },
   },
   async execute(input: ReadFileInput, context: ToolContext): Promise<ReadFileOutput> {
     const resolved = resolveWorkspacePath(context.workspaceRoot, input.path);
-    const content = await readFile(resolved, 'utf-8');
+    const content = await readFile(resolved, "utf-8");
     return { content };
   },
 };
@@ -86,31 +104,31 @@ export const readFileTool: Tool<ReadFileInput, ReadFileOutput> = {
 // ---------------------------------------------------------------------------
 
 export const writeFileTool: Tool<WriteFileInput, WriteFileOutput> = {
-  name: 'write_file',
-  description: 'Write UTF-8 content to a file within the workspace, creating parent directories as needed.',
-  requiredPermissions: ['filesystemWrite'],
+  name: "write_file",
+  description: "Write UTF-8 content to a file within the workspace, creating parent directories as needed.",
+  requiredPermissions: ["filesystemWrite"],
   schema: {
     input: {
-      type: 'object',
+      type: "object",
       properties: {
-        path:    { type: 'string' },
-        content: { type: 'string' },
+        path: { type: "string" },
+        content: { type: "string" },
       },
-      required: ['path', 'content'],
+      required: ["path", "content"],
       additionalProperties: false,
     },
     output: {
-      type: 'object',
-      properties: { bytesWritten: { type: 'number' } },
-      required: ['bytesWritten'],
+      type: "object",
+      properties: { bytesWritten: { type: "number" } },
+      required: ["bytesWritten"],
       additionalProperties: false,
     },
   },
   async execute(input: WriteFileInput, context: ToolContext): Promise<WriteFileOutput> {
     const resolved = resolveWorkspacePath(context.workspaceRoot, input.path);
     await mkdir(dirname(resolved), { recursive: true });
-    await writeFile(resolved, input.content, 'utf-8');
-    const bytesWritten = Buffer.byteLength(input.content, 'utf-8');
+    await writeFile(resolved, input.content, "utf-8");
+    const bytesWritten = Buffer.byteLength(input.content, "utf-8");
     return { bytesWritten };
   },
 };
@@ -120,34 +138,34 @@ export const writeFileTool: Tool<WriteFileInput, WriteFileOutput> = {
 // ---------------------------------------------------------------------------
 
 export const listDirectoryTool: Tool<ListDirectoryInput, ListDirectoryOutput> = {
-  name: 'list_directory',
-  description: 'List the entries (files and directories) in a workspace directory.',
-  requiredPermissions: ['filesystemRead'],
+  name: "list_directory",
+  description: "List the entries (files and directories) in a workspace directory.",
+  requiredPermissions: ["filesystemRead"],
   schema: {
     input: {
-      type: 'object',
-      properties: { path: { type: 'string' } },
-      required: ['path'],
+      type: "object",
+      properties: { path: { type: "string" } },
+      required: ["path"],
       additionalProperties: false,
     },
     output: {
-      type: 'object',
+      type: "object",
       properties: {
         entries: {
-          type: 'array',
+          type: "array",
           items: {
-            type: 'object',
+            type: "object",
             properties: {
-              name: { type: 'string' },
-              type: { type: 'string', enum: ['file', 'directory'] },
-              size: { type: 'number' },
+              name: { type: "string" },
+              type: { type: "string", enum: ["file", "directory"] },
+              size: { type: "number" },
             },
-            required: ['name', 'type', 'size'],
+            required: ["name", "type", "size"],
             additionalProperties: false,
           },
         },
       },
-      required: ['entries'],
+      required: ["entries"],
       additionalProperties: false,
     },
   },
@@ -161,7 +179,7 @@ export const listDirectoryTool: Tool<ListDirectoryInput, ListDirectoryOutput> = 
       dirents.map(async (dirent) => {
         const isDir = dirent.isDirectory();
         const size = isDir ? 0 : (await stat(join(resolved, dirent.name))).size;
-        return { name: dirent.name, type: isDir ? ('directory' as const) : ('file' as const), size };
+        return { name: dirent.name, type: isDir ? ("directory" as const) : ("file" as const), size };
       }),
     );
 
@@ -174,25 +192,25 @@ export const listDirectoryTool: Tool<ListDirectoryInput, ListDirectoryOutput> = 
 // ---------------------------------------------------------------------------
 
 export const searchFilesTool: Tool<SearchFilesInput, SearchFilesOutput> = {
-  name: 'search_files',
-  description: 'Search for files matching a glob pattern within a workspace directory.',
-  requiredPermissions: ['filesystemRead'],
+  name: "search_files",
+  description: "Search for files matching a glob pattern within a workspace directory.",
+  requiredPermissions: ["filesystemRead"],
   schema: {
     input: {
-      type: 'object',
+      type: "object",
       properties: {
-        pattern:   { type: 'string' },
-        directory: { type: 'string' },
+        pattern: { type: "string" },
+        directory: { type: "string" },
       },
-      required: ['pattern', 'directory'],
+      required: ["pattern", "directory"],
       additionalProperties: false,
     },
     output: {
-      type: 'object',
+      type: "object",
       properties: {
-        paths: { type: 'array', items: { type: 'string' } },
+        paths: { type: "array", items: { type: "string" } },
       },
-      required: ['paths'],
+      required: ["paths"],
       additionalProperties: false,
     },
   },

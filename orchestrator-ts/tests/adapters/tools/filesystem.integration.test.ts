@@ -5,21 +5,16 @@
  * These tests use real filesystem I/O via a temporary directory.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
-import { mkdtemp, rm, writeFile as fsWriteFile, mkdir, readFile as fsReadFile } from 'node:fs/promises';
-import { join } from 'node:path';
-import { tmpdir } from 'node:os';
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { mkdir, mkdtemp, readFile as fsReadFile, rm, writeFile as fsWriteFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
-import { ToolExecutor } from '../../../application/tools/executor';
-import { ToolRegistry } from '../../../domain/tools/registry';
-import { PermissionSystem } from '../../../domain/tools/permissions';
-import {
-  readFileTool,
-  writeFileTool,
-  listDirectoryTool,
-  searchFilesTool,
-} from '../../../adapters/tools/filesystem';
-import type { ToolContext, PermissionSet, ToolInvocationLog } from '../../../domain/tools/types';
+import { listDirectoryTool, readFileTool, searchFilesTool, writeFileTool } from "../../../adapters/tools/filesystem";
+import { ToolExecutor } from "../../../application/tools/executor";
+import { PermissionSystem } from "../../../domain/tools/permissions";
+import { ToolRegistry } from "../../../domain/tools/registry";
+import type { PermissionSet, ToolContext, ToolInvocationLog } from "../../../domain/tools/types";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -27,11 +22,11 @@ import type { ToolContext, PermissionSet, ToolInvocationLog } from '../../../dom
 
 function makePermissions(overrides: Partial<PermissionSet> = {}): PermissionSet {
   return Object.freeze({
-    filesystemRead:  true,
+    filesystemRead: true,
     filesystemWrite: true,
-    shellExecution:  false,
-    gitWrite:        false,
-    networkAccess:   false,
+    shellExecution: false,
+    gitWrite: false,
+    networkAccess: false,
     ...overrides,
   });
 }
@@ -39,8 +34,8 @@ function makePermissions(overrides: Partial<PermissionSet> = {}): PermissionSet 
 function makeLogger() {
   const logs: ToolInvocationLog[] = [];
   return {
-    info:    (e: ToolInvocationLog) => logs.push(e),
-    error:   (e: ToolInvocationLog) => logs.push(e),
+    info: (e: ToolInvocationLog) => logs.push(e),
+    error: (e: ToolInvocationLog) => logs.push(e),
     getLogs: () => logs,
   };
 }
@@ -77,7 +72,7 @@ let tmpDir: string;
 let executor: ToolExecutor;
 
 beforeEach(async () => {
-  tmpDir = await mkdtemp(join(tmpdir(), 'aes-integ-'));
+  tmpDir = await mkdtemp(join(tmpdir(), "aes-integ-"));
   executor = makeExecutor();
 });
 
@@ -89,50 +84,50 @@ afterEach(async () => {
 // read_file
 // ---------------------------------------------------------------------------
 
-describe('read_file integration', () => {
-  it('returns correct content for a known file', async () => {
-    await fsWriteFile(join(tmpDir, 'hello.txt'), 'integration content', 'utf-8');
+describe("read_file integration", () => {
+  it("returns correct content for a known file", async () => {
+    await fsWriteFile(join(tmpDir, "hello.txt"), "integration content", "utf-8");
 
     const ctx = makeContext(tmpDir);
-    const result = await executor.invoke('read_file', { path: join(tmpDir, 'hello.txt') }, ctx);
+    const result = await executor.invoke("read_file", { path: join(tmpDir, "hello.txt") }, ctx);
 
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect((result.value as { content: string }).content).toBe('integration content');
+      expect((result.value as { content: string }).content).toBe("integration content");
     }
   });
 
-  it('returns a runtime error for a missing file', async () => {
+  it("returns a runtime error for a missing file", async () => {
     const ctx = makeContext(tmpDir);
     const result = await executor.invoke(
-      'read_file',
-      { path: join(tmpDir, 'nonexistent.txt') },
+      "read_file",
+      { path: join(tmpDir, "nonexistent.txt") },
       ctx,
     );
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.error.type).toBe('runtime');
+      expect(result.error.type).toBe("runtime");
     }
   });
 
-  it('emits a log entry on success', async () => {
-    await fsWriteFile(join(tmpDir, 'log.txt'), 'x', 'utf-8');
+  it("emits a log entry on success", async () => {
+    await fsWriteFile(join(tmpDir, "log.txt"), "x", "utf-8");
     const logger = makeLogger();
     const ctx = { ...makeContext(tmpDir), logger };
-    await executor.invoke('read_file', { path: join(tmpDir, 'log.txt') }, ctx);
+    await executor.invoke("read_file", { path: join(tmpDir, "log.txt") }, ctx);
 
     expect(logger.getLogs().length).toBe(1);
-    expect(logger.getLogs()[0]!.resultStatus).toBe('success');
+    expect(logger.getLogs()[0]!.resultStatus).toBe("success");
   });
 
-  it('rejects path traversal with a permission error', async () => {
+  it("rejects path traversal with a permission error", async () => {
     const ctx = makeContext(tmpDir);
-    const result = await executor.invoke('read_file', { path: '../etc/passwd' }, ctx);
+    const result = await executor.invoke("read_file", { path: "../etc/passwd" }, ctx);
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.error.type).toBe('permission');
+      expect(result.error.type).toBe("permission");
     }
   });
 });
@@ -141,57 +136,57 @@ describe('read_file integration', () => {
 // write_file
 // ---------------------------------------------------------------------------
 
-describe('write_file integration', () => {
-  it('creates the file and can be read back', async () => {
-    const filePath = join(tmpDir, 'written.txt');
+describe("write_file integration", () => {
+  it("creates the file and can be read back", async () => {
+    const filePath = join(tmpDir, "written.txt");
     const ctx = makeContext(tmpDir);
     const result = await executor.invoke(
-      'write_file',
-      { path: filePath, content: 'round-trip' },
+      "write_file",
+      { path: filePath, content: "round-trip" },
       ctx,
     );
 
     expect(result.ok).toBe(true);
 
-    const onDisk = await fsReadFile(filePath, 'utf-8');
-    expect(onDisk).toBe('round-trip');
+    const onDisk = await fsReadFile(filePath, "utf-8");
+    expect(onDisk).toBe("round-trip");
   });
 
-  it('creates parent directories when they are absent', async () => {
-    const filePath = join(tmpDir, 'a', 'b', 'c', 'deep.txt');
+  it("creates parent directories when they are absent", async () => {
+    const filePath = join(tmpDir, "a", "b", "c", "deep.txt");
     const ctx = makeContext(tmpDir);
     const result = await executor.invoke(
-      'write_file',
-      { path: filePath, content: 'deep' },
+      "write_file",
+      { path: filePath, content: "deep" },
       ctx,
     );
 
     expect(result.ok).toBe(true);
-    const onDisk = await fsReadFile(filePath, 'utf-8');
-    expect(onDisk).toBe('deep');
+    const onDisk = await fsReadFile(filePath, "utf-8");
+    expect(onDisk).toBe("deep");
   });
 
-  it('returns permission error when filesystemWrite is absent', async () => {
+  it("returns permission error when filesystemWrite is absent", async () => {
     const ctx = makeContext(tmpDir, makePermissions({ filesystemWrite: false }));
     const result = await executor.invoke(
-      'write_file',
-      { path: join(tmpDir, 'denied.txt'), content: 'x' },
+      "write_file",
+      { path: join(tmpDir, "denied.txt"), content: "x" },
       ctx,
     );
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.error.type).toBe('permission');
+      expect(result.error.type).toBe("permission");
     }
   });
 
-  it('rejects path traversal with a permission error', async () => {
+  it("rejects path traversal with a permission error", async () => {
     const ctx = makeContext(tmpDir);
-    const result = await executor.invoke('write_file', { path: '../evil.txt', content: 'bad' }, ctx);
+    const result = await executor.invoke("write_file", { path: "../evil.txt", content: "bad" }, ctx);
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.error.type).toBe('permission');
+      expect(result.error.type).toBe("permission");
     }
   });
 });
@@ -200,35 +195,35 @@ describe('write_file integration', () => {
 // list_directory
 // ---------------------------------------------------------------------------
 
-describe('list_directory integration', () => {
-  it('returns the correct entry list for a known directory', async () => {
-    await fsWriteFile(join(tmpDir, 'alpha.ts'), '', 'utf-8');
-    await mkdir(join(tmpDir, 'subdir'));
+describe("list_directory integration", () => {
+  it("returns the correct entry list for a known directory", async () => {
+    await fsWriteFile(join(tmpDir, "alpha.ts"), "", "utf-8");
+    await mkdir(join(tmpDir, "subdir"));
 
     const ctx = makeContext(tmpDir);
-    const result = await executor.invoke('list_directory', { path: tmpDir }, ctx);
+    const result = await executor.invoke("list_directory", { path: tmpDir }, ctx);
 
     expect(result.ok).toBe(true);
     if (result.ok) {
       const output = result.value as { entries: Array<{ name: string; type: string }> };
       const names = output.entries.map((e) => e.name);
-      expect(names).toContain('alpha.ts');
-      expect(names).toContain('subdir');
+      expect(names).toContain("alpha.ts");
+      expect(names).toContain("subdir");
 
-      const fileEntry = output.entries.find((e) => e.name === 'alpha.ts');
-      const dirEntry  = output.entries.find((e) => e.name === 'subdir');
-      expect(fileEntry?.type).toBe('file');
-      expect(dirEntry?.type).toBe('directory');
+      const fileEntry = output.entries.find((e) => e.name === "alpha.ts");
+      const dirEntry = output.entries.find((e) => e.name === "subdir");
+      expect(fileEntry?.type).toBe("file");
+      expect(dirEntry?.type).toBe("directory");
     }
   });
 
-  it('rejects path traversal with a permission error', async () => {
+  it("rejects path traversal with a permission error", async () => {
     const ctx = makeContext(tmpDir);
-    const result = await executor.invoke('list_directory', { path: '../' }, ctx);
+    const result = await executor.invoke("list_directory", { path: "../" }, ctx);
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.error.type).toBe('permission');
+      expect(result.error.type).toBe("permission");
     }
   });
 });
@@ -237,20 +232,20 @@ describe('list_directory integration', () => {
 // search_files
 // ---------------------------------------------------------------------------
 
-describe('search_files integration', () => {
+describe("search_files integration", () => {
   beforeEach(async () => {
-    await mkdir(join(tmpDir, 'src'));
-    await fsWriteFile(join(tmpDir, 'src', 'a.ts'),  '', 'utf-8');
-    await fsWriteFile(join(tmpDir, 'src', 'b.ts'),  '', 'utf-8');
-    await fsWriteFile(join(tmpDir, 'src', 'c.js'),  '', 'utf-8');
-    await fsWriteFile(join(tmpDir, 'README.md'),     '', 'utf-8');
+    await mkdir(join(tmpDir, "src"));
+    await fsWriteFile(join(tmpDir, "src", "a.ts"), "", "utf-8");
+    await fsWriteFile(join(tmpDir, "src", "b.ts"), "", "utf-8");
+    await fsWriteFile(join(tmpDir, "src", "c.js"), "", "utf-8");
+    await fsWriteFile(join(tmpDir, "README.md"), "", "utf-8");
   });
 
-  it('returns only paths that match the pattern', async () => {
+  it("returns only paths that match the pattern", async () => {
     const ctx = makeContext(tmpDir);
     const result = await executor.invoke(
-      'search_files',
-      { pattern: '**/*.ts', directory: tmpDir },
+      "search_files",
+      { pattern: "**/*.ts", directory: tmpDir },
       ctx,
     );
 
@@ -258,15 +253,15 @@ describe('search_files integration', () => {
     if (result.ok) {
       const output = result.value as { paths: string[] };
       expect(output.paths.length).toBe(2);
-      expect(output.paths.every((p) => p.endsWith('.ts'))).toBe(true);
+      expect(output.paths.every((p) => p.endsWith(".ts"))).toBe(true);
     }
   });
 
-  it('returns an empty array when no files match', async () => {
+  it("returns an empty array when no files match", async () => {
     const ctx = makeContext(tmpDir);
     const result = await executor.invoke(
-      'search_files',
-      { pattern: '**/*.py', directory: tmpDir },
+      "search_files",
+      { pattern: "**/*.py", directory: tmpDir },
       ctx,
     );
 
@@ -276,17 +271,17 @@ describe('search_files integration', () => {
     }
   });
 
-  it('rejects path traversal with a permission error', async () => {
+  it("rejects path traversal with a permission error", async () => {
     const ctx = makeContext(tmpDir);
     const result = await executor.invoke(
-      'search_files',
-      { pattern: '**/*.ts', directory: '../' },
+      "search_files",
+      { pattern: "**/*.ts", directory: "../" },
       ctx,
     );
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.error.type).toBe('permission');
+      expect(result.error.type).toBe("permission");
     }
   });
 });

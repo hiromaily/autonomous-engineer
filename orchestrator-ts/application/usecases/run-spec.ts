@@ -1,15 +1,15 @@
-import { access } from 'node:fs/promises';
-import { join } from 'node:path';
-import type { IWorkflowStateStore, IWorkflowEventBus } from '../ports/workflow';
-import type { SddFrameworkPort } from '../ports/sdd';
-import type { LlmProviderPort } from '../ports/llm';
-import type { AesConfig } from '../ports/config';
-import type { MemoryPort } from '../ports/memory';
-import type { WorkflowResult } from '../../domain/workflow/workflow-engine';
-import type { WorkflowPhase } from '../../domain/workflow/types';
-import { WorkflowEngine } from '../../domain/workflow/workflow-engine';
-import { PhaseRunner } from '../../domain/workflow/phase-runner';
-import { ApprovalGate } from '../../domain/workflow/approval-gate';
+import { access } from "node:fs/promises";
+import { join } from "node:path";
+import { ApprovalGate } from "../../domain/workflow/approval-gate";
+import { PhaseRunner } from "../../domain/workflow/phase-runner";
+import type { WorkflowPhase } from "../../domain/workflow/types";
+import type { WorkflowResult } from "../../domain/workflow/workflow-engine";
+import { WorkflowEngine } from "../../domain/workflow/workflow-engine";
+import type { AesConfig } from "../ports/config";
+import type { LlmProviderPort } from "../ports/llm";
+import type { MemoryPort } from "../ports/memory";
+import type { SddFrameworkPort } from "../ports/sdd";
+import type { IWorkflowEventBus, IWorkflowStateStore } from "../ports/workflow";
 
 export type RunOptions = {
   readonly resume: boolean;
@@ -38,12 +38,12 @@ export class RunSpecUseCase {
         await access(specDir);
       } catch {
         return {
-          status: 'failed',
-          phase: 'SPEC_INIT' as WorkflowPhase,
+          status: "failed",
+          phase: "SPEC_INIT" as WorkflowPhase,
           error: `Spec directory does not exist: ${specDir}`,
         };
       }
-      return { status: 'completed', completedPhases: [] };
+      return { status: "completed", completedPhases: [] };
     }
 
     // Reset ephemeral short-term memory before each workflow run
@@ -66,7 +66,7 @@ export class RunSpecUseCase {
       phaseRunner,
       approvalGate,
       specDir,
-      language: 'en',
+      language: "en",
     });
 
     return engine.execute(state);

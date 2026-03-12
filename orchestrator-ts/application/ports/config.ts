@@ -5,7 +5,7 @@ export interface AesConfig {
     readonly apiKey: string;
   };
   readonly specDir: string;
-  readonly sddFramework: 'cc-sdd' | 'openspec' | 'speckit';
+  readonly sddFramework: "cc-sdd" | "openspec" | "speckit";
 }
 
 export interface IConfigLoader {
@@ -16,8 +16,8 @@ export class ConfigValidationError extends Error {
   readonly missingFields: readonly string[];
 
   constructor(missingFields: readonly string[]) {
-    super(`Missing required configuration fields: ${missingFields.join(', ')}`);
-    this.name = 'ConfigValidationError';
+    super(`Missing required configuration fields: ${missingFields.join(", ")}`);
+    this.name = "ConfigValidationError";
     this.missingFields = missingFields;
   }
 }

@@ -1,7 +1,7 @@
-import { EventEmitter } from 'node:events';
-import type { IWorkflowEventBus, WorkflowEvent } from '../../application/ports/workflow';
+import { EventEmitter } from "node:events";
+import type { IWorkflowEventBus, WorkflowEvent } from "../../application/ports/workflow";
 
-const EVENT_NAME = 'workflow';
+const EVENT_NAME = "workflow";
 
 export class WorkflowEventBus implements IWorkflowEventBus {
   private readonly emitter = new EventEmitter();

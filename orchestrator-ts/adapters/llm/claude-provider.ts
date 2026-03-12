@@ -1,12 +1,12 @@
-import Anthropic from '@anthropic-ai/sdk';
-import type { LlmProviderPort, LlmCompleteOptions, LlmResult, LlmErrorCategory } from '../../application/ports/llm';
+import Anthropic from "@anthropic-ai/sdk";
+import type { LlmCompleteOptions, LlmErrorCategory, LlmProviderPort, LlmResult } from "../../application/ports/llm";
 
 export interface ClaudeProviderConfig {
   readonly apiKey: string;
   readonly modelName: string;
 }
 
-type HistoryEntry = { role: 'user' | 'assistant'; content: string };
+type HistoryEntry = { role: "user" | "assistant"; content: string };
 
 const DEFAULT_MAX_TOKENS = 8192;
 
@@ -21,7 +21,7 @@ export class ClaudeProvider implements LlmProviderPort {
   }
 
   async complete(prompt: string, options?: LlmCompleteOptions): Promise<LlmResult> {
-    this.messages.push({ role: 'user', content: prompt });
+    this.messages.push({ role: "user", content: prompt });
 
     try {
       const response = await this.client.messages.create({
@@ -31,10 +31,10 @@ export class ClaudeProvider implements LlmProviderPort {
       });
 
       const text = response.content
-        .filter((block): block is Anthropic.TextBlock => block.type === 'text')
+        .filter((block): block is Anthropic.TextBlock => block.type === "text")
         .map(block => block.text)
-        .join('');
-      this.messages.push({ role: 'assistant', content: text });
+        .join("");
+      this.messages.push({ role: "assistant", content: text });
 
       return {
         ok: true,
@@ -64,7 +64,7 @@ export class ClaudeProvider implements LlmProviderPort {
 }
 
 function categorize(err: unknown): LlmErrorCategory {
-  if (err instanceof Anthropic.APIConnectionError) return 'network';
-  if (err instanceof Anthropic.RateLimitError) return 'rate_limit';
-  return 'api_error';
+  if (err instanceof Anthropic.APIConnectionError) return "network";
+  if (err instanceof Anthropic.RateLimitError) return "rate_limit";
+  return "api_error";
 }

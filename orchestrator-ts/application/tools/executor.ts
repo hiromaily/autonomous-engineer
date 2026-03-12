@@ -1,14 +1,14 @@
-import Ajv, { type ValidateFunction as AjvValidateFunction } from 'ajv';
-import type { IToolRegistry } from '../../domain/tools/registry';
-import type { IPermissionSystem } from '../../domain/tools/permissions';
-import type { Tool } from '../../domain/tools/types';
+import Ajv, { type ValidateFunction as AjvValidateFunction } from "ajv";
+import type { IPermissionSystem } from "../../domain/tools/permissions";
+import type { IToolRegistry } from "../../domain/tools/registry";
+import type { Tool } from "../../domain/tools/types";
 import {
   isTypedToolError,
-  type ToolContext,
-  type ToolResult,
-  type ToolInvocationLog,
   type JSONSchema,
-} from '../../domain/tools/types';
+  type ToolContext,
+  type ToolInvocationLog,
+  type ToolResult,
+} from "../../domain/tools/types";
 
 // ---------------------------------------------------------------------------
 // IToolExecutor port interface
@@ -76,10 +76,10 @@ export class ToolExecutor implements IToolExecutor {
     const registryResult = this.#registry.get(name);
     if (!registryResult.ok) {
       const durationMs = Date.now() - startMs;
-      context.logger.error(this.#buildLog(name, rawInput, startedAt, durationMs, 'permission', 'Tool not found'));
+      context.logger.error(this.#buildLog(name, rawInput, startedAt, durationMs, "permission", "Tool not found"));
       return {
         ok: false,
-        error: { type: 'permission', message: `Tool not found: ${name}` },
+        error: { type: "permission", message: `Tool not found: ${name}` },
       };
     }
     const tool = registryResult.value;
@@ -91,11 +91,11 @@ export class ToolExecutor implements IToolExecutor {
     );
     if (!permCheck.granted) {
       const durationMs = Date.now() - startMs;
-      const message = `Permission denied for tool '${name}': missing flags [${permCheck.missingFlags.join(', ')}]`;
-      context.logger.error(this.#buildLog(name, rawInput, startedAt, durationMs, 'permission', message));
+      const message = `Permission denied for tool '${name}': missing flags [${permCheck.missingFlags.join(", ")}]`;
+      context.logger.error(this.#buildLog(name, rawInput, startedAt, durationMs, "permission", message));
       return {
         ok: false,
-        error: { type: 'permission', message, details: { missingFlags: permCheck.missingFlags } },
+        error: { type: "permission", message, details: { missingFlags: permCheck.missingFlags } },
       };
     }
 
@@ -105,10 +105,10 @@ export class ToolExecutor implements IToolExecutor {
     if (inputErrors !== null) {
       const durationMs = Date.now() - startMs;
       const message = `Input validation failed for tool '${name}': ${inputErrors}`;
-      context.logger.error(this.#buildLog(name, rawInput, startedAt, durationMs, 'validation', message));
+      context.logger.error(this.#buildLog(name, rawInput, startedAt, durationMs, "validation", message));
       return {
         ok: false,
-        error: { type: 'validation', message, details: { ajvErrors: inputErrors } },
+        error: { type: "validation", message, details: { ajvErrors: inputErrors } },
       };
     }
 
@@ -121,14 +121,14 @@ export class ToolExecutor implements IToolExecutor {
       const durationMs = Date.now() - startMs;
       if (err instanceof TimeoutError) {
         const message = `Tool '${name}' timed out after ${timeoutMs}ms`;
-        context.logger.error(this.#buildLog(name, rawInput, startedAt, durationMs, 'runtime', message));
+        context.logger.error(this.#buildLog(name, rawInput, startedAt, durationMs, "runtime", message));
         return {
           ok: false,
-          error: { type: 'runtime', message, details: { timeoutMs, toolName: name } },
+          error: { type: "runtime", message, details: { timeoutMs, toolName: name } },
         };
       }
       const originalMessage = err instanceof Error ? err.message : String(err);
-      const errorType = isTypedToolError(err) ? err.toolErrorType : 'runtime';
+      const errorType = isTypedToolError(err) ? err.toolErrorType : "runtime";
       const message = `Tool '${name}' threw an unhandled exception: ${originalMessage}`;
       context.logger.error(this.#buildLog(name, rawInput, startedAt, durationMs, errorType, message));
       return {
@@ -143,17 +143,17 @@ export class ToolExecutor implements IToolExecutor {
     if (outputErrors !== null) {
       const durationMs = Date.now() - startMs;
       const message = `Output validation failed for tool '${name}': ${outputErrors}`;
-      context.logger.error(this.#buildLog(name, rawInput, startedAt, durationMs, 'validation', message));
+      context.logger.error(this.#buildLog(name, rawInput, startedAt, durationMs, "validation", message));
       return {
         ok: false,
-        error: { type: 'validation', message, details: { ajvErrors: outputErrors } },
+        error: { type: "validation", message, details: { ajvErrors: outputErrors } },
       };
     }
 
     // 6. Success — emit log and return
     const durationMs = Date.now() - startMs;
     const outputSize = this.#computeOutputSize(rawOutput);
-    context.logger.info(this.#buildLog(name, rawInput, startedAt, durationMs, 'success', undefined, outputSize));
+    context.logger.info(this.#buildLog(name, rawInput, startedAt, durationMs, "success", undefined, outputSize));
     return { ok: true, value: rawOutput };
   }
 
@@ -186,7 +186,7 @@ export class ToolExecutor implements IToolExecutor {
 
     const executionPromise = tool.execute(input, context);
     const timeoutPromise = new Promise<never>((_, reject) => {
-      controller.signal.addEventListener('abort', () => {
+      controller.signal.addEventListener("abort", () => {
         reject(new TimeoutError(`Tool '${tool.name}' timed out after ${timeoutMs}ms`));
       });
     });
@@ -200,18 +200,18 @@ export class ToolExecutor implements IToolExecutor {
 
   #sanitizeInput(rawInput: unknown, maxBytes: number): string {
     try {
-      const json = JSON.stringify(rawInput) ?? 'null';
+      const json = JSON.stringify(rawInput) ?? "null";
       if (json.length <= maxBytes) return json;
       return json.slice(0, maxBytes);
     } catch {
-      return '[unserializable]';
+      return "[unserializable]";
     }
   }
 
   #computeOutputSize(output: unknown): number {
     if (Array.isArray(output)) return output.length;
     try {
-      return (JSON.stringify(output) ?? '').length;
+      return (JSON.stringify(output) ?? "").length;
     } catch {
       return 0;
     }
@@ -222,7 +222,7 @@ export class ToolExecutor implements IToolExecutor {
     rawInput: unknown,
     startedAt: string,
     durationMs: number,
-    resultStatus: ToolInvocationLog['resultStatus'],
+    resultStatus: ToolInvocationLog["resultStatus"],
     errorMessage?: string,
     outputSize?: number,
   ): ToolInvocationLog {
@@ -246,6 +246,6 @@ export class ToolExecutor implements IToolExecutor {
 class TimeoutError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'TimeoutError';
+    this.name = "TimeoutError";
   }
 }

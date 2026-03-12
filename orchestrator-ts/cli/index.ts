@@ -1,53 +1,53 @@
 #!/usr/bin/env bun
-import { defineCommand, runMain } from 'citty';
-import { ConfigLoader } from '../infra/config/config-loader';
-import { ConfigValidationError } from '../application/ports/config';
-import { WorkflowStateStore } from '../infra/state/workflow-state-store';
-import { WorkflowEventBus } from '../infra/events/workflow-event-bus';
-import { CcSddAdapter } from '../adapters/sdd/cc-sdd-adapter';
-import { ClaudeProvider } from '../adapters/llm/claude-provider';
-import { FileMemoryStore } from '../infra/memory/file-memory-store';
-import { RunSpecUseCase } from '../application/usecases/run-spec';
-import { CliRenderer } from './renderer';
-import { JsonLogWriter } from './json-log-writer';
-import type { AesConfig } from '../application/ports/config';
-import type { LlmProviderPort } from '../application/ports/llm';
+import { defineCommand, runMain } from "citty";
+import { ClaudeProvider } from "../adapters/llm/claude-provider";
+import { CcSddAdapter } from "../adapters/sdd/cc-sdd-adapter";
+import { ConfigValidationError } from "../application/ports/config";
+import type { AesConfig } from "../application/ports/config";
+import type { LlmProviderPort } from "../application/ports/llm";
+import { RunSpecUseCase } from "../application/usecases/run-spec";
+import { ConfigLoader } from "../infra/config/config-loader";
+import { WorkflowEventBus } from "../infra/events/workflow-event-bus";
+import { FileMemoryStore } from "../infra/memory/file-memory-store";
+import { WorkflowStateStore } from "../infra/state/workflow-state-store";
+import { JsonLogWriter } from "./json-log-writer";
+import { CliRenderer } from "./renderer";
 
 const runCommand = defineCommand({
   meta: {
-    name: 'run',
-    description: 'Run a spec workflow',
+    name: "run",
+    description: "Run a spec workflow",
   },
   args: {
     specName: {
-      type: 'positional',
-      description: 'Name of the spec to run',
+      type: "positional",
+      description: "Name of the spec to run",
       required: true,
     },
     provider: {
-      type: 'string',
-      description: 'Override the LLM provider',
+      type: "string",
+      description: "Override the LLM provider",
     },
-    'dry-run': {
-      type: 'boolean',
-      description: 'Validate spec and config without running the workflow',
+    "dry-run": {
+      type: "boolean",
+      description: "Validate spec and config without running the workflow",
       default: false,
     },
     resume: {
-      type: 'boolean',
-      description: 'Resume from the last persisted state',
+      type: "boolean",
+      description: "Resume from the last persisted state",
       default: false,
     },
-    'log-json': {
-      type: 'string',
-      description: 'Write workflow events as NDJSON to this file',
+    "log-json": {
+      type: "string",
+      description: "Write workflow events as NDJSON to this file",
     },
   },
   async run({ args }) {
     const specName = args.specName as string;
 
-    if (!specName || specName.trim() === '') {
-      process.stderr.write('Error: spec name is required\n');
+    if (!specName || specName.trim() === "") {
+      process.stderr.write("Error: spec name is required\n");
       process.exit(1);
     }
 
@@ -58,9 +58,11 @@ const runCommand = defineCommand({
       config = await configLoader.load();
     } catch (err) {
       if (err instanceof ConfigValidationError) {
-        process.stderr.write(`Error: configuration missing required fields: ${err.missingFields.join(', ')}\n`);
+        process.stderr.write(`Error: configuration missing required fields: ${err.missingFields.join(", ")}\n`);
       } else {
-        process.stderr.write(`Error: failed to load configuration: ${err instanceof Error ? err.message : String(err)}\n`);
+        process.stderr.write(
+          `Error: failed to load configuration: ${err instanceof Error ? err.message : String(err)}\n`,
+        );
       }
       process.exit(1);
     }
@@ -71,14 +73,16 @@ const runCommand = defineCommand({
     eventBus.on((event) => renderer.handle(event));
 
     // Set up optional JSON log writer
-    const logJsonPath = args['log-json'] as string | undefined;
+    const logJsonPath = args["log-json"] as string | undefined;
     let logWriter: JsonLogWriter | null = null;
     if (logJsonPath) {
       logWriter = new JsonLogWriter(logJsonPath);
       const writer = logWriter;
       eventBus.on((event) => {
         writer.write(event).catch((err) => {
-          process.stderr.write(`Warning: failed to write to log file: ${err instanceof Error ? err.message : String(err)}\n`);
+          process.stderr.write(
+            `Warning: failed to write to log file: ${err instanceof Error ? err.message : String(err)}\n`,
+          );
         });
       });
     }
@@ -93,7 +97,7 @@ const runCommand = defineCommand({
       createLlmProvider: (cfg: AesConfig, providerOverride?: string): LlmProviderPort => {
         const provider = providerOverride ?? cfg.llm.provider;
         switch (provider) {
-          case 'claude':
+          case "claude":
             return new ClaudeProvider({ apiKey: cfg.llm.apiKey, modelName: cfg.llm.modelName });
           default:
             throw new Error(`Unsupported LLM provider: '${provider}'`);
@@ -104,7 +108,7 @@ const runCommand = defineCommand({
     const providerArg = args.provider as string | undefined;
     const result = await useCase.run(specName, config, {
       resume: Boolean(args.resume),
-      dryRun: Boolean(args['dry-run']),
+      dryRun: Boolean(args["dry-run"]),
       providerOverride: providerArg,
     });
 
@@ -113,7 +117,7 @@ const runCommand = defineCommand({
       await logWriter.close();
     }
 
-    if (result.status === 'failed') {
+    if (result.status === "failed") {
       process.exit(1);
     }
   },
@@ -121,9 +125,9 @@ const runCommand = defineCommand({
 
 const mainCommand = defineCommand({
   meta: {
-    name: 'aes',
-    description: 'Autonomous Engineer System CLI',
-    version: '0.1.0',
+    name: "aes",
+    description: "Autonomous Engineer System CLI",
+    version: "0.1.0",
   },
   subCommands: {
     run: runCommand,

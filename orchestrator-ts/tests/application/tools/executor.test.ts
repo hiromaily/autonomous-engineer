@@ -1,8 +1,8 @@
-import { describe, it, expect, mock, beforeEach } from 'bun:test';
-import { ToolExecutor } from '../../../application/tools/executor';
-import { ToolRegistry } from '../../../domain/tools/registry';
-import { PermissionSystem } from '../../../domain/tools/permissions';
-import type { Tool, ToolContext, ToolInvocationLog, PermissionSet } from '../../../domain/tools/types';
+import { beforeEach, describe, expect, it, mock } from "bun:test";
+import { ToolExecutor } from "../../../application/tools/executor";
+import { PermissionSystem } from "../../../domain/tools/permissions";
+import { ToolRegistry } from "../../../domain/tools/registry";
+import type { PermissionSet, Tool, ToolContext, ToolInvocationLog } from "../../../domain/tools/types";
 
 // ---------------------------------------------------------------------------
 // Test helpers
@@ -10,37 +10,41 @@ import type { Tool, ToolContext, ToolInvocationLog, PermissionSet } from '../../
 
 function makeFullPermissions(): PermissionSet {
   return Object.freeze({
-    filesystemRead:  true,
+    filesystemRead: true,
     filesystemWrite: true,
-    shellExecution:  true,
-    gitWrite:        true,
-    networkAccess:   true,
+    shellExecution: true,
+    gitWrite: true,
+    networkAccess: true,
   });
 }
 
 function makeReadOnlyPermissions(): PermissionSet {
   return Object.freeze({
-    filesystemRead:  true,
+    filesystemRead: true,
     filesystemWrite: false,
-    shellExecution:  false,
-    gitWrite:        false,
-    networkAccess:   false,
+    shellExecution: false,
+    gitWrite: false,
+    networkAccess: false,
   });
 }
 
 function makeLogger() {
   const logs: ToolInvocationLog[] = [];
   return {
-    info: mock((entry: ToolInvocationLog) => { logs.push(entry); }),
-    error: mock((entry: ToolInvocationLog) => { logs.push(entry); }),
+    info: mock((entry: ToolInvocationLog) => {
+      logs.push(entry);
+    }),
+    error: mock((entry: ToolInvocationLog) => {
+      logs.push(entry);
+    }),
     getLogs: () => logs,
   };
 }
 
 function makeContext(permissions: PermissionSet, logger: ReturnType<typeof makeLogger>): ToolContext {
   return {
-    workspaceRoot: '/workspace',
-    workingDirectory: '/workspace',
+    workspaceRoot: "/workspace",
+    workingDirectory: "/workspace",
     permissions,
     memory: { search: async () => [] },
     logger,
@@ -49,20 +53,20 @@ function makeContext(permissions: PermissionSet, logger: ReturnType<typeof makeL
 
 function makeTool(overrides: Partial<Tool<unknown, unknown>> = {}): Tool<{ value: number }, { doubled: number }> {
   return {
-    name: 'test_tool',
-    description: 'A test tool',
-    requiredPermissions: ['filesystemRead'],
+    name: "test_tool",
+    description: "A test tool",
+    requiredPermissions: ["filesystemRead"],
     schema: {
       input: {
-        type: 'object',
-        properties: { value: { type: 'number' } },
-        required: ['value'],
+        type: "object",
+        properties: { value: { type: "number" } },
+        required: ["value"],
         additionalProperties: false,
       },
       output: {
-        type: 'object',
-        properties: { doubled: { type: 'number' } },
-        required: ['doubled'],
+        type: "object",
+        properties: { doubled: { type: "number" } },
+        required: ["doubled"],
         additionalProperties: false,
       },
     },
@@ -90,15 +94,15 @@ beforeEach(() => {
 // Success path
 // ---------------------------------------------------------------------------
 
-describe('ToolExecutor success path', () => {
-  it('returns the correct output when all pipeline steps pass', async () => {
+describe("ToolExecutor success path", () => {
+  it("returns the correct output when all pipeline steps pass", async () => {
     const tool = makeTool();
     registry.register(tool as unknown as Tool<unknown, unknown>);
 
     const logger = makeLogger();
     const ctx = makeContext(makeFullPermissions(), logger);
 
-    const result = await executor.invoke('test_tool', { value: 21 }, ctx);
+    const result = await executor.invoke("test_tool", { value: 21 }, ctx);
 
     expect(result.ok).toBe(true);
     if (result.ok) {
@@ -106,20 +110,20 @@ describe('ToolExecutor success path', () => {
     }
   });
 
-  it('emits a log entry with success status on success', async () => {
+  it("emits a log entry with success status on success", async () => {
     const tool = makeTool();
     registry.register(tool as unknown as Tool<unknown, unknown>);
 
     const logger = makeLogger();
     const ctx = makeContext(makeFullPermissions(), logger);
 
-    await executor.invoke('test_tool', { value: 5 }, ctx);
+    await executor.invoke("test_tool", { value: 5 }, ctx);
 
     expect(logger.info.mock.calls.length).toBe(1);
     const log = logger.getLogs()[0]!;
-    expect(log.resultStatus).toBe('success');
-    expect(log.toolName).toBe('test_tool');
-    expect(typeof log.durationMs).toBe('number');
+    expect(log.resultStatus).toBe("success");
+    expect(log.toolName).toBe("test_tool");
+    expect(typeof log.durationMs).toBe("number");
     expect(log.durationMs).toBeGreaterThanOrEqual(0);
     expect(log.outputSize).toBeDefined();
   });
@@ -129,24 +133,24 @@ describe('ToolExecutor success path', () => {
 // Tool not found
 // ---------------------------------------------------------------------------
 
-describe('ToolExecutor tool not found', () => {
-  it('returns a permission error when tool is not registered', async () => {
+describe("ToolExecutor tool not found", () => {
+  it("returns a permission error when tool is not registered", async () => {
     const logger = makeLogger();
     const ctx = makeContext(makeFullPermissions(), logger);
 
-    const result = await executor.invoke('nonexistent_tool', {}, ctx);
+    const result = await executor.invoke("nonexistent_tool", {}, ctx);
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.error.type).toBe('permission');
+      expect(result.error.type).toBe("permission");
     }
   });
 
-  it('emits a log entry even when tool is not found', async () => {
+  it("emits a log entry even when tool is not found", async () => {
     const logger = makeLogger();
     const ctx = makeContext(makeFullPermissions(), logger);
 
-    await executor.invoke('nonexistent_tool', {}, ctx);
+    await executor.invoke("nonexistent_tool", {}, ctx);
 
     const totalLogs = logger.getLogs().length;
     expect(totalLogs).toBe(1);
@@ -157,35 +161,35 @@ describe('ToolExecutor tool not found', () => {
 // Permission denied
 // ---------------------------------------------------------------------------
 
-describe('ToolExecutor permission denied', () => {
-  it('returns a permission error when required flags are missing', async () => {
-    const tool = makeTool({ requiredPermissions: ['filesystemWrite'] });
+describe("ToolExecutor permission denied", () => {
+  it("returns a permission error when required flags are missing", async () => {
+    const tool = makeTool({ requiredPermissions: ["filesystemWrite"] });
     registry.register(tool as unknown as Tool<unknown, unknown>);
 
     const logger = makeLogger();
     const ctx = makeContext(makeReadOnlyPermissions(), logger);
 
-    const result = await executor.invoke('test_tool', { value: 1 }, ctx);
+    const result = await executor.invoke("test_tool", { value: 1 }, ctx);
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.error.type).toBe('permission');
-      expect(result.error.details?.['missingFlags']).toBeDefined();
+      expect(result.error.type).toBe("permission");
+      expect(result.error.details?.["missingFlags"]).toBeDefined();
     }
   });
 
-  it('emits a log entry with permission error status on permission denial', async () => {
-    const tool = makeTool({ requiredPermissions: ['shellExecution'] });
+  it("emits a log entry with permission error status on permission denial", async () => {
+    const tool = makeTool({ requiredPermissions: ["shellExecution"] });
     registry.register(tool as unknown as Tool<unknown, unknown>);
 
     const logger = makeLogger();
     const ctx = makeContext(makeReadOnlyPermissions(), logger);
 
-    await executor.invoke('test_tool', { value: 1 }, ctx);
+    await executor.invoke("test_tool", { value: 1 }, ctx);
 
     expect(logger.getLogs().length).toBe(1);
     const log = logger.getLogs()[0]!;
-    expect(log.resultStatus).toBe('permission');
+    expect(log.resultStatus).toBe("permission");
   });
 });
 
@@ -193,8 +197,8 @@ describe('ToolExecutor permission denied', () => {
 // Input validation failure
 // ---------------------------------------------------------------------------
 
-describe('ToolExecutor input validation', () => {
-  it('returns a validation error when input fails schema', async () => {
+describe("ToolExecutor input validation", () => {
+  it("returns a validation error when input fails schema", async () => {
     const tool = makeTool();
     registry.register(tool as unknown as Tool<unknown, unknown>);
 
@@ -202,41 +206,41 @@ describe('ToolExecutor input validation', () => {
     const ctx = makeContext(makeFullPermissions(), logger);
 
     // Pass a string instead of a number for 'value'
-    const result = await executor.invoke('test_tool', { value: 'not-a-number' }, ctx);
+    const result = await executor.invoke("test_tool", { value: "not-a-number" }, ctx);
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.error.type).toBe('validation');
+      expect(result.error.type).toBe("validation");
     }
   });
 
-  it('returns a validation error when required input field is missing', async () => {
+  it("returns a validation error when required input field is missing", async () => {
     const tool = makeTool();
     registry.register(tool as unknown as Tool<unknown, unknown>);
 
     const logger = makeLogger();
     const ctx = makeContext(makeFullPermissions(), logger);
 
-    const result = await executor.invoke('test_tool', {}, ctx);
+    const result = await executor.invoke("test_tool", {}, ctx);
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.error.type).toBe('validation');
+      expect(result.error.type).toBe("validation");
     }
   });
 
-  it('emits a log entry with validation error status on input failure', async () => {
+  it("emits a log entry with validation error status on input failure", async () => {
     const tool = makeTool();
     registry.register(tool as unknown as Tool<unknown, unknown>);
 
     const logger = makeLogger();
     const ctx = makeContext(makeFullPermissions(), logger);
 
-    await executor.invoke('test_tool', { value: 'bad' }, ctx);
+    await executor.invoke("test_tool", { value: "bad" }, ctx);
 
     expect(logger.getLogs().length).toBe(1);
     const log = logger.getLogs()[0]!;
-    expect(log.resultStatus).toBe('validation');
+    expect(log.resultStatus).toBe("validation");
   });
 });
 
@@ -244,35 +248,35 @@ describe('ToolExecutor input validation', () => {
 // Output validation failure
 // ---------------------------------------------------------------------------
 
-describe('ToolExecutor output validation', () => {
-  it('returns a validation error when output fails schema', async () => {
+describe("ToolExecutor output validation", () => {
+  it("returns a validation error when output fails schema", async () => {
     const tool = makeTool({
-      execute: async () => ({ wrong_field: 'oops' }),
+      execute: async () => ({ wrong_field: "oops" }),
     });
     registry.register(tool as unknown as Tool<unknown, unknown>);
 
     const logger = makeLogger();
     const ctx = makeContext(makeFullPermissions(), logger);
 
-    const result = await executor.invoke('test_tool', { value: 1 }, ctx);
+    const result = await executor.invoke("test_tool", { value: 1 }, ctx);
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.error.type).toBe('validation');
+      expect(result.error.type).toBe("validation");
     }
   });
 
-  it('emits a log entry with validation status when output is invalid', async () => {
+  it("emits a log entry with validation status when output is invalid", async () => {
     const tool = makeTool({ execute: async () => ({ bad: true }) });
     registry.register(tool as unknown as Tool<unknown, unknown>);
 
     const logger = makeLogger();
     const ctx = makeContext(makeFullPermissions(), logger);
 
-    await executor.invoke('test_tool', { value: 1 }, ctx);
+    await executor.invoke("test_tool", { value: 1 }, ctx);
 
     const log = logger.getLogs()[0]!;
-    expect(log.resultStatus).toBe('validation');
+    expect(log.resultStatus).toBe("validation");
   });
 });
 
@@ -280,8 +284,8 @@ describe('ToolExecutor output validation', () => {
 // Timeout
 // ---------------------------------------------------------------------------
 
-describe('ToolExecutor timeout', () => {
-  it('returns a runtime error when execution exceeds timeoutMs', async () => {
+describe("ToolExecutor timeout", () => {
+  it("returns a runtime error when execution exceeds timeoutMs", async () => {
     const slowTool = makeTool({
       timeoutMs: 50,
       execute: async () => {
@@ -294,15 +298,15 @@ describe('ToolExecutor timeout', () => {
     const logger = makeLogger();
     const ctx = makeContext(makeFullPermissions(), logger);
 
-    const result = await executor.invoke('test_tool', { value: 1 }, ctx);
+    const result = await executor.invoke("test_tool", { value: 1 }, ctx);
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.error.type).toBe('runtime');
+      expect(result.error.type).toBe("runtime");
     }
   }, 1000);
 
-  it('uses defaultTimeoutMs when tool has no timeoutMs', async () => {
+  it("uses defaultTimeoutMs when tool has no timeoutMs", async () => {
     const shortTimeoutExecutor = new ToolExecutor(registry, permSystem, {
       defaultTimeoutMs: 50,
       logMaxInputBytes: 256,
@@ -320,15 +324,15 @@ describe('ToolExecutor timeout', () => {
     const logger = makeLogger();
     const ctx = makeContext(makeFullPermissions(), logger);
 
-    const result = await shortTimeoutExecutor.invoke('test_tool', { value: 1 }, ctx);
+    const result = await shortTimeoutExecutor.invoke("test_tool", { value: 1 }, ctx);
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.error.type).toBe('runtime');
+      expect(result.error.type).toBe("runtime");
     }
   }, 1000);
 
-  it('emits a log entry with runtime status on timeout', async () => {
+  it("emits a log entry with runtime status on timeout", async () => {
     const slowTool = makeTool({
       timeoutMs: 50,
       execute: async () => {
@@ -341,10 +345,10 @@ describe('ToolExecutor timeout', () => {
     const logger = makeLogger();
     const ctx = makeContext(makeFullPermissions(), logger);
 
-    await executor.invoke('test_tool', { value: 1 }, ctx);
+    await executor.invoke("test_tool", { value: 1 }, ctx);
 
     const log = logger.getLogs()[0]!;
-    expect(log.resultStatus).toBe('runtime');
+    expect(log.resultStatus).toBe("runtime");
   }, 1000);
 });
 
@@ -352,11 +356,11 @@ describe('ToolExecutor timeout', () => {
 // Unhandled exception
 // ---------------------------------------------------------------------------
 
-describe('ToolExecutor unhandled exception', () => {
-  it('wraps unhandled exceptions as runtime errors', async () => {
+describe("ToolExecutor unhandled exception", () => {
+  it("wraps unhandled exceptions as runtime errors", async () => {
     const throwingTool = makeTool({
       execute: async () => {
-        throw new Error('unexpected failure');
+        throw new Error("unexpected failure");
       },
     });
     registry.register(throwingTool as unknown as Tool<unknown, unknown>);
@@ -364,19 +368,19 @@ describe('ToolExecutor unhandled exception', () => {
     const logger = makeLogger();
     const ctx = makeContext(makeFullPermissions(), logger);
 
-    const result = await executor.invoke('test_tool', { value: 1 }, ctx);
+    const result = await executor.invoke("test_tool", { value: 1 }, ctx);
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.error.type).toBe('runtime');
-      expect(result.error.details?.['originalMessage']).toBe('unexpected failure');
+      expect(result.error.type).toBe("runtime");
+      expect(result.error.details?.["originalMessage"]).toBe("unexpected failure");
     }
   });
 
-  it('emits a log entry with runtime status on unhandled exception', async () => {
+  it("emits a log entry with runtime status on unhandled exception", async () => {
     const throwingTool = makeTool({
       execute: async () => {
-        throw new Error('boom');
+        throw new Error("boom");
       },
     });
     registry.register(throwingTool as unknown as Tool<unknown, unknown>);
@@ -384,10 +388,10 @@ describe('ToolExecutor unhandled exception', () => {
     const logger = makeLogger();
     const ctx = makeContext(makeFullPermissions(), logger);
 
-    await executor.invoke('test_tool', { value: 1 }, ctx);
+    await executor.invoke("test_tool", { value: 1 }, ctx);
 
     const log = logger.getLogs()[0]!;
-    expect(log.resultStatus).toBe('runtime');
+    expect(log.resultStatus).toBe("runtime");
   });
 });
 
@@ -395,8 +399,8 @@ describe('ToolExecutor unhandled exception', () => {
 // Log sanitization
 // ---------------------------------------------------------------------------
 
-describe('ToolExecutor log sanitization', () => {
-  it('truncates inputSummary to logMaxInputBytes characters', async () => {
+describe("ToolExecutor log sanitization", () => {
+  it("truncates inputSummary to logMaxInputBytes characters", async () => {
     const smallMaxExecutor = new ToolExecutor(registry, permSystem, {
       defaultTimeoutMs: 5000,
       logMaxInputBytes: 20,
@@ -409,20 +413,20 @@ describe('ToolExecutor log sanitization', () => {
     const ctx = makeContext(makeFullPermissions(), logger);
 
     // Input JSON will be longer than 20 chars
-    await smallMaxExecutor.invoke('test_tool', { value: 123456789 }, ctx);
+    await smallMaxExecutor.invoke("test_tool", { value: 123456789 }, ctx);
 
     const log = logger.getLogs()[0]!;
     expect(log.inputSummary.length).toBeLessThanOrEqual(20);
   });
 
-  it('does not truncate inputSummary when within limit', async () => {
+  it("does not truncate inputSummary when within limit", async () => {
     const tool = makeTool();
     registry.register(tool as unknown as Tool<unknown, unknown>);
 
     const logger = makeLogger();
     const ctx = makeContext(makeFullPermissions(), logger);
 
-    await executor.invoke('test_tool', { value: 1 }, ctx);
+    await executor.invoke("test_tool", { value: 1 }, ctx);
 
     const log = logger.getLogs()[0]!;
     expect(log.inputSummary.length).toBeLessThanOrEqual(256);
@@ -433,8 +437,8 @@ describe('ToolExecutor log sanitization', () => {
 // Schema compilation caching
 // ---------------------------------------------------------------------------
 
-describe('ToolExecutor schema caching', () => {
-  it('compiles the schema only once across multiple invocations', async () => {
+describe("ToolExecutor schema caching", () => {
+  it("compiles the schema only once across multiple invocations", async () => {
     const tool = makeTool();
     registry.register(tool as unknown as Tool<unknown, unknown>);
 
@@ -446,14 +450,14 @@ describe('ToolExecutor schema caching', () => {
     const ctx2 = makeContext(makeFullPermissions(), logger2);
     const ctx3 = makeContext(makeFullPermissions(), logger3);
 
-    await executor.invoke('test_tool', { value: 1 }, ctx1);
-    await executor.invoke('test_tool', { value: 2 }, ctx2);
-    await executor.invoke('test_tool', { value: 3 }, ctx3);
+    await executor.invoke("test_tool", { value: 1 }, ctx1);
+    await executor.invoke("test_tool", { value: 2 }, ctx2);
+    await executor.invoke("test_tool", { value: 3 }, ctx3);
 
     // All three invocations should succeed, demonstrating caching works
-    expect(logger1.getLogs()[0]!.resultStatus).toBe('success');
-    expect(logger2.getLogs()[0]!.resultStatus).toBe('success');
-    expect(logger3.getLogs()[0]!.resultStatus).toBe('success');
+    expect(logger1.getLogs()[0]!.resultStatus).toBe("success");
+    expect(logger2.getLogs()[0]!.resultStatus).toBe("success");
+    expect(logger3.getLogs()[0]!.resultStatus).toBe("success");
 
     // Verify the compilation count via the executor's cache:
     // 2 validators per tool (one for input schema, one for output schema),
@@ -466,8 +470,8 @@ describe('ToolExecutor schema caching', () => {
 // IToolExecutor interface compliance
 // ---------------------------------------------------------------------------
 
-describe('IToolExecutor interface', () => {
-  it('satisfies the IToolExecutor interface contract', () => {
-    expect(typeof executor.invoke).toBe('function');
+describe("IToolExecutor interface", () => {
+  it("satisfies the IToolExecutor interface contract", () => {
+    expect(typeof executor.invoke).toBe("function");
   });
 });

@@ -1,14 +1,13 @@
-import { describe, it, expect, mock, beforeEach, afterEach } from 'bun:test';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
-import { tmpdir } from 'node:os';
-import { WorkflowEngine } from '../../domain/workflow/workflow-engine';
-import { WORKFLOW_PHASES } from '../../domain/workflow/types';
-import type { WorkflowState, WorkflowPhase } from '../../domain/workflow/types';
-import type { IWorkflowStateStore, IWorkflowEventBus, WorkflowEvent } from '../../application/ports/workflow';
-import type { PhaseRunner, PhaseResult } from '../../domain/workflow/phase-runner';
-import type { ApprovalGate } from '../../domain/workflow/approval-gate';
-
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import type { IWorkflowEventBus, IWorkflowStateStore, WorkflowEvent } from "../../application/ports/workflow";
+import type { ApprovalGate } from "../../domain/workflow/approval-gate";
+import type { PhaseResult, PhaseRunner } from "../../domain/workflow/phase-runner";
+import { WORKFLOW_PHASES } from "../../domain/workflow/types";
+import type { WorkflowPhase, WorkflowState } from "../../domain/workflow/types";
+import { WorkflowEngine } from "../../domain/workflow/workflow-engine";
 
 // ---- Stub factories --------------------------------------------------------
 
@@ -16,13 +15,15 @@ function makeStateStore(): IWorkflowStateStore & { persisted: WorkflowState[] } 
   const persisted: WorkflowState[] = [];
   return {
     persisted,
-    persist: mock(async (state: WorkflowState) => { persisted.push(state); }),
+    persist: mock(async (state: WorkflowState) => {
+      persisted.push(state);
+    }),
     restore: mock(async (_specName: string) => null),
     init: mock((specName: string): WorkflowState => ({
       specName,
-      currentPhase: 'SPEC_INIT',
+      currentPhase: "SPEC_INIT",
       completedPhases: [],
-      status: 'running',
+      status: "running",
       startedAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     })),
@@ -41,7 +42,9 @@ function makePhaseRunner(resultFn?: (phase: WorkflowPhase) => PhaseResult): {
       executeCalls.push(phase);
       return resultFn ? resultFn(phase) : { ok: true as const, artifacts: [] };
     }),
-    onEnter: mock(async (phase: WorkflowPhase) => { onEnterCalls.push(phase); }),
+    onEnter: mock(async (phase: WorkflowPhase) => {
+      onEnterCalls.push(phase);
+    }),
     onExit: mock(async (_phase: WorkflowPhase) => {}),
   } as unknown as PhaseRunner;
   return { runner, executeCalls, onEnterCalls };
@@ -59,7 +62,9 @@ function makeSpyEventBus(): IWorkflowEventBus & { events: WorkflowEvent[] } {
   const events: WorkflowEvent[] = [];
   return {
     events,
-    emit: mock((event: WorkflowEvent) => { events.push(event); }),
+    emit: mock((event: WorkflowEvent) => {
+      events.push(event);
+    }),
     on: mock(() => {}),
     off: mock(() => {}),
   };
@@ -102,14 +107,13 @@ function makeTrackingGate(): ApprovalGate & { checkedPhases: string[] } {
   } as unknown as ApprovalGate & { checkedPhases: string[] };
 }
 
-
-function makeInitialState(specName = 'test-spec'): WorkflowState {
+function makeInitialState(specName = "test-spec"): WorkflowState {
   const now = new Date().toISOString();
   return {
     specName,
-    currentPhase: 'SPEC_INIT',
+    currentPhase: "SPEC_INIT",
     completedPhases: [],
-    status: 'running',
+    status: "running",
     startedAt: now,
     updatedAt: now,
   };
@@ -117,17 +121,17 @@ function makeInitialState(specName = 'test-spec'): WorkflowState {
 
 // ---- Tests -----------------------------------------------------------------
 
-describe('WorkflowEngine', () => {
+describe("WorkflowEngine", () => {
   let tmpDir: string;
 
   beforeEach(async () => {
-    tmpDir = await mkdtemp(join(tmpdir(), 'aes-engine-test-'));
+    tmpDir = await mkdtemp(join(tmpdir(), "aes-engine-test-"));
     // Pre-create all required artifact files and a ready spec.json so the
     // default test suite can run all 7 phases without failing.
-    await writeFile(join(tmpDir, 'requirements.md'), '# Requirements');
-    await writeFile(join(tmpDir, 'design.md'), '# Design');
-    await writeFile(join(tmpDir, 'tasks.md'), '# Tasks');
-    await writeFile(join(tmpDir, 'spec.json'), JSON.stringify({ ready_for_implementation: true }));
+    await writeFile(join(tmpDir, "requirements.md"), "# Requirements");
+    await writeFile(join(tmpDir, "design.md"), "# Design");
+    await writeFile(join(tmpDir, "tasks.md"), "# Tasks");
+    await writeFile(join(tmpDir, "spec.json"), JSON.stringify({ ready_for_implementation: true }));
   });
 
   afterEach(async () => {
@@ -147,71 +151,71 @@ describe('WorkflowEngine', () => {
       phaseRunner,
       approvalGate: makeApprovalGate(),
       specDir: overrides.specDir ?? tmpDir,
-      language: 'en',
+      language: "en",
     });
   }
 
   // ---- getState() ----------------------------------------------------------
 
-  describe('getState()', () => {
-    it('returns the state passed to execute() while running', async () => {
+  describe("getState()", () => {
+    it("returns the state passed to execute() while running", async () => {
       const engine = buildEngine();
       const initial = makeInitialState();
       const resultPromise = engine.execute(initial);
-      expect(engine.getState().specName).toBe('test-spec');
+      expect(engine.getState().specName).toBe("test-spec");
       await resultPromise;
     });
 
-    it('reflects completed status after execute() finishes', async () => {
+    it("reflects completed status after execute() finishes", async () => {
       const engine = buildEngine();
       await engine.execute(makeInitialState());
-      expect(engine.getState().status).toBe('completed');
+      expect(engine.getState().status).toBe("completed");
       expect(engine.getState().completedPhases).toHaveLength(WORKFLOW_PHASES.length);
     });
   });
 
   // ---- Phase sequence -------------------------------------------------------
 
-  describe('phase sequence', () => {
-    it('executes all 7 phases in WORKFLOW_PHASES order', async () => {
+  describe("phase sequence", () => {
+    it("executes all 7 phases in WORKFLOW_PHASES order", async () => {
       const { runner, executeCalls } = makePhaseRunner();
       const engine = buildEngine({ phaseRunner: runner });
 
       const result = await engine.execute(makeInitialState());
 
-      expect(result.status).toBe('completed');
+      expect(result.status).toBe("completed");
       expect(executeCalls).toEqual([...WORKFLOW_PHASES]);
     });
 
-    it('skips phases already in completedPhases', async () => {
+    it("skips phases already in completedPhases", async () => {
       const { runner, executeCalls } = makePhaseRunner();
       const engine = buildEngine({ phaseRunner: runner });
 
       const partialState: WorkflowState = {
         ...makeInitialState(),
-        currentPhase: 'REQUIREMENTS',
-        completedPhases: ['SPEC_INIT'],
+        currentPhase: "REQUIREMENTS",
+        completedPhases: ["SPEC_INIT"],
         updatedAt: new Date().toISOString(),
       };
 
       const result = await engine.execute(partialState);
 
-      expect(result.status).toBe('completed');
-      expect(executeCalls).not.toContain('SPEC_INIT');
-      expect(executeCalls).toContain('REQUIREMENTS');
+      expect(result.status).toBe("completed");
+      expect(executeCalls).not.toContain("SPEC_INIT");
+      expect(executeCalls).toContain("REQUIREMENTS");
     });
 
-    it('returns completed result with all completedPhases', async () => {
+    it("returns completed result with all completedPhases", async () => {
       const engine = buildEngine();
       const result = await engine.execute(makeInitialState());
 
-      expect(result.status).toBe('completed');
-      if (result.status === 'completed') {
+      expect(result.status).toBe("completed");
+      if (result.status === "completed") {
         expect([...result.completedPhases]).toEqual([...WORKFLOW_PHASES]);
       }
     });
 
-    it('calls onEnter before execute for each phase', async () => {
+    it("calls onEnter before execute for each phase", async () => {
       const { runner, executeCalls, onEnterCalls } = makePhaseRunner();
       const engine = buildEngine({ phaseRunner: runner });
       await engine.execute(makeInitialState());
@@ -222,8 +226,8 @@ describe('WorkflowEngine', () => {
 
   // ---- State persistence ----------------------------------------------------
 
-  describe('state persistence', () => {
-    it('persists state before invoking the phase runner for each phase', async () => {
+  describe("state persistence", () => {
+    it("persists state before invoking the phase runner for each phase", async () => {
       const stateStore = makeStateStore();
       const countAtExecute: number[] = [];
 
@@ -241,87 +245,87 @@ describe('WorkflowEngine', () => {
       }
     });
 
-    it('persists final completed state after all phases finish', async () => {
+    it("persists final completed state after all phases finish", async () => {
       const stateStore = makeStateStore();
       const engine = buildEngine({ stateStore });
       await engine.execute(makeInitialState());
 
       const last = stateStore.persisted.at(-1);
-      expect(last?.status).toBe('completed');
+      expect(last?.status).toBe("completed");
       expect(last?.completedPhases).toHaveLength(WORKFLOW_PHASES.length);
     });
 
-    it('persists failed state with failureDetail when a phase fails', async () => {
+    it("persists failed state with failureDetail when a phase fails", async () => {
       const stateStore = makeStateStore();
       const { runner } = makePhaseRunner((phase) =>
-        phase === 'REQUIREMENTS'
-          ? { ok: false, error: 'SDD adapter error' }
-          : { ok: true, artifacts: [] },
+        phase === "REQUIREMENTS"
+          ? { ok: false, error: "SDD adapter error" }
+          : { ok: true, artifacts: [] }
       );
 
       const engine = buildEngine({ stateStore, phaseRunner: runner });
       const result = await engine.execute(makeInitialState());
 
-      expect(result.status).toBe('failed');
-      const failedState = stateStore.persisted.find((s) => s.status === 'failed');
-      expect(failedState?.failureDetail?.phase).toBe('REQUIREMENTS');
-      expect(failedState?.failureDetail?.error).toBe('SDD adapter error');
+      expect(result.status).toBe("failed");
+      const failedState = stateStore.persisted.find((s) => s.status === "failed");
+      expect(failedState?.failureDetail?.phase).toBe("REQUIREMENTS");
+      expect(failedState?.failureDetail?.error).toBe("SDD adapter error");
     });
   });
 
   // ---- Phase failure --------------------------------------------------------
 
-  describe('phase failure', () => {
-    it('returns failed result when a phase fails', async () => {
+  describe("phase failure", () => {
+    it("returns failed result when a phase fails", async () => {
       const { runner } = makePhaseRunner((phase) =>
-        phase === 'DESIGN'
-          ? { ok: false, error: 'cc-sdd returned exit 1' }
-          : { ok: true, artifacts: [] },
+        phase === "DESIGN"
+          ? { ok: false, error: "cc-sdd returned exit 1" }
+          : { ok: true, artifacts: [] }
       );
       const engine = buildEngine({ phaseRunner: runner });
 
       const result = await engine.execute(makeInitialState());
 
-      expect(result.status).toBe('failed');
-      if (result.status === 'failed') {
-        expect(result.phase).toBe('DESIGN');
-        expect(result.error).toBe('cc-sdd returned exit 1');
+      expect(result.status).toBe("failed");
+      if (result.status === "failed") {
+        expect(result.phase).toBe("DESIGN");
+        expect(result.error).toBe("cc-sdd returned exit 1");
       }
     });
 
-    it('stops execution after a phase fails (does not run subsequent phases)', async () => {
+    it("stops execution after a phase fails (does not run subsequent phases)", async () => {
       const { runner, executeCalls } = makePhaseRunner((phase) =>
-        phase === 'REQUIREMENTS'
-          ? { ok: false, error: 'error' }
-          : { ok: true, artifacts: [] },
+        phase === "REQUIREMENTS"
+          ? { ok: false, error: "error" }
+          : { ok: true, artifacts: [] }
       );
       const engine = buildEngine({ phaseRunner: runner });
 
       await engine.execute(makeInitialState());
 
-      expect(executeCalls).not.toContain('DESIGN');
-      expect(executeCalls).not.toContain('VALIDATE_DESIGN');
+      expect(executeCalls).not.toContain("DESIGN");
+      expect(executeCalls).not.toContain("VALIDATE_DESIGN");
     });
 
-    it('reflects failed status in getState() after a phase fails', async () => {
+    it("reflects failed status in getState() after a phase fails", async () => {
       const { runner } = makePhaseRunner((phase) =>
-        phase === 'DESIGN' ? { ok: false, error: 'boom' } : { ok: true, artifacts: [] },
+        phase === "DESIGN" ? { ok: false, error: "boom" } : { ok: true, artifacts: [] }
       );
       const engine = buildEngine({ phaseRunner: runner });
       await engine.execute(makeInitialState());
 
       const state = engine.getState();
-      expect(state.status).toBe('failed');
-      expect(state.failureDetail?.phase).toBe('DESIGN');
+      expect(state.status).toBe("failed");
+      expect(state.failureDetail?.phase).toBe("DESIGN");
     });
   });
 
   // ---- Artifact validation --------------------------------------------------
 
-  describe('artifact validation', () => {
-    it('fails at DESIGN when requirements.md is missing', async () => {
+  describe("artifact validation", () => {
+    it("fails at DESIGN when requirements.md is missing", async () => {
       // Fresh dir with no artifacts
-      const emptyDir = await mkdtemp(join(tmpdir(), 'aes-engine-empty-'));
+      const emptyDir = await mkdtemp(join(tmpdir(), "aes-engine-empty-"));
       try {
         const { runner } = makePhaseRunner();
         const engine = new WorkflowEngine({
@@ -330,36 +334,36 @@ describe('WorkflowEngine', () => {
           phaseRunner: runner,
           approvalGate: makeApprovalGate(),
           specDir: emptyDir,
-          language: 'en',
+          language: "en",
         });
 
         // Start right before DESIGN
         const stateBeforeDesign: WorkflowState = {
           ...makeInitialState(),
-          currentPhase: 'DESIGN',
-          completedPhases: ['SPEC_INIT', 'REQUIREMENTS'],
+          currentPhase: "DESIGN",
+          completedPhases: ["SPEC_INIT", "REQUIREMENTS"],
           updatedAt: new Date().toISOString(),
         };
 
         const result = await engine.execute(stateBeforeDesign);
 
-        expect(result.status).toBe('failed');
-        if (result.status === 'failed') {
-          expect(result.phase).toBe('DESIGN');
-          expect(result.error).toContain('requirements.md');
+        expect(result.status).toBe("failed");
+        if (result.status === "failed") {
+          expect(result.phase).toBe("DESIGN");
+          expect(result.error).toContain("requirements.md");
         }
       } finally {
         await rm(emptyDir, { recursive: true, force: true });
       }
     });
 
-    it('succeeds at DESIGN when requirements.md exists', async () => {
-      const specDir = await mkdtemp(join(tmpdir(), 'aes-engine-art-'));
+    it("succeeds at DESIGN when requirements.md exists", async () => {
+      const specDir = await mkdtemp(join(tmpdir(), "aes-engine-art-"));
       try {
-        await writeFile(join(specDir, 'requirements.md'), '# Requirements');
-        await writeFile(join(specDir, 'design.md'), '# Design');
-        await writeFile(join(specDir, 'tasks.md'), '# Tasks');
-        await writeFile(join(specDir, 'spec.json'), JSON.stringify({ ready_for_implementation: true }));
+        await writeFile(join(specDir, "requirements.md"), "# Requirements");
+        await writeFile(join(specDir, "design.md"), "# Design");
+        await writeFile(join(specDir, "tasks.md"), "# Tasks");
+        await writeFile(join(specDir, "spec.json"), JSON.stringify({ ready_for_implementation: true }));
 
         const { runner } = makePhaseRunner();
         const engine = new WorkflowEngine({
@@ -368,28 +372,28 @@ describe('WorkflowEngine', () => {
           phaseRunner: runner,
           approvalGate: makeApprovalGate(),
           specDir,
-          language: 'en',
+          language: "en",
         });
 
         const stateBeforeDesign: WorkflowState = {
           ...makeInitialState(),
-          currentPhase: 'DESIGN',
-          completedPhases: ['SPEC_INIT', 'REQUIREMENTS'],
+          currentPhase: "DESIGN",
+          completedPhases: ["SPEC_INIT", "REQUIREMENTS"],
           updatedAt: new Date().toISOString(),
         };
 
         const result = await engine.execute(stateBeforeDesign);
-        expect(result.status).toBe('completed');
+        expect(result.status).toBe("completed");
       } finally {
         await rm(specDir, { recursive: true, force: true });
       }
     });
 
-    it('fails at IMPLEMENTATION when tasks.md is missing', async () => {
-      const specDir = await mkdtemp(join(tmpdir(), 'aes-engine-impl-'));
+    it("fails at IMPLEMENTATION when tasks.md is missing", async () => {
+      const specDir = await mkdtemp(join(tmpdir(), "aes-engine-impl-"));
       try {
-        await writeFile(join(specDir, 'requirements.md'), '# Requirements');
-        await writeFile(join(specDir, 'design.md'), '# Design');
+        await writeFile(join(specDir, "requirements.md"), "# Requirements");
+        await writeFile(join(specDir, "design.md"), "# Design");
         // tasks.md intentionally missing
 
         const { runner } = makePhaseRunner();
@@ -399,30 +403,30 @@ describe('WorkflowEngine', () => {
           phaseRunner: runner,
           approvalGate: makeApprovalGate(),
           specDir,
-          language: 'en',
+          language: "en",
         });
 
         const stateBeforeImpl: WorkflowState = {
           ...makeInitialState(),
-          currentPhase: 'IMPLEMENTATION',
-          completedPhases: ['SPEC_INIT', 'REQUIREMENTS', 'DESIGN', 'VALIDATE_DESIGN', 'TASK_GENERATION'],
+          currentPhase: "IMPLEMENTATION",
+          completedPhases: ["SPEC_INIT", "REQUIREMENTS", "DESIGN", "VALIDATE_DESIGN", "TASK_GENERATION"],
           updatedAt: new Date().toISOString(),
         };
 
         const result = await engine.execute(stateBeforeImpl);
 
-        expect(result.status).toBe('failed');
-        if (result.status === 'failed') {
-          expect(result.phase).toBe('IMPLEMENTATION');
-          expect(result.error).toContain('tasks.md');
+        expect(result.status).toBe("failed");
+        if (result.status === "failed") {
+          expect(result.phase).toBe("IMPLEMENTATION");
+          expect(result.error).toContain("tasks.md");
         }
       } finally {
         await rm(specDir, { recursive: true, force: true });
       }
     });
 
-    it('does not fail SPEC_INIT on missing artifacts (no requirements for first phase)', async () => {
-      const emptyDir = await mkdtemp(join(tmpdir(), 'aes-engine-spec-init-'));
+    it("does not fail SPEC_INIT on missing artifacts (no requirements for first phase)", async () => {
+      const emptyDir = await mkdtemp(join(tmpdir(), "aes-engine-spec-init-"));
       try {
         // Only SPEC_INIT: no artifacts required, so it runs to completion of that phase
         const { runner, executeCalls } = makePhaseRunner();
@@ -432,13 +436,13 @@ describe('WorkflowEngine', () => {
           phaseRunner: runner,
           approvalGate: makeApprovalGate(),
           specDir: emptyDir,
-          language: 'en',
+          language: "en",
         });
 
         // Run only SPEC_INIT by starting with all others already completed
         const stateAllButLast: WorkflowState = {
           ...makeInitialState(),
-          currentPhase: 'SPEC_INIT',
+          currentPhase: "SPEC_INIT",
           completedPhases: [],
           updatedAt: new Date().toISOString(),
         };
@@ -446,10 +450,10 @@ describe('WorkflowEngine', () => {
         const result = await engine.execute(stateAllButLast);
 
         // SPEC_INIT has no artifact requirements; it should succeed
-        expect(executeCalls[0]).toBe('SPEC_INIT');
+        expect(executeCalls[0]).toBe("SPEC_INIT");
         // The overall run may still fail on subsequent phases, but NOT on SPEC_INIT itself
-        if (result.status === 'failed') {
-          expect((result as { phase: WorkflowPhase }).phase).not.toBe('SPEC_INIT');
+        if (result.status === "failed") {
+          expect((result as { phase: WorkflowPhase }).phase).not.toBe("SPEC_INIT");
         }
       } finally {
         await rm(emptyDir, { recursive: true, force: true });
@@ -459,8 +463,8 @@ describe('WorkflowEngine', () => {
 
   // ---- Concurrent execution prevention ------------------------------------
 
-  describe('concurrent execution prevention', () => {
-    it('throws if execute() is called while already running', async () => {
+  describe("concurrent execution prevention", () => {
+    it("throws if execute() is called while already running", async () => {
       // Block at the first stateStore.persist() call so isRunning stays true
       let unblock!: () => void;
       const stateStore = makeStateStore();
@@ -469,7 +473,9 @@ describe('WorkflowEngine', () => {
         stateStore.persisted.push(state);
         if (firstCall) {
           firstCall = false;
-          await new Promise<void>((resolve) => { unblock = resolve; });
+          await new Promise<void>((resolve) => {
+            unblock = resolve;
+          });
         }
       });
 
@@ -488,19 +494,19 @@ describe('WorkflowEngine', () => {
       await firstRun;
     });
 
-    it('allows execute() again after a previous run completes', async () => {
+    it("allows execute() again after a previous run completes", async () => {
       const engine = buildEngine();
       await engine.execute(makeInitialState());
 
       const secondResult = await engine.execute(makeInitialState());
-      expect(secondResult.status).toBe('completed');
+      expect(secondResult.status).toBe("completed");
     });
   });
 
   // ---- Event emission (task 7.2) -------------------------------------------
 
-  describe('event emission', () => {
-    it('emits phase:start for every phase with an ISO 8601 timestamp', async () => {
+  describe("event emission", () => {
+    it("emits phase:start for every phase with an ISO 8601 timestamp", async () => {
       const eventBus = makeSpyEventBus();
       const engine = new WorkflowEngine({
         stateStore: makeStateStore(),
@@ -508,22 +514,22 @@ describe('WorkflowEngine', () => {
         phaseRunner: makePhaseRunner().runner,
         approvalGate: makeApprovalGate(),
         specDir: tmpDir,
-        language: 'en',
+        language: "en",
       });
 
       await engine.execute(makeInitialState());
 
-      const startEvents = eventBus.events.filter((e) => e.type === 'phase:start');
+      const startEvents = eventBus.events.filter((e) => e.type === "phase:start");
       expect(startEvents).toHaveLength(WORKFLOW_PHASES.length);
       for (const e of startEvents) {
-        if (e.type === 'phase:start') {
+        if (e.type === "phase:start") {
           expect(WORKFLOW_PHASES).toContain(e.phase);
           expect(new Date(e.timestamp).toISOString()).toBe(e.timestamp);
         }
       }
     });
 
-    it('emits phase:start events in WORKFLOW_PHASES order', async () => {
+    it("emits phase:start events in WORKFLOW_PHASES order", async () => {
       const eventBus = makeSpyEventBus();
       const engine = new WorkflowEngine({
         stateStore: makeStateStore(),
@@ -531,18 +537,18 @@ describe('WorkflowEngine', () => {
         phaseRunner: makePhaseRunner().runner,
         approvalGate: makeApprovalGate(),
         specDir: tmpDir,
-        language: 'en',
+        language: "en",
       });
 
       await engine.execute(makeInitialState());
 
       const phases = eventBus.events
-        .filter((e) => e.type === 'phase:start')
-        .map((e) => (e as { type: 'phase:start'; phase: WorkflowPhase }).phase);
+        .filter((e) => e.type === "phase:start")
+        .map((e) => (e as { type: "phase:start"; phase: WorkflowPhase }).phase);
       expect(phases).toEqual([...WORKFLOW_PHASES]);
     });
 
-    it('emits phase:start before phase runner execute() is called', async () => {
+    it("emits phase:start before phase runner execute() is called", async () => {
       const eventBus = makeSpyEventBus();
       const executeOrder: string[] = [];
 
@@ -554,7 +560,7 @@ describe('WorkflowEngine', () => {
       // Override emit to record ordering
       const origEmit = eventBus.emit.bind(eventBus);
       (eventBus as { emit: (e: WorkflowEvent) => void }).emit = (event: WorkflowEvent) => {
-        if (event.type === 'phase:start') {
+        if (event.type === "phase:start") {
           executeOrder.push(`start:${event.phase}`);
         }
         origEmit(event);
@@ -566,7 +572,7 @@ describe('WorkflowEngine', () => {
         phaseRunner: runner,
         approvalGate: makeApprovalGate(),
         specDir: tmpDir,
-        language: 'en',
+        language: "en",
       });
 
       await engine.execute(makeInitialState());
@@ -580,7 +586,7 @@ describe('WorkflowEngine', () => {
       }
     });
 
-    it('emits phase:complete with durationMs >= 0 and artifacts from phase runner', async () => {
+    it("emits phase:complete with durationMs >= 0 and artifacts from phase runner", async () => {
       const eventBus = makeSpyEventBus();
       const { runner } = makePhaseRunner((phase) => ({
         ok: true as const,
@@ -593,16 +599,16 @@ describe('WorkflowEngine', () => {
         phaseRunner: runner,
         approvalGate: makeApprovalGate(),
         specDir: tmpDir,
-        language: 'en',
+        language: "en",
       });
 
       await engine.execute(makeInitialState());
 
-      const completeEvents = eventBus.events.filter((e) => e.type === 'phase:complete');
+      const completeEvents = eventBus.events.filter((e) => e.type === "phase:complete");
       expect(completeEvents).toHaveLength(WORKFLOW_PHASES.length);
 
       for (const e of completeEvents) {
-        if (e.type === 'phase:complete') {
+        if (e.type === "phase:complete") {
           expect(e.durationMs).toBeGreaterThanOrEqual(0);
           expect(Array.isArray(e.artifacts)).toBe(true);
           expect(e.artifacts).toHaveLength(1);
@@ -610,7 +616,7 @@ describe('WorkflowEngine', () => {
       }
     });
 
-    it('emits phase:complete events in WORKFLOW_PHASES order', async () => {
+    it("emits phase:complete events in WORKFLOW_PHASES order", async () => {
       const eventBus = makeSpyEventBus();
       const engine = new WorkflowEngine({
         stateStore: makeStateStore(),
@@ -618,23 +624,23 @@ describe('WorkflowEngine', () => {
         phaseRunner: makePhaseRunner().runner,
         approvalGate: makeApprovalGate(),
         specDir: tmpDir,
-        language: 'en',
+        language: "en",
       });
 
       await engine.execute(makeInitialState());
 
       const phases = eventBus.events
-        .filter((e) => e.type === 'phase:complete')
-        .map((e) => (e as { type: 'phase:complete'; phase: WorkflowPhase }).phase);
+        .filter((e) => e.type === "phase:complete")
+        .map((e) => (e as { type: "phase:complete"; phase: WorkflowPhase }).phase);
       expect(phases).toEqual([...WORKFLOW_PHASES]);
     });
 
-    it('emits phase:error (not phase:complete) when phase runner returns failure', async () => {
+    it("emits phase:error (not phase:complete) when phase runner returns failure", async () => {
       const eventBus = makeSpyEventBus();
       const { runner } = makePhaseRunner((phase) =>
-        phase === 'DESIGN'
-          ? { ok: false, error: 'adapter crashed' }
-          : { ok: true, artifacts: [] },
+        phase === "DESIGN"
+          ? { ok: false, error: "adapter crashed" }
+          : { ok: true, artifacts: [] }
       );
 
       const engine = new WorkflowEngine({
@@ -643,34 +649,34 @@ describe('WorkflowEngine', () => {
         phaseRunner: runner,
         approvalGate: makeApprovalGate(),
         specDir: tmpDir,
-        language: 'en',
+        language: "en",
       });
 
       await engine.execute(makeInitialState());
 
-      const errorEvents = eventBus.events.filter((e) => e.type === 'phase:error');
+      const errorEvents = eventBus.events.filter((e) => e.type === "phase:error");
       expect(errorEvents).toHaveLength(1);
       const errEvt = errorEvents[0];
-      if (errEvt?.type === 'phase:error') {
-        expect(errEvt.phase).toBe('DESIGN');
-        expect(errEvt.error).toBe('adapter crashed');
-        expect(typeof errEvt.operation).toBe('string');
+      if (errEvt?.type === "phase:error") {
+        expect(errEvt.phase).toBe("DESIGN");
+        expect(errEvt.error).toBe("adapter crashed");
+        expect(typeof errEvt.operation).toBe("string");
         expect(errEvt.operation.length).toBeGreaterThan(0);
       }
 
       // No phase:complete should be emitted for the failed phase
       const completePhases = eventBus.events
-        .filter((e) => e.type === 'phase:complete')
+        .filter((e) => e.type === "phase:complete")
         .map((e) => (e as { phase: WorkflowPhase }).phase);
-      expect(completePhases).not.toContain('DESIGN');
+      expect(completePhases).not.toContain("DESIGN");
     });
 
-    it('emits workflow:failed when a phase fails', async () => {
+    it("emits workflow:failed when a phase fails", async () => {
       const eventBus = makeSpyEventBus();
       const { runner } = makePhaseRunner((phase) =>
-        phase === 'REQUIREMENTS'
-          ? { ok: false, error: 'SDD error' }
-          : { ok: true, artifacts: [] },
+        phase === "REQUIREMENTS"
+          ? { ok: false, error: "SDD error" }
+          : { ok: true, artifacts: [] }
       );
 
       const engine = new WorkflowEngine({
@@ -679,21 +685,21 @@ describe('WorkflowEngine', () => {
         phaseRunner: runner,
         approvalGate: makeApprovalGate(),
         specDir: tmpDir,
-        language: 'en',
+        language: "en",
       });
 
       await engine.execute(makeInitialState());
 
-      const failedEvents = eventBus.events.filter((e) => e.type === 'workflow:failed');
+      const failedEvents = eventBus.events.filter((e) => e.type === "workflow:failed");
       expect(failedEvents).toHaveLength(1);
       const failEvt = failedEvents[0];
-      if (failEvt?.type === 'workflow:failed') {
-        expect(failEvt.phase).toBe('REQUIREMENTS');
-        expect(failEvt.error).toBe('SDD error');
+      if (failEvt?.type === "workflow:failed") {
+        expect(failEvt.phase).toBe("REQUIREMENTS");
+        expect(failEvt.error).toBe("SDD error");
       }
     });
 
-    it('emits workflow:complete when all phases succeed', async () => {
+    it("emits workflow:complete when all phases succeed", async () => {
       const eventBus = makeSpyEventBus();
       const engine = new WorkflowEngine({
         stateStore: makeStateStore(),
@@ -701,23 +707,23 @@ describe('WorkflowEngine', () => {
         phaseRunner: makePhaseRunner().runner,
         approvalGate: makeApprovalGate(),
         specDir: tmpDir,
-        language: 'en',
+        language: "en",
       });
 
       await engine.execute(makeInitialState());
 
-      const completeEvents = eventBus.events.filter((e) => e.type === 'workflow:complete');
+      const completeEvents = eventBus.events.filter((e) => e.type === "workflow:complete");
       expect(completeEvents).toHaveLength(1);
       const completeEvt = completeEvents[0];
-      if (completeEvt?.type === 'workflow:complete') {
+      if (completeEvt?.type === "workflow:complete") {
         expect([...completeEvt.completedPhases]).toEqual([...WORKFLOW_PHASES]);
       }
     });
 
-    it('does not emit workflow:complete when a phase fails', async () => {
+    it("does not emit workflow:complete when a phase fails", async () => {
       const eventBus = makeSpyEventBus();
       const { runner } = makePhaseRunner((phase) =>
-        phase === 'SPEC_INIT' ? { ok: false, error: 'init failed' } : { ok: true, artifacts: [] },
+        phase === "SPEC_INIT" ? { ok: false, error: "init failed" } : { ok: true, artifacts: [] }
       );
 
       const engine = new WorkflowEngine({
@@ -726,16 +732,16 @@ describe('WorkflowEngine', () => {
         phaseRunner: runner,
         approvalGate: makeApprovalGate(),
         specDir: tmpDir,
-        language: 'en',
+        language: "en",
       });
 
       await engine.execute(makeInitialState());
 
-      expect(eventBus.events.filter((e) => e.type === 'workflow:complete')).toHaveLength(0);
+      expect(eventBus.events.filter((e) => e.type === "workflow:complete")).toHaveLength(0);
     });
 
-    it('emits phase:error when artifact validation fails', async () => {
-      const emptyDir = await mkdtemp(join(tmpdir(), 'aes-engine-evt-art-'));
+    it("emits phase:error when artifact validation fails", async () => {
+      const emptyDir = await mkdtemp(join(tmpdir(), "aes-engine-evt-art-"));
       try {
         const eventBus = makeSpyEventBus();
         const engine = new WorkflowEngine({
@@ -744,30 +750,30 @@ describe('WorkflowEngine', () => {
           phaseRunner: makePhaseRunner().runner,
           approvalGate: makeApprovalGate(),
           specDir: emptyDir,
-          language: 'en',
+          language: "en",
         });
 
         // Start before DESIGN — artifact validation will fail (no requirements.md)
         await engine.execute({
           ...makeInitialState(),
-          currentPhase: 'DESIGN',
-          completedPhases: ['SPEC_INIT', 'REQUIREMENTS'],
+          currentPhase: "DESIGN",
+          completedPhases: ["SPEC_INIT", "REQUIREMENTS"],
           updatedAt: new Date().toISOString(),
         });
 
-        const errorEvents = eventBus.events.filter((e) => e.type === 'phase:error');
+        const errorEvents = eventBus.events.filter((e) => e.type === "phase:error");
         expect(errorEvents).toHaveLength(1);
         const errEvt = errorEvents[0];
-        if (errEvt?.type === 'phase:error') {
-          expect(errEvt.phase).toBe('DESIGN');
-          expect(errEvt.error).toContain('requirements.md');
+        if (errEvt?.type === "phase:error") {
+          expect(errEvt.phase).toBe("DESIGN");
+          expect(errEvt.error).toContain("requirements.md");
         }
       } finally {
         await rm(emptyDir, { recursive: true, force: true });
       }
     });
 
-    it('event sequence for a successful run: start → complete per phase, then workflow:complete', async () => {
+    it("event sequence for a successful run: start → complete per phase, then workflow:complete", async () => {
       const eventBus = makeSpyEventBus();
       const engine = new WorkflowEngine({
         stateStore: makeStateStore(),
@@ -775,21 +781,21 @@ describe('WorkflowEngine', () => {
         phaseRunner: makePhaseRunner().runner,
         approvalGate: makeApprovalGate(),
         specDir: tmpDir,
-        language: 'en',
+        language: "en",
       });
 
       await engine.execute(makeInitialState());
 
       const types = eventBus.events.map((e) => e.type);
       // Last event must be workflow:complete
-      expect(types.at(-1)).toBe('workflow:complete');
+      expect(types.at(-1)).toBe("workflow:complete");
       // For each phase: phase:start immediately before phase:complete
       for (const phase of WORKFLOW_PHASES) {
         const startIdx = eventBus.events.findIndex(
-          (e) => e.type === 'phase:start' && (e as { phase: WorkflowPhase }).phase === phase,
+          (e) => e.type === "phase:start" && (e as { phase: WorkflowPhase }).phase === phase,
         );
         const completeIdx = eventBus.events.findIndex(
-          (e) => e.type === 'phase:complete' && (e as { phase: WorkflowPhase }).phase === phase,
+          (e) => e.type === "phase:complete" && (e as { phase: WorkflowPhase }).phase === phase,
         );
         expect(startIdx).toBeGreaterThanOrEqual(0);
         expect(completeIdx).toBeGreaterThan(startIdx);
@@ -799,10 +805,10 @@ describe('WorkflowEngine', () => {
 
   // ---- Approval gates (task 7.3) -------------------------------------------
 
-  describe('approval gates', () => {
+  describe("approval gates", () => {
     // ---- Gate is checked for the right phases --------------------------------
 
-    it('checks approval gate after REQUIREMENTS (with phase type "requirements")', async () => {
+    it("checks approval gate after REQUIREMENTS (with phase type \"requirements\")", async () => {
       const gate = makeTrackingGate();
       const engine = buildEngine({ phaseRunner: makePhaseRunner().runner });
       // Replace the engine with one using our tracking gate
@@ -812,15 +818,15 @@ describe('WorkflowEngine', () => {
         phaseRunner: makePhaseRunner().runner,
         approvalGate: gate,
         specDir: tmpDir,
-        language: 'en',
+        language: "en",
       });
 
       await tracked.execute(makeInitialState());
 
-      expect(gate.checkedPhases).toContain('requirements');
+      expect(gate.checkedPhases).toContain("requirements");
     });
 
-    it('checks approval gate after VALIDATE_DESIGN (with phase type "design")', async () => {
+    it("checks approval gate after VALIDATE_DESIGN (with phase type \"design\")", async () => {
       const gate = makeTrackingGate();
       const tracked = new WorkflowEngine({
         stateStore: makeStateStore(),
@@ -828,15 +834,15 @@ describe('WorkflowEngine', () => {
         phaseRunner: makePhaseRunner().runner,
         approvalGate: gate,
         specDir: tmpDir,
-        language: 'en',
+        language: "en",
       });
 
       await tracked.execute(makeInitialState());
 
-      expect(gate.checkedPhases).toContain('design');
+      expect(gate.checkedPhases).toContain("design");
     });
 
-    it('checks approval gate after TASK_GENERATION (with phase type "tasks")', async () => {
+    it("checks approval gate after TASK_GENERATION (with phase type \"tasks\")", async () => {
       const gate = makeTrackingGate();
       const tracked = new WorkflowEngine({
         stateStore: makeStateStore(),
@@ -844,15 +850,15 @@ describe('WorkflowEngine', () => {
         phaseRunner: makePhaseRunner().runner,
         approvalGate: gate,
         specDir: tmpDir,
-        language: 'en',
+        language: "en",
       });
 
       await tracked.execute(makeInitialState());
 
-      expect(gate.checkedPhases).toContain('tasks');
+      expect(gate.checkedPhases).toContain("tasks");
     });
 
-    it('does not check approval gate for non-gated phases (SPEC_INIT, DESIGN, IMPLEMENTATION, PULL_REQUEST)', async () => {
+    it("does not check approval gate for non-gated phases (SPEC_INIT, DESIGN, IMPLEMENTATION, PULL_REQUEST)", async () => {
       const gate = makeTrackingGate();
       const tracked = new WorkflowEngine({
         stateStore: makeStateStore(),
@@ -860,130 +866,130 @@ describe('WorkflowEngine', () => {
         phaseRunner: makePhaseRunner().runner,
         approvalGate: gate,
         specDir: tmpDir,
-        language: 'en',
+        language: "en",
       });
 
       await tracked.execute(makeInitialState());
 
-      expect(gate.checkedPhases).not.toContain('spec_init');
-      expect(gate.checkedPhases).not.toContain('design_validate');
+      expect(gate.checkedPhases).not.toContain("spec_init");
+      expect(gate.checkedPhases).not.toContain("design_validate");
       // Only 3 gate checks expected: requirements, design, tasks
       expect(gate.checkedPhases).toHaveLength(3);
     });
 
     // ---- Paused state when gate returns pending ------------------------------
 
-    it('returns paused result when REQUIREMENTS gate is pending', async () => {
+    it("returns paused result when REQUIREMENTS gate is pending", async () => {
       const engine = new WorkflowEngine({
         stateStore: makeStateStore(),
         eventBus: makeEventBus(),
         phaseRunner: makePhaseRunner().runner,
-        approvalGate: makePendingGate('requirements'),
+        approvalGate: makePendingGate("requirements"),
         specDir: tmpDir,
-        language: 'en',
+        language: "en",
       });
 
       const result = await engine.execute(makeInitialState());
 
-      expect(result.status).toBe('paused');
-      if (result.status === 'paused') {
-        expect(result.phase).toBe('REQUIREMENTS');
-        expect(result.reason).toBe('approval_required');
+      expect(result.status).toBe("paused");
+      if (result.status === "paused") {
+        expect(result.phase).toBe("REQUIREMENTS");
+        expect(result.reason).toBe("approval_required");
       }
     });
 
-    it('persists paused_for_approval state with currentPhase set to gated phase', async () => {
+    it("persists paused_for_approval state with currentPhase set to gated phase", async () => {
       const stateStore = makeStateStore();
       const engine = new WorkflowEngine({
         stateStore,
         eventBus: makeEventBus(),
         phaseRunner: makePhaseRunner().runner,
-        approvalGate: makePendingGate('requirements'),
+        approvalGate: makePendingGate("requirements"),
         specDir: tmpDir,
-        language: 'en',
+        language: "en",
       });
 
       await engine.execute(makeInitialState());
 
-      const pausedPersisted = stateStore.persisted.find((s) => s.status === 'paused_for_approval');
+      const pausedPersisted = stateStore.persisted.find((s) => s.status === "paused_for_approval");
       expect(pausedPersisted).toBeDefined();
-      expect(pausedPersisted?.currentPhase).toBe('REQUIREMENTS');
+      expect(pausedPersisted?.currentPhase).toBe("REQUIREMENTS");
       // REQUIREMENTS must NOT be in completedPhases when paused
-      expect(pausedPersisted?.completedPhases).not.toContain('REQUIREMENTS');
+      expect(pausedPersisted?.completedPhases).not.toContain("REQUIREMENTS");
     });
 
-    it('emits approval:required event with artifactPath and instruction when paused', async () => {
+    it("emits approval:required event with artifactPath and instruction when paused", async () => {
       const eventBus = makeSpyEventBus();
       const engine = new WorkflowEngine({
         stateStore: makeStateStore(),
         eventBus,
         phaseRunner: makePhaseRunner().runner,
-        approvalGate: makePendingGate('requirements'),
+        approvalGate: makePendingGate("requirements"),
         specDir: tmpDir,
-        language: 'en',
+        language: "en",
       });
 
       await engine.execute(makeInitialState());
 
-      const approvalEvents = eventBus.events.filter((e) => e.type === 'approval:required');
+      const approvalEvents = eventBus.events.filter((e) => e.type === "approval:required");
       expect(approvalEvents).toHaveLength(1);
       const evt = approvalEvents[0];
-      if (evt?.type === 'approval:required') {
-        expect(evt.phase).toBe('REQUIREMENTS');
-        expect(typeof evt.artifactPath).toBe('string');
+      if (evt?.type === "approval:required") {
+        expect(evt.phase).toBe("REQUIREMENTS");
+        expect(typeof evt.artifactPath).toBe("string");
         expect(evt.artifactPath.length).toBeGreaterThan(0);
-        expect(typeof evt.instruction).toBe('string');
+        expect(typeof evt.instruction).toBe("string");
         expect(evt.instruction.length).toBeGreaterThan(0);
       }
     });
 
-    it('does not advance to DESIGN when REQUIREMENTS gate is pending', async () => {
+    it("does not advance to DESIGN when REQUIREMENTS gate is pending", async () => {
       const { runner, executeCalls } = makePhaseRunner();
       const engine = new WorkflowEngine({
         stateStore: makeStateStore(),
         eventBus: makeEventBus(),
         phaseRunner: runner,
-        approvalGate: makePendingGate('requirements'),
+        approvalGate: makePendingGate("requirements"),
         specDir: tmpDir,
-        language: 'en',
+        language: "en",
       });
 
       await engine.execute(makeInitialState());
 
-      expect(executeCalls).not.toContain('DESIGN');
+      expect(executeCalls).not.toContain("DESIGN");
     });
 
     // ---- Resume from paused state --------------------------------------------
 
-    it('on resume with still-pending gate, returns paused again without re-executing', async () => {
+    it("on resume with still-pending gate, returns paused again without re-executing", async () => {
       const { runner, executeCalls } = makePhaseRunner();
       const engine = new WorkflowEngine({
         stateStore: makeStateStore(),
         eventBus: makeEventBus(),
         phaseRunner: runner,
-        approvalGate: makePendingGate('requirements'),
+        approvalGate: makePendingGate("requirements"),
         specDir: tmpDir,
-        language: 'en',
+        language: "en",
       });
 
       // Simulate a paused state (REQUIREMENTS already ran but not approved)
       const pausedState: WorkflowState = {
         ...makeInitialState(),
-        currentPhase: 'REQUIREMENTS',
-        completedPhases: ['SPEC_INIT'],
-        status: 'paused_for_approval',
+        currentPhase: "REQUIREMENTS",
+        completedPhases: ["SPEC_INIT"],
+        status: "paused_for_approval",
         updatedAt: new Date().toISOString(),
       };
 
       const result = await engine.execute(pausedState);
 
       // Should return paused again
-      expect(result.status).toBe('paused');
+      expect(result.status).toBe("paused");
       // REQUIREMENTS must NOT have been re-executed
-      expect(executeCalls).not.toContain('REQUIREMENTS');
+      expect(executeCalls).not.toContain("REQUIREMENTS");
     });
 
-    it('on resume with now-approved gate, advances without re-executing paused phase', async () => {
+    it("on resume with now-approved gate, advances without re-executing paused phase", async () => {
       const { runner, executeCalls } = makePhaseRunner();
       const engine = new WorkflowEngine({
         stateStore: makeStateStore(),
@@ -991,63 +997,63 @@ describe('WorkflowEngine', () => {
         phaseRunner: runner,
         approvalGate: makeApprovalGate(), // always approved
         specDir: tmpDir,
-        language: 'en',
+        language: "en",
       });
 
       // Simulate a paused state (REQUIREMENTS already ran and is now approved)
       const pausedState: WorkflowState = {
         ...makeInitialState(),
-        currentPhase: 'REQUIREMENTS',
-        completedPhases: ['SPEC_INIT'],
-        status: 'paused_for_approval',
+        currentPhase: "REQUIREMENTS",
+        completedPhases: ["SPEC_INIT"],
+        status: "paused_for_approval",
         updatedAt: new Date().toISOString(),
       };
 
       const result = await engine.execute(pausedState);
 
       // Should complete the full workflow
-      expect(result.status).toBe('completed');
+      expect(result.status).toBe("completed");
       // REQUIREMENTS must NOT have been re-executed
-      expect(executeCalls).not.toContain('REQUIREMENTS');
+      expect(executeCalls).not.toContain("REQUIREMENTS");
       // But subsequent phases SHOULD have run
-      expect(executeCalls).toContain('DESIGN');
-      expect(executeCalls).toContain('PULL_REQUEST');
+      expect(executeCalls).toContain("DESIGN");
+      expect(executeCalls).toContain("PULL_REQUEST");
     });
 
-    it('on resume, REQUIREMENTS is added to completedPhases when approved', async () => {
+    it("on resume, REQUIREMENTS is added to completedPhases when approved", async () => {
       const engine = new WorkflowEngine({
         stateStore: makeStateStore(),
         eventBus: makeEventBus(),
         phaseRunner: makePhaseRunner().runner,
         approvalGate: makeApprovalGate(),
         specDir: tmpDir,
-        language: 'en',
+        language: "en",
       });
 
       const pausedState: WorkflowState = {
         ...makeInitialState(),
-        currentPhase: 'REQUIREMENTS',
-        completedPhases: ['SPEC_INIT'],
-        status: 'paused_for_approval',
+        currentPhase: "REQUIREMENTS",
+        completedPhases: ["SPEC_INIT"],
+        status: "paused_for_approval",
         updatedAt: new Date().toISOString(),
       };
 
       await engine.execute(pausedState);
 
       const finalState = engine.getState();
-      expect(finalState.completedPhases).toContain('REQUIREMENTS');
+      expect(finalState.completedPhases).toContain("REQUIREMENTS");
     });
 
     // ---- ready_for_implementation check before IMPLEMENTATION ---------------
 
-    it('pauses before IMPLEMENTATION when ready_for_implementation is false in spec.json', async () => {
-      const specDir = await mkdtemp(join(tmpdir(), 'aes-engine-rfi-'));
+    it("pauses before IMPLEMENTATION when ready_for_implementation is false in spec.json", async () => {
+      const specDir = await mkdtemp(join(tmpdir(), "aes-engine-rfi-"));
       try {
-        await writeFile(join(specDir, 'requirements.md'), '# Req');
-        await writeFile(join(specDir, 'design.md'), '# Design');
-        await writeFile(join(specDir, 'tasks.md'), '# Tasks');
+        await writeFile(join(specDir, "requirements.md"), "# Req");
+        await writeFile(join(specDir, "design.md"), "# Design");
+        await writeFile(join(specDir, "tasks.md"), "# Tasks");
         // spec.json with ready_for_implementation: false
-        await writeFile(join(specDir, 'spec.json'), JSON.stringify({ ready_for_implementation: false }));
+        await writeFile(join(specDir, "spec.json"), JSON.stringify({ ready_for_implementation: false }));
 
         const engine = new WorkflowEngine({
           stateStore: makeStateStore(),
@@ -1055,34 +1061,34 @@ describe('WorkflowEngine', () => {
           phaseRunner: makePhaseRunner().runner,
           approvalGate: makeApprovalGate(),
           specDir,
-          language: 'en',
+          language: "en",
         });
 
         // Start right before IMPLEMENTATION (all prior phases complete)
         const stateBeforeImpl: WorkflowState = {
           ...makeInitialState(),
-          currentPhase: 'IMPLEMENTATION',
-          completedPhases: ['SPEC_INIT', 'REQUIREMENTS', 'DESIGN', 'VALIDATE_DESIGN', 'TASK_GENERATION'],
+          currentPhase: "IMPLEMENTATION",
+          completedPhases: ["SPEC_INIT", "REQUIREMENTS", "DESIGN", "VALIDATE_DESIGN", "TASK_GENERATION"],
           updatedAt: new Date().toISOString(),
         };
 
         const result = await engine.execute(stateBeforeImpl);
 
-        expect(result.status).toBe('paused');
-        if (result.status === 'paused') {
-          expect(result.reason).toBe('approval_required');
+        expect(result.status).toBe("paused");
+        if (result.status === "paused") {
+          expect(result.reason).toBe("approval_required");
         }
       } finally {
         await rm(specDir, { recursive: true, force: true });
       }
     });
 
-    it('pauses before IMPLEMENTATION when spec.json is missing', async () => {
-      const specDir = await mkdtemp(join(tmpdir(), 'aes-engine-rfi-missing-'));
+    it("pauses before IMPLEMENTATION when spec.json is missing", async () => {
+      const specDir = await mkdtemp(join(tmpdir(), "aes-engine-rfi-missing-"));
       try {
-        await writeFile(join(specDir, 'requirements.md'), '# Req');
-        await writeFile(join(specDir, 'design.md'), '# Design');
-        await writeFile(join(specDir, 'tasks.md'), '# Tasks');
+        await writeFile(join(specDir, "requirements.md"), "# Req");
+        await writeFile(join(specDir, "design.md"), "# Design");
+        await writeFile(join(specDir, "tasks.md"), "# Tasks");
         // No spec.json
 
         const engine = new WorkflowEngine({
@@ -1091,25 +1097,25 @@ describe('WorkflowEngine', () => {
           phaseRunner: makePhaseRunner().runner,
           approvalGate: makeApprovalGate(),
           specDir,
-          language: 'en',
+          language: "en",
         });
 
         const stateBeforeImpl: WorkflowState = {
           ...makeInitialState(),
-          currentPhase: 'IMPLEMENTATION',
-          completedPhases: ['SPEC_INIT', 'REQUIREMENTS', 'DESIGN', 'VALIDATE_DESIGN', 'TASK_GENERATION'],
+          currentPhase: "IMPLEMENTATION",
+          completedPhases: ["SPEC_INIT", "REQUIREMENTS", "DESIGN", "VALIDATE_DESIGN", "TASK_GENERATION"],
           updatedAt: new Date().toISOString(),
         };
 
         const result = await engine.execute(stateBeforeImpl);
 
-        expect(result.status).toBe('paused');
+        expect(result.status).toBe("paused");
       } finally {
         await rm(specDir, { recursive: true, force: true });
       }
     });
 
-    it('proceeds to IMPLEMENTATION when ready_for_implementation is true in spec.json', async () => {
+    it("proceeds to IMPLEMENTATION when ready_for_implementation is true in spec.json", async () => {
       // tmpDir already has spec.json with ready_for_implementation: true
       const { runner, executeCalls } = makePhaseRunner();
       const engine = new WorkflowEngine({
@@ -1118,21 +1124,21 @@ describe('WorkflowEngine', () => {
         phaseRunner: runner,
         approvalGate: makeApprovalGate(),
         specDir: tmpDir,
-        language: 'en',
+        language: "en",
       });
 
       await engine.execute(makeInitialState());
 
-      expect(executeCalls).toContain('IMPLEMENTATION');
+      expect(executeCalls).toContain("IMPLEMENTATION");
     });
 
-    it('emits approval:required event when ready_for_implementation is false', async () => {
-      const specDir = await mkdtemp(join(tmpdir(), 'aes-engine-rfi-evt-'));
+    it("emits approval:required event when ready_for_implementation is false", async () => {
+      const specDir = await mkdtemp(join(tmpdir(), "aes-engine-rfi-evt-"));
       try {
-        await writeFile(join(specDir, 'requirements.md'), '# Req');
-        await writeFile(join(specDir, 'design.md'), '# Design');
-        await writeFile(join(specDir, 'tasks.md'), '# Tasks');
-        await writeFile(join(specDir, 'spec.json'), JSON.stringify({ ready_for_implementation: false }));
+        await writeFile(join(specDir, "requirements.md"), "# Req");
+        await writeFile(join(specDir, "design.md"), "# Design");
+        await writeFile(join(specDir, "tasks.md"), "# Tasks");
+        await writeFile(join(specDir, "spec.json"), JSON.stringify({ ready_for_implementation: false }));
 
         const eventBus = makeSpyEventBus();
         const engine = new WorkflowEngine({
@@ -1141,23 +1147,23 @@ describe('WorkflowEngine', () => {
           phaseRunner: makePhaseRunner().runner,
           approvalGate: makeApprovalGate(),
           specDir,
-          language: 'en',
+          language: "en",
         });
 
         const stateBeforeImpl: WorkflowState = {
           ...makeInitialState(),
-          currentPhase: 'IMPLEMENTATION',
-          completedPhases: ['SPEC_INIT', 'REQUIREMENTS', 'DESIGN', 'VALIDATE_DESIGN', 'TASK_GENERATION'],
+          currentPhase: "IMPLEMENTATION",
+          completedPhases: ["SPEC_INIT", "REQUIREMENTS", "DESIGN", "VALIDATE_DESIGN", "TASK_GENERATION"],
           updatedAt: new Date().toISOString(),
         };
 
         await engine.execute(stateBeforeImpl);
 
-        const approvalEvents = eventBus.events.filter((e) => e.type === 'approval:required');
+        const approvalEvents = eventBus.events.filter((e) => e.type === "approval:required");
         expect(approvalEvents).toHaveLength(1);
         const evt = approvalEvents[0];
-        if (evt?.type === 'approval:required') {
-          expect(evt.instruction).toContain('ready_for_implementation');
+        if (evt?.type === "approval:required") {
+          expect(evt.instruction).toContain("ready_for_implementation");
         }
       } finally {
         await rm(specDir, { recursive: true, force: true });

@@ -1,5 +1,5 @@
 ---
-paths: ["**/*.md"]
+paths: ["docs/**/*.md"]
 ---
 
 # Documentation Rules
@@ -16,6 +16,7 @@ The `docs/` directory contains documentation in two languages:
 - When adding or modifying any documentation under `docs/`, always update the English version first, then update the corresponding Japanese translation under `docs/ja/`.
 - Both language versions must be kept in sync; never update one without updating the other.
 - Japanese files mirror the English directory structure (e.g., `docs/architecture/foo.md` → `docs/ja/architecture/foo.md`).
+- This project follows SSOT principles. When editing documentation, always identify and update the SSOT location first.
 
 ## VitePress Site
 

@@ -1,20 +1,20 @@
-import type { WorkflowPhase } from '../../domain/workflow/types';
+import type { WorkflowPhase } from "../../domain/workflow/types";
 
 // ---------------------------------------------------------------------------
 // Error types
 // ---------------------------------------------------------------------------
 
-export type MemoryErrorCategory = 'io_error' | 'invalid_entry' | 'not_found';
+export type MemoryErrorCategory = "io_error" | "invalid_entry" | "not_found";
 
 export interface MemoryError {
   readonly category: MemoryErrorCategory;
   readonly message: string;
 }
 
-export type MemoryWriteAction = 'appended' | 'updated' | 'skipped_duplicate';
+export type MemoryWriteAction = "appended" | "updated" | "skipped_duplicate";
 
 export type MemoryWriteResult =
-  | { readonly ok: true;  readonly action: MemoryWriteAction }
+  | { readonly ok: true; readonly action: MemoryWriteAction }
   | { readonly ok: false; readonly error: MemoryError };
 
 // ---------------------------------------------------------------------------
@@ -48,29 +48,29 @@ export interface ShortTermMemoryPort {
 // ---------------------------------------------------------------------------
 
 /** Discriminant shared by MemoryTarget and MemoryQuery.memoryTypes. */
-export type MemoryLayerType = 'project' | 'knowledge';
+export type MemoryLayerType = "project" | "knowledge";
 
 export type ProjectMemoryFile =
-  | 'project_rules'
-  | 'coding_patterns'
-  | 'review_feedback'
-  | 'architecture_notes';
+  | "project_rules"
+  | "coding_patterns"
+  | "review_feedback"
+  | "architecture_notes";
 
 export type KnowledgeMemoryFile =
-  | 'coding_rules'
-  | 'review_rules'
-  | 'implementation_patterns'
-  | 'debugging_patterns';
+  | "coding_rules"
+  | "review_rules"
+  | "implementation_patterns"
+  | "debugging_patterns";
 
 export type MemoryTarget =
-  | { readonly type: 'project';   readonly file: ProjectMemoryFile }
-  | { readonly type: 'knowledge'; readonly file: KnowledgeMemoryFile };
+  | { readonly type: "project"; readonly file: ProjectMemoryFile }
+  | { readonly type: "knowledge"; readonly file: KnowledgeMemoryFile };
 
 export type MemoryWriteTrigger =
-  | 'implementation_pattern'
-  | 'review_feedback'
-  | 'debugging_discovery'
-  | 'self_healing';
+  | "implementation_pattern"
+  | "review_feedback"
+  | "debugging_discovery"
+  | "self_healing";
 
 export interface MemoryEntry {
   readonly title: string;

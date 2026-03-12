@@ -1,4 +1,4 @@
-export type LlmErrorCategory = 'network' | 'rate_limit' | 'api_error';
+export type LlmErrorCategory = "network" | "rate_limit" | "api_error";
 
 export interface LlmError {
   readonly category: LlmErrorCategory;
@@ -15,7 +15,7 @@ export interface LlmResponse {
 }
 
 export type LlmResult =
-  | { readonly ok: true;  readonly value: LlmResponse }
+  | { readonly ok: true; readonly value: LlmResponse }
   | { readonly ok: false; readonly error: LlmError };
 
 export interface LlmCompleteOptions {
