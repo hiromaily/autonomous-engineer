@@ -1022,3 +1022,213 @@ describe('AgentLoopService REFLECT step', () => {
     expect(ref.revisedPlan).toEqual(['step 1: fix the issue', 'step 2: rerun tests']);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Task 5.3 — UPDATE STATE step: iterationCount increment, step promotion, plan revision
+// ---------------------------------------------------------------------------
+
+/** Builds a two-call LLM mock: call 1 returns valid ActionPlan, call 2+ returns valid ReflectionOutput. */
+function makeCycledLlm(reflectionOverrides: Partial<ReflectionOutput> = {}): LlmProviderPort {
+  let callCount = 0;
+  return {
+    async complete(_prompt) {
+      callCount++;
+      if (callCount % 2 === 1) {
+        // Odd calls = PLAN step
+        return {
+          ok: true,
+          value: {
+            content: JSON.stringify({
+              category: 'Exploration',
+              toolName: 'read_file',
+              toolInput: { path: '/workspace/src/index.ts' },
+              rationale: 'Read the file',
+            }),
+            usage: { inputTokens: 1, outputTokens: 1 },
+          },
+        };
+      }
+      // Even calls = REFLECT step
+      return {
+        ok: true,
+        value: {
+          content: makeValidReflectionJson(reflectionOverrides),
+          usage: { inputTokens: 1, outputTokens: 1 },
+        },
+      };
+    },
+    clearContext() {},
+  };
+}
+
+describe('AgentLoopService UPDATE STATE step', () => {
+  it('iterationCount is 1 in finalState after one complete cycle (maxIterations: 1)', async () => {
+    const service = new AgentLoopService(
+      makeExecutor(),
+      makeRegistry(),
+      makeCycledLlm(),
+      makeToolContext(),
+    );
+    const result = await service.run('test task', { maxIterations: 1 });
+
+    expect(result.finalState.iterationCount).toBe(1);
+  });
+
+  it('totalIterations in result is 1 after one complete cycle (maxIterations: 1)', async () => {
+    const service = new AgentLoopService(
+      makeExecutor(),
+      makeRegistry(),
+      makeCycledLlm(),
+      makeToolContext(),
+    );
+    const result = await service.run('test task', { maxIterations: 1 });
+
+    expect(result.totalIterations).toBe(1);
+  });
+
+  it('iterationCount is 2 after two complete cycles (maxIterations: 2)', async () => {
+    const service = new AgentLoopService(
+      makeExecutor(),
+      makeRegistry(),
+      makeCycledLlm(),
+      makeToolContext(),
+    );
+    const result = await service.run('test task', { maxIterations: 2 });
+
+    expect(result.finalState.iterationCount).toBe(2);
+    expect(result.totalIterations).toBe(2);
+  });
+
+  it('failure assessment: iterationCount still increments (recovery not yet implemented)', async () => {
+    const service = new AgentLoopService(
+      makeExecutor(),
+      makeRegistry(),
+      makeCycledLlm({ assessment: 'failure', planAdjustment: 'continue' }),
+      makeToolContext(),
+    );
+    const result = await service.run('test task', { maxIterations: 1 });
+
+    // Even on failure, iteration counter must increment
+    expect(result.finalState.iterationCount).toBe(1);
+  });
+
+  it('non-failure with empty plan: currentStep remains null after UPDATE', async () => {
+    const service = new AgentLoopService(
+      makeExecutor(),
+      makeRegistry(),
+      makeCycledLlm({ assessment: 'expected', planAdjustment: 'continue' }),
+      makeToolContext(),
+    );
+    const result = await service.run('test task', { maxIterations: 1 });
+
+    // Plan was empty initially, so currentStep should still be null
+    expect(result.finalState.currentStep).toBeNull();
+    expect(result.finalState.completedSteps).toHaveLength(0);
+  });
+
+  it('plan revision: plan replaced with revisedPlan and currentStep set to first step', async () => {
+    const service = new AgentLoopService(
+      makeExecutor(),
+      makeRegistry(),
+      makeCycledLlm({
+        assessment: 'unexpected',
+        planAdjustment: 'revise',
+        revisedPlan: ['step 1: analyze the error', 'step 2: apply the fix', 'step 3: rerun tests'],
+      }),
+      makeToolContext(),
+    );
+    const result = await service.run('test task', { maxIterations: 1 });
+
+    expect(result.finalState.plan).toEqual([
+      'step 1: analyze the error',
+      'step 2: apply the fix',
+      'step 3: rerun tests',
+    ]);
+    expect(result.finalState.currentStep).toBe('step 1: analyze the error');
+  });
+
+  it('non-failure with active plan step: step moves to completedSteps and advances', async () => {
+    // Two iterations: revision on iteration 1 sets up plan, then expected on iteration 2 advances step
+    let callCount = 0;
+    const llm: LlmProviderPort = {
+      async complete(_prompt) {
+        callCount++;
+        if (callCount % 2 === 1) {
+          return {
+            ok: true,
+            value: {
+              content: JSON.stringify({
+                category: 'Exploration',
+                toolName: 'read_file',
+                toolInput: {},
+                rationale: 'test',
+              }),
+              usage: { inputTokens: 1, outputTokens: 1 },
+            },
+          };
+        }
+        if (callCount === 2) {
+          // First REFLECT: revise plan to set currentStep
+          return {
+            ok: true,
+            value: {
+              content: makeValidReflectionJson({
+                assessment: 'expected',
+                planAdjustment: 'revise',
+                revisedPlan: ['step A', 'step B'],
+              }),
+              usage: { inputTokens: 1, outputTokens: 1 },
+            },
+          };
+        }
+        // Second REFLECT: expected/continue — advances currentStep from 'step A' to 'step B'
+        return {
+          ok: true,
+          value: {
+            content: makeValidReflectionJson({
+              assessment: 'expected',
+              planAdjustment: 'continue',
+            }),
+            usage: { inputTokens: 1, outputTokens: 1 },
+          },
+        };
+      },
+      clearContext() {},
+    };
+
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), llm, makeToolContext());
+    const result = await service.run('test task', { maxIterations: 2 });
+
+    // After 2 iterations:
+    // Iteration 1: plan revised to ['step A', 'step B'], currentStep = 'step A'
+    // Iteration 2: 'step A' moved to completedSteps, currentStep = 'step B'
+    expect(result.finalState.completedSteps).toContain('step A');
+    expect(result.finalState.currentStep).toBe('step B');
+    expect(result.finalState.iterationCount).toBe(2);
+  });
+
+  it('two observations accumulated after two complete cycles', async () => {
+    const service = new AgentLoopService(
+      makeExecutor(),
+      makeRegistry(),
+      makeCycledLlm(),
+      makeToolContext(),
+    );
+    const result = await service.run('test task', { maxIterations: 2 });
+
+    expect(result.finalState.observations).toHaveLength(2);
+  });
+
+  it('both observations have reflections embedded after two cycles', async () => {
+    const service = new AgentLoopService(
+      makeExecutor(),
+      makeRegistry(),
+      makeCycledLlm(),
+      makeToolContext(),
+    );
+    const result = await service.run('test task', { maxIterations: 2 });
+
+    expect(result.finalState.observations[0]!.reflection).toBeDefined();
+    expect(result.finalState.observations[1]!.reflection).toBeDefined();
+  });
+});

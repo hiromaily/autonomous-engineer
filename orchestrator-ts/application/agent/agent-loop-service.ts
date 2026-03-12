@@ -89,8 +89,9 @@ export class AgentLoopService implements IAgentLoop {
         // REFLECT step (task 5.2) — embed reflection into latest observation
         state = await this.#reflectStep(plan, state);
         this.#currentState = state;
-        // TODO: UPDATE_STATE (5.3), iteration counter
-        break; // placeholder until task 5.3 is implemented
+        // UPDATE STATE step (task 5.3) — advance step pointer, increment iteration counter
+        state = this.#updateStateStep(state);
+        this.#currentState = state;
       }
 
       return {
@@ -339,6 +340,49 @@ export class AgentLoopService implements IAgentLoop {
     } catch {
       return null;
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // UPDATE STATE step (task 5.3)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Advances the agent state after a complete PLAN→ACT→OBSERVE→REFLECT cycle:
+   * - Always increments iterationCount.
+   * - On plan revision: replaces plan with revisedPlan, sets currentStep to first incomplete step.
+   * - On non-failure assessment: moves currentStep to completedSteps and advances the pointer.
+   * - On failure assessment (or missing reflection): increments counter only.
+   * Never mutates the existing state — returns a replacement state object.
+   */
+  #updateStateStep(state: AgentState): AgentState {
+    const latestObs = state.observations[state.observations.length - 1];
+    const reflection = latestObs?.reflection;
+
+    // Always increment iteration counter
+    const base: AgentState = { ...state, iterationCount: state.iterationCount + 1 };
+
+    if (!reflection || reflection.assessment === 'failure') {
+      // Failure or no reflection: increment only
+      return base;
+    }
+
+    // Plan revision: replace plan, set currentStep to first incomplete step
+    if (reflection.planAdjustment === 'revise' && reflection.revisedPlan && reflection.revisedPlan.length > 0) {
+      const newPlan = reflection.revisedPlan;
+      const completedSet = new Set(base.completedSteps);
+      const newCurrentStep = newPlan.find((s) => !completedSet.has(s)) ?? null;
+      return { ...base, plan: newPlan, currentStep: newCurrentStep };
+    }
+
+    // Non-failure (expected or unexpected): move currentStep to completedSteps, advance pointer
+    if (base.currentStep !== null) {
+      const completedSteps = [...base.completedSteps, base.currentStep];
+      const completedSet = new Set(completedSteps);
+      const nextStep = base.plan.find((s) => !completedSet.has(s)) ?? null;
+      return { ...base, completedSteps, currentStep: nextStep };
+    }
+
+    return base;
   }
 
   /** Inline context builder used when no IContextProvider is injected. */
