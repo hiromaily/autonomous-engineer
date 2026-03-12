@@ -85,10 +85,8 @@ export class AgentLoopService implements IAgentLoop {
         const observation = await this.#actStep(plan);
         // OBSERVE step (task 5.1) — append observation to state (immutable)
         state = this.#observeStep(observation, state);
-        this.#currentState = state;
         // REFLECT step (task 5.2) — embed reflection into latest observation
         state = await this.#reflectStep(plan, state);
-        this.#currentState = state;
         // UPDATE STATE step (task 5.3) — advance step pointer, increment iteration counter
         state = this.#updateStateStep(state);
         this.#currentState = state;
@@ -263,11 +261,12 @@ export class AgentLoopService implements IAgentLoop {
     }
 
     // Embed reflection into the latest observation — never mutate existing state
-    const observations = state.observations.slice();
-    const lastIdx = observations.length - 1;
-    if (lastIdx >= 0) {
-      observations[lastIdx] = { ...observations[lastIdx]!, reflection };
-    }
+    const lastIdx = state.observations.length - 1;
+    if (lastIdx < 0) return state;
+    const observations = [
+      ...state.observations.slice(0, lastIdx),
+      { ...state.observations[lastIdx]!, reflection },
+    ];
 
     return { ...state, observations };
   }
@@ -275,9 +274,10 @@ export class AgentLoopService implements IAgentLoop {
   /** Builds the reflection prompt combining task, plan rationale, and latest tool result. */
   #buildReflectionPrompt(plan: ActionPlan, state: AgentState): string {
     const latestObs = state.observations[state.observations.length - 1];
+    const MAX_OUTPUT_CHARS = 500;
     const toolResultStr = latestObs
       ? latestObs.success
-        ? JSON.stringify(latestObs.rawOutput)
+        ? JSON.stringify(latestObs.rawOutput).slice(0, MAX_OUTPUT_CHARS)
         : `Error (${latestObs.error?.type}): ${latestObs.error?.message}`
       : '(none)';
 
@@ -296,50 +296,57 @@ export class AgentLoopService implements IAgentLoop {
     return {
       assessment: 'failure',
       learnings: [],
-      planAdjustment: 'continue',
+      planAdjustment: 'stop',
       summary: reason,
     };
   }
 
-  /** Parses and validates LLM response content into a ReflectionOutput, or returns null on failure. */
-  #parseReflection(content: string): ReflectionOutput | null {
+  /**
+   * Strips optional markdown code fences and parses the content as JSON.
+   * Returns the parsed object cast to `Record<string, unknown>`, or null on any failure.
+   * Shared by both #parseActionPlan and #parseReflection.
+   */
+  #parseLlmJson(content: string): Record<string, unknown> | null {
     try {
-      const fenceMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
-      const jsonStr = fenceMatch ? fenceMatch[1] : content;
-
-      const parsed: unknown = JSON.parse(jsonStr ?? content);
+      const jsonStr = content.match(/```(?:json)?\s*([\s\S]*?)```/)?.[1] ?? content;
+      const parsed: unknown = JSON.parse(jsonStr);
       if (typeof parsed !== 'object' || parsed === null) return null;
-
-      const obj = parsed as Record<string, unknown>;
-
-      const assessment = obj['assessment'];
-      if (!['expected', 'unexpected', 'failure'].includes(assessment as string)) return null;
-
-      const learnings = obj['learnings'];
-      if (!Array.isArray(learnings) || !learnings.every((l) => typeof l === 'string')) return null;
-
-      const planAdjustment = obj['planAdjustment'];
-      if (!['continue', 'revise', 'stop'].includes(planAdjustment as string)) return null;
-
-      const summary = obj['summary'];
-      if (typeof summary !== 'string') return null;
-
-      const revisedPlan = obj['revisedPlan'];
-      const requiresHumanIntervention = obj['requiresHumanIntervention'];
-      const taskComplete = obj['taskComplete'];
-
-      return {
-        assessment: assessment as ReflectionAssessment,
-        learnings: learnings as ReadonlyArray<string>,
-        planAdjustment: planAdjustment as PlanAdjustment,
-        ...(Array.isArray(revisedPlan) ? { revisedPlan: revisedPlan as ReadonlyArray<string> } : {}),
-        ...(typeof requiresHumanIntervention === 'boolean' ? { requiresHumanIntervention } : {}),
-        ...(typeof taskComplete === 'boolean' ? { taskComplete } : {}),
-        summary,
-      };
+      return parsed as Record<string, unknown>;
     } catch {
       return null;
     }
+  }
+
+  /** Parses and validates LLM response content into a ReflectionOutput, or returns null on failure. */
+  #parseReflection(content: string): ReflectionOutput | null {
+    const obj = this.#parseLlmJson(content);
+    if (!obj) return null;
+
+    const assessment = obj['assessment'];
+    if (!['expected', 'unexpected', 'failure'].includes(assessment as string)) return null;
+
+    const learnings = obj['learnings'];
+    if (!Array.isArray(learnings) || !learnings.every((l) => typeof l === 'string')) return null;
+
+    const planAdjustment = obj['planAdjustment'];
+    if (!['continue', 'revise', 'stop'].includes(planAdjustment as string)) return null;
+
+    const summary = obj['summary'];
+    if (typeof summary !== 'string') return null;
+
+    const revisedPlan = obj['revisedPlan'];
+    const requiresHumanIntervention = obj['requiresHumanIntervention'];
+    const taskComplete = obj['taskComplete'];
+
+    return {
+      assessment: assessment as ReflectionAssessment,
+      learnings: learnings as ReadonlyArray<string>,
+      planAdjustment: planAdjustment as PlanAdjustment,
+      ...(Array.isArray(revisedPlan) ? { revisedPlan: revisedPlan as ReadonlyArray<string> } : {}),
+      ...(typeof requiresHumanIntervention === 'boolean' ? { requiresHumanIntervention } : {}),
+      ...(typeof taskComplete === 'boolean' ? { taskComplete } : {}),
+      summary,
+    };
   }
 
   // ---------------------------------------------------------------------------
@@ -403,36 +410,26 @@ export class AgentLoopService implements IAgentLoop {
 
   /** Parses and validates LLM response content into an ActionPlan, or returns null on failure. */
   #parseActionPlan(content: string): ActionPlan | null {
-    try {
-      // Strip markdown code fences if present
-      const fenceMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
-      const jsonStr = fenceMatch ? fenceMatch[1] : content;
+    const obj = this.#parseLlmJson(content);
+    if (!obj) return null;
 
-      const parsed: unknown = JSON.parse(jsonStr ?? content);
-      if (typeof parsed !== 'object' || parsed === null) return null;
+    const category = obj['category'];
+    if (!ACTION_CATEGORIES.includes(category as ActionCategory)) return null;
 
-      const obj = parsed as Record<string, unknown>;
+    const toolName = obj['toolName'];
+    if (typeof toolName !== 'string' || toolName.length === 0) return null;
 
-      const category = obj['category'];
-      if (!ACTION_CATEGORIES.includes(category as ActionCategory)) return null;
+    const toolInput = obj['toolInput'];
+    if (typeof toolInput !== 'object' || toolInput === null || Array.isArray(toolInput)) return null;
 
-      const toolName = obj['toolName'];
-      if (typeof toolName !== 'string' || toolName.length === 0) return null;
+    const rationale = obj['rationale'];
+    if (typeof rationale !== 'string') return null;
 
-      const toolInput = obj['toolInput'];
-      if (typeof toolInput !== 'object' || toolInput === null || Array.isArray(toolInput)) return null;
-
-      const rationale = obj['rationale'];
-      if (typeof rationale !== 'string') return null;
-
-      return {
-        category: category as ActionCategory,
-        toolName,
-        toolInput: toolInput as Readonly<Record<string, unknown>>,
-        rationale,
-      };
-    } catch {
-      return null;
-    }
+    return {
+      category: category as ActionCategory,
+      toolName,
+      toolInput: toolInput as Readonly<Record<string, unknown>>,
+      rationale,
+    };
   }
 }
