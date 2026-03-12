@@ -5,7 +5,7 @@ import type { IToolExecutor } from '../../../application/tools/executor';
 import type { IToolRegistry, ToolListEntry } from '../../../domain/tools/registry';
 import type { LlmProviderPort } from '../../../application/ports/llm';
 import type { ToolContext, MemoryEntry } from '../../../domain/tools/types';
-import type { AgentState } from '../../../domain/agent/types';
+import type { AgentState, ReflectionOutput } from '../../../domain/agent/types';
 
 // ---------------------------------------------------------------------------
 // Test helpers — minimal mocks satisfying each injected interface
@@ -342,16 +342,21 @@ describe('AgentLoopService PLAN step', () => {
         if (callCount <= 2) {
           return { ok: true, value: { content: 'not valid json', usage: { inputTokens: 1, outputTokens: 1 } } };
         }
-        return { ok: true, value: { content: makeValidPlanJson(), usage: { inputTokens: 1, outputTokens: 1 } } };
+        if (callCount === 3) {
+          // 3rd PLAN attempt succeeds
+          return { ok: true, value: { content: makeValidPlanJson(), usage: { inputTokens: 1, outputTokens: 1 } } };
+        }
+        // 4th call is the REFLECT step
+        return { ok: true, value: { content: makeValidReflectionJson(), usage: { inputTokens: 1, outputTokens: 1 } } };
       },
       clearContext() {},
     };
 
-    // maxPlanParseRetries: 2 → 3 total attempts (initial + 2 retries)
+    // maxPlanParseRetries: 2 → 3 PLAN attempts (initial + 2 retries) + 1 REFLECT = 4 total
     const service = new AgentLoopService(makeExecutor(), makeRegistry(), llm, makeToolContext());
     const result = await service.run('test task', { maxIterations: 1, maxPlanParseRetries: 2 });
 
-    expect(callCount).toBe(3);
+    expect(callCount).toBe(4); // 3 PLAN attempts + 1 REFLECT
     expect(result.terminationCondition).toBe('MAX_ITERATIONS_REACHED');
   });
 
@@ -461,7 +466,12 @@ describe('AgentLoopService PLAN step', () => {
         if (prompts.length === 1) {
           return { ok: true, value: { content: 'bad json', usage: { inputTokens: 1, outputTokens: 1 } } };
         }
-        return { ok: true, value: { content: makeValidPlanJson(), usage: { inputTokens: 1, outputTokens: 1 } } };
+        if (prompts.length === 2) {
+          // PLAN retry succeeds
+          return { ok: true, value: { content: makeValidPlanJson(), usage: { inputTokens: 1, outputTokens: 1 } } };
+        }
+        // 3rd call is the REFLECT step — return valid reflection
+        return { ok: true, value: { content: makeValidReflectionJson(), usage: { inputTokens: 1, outputTokens: 1 } } };
       },
       clearContext() {},
     };
@@ -469,8 +479,9 @@ describe('AgentLoopService PLAN step', () => {
     const service = new AgentLoopService(makeExecutor(), makeRegistry(), llm, makeToolContext());
     await service.run('test task', { maxIterations: 1, maxPlanParseRetries: 1 });
 
-    expect(prompts.length).toBe(2);
-    // Second prompt should contain some hint about the previous failure
+    // 2 PLAN prompts + 1 REFLECT prompt
+    expect(prompts.length).toBe(3);
+    // Second PLAN prompt should contain some hint about the previous failure
     expect(prompts[1]).not.toBe(prompts[0]);
   });
 });
@@ -709,5 +720,305 @@ describe('AgentLoopService OBSERVE step', () => {
 
     const result = await service.run('test task', { maxIterations: 0 });
     expect(result.finalState.observations).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 5.2 — REFLECT step: reflection prompt, LLM call, parse, embed in observation
+// ---------------------------------------------------------------------------
+
+function makeValidReflectionJson(overrides: Partial<ReflectionOutput> = {}): string {
+  const base: ReflectionOutput = {
+    assessment: 'expected',
+    learnings: ['The file structure is as expected'],
+    planAdjustment: 'continue',
+    summary: 'The action completed successfully as planned',
+    ...overrides,
+  };
+  return JSON.stringify(base);
+}
+
+describe('AgentLoopService REFLECT step', () => {
+  // LLM: first call returns valid ActionPlan (PLAN step), second call returns valid ReflectionOutput
+  function makeTwoPhaseValidLlm(): LlmProviderPort {
+    let callCount = 0;
+    return {
+      async complete(_prompt) {
+        callCount++;
+        if (callCount === 1) {
+          // PLAN step
+          return {
+            ok: true,
+            value: {
+              content: JSON.stringify({
+                category: 'Exploration',
+                toolName: 'read_file',
+                toolInput: { path: '/workspace/src/index.ts' },
+                rationale: 'Need to read the main file',
+              }),
+              usage: { inputTokens: 1, outputTokens: 1 },
+            },
+          };
+        }
+        // REFLECT step
+        return {
+          ok: true,
+          value: {
+            content: makeValidReflectionJson(),
+            usage: { inputTokens: 1, outputTokens: 1 },
+          },
+        };
+      },
+      clearContext() {},
+    };
+  }
+
+  it('latest observation has a reflection embedded after one full iteration', async () => {
+    const service = new AgentLoopService(
+      makeExecutor(),
+      makeRegistry(),
+      makeTwoPhaseValidLlm(),
+      makeToolContext(),
+    );
+    const result = await service.run('test task', { maxIterations: 1 });
+
+    expect(result.finalState.observations).toHaveLength(1);
+    expect(result.finalState.observations[0]!.reflection).toBeDefined();
+  });
+
+  it('reflection has the correct assessment from the LLM response', async () => {
+    const service = new AgentLoopService(
+      makeExecutor(),
+      makeRegistry(),
+      makeTwoPhaseValidLlm(),
+      makeToolContext(),
+    );
+    const result = await service.run('test task', { maxIterations: 1 });
+
+    expect(result.finalState.observations[0]!.reflection!.assessment).toBe('expected');
+  });
+
+  it('reflection has learnings array from the LLM response', async () => {
+    const service = new AgentLoopService(
+      makeExecutor(),
+      makeRegistry(),
+      makeTwoPhaseValidLlm(),
+      makeToolContext(),
+    );
+    const result = await service.run('test task', { maxIterations: 1 });
+
+    const ref = result.finalState.observations[0]!.reflection!;
+    expect(Array.isArray(ref.learnings)).toBe(true);
+    expect(ref.learnings).toContain('The file structure is as expected');
+  });
+
+  it('reflection has planAdjustment from the LLM response', async () => {
+    const service = new AgentLoopService(
+      makeExecutor(),
+      makeRegistry(),
+      makeTwoPhaseValidLlm(),
+      makeToolContext(),
+    );
+    const result = await service.run('test task', { maxIterations: 1 });
+
+    expect(result.finalState.observations[0]!.reflection!.planAdjustment).toBe('continue');
+  });
+
+  it('reflection has a summary string from the LLM response', async () => {
+    const service = new AgentLoopService(
+      makeExecutor(),
+      makeRegistry(),
+      makeTwoPhaseValidLlm(),
+      makeToolContext(),
+    );
+    const result = await service.run('test task', { maxIterations: 1 });
+
+    expect(typeof result.finalState.observations[0]!.reflection!.summary).toBe('string');
+    expect(result.finalState.observations[0]!.reflection!.summary.length).toBeGreaterThan(0);
+  });
+
+  it('invalid reflection JSON from LLM — observation still gets a failure assessment reflection (no crash)', async () => {
+    let callCount = 0;
+    const llm: LlmProviderPort = {
+      async complete(_prompt) {
+        callCount++;
+        if (callCount === 1) {
+          return {
+            ok: true,
+            value: {
+              content: JSON.stringify({
+                category: 'Exploration',
+                toolName: 'read_file',
+                toolInput: { path: '/workspace/src/index.ts' },
+                rationale: 'test',
+              }),
+              usage: { inputTokens: 1, outputTokens: 1 },
+            },
+          };
+        }
+        // Invalid reflection response
+        return {
+          ok: true,
+          value: { content: 'not valid json at all', usage: { inputTokens: 1, outputTokens: 1 } },
+        };
+      },
+      clearContext() {},
+    };
+
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), llm, makeToolContext());
+    const result = await service.run('test task', { maxIterations: 1 });
+
+    // Should not crash — observation should have a failure reflection
+    expect(result.finalState.observations[0]!.reflection).toBeDefined();
+    expect(result.finalState.observations[0]!.reflection!.assessment).toBe('failure');
+  });
+
+  it('LLM error during REFLECT — observation still gets a failure assessment reflection', async () => {
+    let callCount = 0;
+    const llm: LlmProviderPort = {
+      async complete(_prompt) {
+        callCount++;
+        if (callCount === 1) {
+          return {
+            ok: true,
+            value: {
+              content: JSON.stringify({
+                category: 'Exploration',
+                toolName: 'read_file',
+                toolInput: {},
+                rationale: 'test',
+              }),
+              usage: { inputTokens: 1, outputTokens: 1 },
+            },
+          };
+        }
+        return { ok: false, error: { code: 'api_error', message: 'LLM unavailable' } };
+      },
+      clearContext() {},
+    };
+
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), llm, makeToolContext());
+    const result = await service.run('test task', { maxIterations: 1 });
+
+    expect(result.finalState.observations[0]!.reflection).toBeDefined();
+    expect(result.finalState.observations[0]!.reflection!.assessment).toBe('failure');
+  });
+
+  it('reflection prompt includes the task string and rationale from the plan', async () => {
+    const reflectPrompts: string[] = [];
+    let callCount = 0;
+
+    const llm: LlmProviderPort = {
+      async complete(prompt) {
+        callCount++;
+        if (callCount === 1) {
+          return {
+            ok: true,
+            value: {
+              content: JSON.stringify({
+                category: 'Exploration',
+                toolName: 'read_file',
+                toolInput: {},
+                rationale: 'my specific rationale for the plan',
+              }),
+              usage: { inputTokens: 1, outputTokens: 1 },
+            },
+          };
+        }
+        reflectPrompts.push(prompt);
+        return {
+          ok: true,
+          value: { content: makeValidReflectionJson(), usage: { inputTokens: 1, outputTokens: 1 } },
+        };
+      },
+      clearContext() {},
+    };
+
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), llm, makeToolContext());
+    await service.run('my important task', { maxIterations: 1 });
+
+    expect(reflectPrompts.length).toBeGreaterThan(0);
+    expect(reflectPrompts[0]!).toContain('my important task');
+    expect(reflectPrompts[0]!).toContain('my specific rationale for the plan');
+  });
+
+  it('reflection with taskComplete=true is embedded in observation', async () => {
+    let callCount = 0;
+    const llm: LlmProviderPort = {
+      async complete(_prompt) {
+        callCount++;
+        if (callCount === 1) {
+          return {
+            ok: true,
+            value: {
+              content: JSON.stringify({
+                category: 'Validation',
+                toolName: 'run_tests',
+                toolInput: {},
+                rationale: 'Run tests to verify completion',
+              }),
+              usage: { inputTokens: 1, outputTokens: 1 },
+            },
+          };
+        }
+        return {
+          ok: true,
+          value: {
+            content: makeValidReflectionJson({ planAdjustment: 'stop', taskComplete: true }),
+            usage: { inputTokens: 1, outputTokens: 1 },
+          },
+        };
+      },
+      clearContext() {},
+    };
+
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), llm, makeToolContext());
+    const result = await service.run('test task', { maxIterations: 1 });
+
+    const ref = result.finalState.observations[0]!.reflection!;
+    expect(ref.taskComplete).toBe(true);
+    expect(ref.planAdjustment).toBe('stop');
+  });
+
+  it('reflection with revisedPlan is embedded when planAdjustment is revise', async () => {
+    let callCount = 0;
+    const llm: LlmProviderPort = {
+      async complete(_prompt) {
+        callCount++;
+        if (callCount === 1) {
+          return {
+            ok: true,
+            value: {
+              content: JSON.stringify({
+                category: 'Exploration',
+                toolName: 'read_file',
+                toolInput: {},
+                rationale: 'test',
+              }),
+              usage: { inputTokens: 1, outputTokens: 1 },
+            },
+          };
+        }
+        return {
+          ok: true,
+          value: {
+            content: makeValidReflectionJson({
+              assessment: 'unexpected',
+              planAdjustment: 'revise',
+              revisedPlan: ['step 1: fix the issue', 'step 2: rerun tests'],
+            }),
+            usage: { inputTokens: 1, outputTokens: 1 },
+          },
+        };
+      },
+      clearContext() {},
+    };
+
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), llm, makeToolContext());
+    const result = await service.run('test task', { maxIterations: 1 });
+
+    const ref = result.finalState.observations[0]!.reflection!;
+    expect(ref.planAdjustment).toBe('revise');
+    expect(ref.revisedPlan).toEqual(['step 1: fix the issue', 'step 2: rerun tests']);
   });
 });

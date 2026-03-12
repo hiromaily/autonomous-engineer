@@ -3,7 +3,7 @@ import type { IToolExecutor } from '../tools/executor';
 import type { IToolRegistry, ToolListEntry } from '../../domain/tools/registry';
 import type { LlmProviderPort } from '../ports/llm';
 import type { ToolContext } from '../../domain/tools/types';
-import type { AgentState, ActionPlan, ActionCategory, Observation } from '../../domain/agent/types';
+import type { AgentState, ActionPlan, ActionCategory, Observation, ReflectionOutput, ReflectionAssessment, PlanAdjustment } from '../../domain/agent/types';
 import { ACTION_CATEGORIES } from '../../domain/agent/types';
 
 // ---------------------------------------------------------------------------
@@ -86,8 +86,11 @@ export class AgentLoopService implements IAgentLoop {
         // OBSERVE step (task 5.1) — append observation to state (immutable)
         state = this.#observeStep(observation, state);
         this.#currentState = state;
-        // TODO: REFLECT (5.2), UPDATE_STATE (5.3), iteration counter
-        break; // placeholder until tasks 5.2-5.3 are implemented
+        // REFLECT step (task 5.2) — embed reflection into latest observation
+        state = await this.#reflectStep(plan, state);
+        this.#currentState = state;
+        // TODO: UPDATE_STATE (5.3), iteration counter
+        break; // placeholder until task 5.3 is implemented
       }
 
       return {
@@ -234,6 +237,108 @@ export class AgentLoopService implements IAgentLoop {
       ...state,
       observations: [...state.observations, observation],
     };
+  }
+
+  // ---------------------------------------------------------------------------
+  // REFLECT step (task 5.2)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Sends a reflection prompt to the LLM, parses the response into a ReflectionOutput,
+   * and embeds it into the latest observation in the state.
+   * On parse failure, embeds a failure assessment reflection rather than crashing.
+   * Returns a new immutable AgentState with the updated observation.
+   */
+  async #reflectStep(plan: ActionPlan, state: AgentState): Promise<AgentState> {
+    const prompt = this.#buildReflectionPrompt(plan, state);
+    const result = await this.#llm.complete(prompt);
+
+    let reflection: ReflectionOutput;
+    if (!result.ok) {
+      reflection = this.#makeFailureReflection(`LLM error: ${result.error.message}`);
+    } else {
+      const parsed = this.#parseReflection(result.value.content);
+      reflection = parsed ?? this.#makeFailureReflection(`Parse failure: ${result.value.content.slice(0, 100)}`);
+    }
+
+    // Embed reflection into the latest observation — never mutate existing state
+    const observations = state.observations.slice();
+    const lastIdx = observations.length - 1;
+    if (lastIdx >= 0) {
+      observations[lastIdx] = { ...observations[lastIdx]!, reflection };
+    }
+
+    return { ...state, observations };
+  }
+
+  /** Builds the reflection prompt combining task, plan rationale, and latest tool result. */
+  #buildReflectionPrompt(plan: ActionPlan, state: AgentState): string {
+    const latestObs = state.observations[state.observations.length - 1];
+    const toolResultStr = latestObs
+      ? latestObs.success
+        ? JSON.stringify(latestObs.rawOutput)
+        : `Error (${latestObs.error?.type}): ${latestObs.error?.message}`
+      : '(none)';
+
+    return [
+      `Task: ${state.task}`,
+      `Action taken: ${plan.toolName} (${plan.category})`,
+      `Rationale: ${plan.rationale}`,
+      `Tool result: ${toolResultStr}`,
+      `Iteration: ${state.iterationCount}`,
+      '\nEvaluate the result and respond with JSON: { "assessment": "expected"|"unexpected"|"failure", "learnings": string[], "planAdjustment": "continue"|"revise"|"stop", "revisedPlan": string[] (optional), "requiresHumanIntervention": boolean (optional), "taskComplete": boolean (optional), "summary": string }',
+    ].join('\n\n');
+  }
+
+  /** Returns a failure-assessment ReflectionOutput for use when LLM response cannot be parsed. */
+  #makeFailureReflection(reason: string): ReflectionOutput {
+    return {
+      assessment: 'failure',
+      learnings: [],
+      planAdjustment: 'continue',
+      summary: reason,
+    };
+  }
+
+  /** Parses and validates LLM response content into a ReflectionOutput, or returns null on failure. */
+  #parseReflection(content: string): ReflectionOutput | null {
+    try {
+      const fenceMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
+      const jsonStr = fenceMatch ? fenceMatch[1] : content;
+
+      const parsed: unknown = JSON.parse(jsonStr ?? content);
+      if (typeof parsed !== 'object' || parsed === null) return null;
+
+      const obj = parsed as Record<string, unknown>;
+
+      const assessment = obj['assessment'];
+      if (!['expected', 'unexpected', 'failure'].includes(assessment as string)) return null;
+
+      const learnings = obj['learnings'];
+      if (!Array.isArray(learnings) || !learnings.every((l) => typeof l === 'string')) return null;
+
+      const planAdjustment = obj['planAdjustment'];
+      if (!['continue', 'revise', 'stop'].includes(planAdjustment as string)) return null;
+
+      const summary = obj['summary'];
+      if (typeof summary !== 'string') return null;
+
+      const revisedPlan = obj['revisedPlan'];
+      const requiresHumanIntervention = obj['requiresHumanIntervention'];
+      const taskComplete = obj['taskComplete'];
+
+      return {
+        assessment: assessment as ReflectionAssessment,
+        learnings: learnings as ReadonlyArray<string>,
+        planAdjustment: planAdjustment as PlanAdjustment,
+        ...(Array.isArray(revisedPlan) ? { revisedPlan: revisedPlan as ReadonlyArray<string> } : {}),
+        ...(typeof requiresHumanIntervention === 'boolean' ? { requiresHumanIntervention } : {}),
+        ...(typeof taskComplete === 'boolean' ? { taskComplete } : {}),
+        summary,
+      };
+    } catch {
+      return null;
+    }
   }
 
   /** Inline context builder used when no IContextProvider is injected. */
