@@ -1,7 +1,9 @@
 import { readFile, stat } from "node:fs/promises";
 import type {
+	ContextAssemblyLog,
 	ContextAssemblyResult,
 	ContextBuildRequest,
+	CompressionTechnique,
 	ExpansionRequest,
 	ExpansionResult,
 	IContextAccumulator,
@@ -16,7 +18,7 @@ import type {
 	PlannerDecision,
 	TokenBudgetConfig,
 } from "../ports/context";
-import type { MemoryPort } from "../ports/memory";
+import type { MemoryPort, RankedMemoryEntry } from "../ports/memory";
 import type { IToolExecutor } from "../tools/executor";
 import { LAYER_REGISTRY } from "../../domain/context/layer-registry";
 import type { ToolContext } from "../../domain/tools/types";
@@ -51,9 +53,24 @@ interface PopulationResult {
 	readonly degraded: boolean;
 }
 
+interface CompressionEventRecord {
+	readonly layerId: LayerId;
+	readonly original: number;
+	readonly compressed: number;
+	readonly technique: CompressionTechnique;
+}
+
+// Layers that callers may expand via expandContext
+const EXPANDABLE_LAYERS: ReadonlyArray<string> = [
+	"codeContext",
+	"activeSpecification",
+	"memoryRetrieval",
+];
+
 interface BudgetedLayers {
 	readonly layers: LayerContent[];
 	readonly budgetMap: LayerBudgetMap;
+	readonly compressionEvents: CompressionEventRecord[];
 }
 
 // ---------------------------------------------------------------------------
@@ -75,6 +92,11 @@ export class ContextEngineService implements IContextEngine {
 	private readonly accumulator: IContextAccumulator;
 	private readonly cache: IContextCache;
 	private readonly options: ContextEngineServiceOptions;
+
+	/** Current assembled layer content — updated after each buildContext/expandContext call. */
+	private currentLayers = new Map<LayerId, string>();
+	/** Current budget map — updated after each buildContext call. */
+	private currentBudgetMap: LayerBudgetMap | null = null;
 
 	constructor(
 		memoryPort: MemoryPort,
@@ -120,17 +142,64 @@ export class ContextEngineService implements IContextEngine {
 			request.previousToolResults ?? [],
 		);
 
+		// Log planner decision (metadata only — no raw content)
+		console.info(
+			"[ContextEngineService] PlannerDecision",
+			JSON.stringify({
+				layersToRetrieve: plan.layersToRetrieve,
+				rationale: plan.rationale,
+				codeContextQuery: plan.codeContextQuery,
+				memoryQuery: plan.memoryQuery,
+				specSections: plan.specSections,
+			}),
+		);
+
 		// Populate all layers
 		const population = await this.populateLayers(request, plan);
 
-		// Apply budget enforcement and compression (returns layers + budgetMap)
-		const { layers: budgeted, budgetMap } = this.applyBudgets(population.layers);
+		// Apply budget enforcement and compression (returns layers + budgetMap + compressionEvents)
+		const { layers: budgeted, budgetMap, compressionEvents } = this.applyBudgets(population.layers);
+
+		// Log each compression event (metadata only — no raw content)
+		for (const event of compressionEvents) {
+			console.info(
+				"[ContextEngineService] CompressionEvent",
+				JSON.stringify(event),
+			);
+		}
 
 		// Assemble final content string in canonical order
 		const { content, layers, layerUsage, totalTokens } = this.assembleContent(budgeted, budgetMap);
 
+		// Save assembled layer state for subsequent expandContext calls
+		this.currentBudgetMap = budgetMap;
+		for (const layer of layers) {
+			this.currentLayers.set(layer.layerId, layer.content);
+		}
+
 		const durationMs = Date.now() - startMs;
-		void durationMs; // used for observability (task 9.3)
+
+		// Emit structured ContextAssemblyLog (no raw content)
+		const assemblyLog: ContextAssemblyLog = {
+			sessionId: request.sessionId,
+			phaseId: request.phaseId,
+			taskId: request.taskId,
+			stepType: request.stepType,
+			layersAssembled: layerUsage.map((l) => l.layerId),
+			layerTokenCounts: layerUsage.map((l) => ({
+				layerId: l.layerId,
+				tokens: l.actualTokens,
+				budget: l.budget,
+			})),
+			cacheHits: layerUsage.filter((l) => l.cacheHit).map((l) => l.layerId),
+			cacheMisses: layerUsage.filter((l) => !l.cacheHit).map((l) => l.layerId),
+			totalTokens,
+			compressed: compressionEvents,
+			omittedLayers: population.omittedLayers,
+			degraded: population.degraded,
+			durationMs,
+		};
+		console.info("[ContextEngineService] ContextAssemblyLog", JSON.stringify(assemblyLog));
 
 		return {
 			content,
@@ -144,40 +213,138 @@ export class ContextEngineService implements IContextEngine {
 	}
 
 	// -------------------------------------------------------------------------
-	// expandContext — stub (implemented in task 9.1)
+	// expandContext — implemented in task 9.1
 	// -------------------------------------------------------------------------
 
 	async expandContext(request: ExpansionRequest): Promise<ExpansionResult> {
-		const expandable: ReadonlyArray<string> = [
-			"codeContext",
-			"activeSpecification",
-			"memoryRetrieval",
-		];
-		if (!expandable.includes(request.targetLayer)) {
+		if (!EXPANDABLE_LAYERS.includes(request.targetLayer)) {
 			return {
 				ok: false,
 				updatedTokenCount: 0,
 				errorReason: `Layer "${request.targetLayer}" is not expandable`,
 			};
 		}
-		// Full implementation deferred to task 9.1
-		return { ok: true, updatedTokenCount: 0 };
+
+		// Fetch resource content based on targetLayer
+		let fetchedContent: string;
+		try {
+			if (request.targetLayer === "memoryRetrieval") {
+				const result = await this.memoryPort.query({ text: request.resourceId, topN: 1 });
+				fetchedContent = this.formatMemoryEntries(result.entries);
+			} else {
+				const result = await this.toolExecutor.invoke(
+					"read_file",
+					{ path: request.resourceId },
+					this.toolContext(),
+				);
+				if (!result.ok) {
+					return {
+						ok: false,
+						updatedTokenCount: 0,
+						errorReason: `Failed to fetch resource "${request.resourceId}": ${result.error}`,
+					};
+				}
+				fetchedContent = String(result.value);
+			}
+		} catch (err) {
+			return {
+				ok: false,
+				updatedTokenCount: 0,
+				errorReason: `Unexpected error fetching resource "${request.resourceId}": ${err}`,
+			};
+		}
+
+		// Compute token deltas
+		const currentContent = this.currentLayers.get(request.targetLayer) ?? "";
+		const addedTokenCount = this.budgetManager.countTokens(fetchedContent);
+		const newContent = currentContent
+			? `${currentContent}\n\n${fetchedContent}`
+			: fetchedContent;
+		const newCumulativeTokenCount = this.budgetManager.countTokens(newContent);
+
+		// Record expansion (also enforces the per-iteration limit)
+		const expansionResult = this.accumulator.recordExpansion({
+			resourceId: request.resourceId,
+			targetLayer: request.targetLayer,
+			addedTokenCount,
+			newCumulativeTokenCount,
+			timestamp: new Date().toISOString(),
+		});
+
+		if (!expansionResult.ok) {
+			return {
+				ok: false,
+				updatedTokenCount: newCumulativeTokenCount,
+				errorReason: expansionResult.errorReason,
+			};
+		}
+
+		// Accumulate the appended entry
+		this.accumulator.accumulate({
+			layerId: request.targetLayer,
+			content: fetchedContent,
+			phaseId: request.phaseId,
+			taskId: request.taskId,
+			resourceId: request.resourceId,
+		});
+
+		// Re-run budget check; compress if over budget
+		const effectiveBudgetMap =
+			this.currentBudgetMap ??
+			this.budgetManager.allocate(
+				this.options.tokenBudgetConfig ?? this.defaultBudgetConfig(),
+			);
+		const budget = effectiveBudgetMap.budgets[request.targetLayer];
+		let finalContent = newContent;
+		let updatedTokenCount = newCumulativeTokenCount;
+		const { overBy } = this.budgetManager.checkBudget(finalContent, budget);
+		if (overBy > 0) {
+			const compressed = this.compressor.compress(
+				request.targetLayer,
+				finalContent,
+				budget,
+				this.budgetManager.countTokens.bind(this.budgetManager),
+			);
+			finalContent = compressed.compressed;
+			updatedTokenCount = compressed.tokenCount; // reuse count from compressor
+		}
+
+		// Persist updated content for subsequent calls
+		this.currentLayers.set(request.targetLayer, finalContent);
+
+		// Emit expansion log entry (metadata only — no raw content)
+		console.info(
+			`[ContextEngineService] expandContext: resourceId=${request.resourceId} targetLayer=${request.targetLayer} updatedTokenCount=${updatedTokenCount}`,
+		);
+
+		return { ok: true, updatedTokenCount };
 	}
 
 	// -------------------------------------------------------------------------
-	// resetPhase — delegates to accumulator (task 9.2 adds observability)
+	// resetPhase — delegates to accumulator; emits PhaseResetEvent (task 9.2)
 	// -------------------------------------------------------------------------
 
 	resetPhase(phaseId: string): void {
 		this.accumulator.resetPhase(phaseId);
+		this.releaseLayerState("PhaseResetEvent", "phaseId", phaseId);
 	}
 
 	// -------------------------------------------------------------------------
-	// resetTask — delegates to accumulator (task 9.2 adds observability)
+	// resetTask — delegates to accumulator; emits TaskResetEvent (task 9.2)
 	// -------------------------------------------------------------------------
 
 	resetTask(taskId: string): void {
 		this.accumulator.resetTask(taskId);
+		this.releaseLayerState("TaskResetEvent", "taskId", taskId);
+	}
+
+	/** Clear assembled layer state and emit a structured reset event. */
+	private releaseLayerState(event: string, field: string, id: string): void {
+		this.currentLayers.clear();
+		this.currentBudgetMap = null;
+		console.info(
+			`[ContextEngineService] ${event}: ${field}=${id} timestamp=${new Date().toISOString()}`,
+		);
 	}
 
 	// -------------------------------------------------------------------------
@@ -390,15 +557,7 @@ export class ContextEngineService implements IContextEngine {
 				topN: 5,
 			});
 
-			const content = result.entries
-				.map((e) =>
-					JSON.stringify({
-						title: e.entry.title,
-						description: e.entry.description,
-						relevanceScore: e.relevanceScore,
-					}),
-				)
-				.join("\n");
+			const content = this.formatMemoryEntries(result.entries);
 
 			return {
 				layerId: "memoryRetrieval",
@@ -482,11 +641,12 @@ export class ContextEngineService implements IContextEngine {
 	private applyBudgets(layers: LayerContent[]): BudgetedLayers {
 		const config = this.options.tokenBudgetConfig ?? this.defaultBudgetConfig();
 		const budgetMap = this.budgetManager.allocate(config);
+		const compressionEvents: CompressionEventRecord[] = [];
 
 		// Phase 1: per-layer compression
 		const result: LayerContent[] = layers.map((layer) => {
 			const budget = budgetMap.budgets[layer.layerId];
-			const { overBy } = this.budgetManager.checkBudget(layer.content, budget);
+			const { tokensUsed, overBy } = this.budgetManager.checkBudget(layer.content, budget);
 
 			if (
 				overBy > 0 &&
@@ -499,6 +659,12 @@ export class ContextEngineService implements IContextEngine {
 					budget,
 					this.budgetManager.countTokens.bind(this.budgetManager),
 				);
+				compressionEvents.push({
+					layerId: layer.layerId,
+					original: tokensUsed,
+					compressed: compressed.tokenCount,
+					technique: compressed.technique,
+				});
 				return { ...layer, content: compressed.compressed, compressed: true };
 			}
 
@@ -532,12 +698,18 @@ export class ContextEngineService implements IContextEngine {
 					`[ContextEngineService] Total token overage of ${overage} tokens — truncating layer "${layerId}"`,
 				);
 
+				compressionEvents.push({
+					layerId,
+					original: targetTokens,
+					compressed: remainingBudget,
+					technique: "truncation",
+				});
 				result[idx] = { ...target, content: target.content.slice(0, charBudget), compressed: true };
 				break;
 			}
 		}
 
-		return { layers: result, budgetMap };
+		return { layers: result, budgetMap, compressionEvents };
 	}
 
 	// -------------------------------------------------------------------------
@@ -633,6 +805,22 @@ export class ContextEngineService implements IContextEngine {
 				error: () => {},
 			},
 		};
+	}
+
+	// -------------------------------------------------------------------------
+	// formatMemoryEntries — shared memory entry formatter (metadata only)
+	// -------------------------------------------------------------------------
+
+	private formatMemoryEntries(entries: readonly RankedMemoryEntry[]): string {
+		return entries
+			.map((e) =>
+				JSON.stringify({
+					title: e.entry.title,
+					description: e.entry.description,
+					relevanceScore: e.relevanceScore,
+				}),
+			)
+			.join("\n");
 	}
 
 	// -------------------------------------------------------------------------

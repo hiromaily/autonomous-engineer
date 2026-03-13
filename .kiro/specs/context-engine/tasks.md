@@ -96,7 +96,7 @@
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 11.4, 11.5_
 
 - [ ] 9. Implement ContextEngineService — expansion, reset, and observability
-- [ ] 9.1 Implement expandContext
+- [x] 9.1 Implement expandContext
   - Validate that `targetLayer` is one of `codeContext`, `activeSpecification`, or `memoryRetrieval`; return `{ ok: false, errorReason }` immediately for any other layer
   - Fetch the resource identified by `resourceId` through `IToolExecutor` (read_file) or memory port depending on `targetLayer`
   - Call `ContextAccumulator.recordExpansion()` before appending; return `{ ok: false, errorReason }` if the expansion limit is reached
@@ -104,12 +104,12 @@
   - Emit an expansion log entry with `resourceId`, `targetLayer`, and new cumulative token count
   - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
 
-- [ ] 9.2 Implement resetPhase and resetTask
+- [x] 9.2 Implement resetPhase and resetTask
   - `resetPhase(phaseId)`: call `ContextAccumulator.resetPhase(phaseId)`; do not touch `ContextCache` — it is session-scoped and persists naturally across phase transitions; emit a `PhaseResetEvent` structured log entry `{ phaseId, timestamp }`
   - `resetTask(taskId)`: call `ContextAccumulator.resetTask(taskId)`; emit a `TaskResetEvent` log entry `{ taskId, timestamp }`; release accumulated token budget allocations for the task scope
   - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 8.1, 8.4, 8.5_
 
-- [ ] 9.3 Implement structured observability emission
+- [x] 9.3 Implement structured observability emission
   - After every `buildContext()` call, emit a `ContextAssemblyLog` entry containing: `sessionId`, `phaseId`, `taskId`, `stepType`, `layersAssembled`, `layerTokenCounts`, `cacheHits`, `cacheMisses`, `totalTokens`, `compressed`, `omittedLayers`, `degraded`, `durationMs`
   - Log planner decisions when they are made: `selectedFiles`, `memoryQuery`, `specSections`, `rationale`
   - Log each compression event: layer name, original token count, compressed token count, technique used
