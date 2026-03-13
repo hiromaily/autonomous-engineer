@@ -153,33 +153,33 @@
   - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5_
 
 - [ ] 11. Write integration tests for ContextEngineService
-- [ ] 11.1 Core buildContext integration tests
+- [x] 11.1 Core buildContext integration tests
   - Test a full `Exploration` step with mock `MemoryPort` and `IToolExecutor`: verify all expected layers are assembled in canonical order
   - Test that the assembled `content` string contains `=== [LAYER: <layerId>] ===` separators in the correct order
   - Test that `layerUsage` contains exactly the assembled layers and no others
   - Test that `plannerDecision` is reflected in the result
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 2.1, 2.5_
 
-- [ ] 11.2 Graceful degradation integration tests
+- [x] 11.2 Graceful degradation integration tests
   - Test that `buildContext()` returns `{ degraded: true, omittedLayers: ["memoryRetrieval"] }` when `MemoryPort.query()` throws
   - Test that `buildContext()` returns `{ degraded: true }` when `IToolExecutor.invoke("git_status")` fails
   - Test that `buildContext()` omits `activeSpecification` (and does not substitute `taskDescription`) when the spec file path is not found
   - Verify that every omitted layer produces a log entry at warning or error level
   - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5_
 
-- [ ] 11.3 Compression integration tests
+- [x] 11.3 Compression integration tests
   - Test that compression is applied to the `codeContext` layer when the mock returns oversized content
   - Test that `systemInstructions` and `taskDescription` layers are never compressed regardless of size
   - Test that `layerUsage[i].compressed` is true only for layers that were actually compressed
   - _Requirements: 3.2, 4.1, 4.6_
 
-- [ ] 11.4 expandContext integration tests
+- [x] 11.4 expandContext integration tests
   - Test that `expandContext()` appends content to the correct layer and re-runs the budget check
   - Test that `expandContext()` returns `{ ok: false }` when `targetLayer` is `systemInstructions`
   - Test that `expandContext()` returns `{ ok: false }` once the configured expansion limit is reached
   - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
 
-- [ ] 11.5 Phase and task isolation integration tests
+- [x] 11.5 Phase and task isolation integration tests
   - Test that `resetPhase()` causes a subsequent `buildContext()` to contain no tool results or memory entries from the previous phase
   - Simulate two sequential phases end-to-end: verify zero cross-phase context leakage
   - Test that `resetTask()` clears accumulated context for the completed task and a new task starts with only system instructions, task description, and planner-selected spec sections
