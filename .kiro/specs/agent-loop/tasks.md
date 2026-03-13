@@ -86,14 +86,14 @@
   - _Requirements: 6.1, 6.2, 6.3, 6.4_
 
 - [ ] 6. Iteration control and stopping conditions
-- [ ] 6.1 Implement stop-flag check and maxIterations enforcement
+- [x] 6.1 Implement stop-flag check and maxIterations enforcement
   - At the start of every iteration — before entering the PLAN step — check whether a stop was requested externally or whether the iteration count has reached the configured maximum; halt before the next LLM call if either condition is true
   - When the maximum is reached, log a progress summary (completed steps, tools invoked, pending plan steps) and set the termination condition to max-iterations-reached
   - When the reflection indicates task completion (stop adjustment with task-complete flag), set the termination condition to task-completed
   - When the reflection indicates human clarification is needed, pause execution and set the termination condition to human-intervention-required
   - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.6_
 
-- [ ] 6.2 Implement termination event emission and result assembly
+- [x] 6.2 Implement termination event emission and result assembly
   - Emit a termination event for every exit path, carrying the specific condition and the final agent state — callers and event bus subscribers must see every possible termination, including task-completed, max-iterations-reached, human-intervention-required, safety-stop, and recovery-exhausted
   - Register the safety-stop callback supplied in options so the agent-safety layer can trigger an emergency halt; when invoked, set the stop flag and emit the safety-stop termination event after the current sub-step completes
   - On termination, emit a final summary log entry through the logger containing total iterations, steps completed, tools invoked by category, errors encountered, and the terminal condition

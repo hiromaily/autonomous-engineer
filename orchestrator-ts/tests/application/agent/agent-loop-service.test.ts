@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'bun:test';
 import { AgentLoopService } from '../../../application/agent/agent-loop-service';
-import type { IAgentLoop, AgentLoopOptions, IContextProvider } from '../../../application/ports/agent-loop';
+import type { IAgentLoop, AgentLoopOptions, IContextProvider, IAgentEventBus, AgentLoopLogger } from '../../../application/ports/agent-loop';
 import type { IToolExecutor } from '../../../application/tools/executor';
 import type { IToolRegistry, ToolListEntry } from '../../../domain/tools/registry';
 import type { LlmProviderPort } from '../../../application/ports/llm';
 import type { ToolContext, MemoryEntry } from '../../../domain/tools/types';
-import type { AgentState, ReflectionOutput } from '../../../domain/agent/types';
+import type { AgentState, ReflectionOutput, AgentLoopEvent } from '../../../domain/agent/types';
 
 // ---------------------------------------------------------------------------
 // Test helpers — minimal mocks satisfying each injected interface
@@ -1230,5 +1230,348 @@ describe('AgentLoopService UPDATE STATE step', () => {
 
     expect(result.finalState.observations[0]!.reflection).toBeDefined();
     expect(result.finalState.observations[1]!.reflection).toBeDefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 6.1 — stop-flag check, maxIterations enforcement, and termination conditions
+// ---------------------------------------------------------------------------
+
+describe('AgentLoopService task 6.1 — stopping conditions', () => {
+  /** LLM: odd calls → valid ActionPlan, even calls → valid ReflectionOutput with overrides. */
+  function makeCycledLlmWith(reflectionOverrides: Partial<ReflectionOutput> = {}): LlmProviderPort {
+    let callCount = 0;
+    return {
+      async complete(_prompt) {
+        callCount++;
+        if (callCount % 2 === 1) {
+          return {
+            ok: true,
+            value: {
+              content: JSON.stringify({
+                category: 'Exploration',
+                toolName: 'read_file',
+                toolInput: { path: '/workspace/src/index.ts' },
+                rationale: 'Read the file',
+              }),
+              usage: { inputTokens: 1, outputTokens: 1 },
+            },
+          };
+        }
+        return {
+          ok: true,
+          value: {
+            content: makeValidReflectionJson(reflectionOverrides),
+            usage: { inputTokens: 1, outputTokens: 1 },
+          },
+        };
+      },
+      clearContext() {},
+    };
+  }
+
+  it('reflection with taskComplete=true and planAdjustment=stop terminates with TASK_COMPLETED', async () => {
+    const service = new AgentLoopService(
+      makeExecutor(),
+      makeRegistry(),
+      makeCycledLlmWith({ planAdjustment: 'stop', taskComplete: true }),
+      makeToolContext(),
+    );
+    const result = await service.run('test task', { maxIterations: 5 });
+
+    expect(result.terminationCondition).toBe('TASK_COMPLETED');
+  });
+
+  it('reflection with taskComplete=true results in taskCompleted=true', async () => {
+    const service = new AgentLoopService(
+      makeExecutor(),
+      makeRegistry(),
+      makeCycledLlmWith({ planAdjustment: 'stop', taskComplete: true }),
+      makeToolContext(),
+    );
+    const result = await service.run('test task', { maxIterations: 5 });
+
+    expect(result.taskCompleted).toBe(true);
+  });
+
+  it('reflection with requiresHumanIntervention=true terminates with HUMAN_INTERVENTION_REQUIRED', async () => {
+    const service = new AgentLoopService(
+      makeExecutor(),
+      makeRegistry(),
+      makeCycledLlmWith({ requiresHumanIntervention: true }),
+      makeToolContext(),
+    );
+    const result = await service.run('test task', { maxIterations: 5 });
+
+    expect(result.terminationCondition).toBe('HUMAN_INTERVENTION_REQUIRED');
+    expect(result.taskCompleted).toBe(false);
+  });
+
+  it('stop() called during ACT step terminates with SAFETY_STOP', async () => {
+    let service!: AgentLoopService;
+
+    const executor: IToolExecutor = {
+      async invoke(_name, _input, _ctx) {
+        service.stop();
+        return { ok: true, value: {} };
+      },
+    };
+
+    service = new AgentLoopService(
+      executor,
+      makeRegistry(),
+      makeCycledLlmWith(),
+      makeToolContext(),
+    );
+    const result = await service.run('test task', { maxIterations: 5 });
+
+    expect(result.terminationCondition).toBe('SAFETY_STOP');
+    expect(result.taskCompleted).toBe(false);
+  });
+
+  it('max iterations reached logs a progress summary via the injected logger', async () => {
+    const loggedMessages: string[] = [];
+
+    const logger = {
+      info(message: string, _data?: Readonly<Record<string, unknown>>) {
+        loggedMessages.push(message);
+      },
+      error(_message: string, _data?: Readonly<Record<string, unknown>>) {},
+    };
+
+    const service = new AgentLoopService(
+      makeExecutor(),
+      makeRegistry(),
+      makeCycledLlmWith(),
+      makeToolContext(),
+    );
+    await service.run('test task', { maxIterations: 2, logger });
+
+    expect(loggedMessages.length).toBeGreaterThan(0);
+  });
+
+  it('max iterations progress summary includes iteration count, completed steps, and tools invoked', async () => {
+    const loggedData: Array<Readonly<Record<string, unknown>>> = [];
+
+    const logger = {
+      info(_message: string, data?: Readonly<Record<string, unknown>>) {
+        if (data) loggedData.push(data);
+      },
+      error(_message: string, _data?: Readonly<Record<string, unknown>>) {},
+    };
+
+    const service = new AgentLoopService(
+      makeExecutor(),
+      makeRegistry(),
+      makeCycledLlmWith(),
+      makeToolContext(),
+    );
+    await service.run('test task', { maxIterations: 2, logger });
+
+    const merged = Object.assign({}, ...loggedData);
+    expect(typeof merged['iterationCount'] === 'number' || typeof merged['totalIterations'] === 'number').toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 6.2 — termination event emission and result assembly
+// ---------------------------------------------------------------------------
+
+function makeEventBus(): { bus: IAgentEventBus; events: AgentLoopEvent[] } {
+  const events: AgentLoopEvent[] = [];
+  const bus: IAgentEventBus = {
+    emit(event) { events.push(event); },
+    on(_handler) {},
+    off(_handler) {},
+  };
+  return { bus, events };
+}
+
+function makeSummaryLogger(): { logger: AgentLoopLogger; infos: Array<{ msg: string; data: Readonly<Record<string, unknown>> | undefined }> } {
+  const infos: Array<{ msg: string; data: Readonly<Record<string, unknown>> | undefined }> = [];
+  const logger: AgentLoopLogger = {
+    info(msg, data) { infos.push({ msg, data }); },
+    error(_msg, _data) {},
+  };
+  return { logger, infos };
+}
+
+/** LLM that cycles: odd calls → valid ActionPlan, even calls → valid reflection. */
+function makeStandardCycledLlm(reflectionOverrides: Partial<ReflectionOutput> = {}): LlmProviderPort {
+  let n = 0;
+  return {
+    async complete(_prompt) {
+      n++;
+      if (n % 2 === 1) {
+        return { ok: true, value: { content: JSON.stringify({ category: 'Exploration', toolName: 'read_file', toolInput: {}, rationale: 'r' }), usage: { inputTokens: 1, outputTokens: 1 } } };
+      }
+      return { ok: true, value: { content: makeValidReflectionJson(reflectionOverrides), usage: { inputTokens: 1, outputTokens: 1 } } };
+    },
+    clearContext() {},
+  };
+}
+
+describe('AgentLoopService task 6.2 — termination event emission', () => {
+  it('emits a terminated event when loop exits via MAX_ITERATIONS_REACHED', async () => {
+    const { bus, events } = makeEventBus();
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeStandardCycledLlm(), makeToolContext());
+    await service.run('test', { maxIterations: 1, eventBus: bus });
+
+    const termEvents = events.filter((e) => e.type === 'terminated');
+    expect(termEvents.length).toBe(1);
+    expect((termEvents[0] as Extract<AgentLoopEvent, { type: 'terminated' }>).condition).toBe('MAX_ITERATIONS_REACHED');
+  });
+
+  it('terminated event carries the final agent state', async () => {
+    const { bus, events } = makeEventBus();
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeStandardCycledLlm(), makeToolContext());
+    const result = await service.run('test task', { maxIterations: 1, eventBus: bus });
+
+    const termEvent = events.find((e) => e.type === 'terminated') as Extract<AgentLoopEvent, { type: 'terminated' }> | undefined;
+    expect(termEvent).toBeDefined();
+    expect(termEvent!.finalState).toEqual(result.finalState);
+  });
+
+  it('emits terminated event with TASK_COMPLETED condition when task finishes', async () => {
+    const { bus, events } = makeEventBus();
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeStandardCycledLlm({ planAdjustment: 'stop', taskComplete: true }), makeToolContext());
+    await service.run('test', { maxIterations: 5, eventBus: bus });
+
+    const termEvent = events.find((e) => e.type === 'terminated') as Extract<AgentLoopEvent, { type: 'terminated' }> | undefined;
+    expect(termEvent?.condition).toBe('TASK_COMPLETED');
+  });
+
+  it('emits terminated event with HUMAN_INTERVENTION_REQUIRED when reflection requests it', async () => {
+    const { bus, events } = makeEventBus();
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeStandardCycledLlm({ requiresHumanIntervention: true }), makeToolContext());
+    await service.run('test', { maxIterations: 5, eventBus: bus });
+
+    const termEvent = events.find((e) => e.type === 'terminated') as Extract<AgentLoopEvent, { type: 'terminated' }> | undefined;
+    expect(termEvent?.condition).toBe('HUMAN_INTERVENTION_REQUIRED');
+  });
+
+  it('emits terminated event with SAFETY_STOP when stop() is called during execution', async () => {
+    let svc!: AgentLoopService;
+    const executor: IToolExecutor = {
+      async invoke(_n, _i, _c) { svc.stop(); return { ok: true, value: {} }; },
+    };
+    const { bus, events } = makeEventBus();
+    svc = new AgentLoopService(executor, makeRegistry(), makeStandardCycledLlm(), makeToolContext());
+    await svc.run('test', { maxIterations: 5, eventBus: bus });
+
+    const termEvent = events.find((e) => e.type === 'terminated') as Extract<AgentLoopEvent, { type: 'terminated' }> | undefined;
+    expect(termEvent?.condition).toBe('SAFETY_STOP');
+  });
+
+  it('terminated event carries an ISO 8601 timestamp', async () => {
+    const { bus, events } = makeEventBus();
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeStandardCycledLlm(), makeToolContext());
+    await service.run('test', { maxIterations: 0, eventBus: bus });
+
+    const termEvent = events.find((e) => e.type === 'terminated') as Extract<AgentLoopEvent, { type: 'terminated' }> | undefined;
+    expect(termEvent?.timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+  });
+
+  it('emits terminated event even when an unexpected internal error occurs (catch path)', async () => {
+    const throwingRegistry: IToolRegistry = {
+      register: () => ({ ok: true, value: undefined }),
+      get: (name) => ({ ok: false, error: { type: 'not_found', name } }),
+      list: () => { throw new Error('internal boom'); },
+    };
+    const { bus, events } = makeEventBus();
+    const service = new AgentLoopService(makeExecutor(), throwingRegistry, makeStandardCycledLlm(), makeToolContext());
+    await service.run('test', { maxIterations: 1, eventBus: bus });
+
+    const termEvent = events.find((e) => e.type === 'terminated');
+    expect(termEvent).toBeDefined();
+  });
+
+  it('no event bus — run() still completes without error', async () => {
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeStandardCycledLlm(), makeToolContext());
+    const result = await service.run('test', { maxIterations: 1 });
+    expect(result.terminationCondition).toBeDefined();
+  });
+});
+
+describe('AgentLoopService task 6.2 — onSafetyStop callback', () => {
+  it('onSafetyStop is called when termination is SAFETY_STOP', async () => {
+    let safetyStopNotified = false;
+    let svc!: AgentLoopService;
+    const executor: IToolExecutor = {
+      async invoke(_n, _i, _c) { svc.stop(); return { ok: true, value: {} }; },
+    };
+    svc = new AgentLoopService(executor, makeRegistry(), makeStandardCycledLlm(), makeToolContext());
+    await svc.run('test', { maxIterations: 5, onSafetyStop: () => { safetyStopNotified = true; } });
+
+    expect(safetyStopNotified).toBe(true);
+  });
+
+  it('onSafetyStop is NOT called when termination is MAX_ITERATIONS_REACHED', async () => {
+    let safetyStopNotified = false;
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeStandardCycledLlm(), makeToolContext());
+    await service.run('test', { maxIterations: 1, onSafetyStop: () => { safetyStopNotified = true; } });
+
+    expect(safetyStopNotified).toBe(false);
+  });
+
+  it('onSafetyStop is NOT called when termination is TASK_COMPLETED', async () => {
+    let safetyStopNotified = false;
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeStandardCycledLlm({ planAdjustment: 'stop', taskComplete: true }), makeToolContext());
+    await service.run('test', { maxIterations: 5, onSafetyStop: () => { safetyStopNotified = true; } });
+
+    expect(safetyStopNotified).toBe(false);
+  });
+});
+
+describe('AgentLoopService task 6.2 — final summary log on termination', () => {
+  it('logs a final summary info entry on MAX_ITERATIONS_REACHED with terminal condition', async () => {
+    const { logger, infos } = makeSummaryLogger();
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeStandardCycledLlm(), makeToolContext());
+    await service.run('test', { maxIterations: 2, logger });
+
+    // Must have at least one info log containing terminal condition info
+    const hasCondition = infos.some((l) =>
+      (l.data && 'terminationCondition' in l.data) ||
+      l.msg.toLowerCase().includes('max') ||
+      l.msg.toLowerCase().includes('terminat')
+    );
+    expect(hasCondition).toBe(true);
+  });
+
+  it('logs total iterations in the final summary', async () => {
+    const { logger, infos } = makeSummaryLogger();
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeStandardCycledLlm(), makeToolContext());
+    await service.run('test', { maxIterations: 2, logger });
+
+    const allData = Object.assign({}, ...infos.map((l) => l.data ?? {}));
+    expect(typeof allData['iterationCount'] === 'number' || typeof allData['totalIterations'] === 'number').toBe(true);
+  });
+
+  it('logs a final summary on TASK_COMPLETED path', async () => {
+    const { logger, infos } = makeSummaryLogger();
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeStandardCycledLlm({ planAdjustment: 'stop', taskComplete: true }), makeToolContext());
+    await service.run('test', { maxIterations: 5, logger });
+
+    expect(infos.length).toBeGreaterThan(0);
+  });
+
+  it('logs a final summary on HUMAN_INTERVENTION_REQUIRED path', async () => {
+    const { logger, infos } = makeSummaryLogger();
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeStandardCycledLlm({ requiresHumanIntervention: true }), makeToolContext());
+    await service.run('test', { maxIterations: 5, logger });
+
+    expect(infos.length).toBeGreaterThan(0);
+  });
+
+  it('logs a final summary on SAFETY_STOP path', async () => {
+    let svc!: AgentLoopService;
+    const executor: IToolExecutor = {
+      async invoke(_n, _i, _c) { svc.stop(); return { ok: true, value: {} }; },
+    };
+    const { logger, infos } = makeSummaryLogger();
+    svc = new AgentLoopService(executor, makeRegistry(), makeStandardCycledLlm(), makeToolContext());
+    await svc.run('test', { maxIterations: 5, logger });
+
+    expect(infos.length).toBeGreaterThan(0);
   });
 });

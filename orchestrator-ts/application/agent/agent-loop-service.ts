@@ -3,7 +3,7 @@ import type { IToolExecutor } from '../tools/executor';
 import type { IToolRegistry, ToolListEntry } from '../../domain/tools/registry';
 import type { LlmProviderPort } from '../ports/llm';
 import type { ToolContext } from '../../domain/tools/types';
-import type { AgentState, ActionPlan, ActionCategory, Observation, ReflectionOutput, ReflectionAssessment, PlanAdjustment } from '../../domain/agent/types';
+import type { AgentState, ActionPlan, ActionCategory, Observation, ReflectionOutput, ReflectionAssessment, PlanAdjustment, TerminationCondition } from '../../domain/agent/types';
 import { ACTION_CATEGORIES } from '../../domain/agent/types';
 
 // ---------------------------------------------------------------------------
@@ -90,22 +90,26 @@ export class AgentLoopService implements IAgentLoop {
         // UPDATE STATE step (task 5.3) — advance step pointer, increment iteration counter
         state = this.#updateStateStep(state);
         this.#currentState = state;
+
+        // Task 6.1 — check termination conditions from reflection after each complete cycle
+        const latestReflection = state.observations[state.observations.length - 1]?.reflection;
+        if (latestReflection?.taskComplete === true) {
+          return this.#terminate('TASK_COMPLETED', state, true, opts);
+        }
+        if (latestReflection?.requiresHumanIntervention === true) {
+          return this.#terminate('HUMAN_INTERVENTION_REQUIRED', state, false, opts);
+        }
       }
 
-      return {
-        terminationCondition: 'MAX_ITERATIONS_REACHED',
-        finalState: state,
-        totalIterations: state.iterationCount,
-        taskCompleted: false,
-      };
+      // Task 6.1 — distinguish stop signal from max-iterations exhaustion
+      if (this.#stopRequested) {
+        return this.#terminate('SAFETY_STOP', state, false, opts);
+      }
+
+      return this.#terminate('MAX_ITERATIONS_REACHED', state, false, opts);
     } catch (_err) {
       // run() must never throw — catch-all for unexpected internal failures
-      return {
-        terminationCondition: 'HUMAN_INTERVENTION_REQUIRED',
-        finalState: state,
-        totalIterations: state.iterationCount,
-        taskCompleted: false,
-      };
+      return this.#terminate('HUMAN_INTERVENTION_REQUIRED', state, false, opts);
     } finally {
       // Always clear current state on exit (req 9.4 — query returns null when not running)
       this.#currentState = null;
@@ -137,6 +141,52 @@ export class AgentLoopService implements IAgentLoop {
       recoveryAttempts: 0,
       startedAt: new Date().toISOString(),
     };
+  }
+
+  /**
+   * Task 6.2 — centralises all exit paths:
+   * - Emits a `terminated` event on the event bus (if configured).
+   * - Logs a final summary entry (if logger is configured).
+   * - Calls opts.onSafetyStop() when the condition is SAFETY_STOP.
+   * - Assembles and returns the AgentLoopResult.
+   */
+  #terminate(
+    condition: TerminationCondition,
+    state: AgentState,
+    taskCompleted: boolean,
+    opts: Pick<AgentLoopOptions, 'eventBus' | 'logger' | 'onSafetyStop'>,
+  ): AgentLoopResult {
+    const result: AgentLoopResult = {
+      terminationCondition: condition,
+      finalState: state,
+      totalIterations: state.iterationCount,
+      taskCompleted,
+    };
+
+    // Emit terminated event for every exit path (task 6.2)
+    opts.eventBus?.emit({
+      type: 'terminated',
+      condition,
+      finalState: state,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Log a final summary (task 6.2)
+    opts.logger?.info(`Agent loop terminated: ${condition}`, {
+      terminationCondition: condition,
+      iterationCount: state.iterationCount,
+      completedSteps: state.completedSteps.length,
+      toolsInvoked: state.observations.length,
+      errorsEncountered: state.observations.filter((o) => !o.success).length,
+      pendingSteps: state.plan.filter((s) => !state.completedSteps.includes(s)).length,
+    });
+
+    // Notify safety layer on SAFETY_STOP (task 6.2)
+    if (condition === 'SAFETY_STOP') {
+      opts.onSafetyStop?.();
+    }
+
+    return result;
   }
 
   // ---------------------------------------------------------------------------
