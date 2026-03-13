@@ -25,7 +25,7 @@
   - Verify that steps with empty or omitted dependency arrays are treated as immediately eligible with no errors.
   - _Requirements: 1.5, 5.3, 6.1, 6.2, 6.3_
 
-- [ ] 3. (P) Define application ports and option types
+- [x] 3. Define application ports and option types
   - Define the public planner interface for callers to run and resume plans, list resumable plans, and signal a graceful stop.
   - Define the persistence port with save, load, and list-resumable operations.
   - Define a narrow context-assembly port for plan generation and revision prompt building, decoupled from the full context engine interface that requires agent state.
