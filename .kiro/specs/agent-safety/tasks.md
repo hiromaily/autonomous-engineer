@@ -168,7 +168,7 @@
 ---
 
 - [ ] 9. Integration Tests
-- [ ] 9.1 SafetyGuardedToolExecutor end-to-end pipeline tests
+- [x] 9.1 SafetyGuardedToolExecutor end-to-end pipeline tests
   - Full guard pipeline pass: all guards pass → wrapped `ToolExecutor` invoked → audit entry written with `success` outcome and all required fields
   - Blocked invocation: workspace guard fails → wrapped executor never called → audit entry written with `blocked` outcome and block reason before the error is returned
   - Approval flow (approved): destructive action detected → `ApprovalGateway` stub returns `'approved'` → tool executes → audit entry records `approvalDecision: 'approved'`
@@ -178,7 +178,7 @@
   - Iteration limit boundary: execute exactly `maxIterations` invocations → next invocation rejected with graceful stop error carrying progress summary
   - _Requirements: 1.3, 5.1, 6.1, 6.3, 6.4, 7.2, 8.2, 8.3, 8.4, 10.2, 10.3, 10.4, 11.2, 11.3, 11.4, 11.5_
 
-- [ ] 9.2 EmergencyStopHandler and AuditLogger durability integration tests
+- [x] 9.2 EmergencyStopHandler and AuditLogger durability integration tests
   - SIGINT simulation: send SIGINT to the test process via `process.emit('SIGINT')` → `session.emergencyStopRequested` set to true → final audit entry written with stop source → subsequent `invoke()` calls immediately rejected
   - Programmatic trigger: call `trigger({ kind: 'safety-violation', description: '...' })` → same stop sequence applied; verify audit entry contains correct `emergencyStopSource`
   - Concurrent writes: issue multiple simultaneous `AuditLogger.write()` calls and verify the resulting NDJSON file has no interleaved partial JSON lines and every entry is parseable
