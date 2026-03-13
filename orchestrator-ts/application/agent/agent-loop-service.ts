@@ -103,10 +103,11 @@ export class AgentLoopService implements IAgentLoop {
         // Task 7.1 — error recovery sub-loop: enter when reflection indicates failure
         if (latestReflection?.assessment === 'failure') {
           const recoveryResult = await this.#errorRecovery(state, opts);
-          if (recoveryResult === 'RECOVERY_EXHAUSTED') {
-            return this.#terminate('RECOVERY_EXHAUSTED', state, false, opts);
+          if ('type' in recoveryResult && recoveryResult.type === 'RECOVERY_EXHAUSTED') {
+            // Task 7.2 — use the state with failure context (recoveryAttempts set) for the result
+            return this.#terminate('RECOVERY_EXHAUSTED', recoveryResult.state, false, opts);
           }
-          state = recoveryResult;
+          state = recoveryResult as AgentState;
           this.#currentState = state;
         }
       }
@@ -475,6 +476,12 @@ export class AgentLoopService implements IAgentLoop {
   /**
    * Orchestrates the error recovery cycle when REFLECT returns assessment='failure'.
    *
+   * Task 7.2 additions:
+   * - Detects repeated failure patterns: if the same (toolName, errorMessage) has appeared in
+   *   previous observations >= maxRecoveryAttempts times, escalates immediately without retrying.
+   * - Returns the updated state (with recoveryAttempts set) on exhaustion so the caller can
+   *   surface the failure context in the AgentLoopResult.
+   *
    * For each attempt (up to maxRecoveryAttempts):
    * 1. Emit a recovery:attempt event.
    * 2. Ask the LLM for an error-analysis fix plan.
@@ -483,14 +490,31 @@ export class AgentLoopService implements IAgentLoop {
    * 5a. Validation passes → append validation observation, reset counter, return recovered state.
    * 5b. Validation fails → increment counter and loop back.
    *
-   * If all attempts are exhausted, returns 'RECOVERY_EXHAUSTED'.
+   * On exhaustion, returns `{ type: 'RECOVERY_EXHAUSTED', state }` with the failure context preserved.
    */
   async #errorRecovery(
     state: AgentState,
     opts: Pick<AgentLoopOptions, 'maxRecoveryAttempts' | 'eventBus' | 'logger'>,
-  ): Promise<AgentState | 'RECOVERY_EXHAUSTED'> {
+  ): Promise<AgentState | Readonly<{ type: 'RECOVERY_EXHAUSTED'; state: AgentState }>> {
     const failingObs = state.observations[state.observations.length - 1]!;
     const errorMessage = failingObs.error?.message ?? 'unknown failure';
+
+    // Task 7.2 — repeated failure pattern detection: only when the failing observation has
+    // a real tool error (success=false with an error). Count prior observations with the same
+    // (toolName, errorMessage) combination; if already at or above the budget, escalate immediately.
+    if (failingObs.error) {
+      const previousSameErrorCount = state.observations.slice(0, -1).filter(
+        (obs) =>
+          !obs.success &&
+          obs.toolName === failingObs.toolName &&
+          obs.error?.message === failingObs.error!.message,
+      ).length;
+
+      if (previousSameErrorCount >= opts.maxRecoveryAttempts) {
+        // Repeated failure pattern — escalate without attempting recovery
+        return { type: 'RECOVERY_EXHAUSTED', state } as const;
+      }
+    }
 
     let currentState = state;
 
@@ -557,7 +581,8 @@ export class AgentLoopService implements IAgentLoop {
       // Validation failed — loop back for next attempt
     }
 
-    return 'RECOVERY_EXHAUSTED';
+    // Task 7.2 — return the state with failure context (recoveryAttempts reflects exhausted count)
+    return { type: 'RECOVERY_EXHAUSTED', state: currentState } as const;
   }
 
   /** Builds the error-analysis prompt for the recovery LLM call. */
