@@ -50,7 +50,7 @@
   - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5_
 
 - [ ] 5. (P) Implement the task planning service
-- [ ] 5.1 Build the plan generation pipeline
+- [x] 5.1 Build the plan generation pipeline
   - Assemble the LLM prompt for initial plan generation using the context builder with the goal and optional repository context.
   - Parse the LLM response as a plan with a newly assigned UUID plan ID; retry up to the configured parse-retry limit on responses that cannot be parsed.
   - Run structural validation on the generated plan and return a validation-error outcome immediately if validation fails.
@@ -58,7 +58,7 @@
   - Construct a minimal fallback prompt directly from the goal string when the context builder is unavailable, consistent with the existing agent loop service fallback pattern.
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 6.4, 6.5, 8.1, 11.4_
 
-- [ ] 5.2 Implement the human review gate
+- [x] 5.2 Implement the human review gate
   - Classify a plan as large when its total step count exceeds the configured threshold (default 10) and as high-risk when any step description matches the configured keyword list.
   - Pause execution and present the full plan to the human review gateway when either trigger is met.
   - If the reviewer times out, emit a plan-awaiting-review event, persist current state, and return a waiting-for-input outcome so the caller can resume later.
@@ -66,7 +66,7 @@
   - Skip the gate entirely when the skip-review flag is set.
   - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5_
 
-- [ ] 5.3 Build the step execution loop
+- [x] 5.3 Build the step execution loop
   - Iterate through steps in the topological execution order computed by the validator.
   - Before executing each step, block on any unmet dependency steps and cascade-fail the step when a prerequisite is in failed status.
   - Set the step status to in-progress and persist the plan before invoking the agent loop; set it to completed and persist after the agent loop reports success.
@@ -75,7 +75,7 @@
   - Halt after the current step completes when a stop signal has been received.
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 5.1, 5.2, 5.4, 5.5, 11.1, 11.2, 11.3_
 
-- [ ] 5.4 Implement the failure recovery chain
+- [x] 5.4 Implement the failure recovery chain
   - On the first step failure, retry the step up to the configured maximum retry count (default 3).
   - On the second attempt, include the prior failure context (error message, failed action, agent observation) in the agent loop invocation to guide an improved approach.
   - After all retries are exhausted, generate a revised step plan using LLM-driven analysis of the failure context and attempt execution one final time.
@@ -83,14 +83,14 @@
   - Record each failure event with step ID, attempt number, error summary, and recovery action taken.
   - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
 
-- [ ] 5.5 Implement dynamic plan adjustment and observability
+- [x] 5.5 Implement dynamic plan adjustment and observability
   - Detect plan-revision signals in agent loop results, extract the revised step list from the reflection output, validate the revision, and persist a revision event with both original and revised step content plus the reason.
   - Pause execution for human review before applying any revision that alters more than 50% of remaining steps.
   - Continue execution from the revised step only after the revision is committed to disk.
   - Emit structured plan events to the event bus and write each event to the logger as JSON when both are injected.
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 10.1, 10.2, 10.3, 10.4, 10.5_
 
-- [ ] 5.6 Implement resume, stop, and dependency-availability checks
+- [x] 5.6 Implement resume, stop, and dependency-availability checks
   - Implement resume to load the persisted plan, run validation on it, and continue execution from the first incomplete step without regenerating the plan.
   - Implement list-resumable by delegating to the plan store and returning IDs of all plans not yet completed or failed.
   - At service construction, verify that the agent loop, context builder, and LLM provider are all non-null; return a dependency-unavailable outcome immediately if any is missing rather than failing silently later.
