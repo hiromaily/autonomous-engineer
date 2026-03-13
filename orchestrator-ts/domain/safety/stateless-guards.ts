@@ -26,7 +26,7 @@ const PATH_FIELDS: Readonly<Record<string, ReadonlyArray<string>>> = {
 
 function isWithinWorkspace(workspaceRoot: string, requestedPath: string): boolean {
   const resolved = resolve(workspaceRoot, requestedPath);
-  const rootWithSep = workspaceRoot.endsWith("/") ? workspaceRoot : workspaceRoot + "/";
+  const rootWithSep = workspaceRoot.endsWith("/") ? workspaceRoot : `${workspaceRoot}/`;
   return resolved === workspaceRoot || resolved.startsWith(rootWithSep);
 }
 

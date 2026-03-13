@@ -239,7 +239,7 @@ export class WorkflowEngine {
     try {
       const raw = await readFile(specJsonPath, "utf-8");
       const parsed = JSON.parse(raw) as Record<string, unknown>;
-      if (parsed["ready_for_implementation"] === true) {
+      if (parsed.ready_for_implementation === true) {
         return { ready: true, instruction: "" };
       }
     } catch { /* missing or malformed → not ready */ }

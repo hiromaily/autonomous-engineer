@@ -129,7 +129,7 @@ export const runCommandTool: Tool<RunCommandInput, RunCommandOutput> = {
  * Failure markers: ✗ (bun), ● (jest), FAILED (vitest/mocha).
  */
 function parseTestOutput(stdout: string, stderr: string): TestResult {
-  const combined = stdout + "\n" + stderr;
+  const combined = `${stdout}\n${stderr}`;
   let passed = 0;
   let failed = 0;
   const failures: string[] = [];
@@ -137,8 +137,8 @@ function parseTestOutput(stdout: string, stderr: string): TestResult {
   for (const line of combined.split("\n")) {
     const passMatch = line.match(/(\d+)\s+pass/);
     const failMatch = line.match(/(\d+)\s+fail/);
-    if (passMatch) passed = parseInt(passMatch[1]!, 10);
-    if (failMatch) failed = parseInt(failMatch[1]!, 10);
+    if (passMatch) passed = parseInt(passMatch[1] ?? "0", 10);
+    if (failMatch) failed = parseInt(failMatch[1] ?? "0", 10);
     if (FAILURE_MARKER_RE.test(line)) {
       const trimmed = line.trim();
       if (trimmed) failures.push(trimmed);

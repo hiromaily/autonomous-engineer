@@ -810,7 +810,7 @@ describe("WorkflowEngine", () => {
 
     it("checks approval gate after REQUIREMENTS (with phase type \"requirements\")", async () => {
       const gate = makeTrackingGate();
-      const engine = buildEngine({ phaseRunner: makePhaseRunner().runner });
+      const _engine = buildEngine({ phaseRunner: makePhaseRunner().runner });
       // Replace the engine with one using our tracking gate
       const tracked = new WorkflowEngine({
         stateStore: makeStateStore(),

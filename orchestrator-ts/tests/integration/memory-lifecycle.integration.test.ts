@@ -118,8 +118,8 @@ describe("Memory lifecycle - Task 6.1: End-to-end operations", () => {
 
     const found = queryResult.entries.find(e => e.entry.title === "TDD Pattern");
     expect(found).toBeDefined();
-    expect(found!.relevanceScore).toBeGreaterThan(0);
-    expect(found!.sourceFile).toBe("project_rules");
+    expect(found?.relevanceScore).toBeGreaterThan(0);
+    expect(found?.sourceFile).toBe("project_rules");
   });
 
   it("query returns correct entry fields after append", async () => {
@@ -133,9 +133,9 @@ describe("Memory lifecycle - Task 6.1: End-to-end operations", () => {
     const queryResult = await store.query({ text: "Clean Code Rule", memoryTypes: ["project"] });
     const found = queryResult.entries.find(e => e.entry.title === "Clean Code Rule");
     expect(found).toBeDefined();
-    expect(found!.entry.context).toBe("code-quality");
-    expect(found!.entry.description).toBe("Keep functions small and focused on a single responsibility.");
-    expect(found!.entry.date).toBe("2026-03-11T00:00:00Z");
+    expect(found?.entry.context).toBe("code-quality");
+    expect(found?.entry.description).toBe("Keep functions small and focused on a single responsibility.");
+    expect(found?.entry.date).toBe("2026-03-11T00:00:00Z");
   });
 
   // -------------------------------------------------------------------------
@@ -168,7 +168,7 @@ describe("Memory lifecycle - Task 6.1: End-to-end operations", () => {
     const records = await store2.getFailures();
     const found = records.find(r => r.taskId === "task-persist");
     expect(found).toBeDefined();
-    expect(found!.specName).toBe("memory-system");
+    expect(found?.specName).toBe("memory-system");
   });
 
   // -------------------------------------------------------------------------
@@ -198,7 +198,7 @@ describe("Memory lifecycle - Task 6.1: End-to-end operations", () => {
 
     // No duplicate — exactly one entry with the updated description
     expect(matches).toHaveLength(1);
-    expect(matches[0]!.entry.description).toBe("Use 4-space indentation per team convention.");
+    expect(matches[0]?.entry.description).toBe("Use 4-space indentation per team convention.");
   });
 
   it("query returns updated content after update; old unique token no longer matches", async () => {
@@ -248,9 +248,9 @@ describe("Memory lifecycle - Task 6.1: End-to-end operations", () => {
     const records = await store.getFailures();
     const found = records.find(r => r.taskId === "impl-3-2");
     expect(found).toBeDefined();
-    expect(found!.specName).toBe("memory-system");
-    expect(found!.phase).toBe("IMPLEMENTATION");
-    expect(found!.rootCause).toBe("Parent directory not created before write");
+    expect(found?.specName).toBe("memory-system");
+    expect(found?.phase).toBe("IMPLEMENTATION");
+    expect(found?.rootCause).toBe("Parent directory not created before write");
   });
 
   it("getFailures with specName filter returns only matching records", async () => {

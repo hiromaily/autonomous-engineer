@@ -44,14 +44,14 @@ describe("CcSddAdapter — argument structure", () => {
     const args = argv[0];
     // Must be an array with at least: binary, subcommand, specName, specDir, language
     expect(Array.isArray(args)).toBe(true);
-    expect(args!.length).toBeGreaterThanOrEqual(5);
+    expect(args?.length).toBeGreaterThanOrEqual(5);
 
     // specName must NOT appear merged with other tokens
-    const specNameArg = args!.find(a => a === "my-spec");
+    const specNameArg = args?.find(a => a === "my-spec");
     expect(specNameArg).toBe("my-spec");
 
     // No single arg should contain spaces (which would indicate shell interpolation)
-    for (const arg of args!) {
+    for (const arg of args ?? []) {
       expect(arg.includes(" ")).toBe(false);
     }
   });
@@ -68,7 +68,7 @@ describe("CcSddAdapter — argument structure", () => {
     const adapter = new CcSddAdapter(fn);
     await adapter.generateRequirements({ specName: "test-spec", specDir: "/custom/path", language: "ja" });
 
-    const args = argv[0]!;
+    const args = argv[0] ?? [];
     expect(args).toContain("test-spec");
     expect(args).toContain("/custom/path");
     expect(args).toContain("ja");

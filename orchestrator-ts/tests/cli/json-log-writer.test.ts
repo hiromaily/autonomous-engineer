@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { WorkflowEvent } from "../../application/ports/workflow";
@@ -43,9 +43,9 @@ describe("JsonLogWriter", () => {
     const content = await readFile(logPath, "utf-8");
     const lines = content.trim().split("\n").filter(Boolean);
     expect(lines).toHaveLength(3);
-    expect(JSON.parse(lines[0]!)).toEqual(events[0]);
-    expect(JSON.parse(lines[1]!)).toEqual(events[1]);
-    expect(JSON.parse(lines[2]!)).toEqual(events[2]);
+    expect(JSON.parse(lines[0] ?? "{}")).toEqual(events[0]);
+    expect(JSON.parse(lines[1] ?? "{}")).toEqual(events[1]);
+    expect(JSON.parse(lines[2] ?? "{}")).toEqual(events[2]);
   });
 
   it("each line is valid JSON terminated by newline", async () => {

@@ -44,6 +44,12 @@ bun run build         # Build for production
 | ---------------- | ----------------- | ---------------- | --------------- | ------------------- |
 | orchestrator-ts | `bun run lint:fix` | `bun run fmt` (dprint) | `bun run build` | `bun run test` |
 
+> **NOTE on `lint:fix`:** The default `bun run lint:fix` only applies *safe* auto-fixes. To also apply *unsafe* auto-fixes (e.g. `useTemplate`, `useLiteralKeys`), run:
+> ```bash
+> bun run lint:fix -- --unsafe
+> ```
+> Run the default first, then `--unsafe` for the remainder. Warnings that cannot be auto-fixed (e.g. `noNonNullAssertion`) must be resolved manually — see the Code Style section below.
+
 ## Code Style
 
 ### TypeScript Best Practices
@@ -67,6 +73,28 @@ async function fetchData(): Promise<Data> {
 // Avoid: any type (unless absolutely necessary)
 // Bad: function process(data: any)
 // Good: function process(data: TransactionData)
+```
+
+### Non-Null Assertions (`!`)
+
+Biome enforces `noNonNullAssertion`. Because `tsconfig.json` also sets `noUncheckedIndexedAccess: true`, every array index access returns `T | undefined`, making `!` assertions common. Replace them with safe alternatives:
+
+```typescript
+// Array indexing — use a fallback
+const x = line[0] ?? " ";
+const name = parts[0] ?? "";
+
+// Regex match groups — use a fallback
+if (passMatch) passed = parseInt(passMatch[1] ?? "0", 10);
+
+// Fields validated non-null just above — use type assertion in production code
+// (after an explicit null check that throws)
+provider: merged.provider as string,
+
+// Test code — add a guard that also serves as a clear failure message
+const log = logger.getLogs()[0];
+if (!log) throw new Error("expected log entry");
+expect(log.resultStatus).toBe("success");
 ```
 
 ### Critical Value Handling

@@ -342,7 +342,7 @@ describe("git_status via ToolExecutor", () => {
     await executor.invoke("git_status", {}, ctx);
 
     expect(logger.getLogs().length).toBe(1);
-    expect(logger.getLogs()[0]!.resultStatus).toBe("success");
+    expect(logger.getLogs()[0]?.resultStatus).toBe("success");
   });
 });
 

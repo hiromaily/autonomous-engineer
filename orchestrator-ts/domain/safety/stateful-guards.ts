@@ -210,7 +210,7 @@ export class DestructiveActionGuard implements ISafetyGuard {
 
     // Check 1: Bulk file deletion above threshold
     if (DELETE_TOOLS.has(toolName)) {
-      const paths = input["paths"];
+      const paths = input.paths;
       if (Array.isArray(paths) && paths.length > config.maxFileDeletes) {
         return requiresApprovalResult(buildApprovalRequest(
           `Bulk deletion of ${paths.length} files (limit: ${config.maxFileDeletes})`,
@@ -223,7 +223,7 @@ export class DestructiveActionGuard implements ISafetyGuard {
 
     // Check 2: Force-push flag on git push operations
     if (toolName === "git_push") {
-      const force = input["force"];
+      const force = input.force;
       if (force === true) {
         return requiresApprovalResult(buildApprovalRequest(
           "Force-push to remote repository",
@@ -236,7 +236,7 @@ export class DestructiveActionGuard implements ISafetyGuard {
 
     // Check 3: Write to protected file pattern
     if (toolName === "write_file") {
-      const path = input["path"];
+      const path = input.path;
       if (typeof path === "string" && matchesAnyProtectedPattern(path, config.protectedFilePatterns)) {
         return requiresApprovalResult(buildApprovalRequest(
           `Write to protected file: ${path}`,

@@ -37,11 +37,11 @@ export class ApprovalGate {
 
 function getApprovalField(parsed: unknown, phase: ApprovalPhase): unknown {
   if (typeof parsed !== "object" || parsed === null) return undefined;
-  const approvals = (parsed as Record<string, unknown>)["approvals"];
+  const approvals = (parsed as Record<string, unknown>).approvals;
   if (typeof approvals !== "object" || approvals === null) return undefined;
   const phaseObj = (approvals as Record<string, unknown>)[phase];
   if (typeof phaseObj !== "object" || phaseObj === null) return undefined;
-  return (phaseObj as Record<string, unknown>)["approved"];
+  return (phaseObj as Record<string, unknown>).approved;
 }
 
 function artifactFilename(phase: ApprovalPhase): string {

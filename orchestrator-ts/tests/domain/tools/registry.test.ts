@@ -220,8 +220,8 @@ describe("ToolRegistry.list", () => {
     const entries = registry.list();
     const entry = entries[0];
 
-    expect(entry?.schema.input["type"]).toBe("object");
-    expect(entry?.schema.output["type"]).toBe("object");
+    expect(entry?.schema.input.type).toBe("object");
+    expect(entry?.schema.output.type).toBe("object");
   });
 });
 

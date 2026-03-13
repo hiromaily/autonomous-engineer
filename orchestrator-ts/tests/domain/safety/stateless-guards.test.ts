@@ -290,7 +290,7 @@ describe("GitSafetyGuard", () => {
   describe("git_commit — staged file count limit", () => {
     it("allows commit when staged file count is at the limit", async () => {
       const maxFiles = 5;
-      const files = Array.from({ length: maxFiles }, (_, i) => `file${i}.ts`).join("\n") + "\n";
+      const files = `${Array.from({ length: maxFiles }, (_, i) => `file${i}.ts`).join("\n")}\n`;
       const guard = new GitSafetyGuard(async (args) => {
         if (args[0] === "rev-parse") return "agent/test\n";
         if (args[0] === "diff") return files;
@@ -303,7 +303,7 @@ describe("GitSafetyGuard", () => {
 
     it("rejects commit when staged file count exceeds the limit", async () => {
       const maxFiles = 3;
-      const files = Array.from({ length: maxFiles + 1 }, (_, i) => `file${i}.ts`).join("\n") + "\n";
+      const files = `${Array.from({ length: maxFiles + 1 }, (_, i) => `file${i}.ts`).join("\n")}\n`;
       const guard = new GitSafetyGuard(async (args) => {
         if (args[0] === "rev-parse") return "agent/test\n";
         if (args[0] === "diff") return files;

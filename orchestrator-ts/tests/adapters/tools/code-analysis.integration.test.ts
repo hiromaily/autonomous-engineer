@@ -8,7 +8,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { mkdir, mkdtemp, realpath, rm, writeFile as fsWriteFile } from "node:fs/promises";
+import { mkdtemp, realpath, rm, writeFile as fsWriteFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 

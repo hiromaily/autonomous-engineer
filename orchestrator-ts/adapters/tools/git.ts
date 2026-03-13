@@ -119,8 +119,8 @@ export const gitStatusTool: Tool<GitStatusInput, GitStatusOutput> = {
 
     for (const line of raw.split("\n")) {
       if (!line) continue;
-      const x = line[0]!;
-      const y = line[1]!;
+      const x = line[0] ?? " ";
+      const y = line[1] ?? " ";
       const path = line.slice(3).trim();
 
       if (x === "?" && y === "?") {
@@ -247,7 +247,7 @@ export const gitBranchListTool: Tool<GitBranchListInput, GitBranchListOutput> = 
     for (const line of raw.split("\n")) {
       if (!line.trim()) continue;
       const parts = line.trim().split(" ");
-      const name = parts[0]!;
+      const name = parts[0] ?? "";
       const current = parts[1] === "*";
       branches.push({ name, current });
     }
