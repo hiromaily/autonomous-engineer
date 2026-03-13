@@ -3,8 +3,15 @@ import type { IToolExecutor } from '../tools/executor';
 import type { IToolRegistry, ToolListEntry } from '../../domain/tools/registry';
 import type { LlmProviderPort } from '../ports/llm';
 import type { ToolContext } from '../../domain/tools/types';
-import type { AgentState, ActionPlan, ActionCategory, Observation, ReflectionOutput, ReflectionAssessment, PlanAdjustment, TerminationCondition } from '../../domain/agent/types';
+import type { AgentState, ActionPlan, ActionCategory, Observation, ReflectionOutput, ReflectionAssessment, PlanAdjustment, TerminationCondition, LoopStep } from '../../domain/agent/types';
 import { ACTION_CATEGORIES } from '../../domain/agent/types';
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+/** Maximum string length (chars) logged for tool input values before redaction. */
+const REDACT_THRESHOLD = 256;
 
 // ---------------------------------------------------------------------------
 // Default option values — applied when callers omit a field
@@ -79,20 +86,68 @@ export class AgentLoopService implements IAgentLoop {
 
       // Outer iteration loop — PLAN→ACT→OBSERVE→REFLECT→UPDATE (tasks 4.x–8.x)
       while (!this.#stopRequested && state.iterationCount < opts.maxIterations) {
+        // Capture iteration number before any step modifies it (task 8.1)
+        const currentIteration = state.iterationCount;
+        const iterationStartTime = Date.now();
+
+        // Task 8.1 — emit iteration:start at the beginning of each iteration
+        opts.eventBus?.emit({
+          type: 'iteration:start',
+          iteration: currentIteration,
+          currentStep: state.currentStep,
+          timestamp: new Date().toISOString(),
+        });
+
         // PLAN step — throws on exhausted retries (caught below → HUMAN_INTERVENTION_REQUIRED)
+        const endPlan = this.#beginStep('PLAN', currentIteration, opts);
         const plan = await this.#planStep(state, toolSchemas, opts);
+        const planDuration = endPlan();
+        opts.logger?.info('step:PLAN', { step: 'PLAN', iteration: currentIteration, durationMs: planDuration });
+
         // ACT step — throws on permission error (caught below → HUMAN_INTERVENTION_REQUIRED)
+        const endAct = this.#beginStep('ACT', currentIteration, opts);
         const observation = await this.#actStep(plan);
+        const actDuration = endAct();
+        if (opts.logger) {
+          opts.logger.info('step:ACT', { step: 'ACT', iteration: currentIteration, category: plan.category, toolName: plan.toolName, toolInput: this.#redactToolInput(plan.toolInput), success: observation.success, durationMs: actDuration });
+          if (!observation.success && observation.error) {
+            opts.logger.error('Tool invocation failed', { step: 'ACT', iteration: currentIteration, errorType: observation.error.type, errorMessage: observation.error.message });
+          }
+        }
+
         // OBSERVE step (task 5.1) — append observation to state (immutable)
+        const endObserve = this.#beginStep('OBSERVE', currentIteration, opts);
         state = this.#observeStep(observation, state);
+        const observeDuration = endObserve();
+        opts.logger?.info('step:OBSERVE', { step: 'OBSERVE', iteration: currentIteration, observationCount: state.observations.length, durationMs: observeDuration });
+
         // REFLECT step (task 5.2) — embed reflection into latest observation
+        const endReflect = this.#beginStep('REFLECT', currentIteration, opts);
         state = await this.#reflectStep(plan, state);
+        const reflectDuration = endReflect();
+        // Capture reflection now — observations are unchanged by UPDATE_STATE, so this stays valid
+        const latestReflection = state.observations[state.observations.length - 1]?.reflection;
+        opts.logger?.info('step:REFLECT', { step: 'REFLECT', iteration: currentIteration, assessment: latestReflection?.assessment, durationMs: reflectDuration });
+
         // UPDATE STATE step (task 5.3) — advance step pointer, increment iteration counter
+        const endUpdate = this.#beginStep('UPDATE_STATE', currentIteration, opts);
         state = this.#updateStateStep(state);
+        const updateDuration = endUpdate();
+        opts.logger?.info('step:UPDATE_STATE', { step: 'UPDATE_STATE', iteration: currentIteration, durationMs: updateDuration });
+
         this.#currentState = state;
 
+        // Task 8.1 — emit iteration:complete after the full cycle
+        opts.eventBus?.emit({
+          type: 'iteration:complete',
+          iteration: currentIteration,
+          category: plan.category,
+          toolName: plan.toolName,
+          durationMs: Date.now() - iterationStartTime,
+          assessment: latestReflection?.assessment ?? 'expected',
+        });
+
         // Task 6.1 — check termination conditions from reflection after each complete cycle
-        const latestReflection = state.observations[state.observations.length - 1]?.reflection;
         if (latestReflection?.taskComplete === true) {
           return this.#terminate('TASK_COMPLETED', state, true, opts);
         }
@@ -596,6 +651,36 @@ export class AgentLoopService implements IAgentLoop {
       '\nAnalyze the error and propose a fix action. Respond with JSON:',
       '{ "category": "Exploration"|"Modification"|"Validation"|"Documentation", "toolName": string, "toolInput": object, "rationale": string }',
     ].join('\n');
+  }
+
+  /**
+   * Task 8.1/8.2 — emits a step:start event and records the wall-clock start time.
+   * Returns a "finisher" function: call it after the step completes to emit step:complete
+   * with the elapsed duration and get the duration back as a number.
+   * Both emissions are silently skipped when no event bus is configured.
+   */
+  #beginStep(step: LoopStep, iteration: number, opts: Pick<AgentLoopOptions, 'eventBus'>): () => number {
+    opts.eventBus?.emit({ type: 'step:start', step, iteration, timestamp: new Date().toISOString() });
+    const t0 = Date.now();
+    return (): number => {
+      const d = Date.now() - t0;
+      opts.eventBus?.emit({ type: 'step:complete', step, iteration, durationMs: d });
+      return d;
+    };
+  }
+
+  /**
+   * Task 8.2 — redacts tool input string values that exceed REDACT_THRESHOLD chars
+   * to avoid logging sensitive data. Other value types are passed through unchanged.
+   */
+  #redactToolInput(input: Readonly<Record<string, unknown>>): Record<string, unknown> {
+    const result: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(input)) {
+      result[key] = typeof value === 'string' && value.length > REDACT_THRESHOLD
+        ? `[REDACTED: ${value.length} chars]`
+        : value;
+    }
+    return result;
   }
 
   /** Parses and validates LLM response content into an ActionPlan, or returns null on failure. */

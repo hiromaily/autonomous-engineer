@@ -1981,3 +1981,437 @@ describe('AgentLoopService task 7.2 — counter reset on distinct new error', ()
     expect(result.finalState.recoveryAttempts).toBe(0);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Task 8.1 — event bus integration: per-step and per-iteration events
+// ---------------------------------------------------------------------------
+
+describe('AgentLoopService task 8.1 — iteration:start event', () => {
+  it('emits one iteration:start event per iteration', async () => {
+    const { bus, events } = makeEventBus();
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeCycledLlm(), makeToolContext());
+    await service.run('test', { maxIterations: 2, eventBus: bus });
+
+    const startEvents = events.filter((e) => e.type === 'iteration:start');
+    expect(startEvents.length).toBe(2);
+  });
+
+  it('iteration:start event carries iteration number, currentStep, and ISO timestamp', async () => {
+    const { bus, events } = makeEventBus();
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeCycledLlm(), makeToolContext());
+    await service.run('test', { maxIterations: 1, eventBus: bus });
+
+    const startEvent = events.find((e) => e.type === 'iteration:start') as
+      Extract<AgentLoopEvent, { type: 'iteration:start' }> | undefined;
+
+    expect(startEvent).toBeDefined();
+    expect(typeof startEvent!.iteration).toBe('number');
+    expect(startEvent!.timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+    expect('currentStep' in startEvent!).toBe(true);
+  });
+
+  it('iteration:start events have consecutive iteration numbers starting at 0', async () => {
+    const { bus, events } = makeEventBus();
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeCycledLlm(), makeToolContext());
+    await service.run('test', { maxIterations: 2, eventBus: bus });
+
+    const startEvents = events.filter((e) => e.type === 'iteration:start') as
+      Array<Extract<AgentLoopEvent, { type: 'iteration:start' }>>;
+
+    expect(startEvents[0]!.iteration).toBe(0);
+    expect(startEvents[1]!.iteration).toBe(1);
+  });
+});
+
+describe('AgentLoopService task 8.1 — step:start and step:complete events', () => {
+  it('emits step:start and step:complete for each of the 5 sub-steps per iteration', async () => {
+    const { bus, events } = makeEventBus();
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeCycledLlm(), makeToolContext());
+    await service.run('test', { maxIterations: 1, eventBus: bus });
+
+    const stepStarts = events.filter((e) => e.type === 'step:start') as
+      Array<Extract<AgentLoopEvent, { type: 'step:start' }>>;
+    const stepCompletes = events.filter((e) => e.type === 'step:complete') as
+      Array<Extract<AgentLoopEvent, { type: 'step:complete' }>>;
+
+    expect(stepStarts.length).toBe(5);
+    expect(stepCompletes.length).toBe(5);
+  });
+
+  it('step:start events cover all 5 steps: PLAN, ACT, OBSERVE, REFLECT, UPDATE_STATE', async () => {
+    const { bus, events } = makeEventBus();
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeCycledLlm(), makeToolContext());
+    await service.run('test', { maxIterations: 1, eventBus: bus });
+
+    const stepStarts = events.filter((e) => e.type === 'step:start') as
+      Array<Extract<AgentLoopEvent, { type: 'step:start' }>>;
+    const stepNames = stepStarts.map((e) => e.step);
+
+    expect(stepNames).toContain('PLAN');
+    expect(stepNames).toContain('ACT');
+    expect(stepNames).toContain('OBSERVE');
+    expect(stepNames).toContain('REFLECT');
+    expect(stepNames).toContain('UPDATE_STATE');
+  });
+
+  it('step events appear in PLAN→ACT→OBSERVE→REFLECT→UPDATE_STATE order', async () => {
+    const { bus, events } = makeEventBus();
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeCycledLlm(), makeToolContext());
+    await service.run('test', { maxIterations: 1, eventBus: bus });
+
+    const stepStartEvents = events.filter((e) => e.type === 'step:start') as
+      Array<Extract<AgentLoopEvent, { type: 'step:start' }>>;
+    const stepNames = stepStartEvents.map((e) => e.step);
+    expect(stepNames).toEqual(['PLAN', 'ACT', 'OBSERVE', 'REFLECT', 'UPDATE_STATE']);
+  });
+
+  it('step:start event carries step name, iteration number, and ISO timestamp', async () => {
+    const { bus, events } = makeEventBus();
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeCycledLlm(), makeToolContext());
+    await service.run('test', { maxIterations: 1, eventBus: bus });
+
+    const planStart = events.find((e) => e.type === 'step:start') as
+      Extract<AgentLoopEvent, { type: 'step:start' }> | undefined;
+
+    expect(planStart).toBeDefined();
+    expect(planStart!.step).toBe('PLAN');
+    expect(typeof planStart!.iteration).toBe('number');
+    expect(planStart!.timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+  });
+
+  it('step:complete event carries step name, iteration number, and non-negative durationMs', async () => {
+    const { bus, events } = makeEventBus();
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeCycledLlm(), makeToolContext());
+    await service.run('test', { maxIterations: 1, eventBus: bus });
+
+    const planComplete = events.find((e) => e.type === 'step:complete') as
+      Extract<AgentLoopEvent, { type: 'step:complete' }> | undefined;
+
+    expect(planComplete).toBeDefined();
+    expect(planComplete!.step).toBe('PLAN');
+    expect(typeof planComplete!.iteration).toBe('number');
+    expect(typeof planComplete!.durationMs).toBe('number');
+    expect(planComplete!.durationMs).toBeGreaterThanOrEqual(0);
+  });
+
+  it('step:complete events cover all 5 steps: PLAN, ACT, OBSERVE, REFLECT, UPDATE_STATE', async () => {
+    const { bus, events } = makeEventBus();
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeCycledLlm(), makeToolContext());
+    await service.run('test', { maxIterations: 1, eventBus: bus });
+
+    const stepCompletes = events.filter((e) => e.type === 'step:complete') as
+      Array<Extract<AgentLoopEvent, { type: 'step:complete' }>>;
+    const stepNames = stepCompletes.map((e) => e.step);
+
+    expect(stepNames).toContain('PLAN');
+    expect(stepNames).toContain('ACT');
+    expect(stepNames).toContain('OBSERVE');
+    expect(stepNames).toContain('REFLECT');
+    expect(stepNames).toContain('UPDATE_STATE');
+  });
+
+  it('step events carry correct iteration number for second iteration', async () => {
+    const { bus, events } = makeEventBus();
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeCycledLlm(), makeToolContext());
+    await service.run('test', { maxIterations: 2, eventBus: bus });
+
+    const stepStarts = events.filter((e) => e.type === 'step:start') as
+      Array<Extract<AgentLoopEvent, { type: 'step:start' }>>;
+
+    // First 5 step:start events are for iteration 0, next 5 for iteration 1
+    const iter0Steps = stepStarts.filter((e) => e.iteration === 0);
+    const iter1Steps = stepStarts.filter((e) => e.iteration === 1);
+    expect(iter0Steps.length).toBe(5);
+    expect(iter1Steps.length).toBe(5);
+  });
+});
+
+describe('AgentLoopService task 8.1 — iteration:complete event', () => {
+  it('emits one iteration:complete event per iteration', async () => {
+    const { bus, events } = makeEventBus();
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeCycledLlm(), makeToolContext());
+    await service.run('test', { maxIterations: 2, eventBus: bus });
+
+    const completeEvents = events.filter((e) => e.type === 'iteration:complete');
+    expect(completeEvents.length).toBe(2);
+  });
+
+  it('iteration:complete event carries category, toolName, non-negative durationMs, and assessment', async () => {
+    const { bus, events } = makeEventBus();
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeCycledLlm(), makeToolContext());
+    await service.run('test', { maxIterations: 1, eventBus: bus });
+
+    const completeEvent = events.find((e) => e.type === 'iteration:complete') as
+      Extract<AgentLoopEvent, { type: 'iteration:complete' }> | undefined;
+
+    expect(completeEvent).toBeDefined();
+    expect(typeof completeEvent!.iteration).toBe('number');
+    expect(typeof completeEvent!.category).toBe('string');
+    expect(typeof completeEvent!.toolName).toBe('string');
+    expect(typeof completeEvent!.durationMs).toBe('number');
+    expect(completeEvent!.durationMs).toBeGreaterThanOrEqual(0);
+    expect(typeof completeEvent!.assessment).toBe('string');
+  });
+
+  it('iteration:complete carries the correct toolName from the action plan', async () => {
+    const { bus, events } = makeEventBus();
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeCycledLlm(), makeToolContext());
+    await service.run('test', { maxIterations: 1, eventBus: bus });
+
+    // makeCycledLlm returns toolName: 'read_file' in the plan
+    const completeEvent = events.find((e) => e.type === 'iteration:complete') as
+      Extract<AgentLoopEvent, { type: 'iteration:complete' }> | undefined;
+
+    expect(completeEvent!.toolName).toBe('read_file');
+    expect(completeEvent!.category).toBe('Exploration');
+  });
+
+  it('no event bus — run() completes normally without errors (per-step events skipped silently)', async () => {
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeCycledLlm(), makeToolContext());
+    const result = await service.run('test', { maxIterations: 1 });
+    expect(result.terminationCondition).toBe('MAX_ITERATIONS_REACHED');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 8.2 — structured logging at sub-step boundaries
+// ---------------------------------------------------------------------------
+
+describe('AgentLoopService task 8.2 — per-step info logging', () => {
+  it('logs an info entry for each of the 5 sub-steps per iteration', async () => {
+    const { logger, infos } = makeSummaryLogger();
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeCycledLlm(), makeToolContext());
+    await service.run('test', { maxIterations: 1, logger });
+
+    const stepLogs = infos.filter((l) => l.data && typeof l.data['step'] === 'string');
+    const stepNames = stepLogs.map((l) => l.data!['step'] as string);
+
+    expect(stepNames).toContain('PLAN');
+    expect(stepNames).toContain('ACT');
+    expect(stepNames).toContain('OBSERVE');
+    expect(stepNames).toContain('REFLECT');
+    expect(stepNames).toContain('UPDATE_STATE');
+  });
+
+  it('per-step log entries include iteration number', async () => {
+    const { logger, infos } = makeSummaryLogger();
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeCycledLlm(), makeToolContext());
+    await service.run('test', { maxIterations: 1, logger });
+
+    const stepLogs = infos.filter((l) => l.data && typeof l.data['step'] === 'string');
+    expect(stepLogs.length).toBeGreaterThanOrEqual(5);
+    for (const log of stepLogs) {
+      expect(typeof log.data!['iteration']).toBe('number');
+    }
+  });
+
+  it('per-step log entries include durationMs as a non-negative number', async () => {
+    const { logger, infos } = makeSummaryLogger();
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeCycledLlm(), makeToolContext());
+    await service.run('test', { maxIterations: 1, logger });
+
+    const stepLogs = infos.filter((l) => l.data && typeof l.data['step'] === 'string');
+    expect(stepLogs.length).toBeGreaterThanOrEqual(5);
+    for (const log of stepLogs) {
+      expect(typeof log.data!['durationMs']).toBe('number');
+      expect(log.data!['durationMs'] as number).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it('ACT step log entry includes category, toolName, and success status', async () => {
+    const { logger, infos } = makeSummaryLogger();
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeCycledLlm(), makeToolContext());
+    await service.run('test', { maxIterations: 1, logger });
+
+    const actLog = infos.find((l) => l.data?.['step'] === 'ACT');
+    expect(actLog).toBeDefined();
+    expect(typeof actLog!.data!['category']).toBe('string');
+    expect(typeof actLog!.data!['toolName']).toBe('string');
+    expect(typeof actLog!.data!['success']).toBe('boolean');
+  });
+
+  it('no logger configured — run() completes normally (per-step logs skipped silently)', async () => {
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeCycledLlm(), makeToolContext());
+    const result = await service.run('test', { maxIterations: 1 });
+    expect(result.terminationCondition).toBe('MAX_ITERATIONS_REACHED');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 8.2 — tool input redaction
+// ---------------------------------------------------------------------------
+
+describe('AgentLoopService task 8.2 — tool input redaction', () => {
+  function makeLargeInputLlm(): LlmProviderPort {
+    let callCount = 0;
+    return {
+      async complete(_prompt) {
+        callCount++;
+        if (callCount % 2 === 1) {
+          return {
+            ok: true,
+            value: {
+              content: JSON.stringify({
+                category: 'Modification',
+                toolName: 'write_file',
+                toolInput: { content: 'x'.repeat(512), path: '/small.ts' },
+                rationale: 'Write file',
+              }),
+              usage: { inputTokens: 1, outputTokens: 1 },
+            },
+          };
+        }
+        return { ok: true, value: { content: makeValidReflectionJson(), usage: { inputTokens: 1, outputTokens: 1 } } };
+      },
+      clearContext() {},
+    };
+  }
+
+  it('large toolInput string values (>256 chars) are redacted in log entries', async () => {
+    const loggedData: string[] = [];
+    const logger = {
+      info(_msg: string, data?: Readonly<Record<string, unknown>>) {
+        if (data) loggedData.push(JSON.stringify(data));
+      },
+      error(_msg: string, _data?: Readonly<Record<string, unknown>>) {},
+    };
+
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeLargeInputLlm(), makeToolContext());
+    await service.run('test', { maxIterations: 1, logger });
+
+    const allLogs = loggedData.join('');
+    // The large string 'x'.repeat(512) should NOT appear verbatim
+    expect(allLogs).not.toContain('x'.repeat(512));
+  });
+
+  it('small toolInput values are preserved in log entries (not redacted)', async () => {
+    const loggedData: string[] = [];
+    const logger = {
+      info(_msg: string, data?: Readonly<Record<string, unknown>>) {
+        if (data) loggedData.push(JSON.stringify(data));
+      },
+      error(_msg: string, _data?: Readonly<Record<string, unknown>>) {},
+    };
+
+    // makeCycledLlm uses toolInput: { path: '/workspace/src/index.ts' }
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeCycledLlm(), makeToolContext());
+    await service.run('test', { maxIterations: 1, logger });
+
+    const allLogs = loggedData.join('');
+    // Short path value should appear in the logs
+    expect(allLogs).toContain('/workspace/src/index.ts');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 8.2 — error path logging
+// ---------------------------------------------------------------------------
+
+describe('AgentLoopService task 8.2 — error path logging', () => {
+  function makeFailingExecutor(): IToolExecutor {
+    return {
+      async invoke(_name, _input, _ctx) {
+        return { ok: false, error: { type: 'runtime', message: 'specific-error-abc-123' } };
+      },
+    };
+  }
+
+  it('logs an error entry when tool invocation fails', async () => {
+    const errors: Array<{ msg: string; data?: Readonly<Record<string, unknown>> }> = [];
+    const logger = {
+      info(_msg: string, _data?: Readonly<Record<string, unknown>>) {},
+      error(msg: string, data?: Readonly<Record<string, unknown>>) { errors.push({ msg, data }); },
+    };
+
+    const service = new AgentLoopService(makeFailingExecutor(), makeRegistry(), makeCycledLlm(), makeToolContext());
+    await service.run('test', { maxIterations: 1, logger });
+
+    expect(errors.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('error log entry contains the error message from the tool failure', async () => {
+    const errors: Array<{ msg: string; data?: Readonly<Record<string, unknown>> }> = [];
+    const logger = {
+      info(_msg: string, _data?: Readonly<Record<string, unknown>>) {},
+      error(msg: string, data?: Readonly<Record<string, unknown>>) { errors.push({ msg, data }); },
+    };
+
+    const service = new AgentLoopService(makeFailingExecutor(), makeRegistry(), makeCycledLlm(), makeToolContext());
+    await service.run('test', { maxIterations: 1, logger });
+
+    const allText = errors.map((e) => `${e.msg} ${JSON.stringify(e.data ?? {})}`).join(' ');
+    expect(allText).toContain('specific-error-abc-123');
+  });
+
+  it('error log entry includes error type', async () => {
+    const errors: Array<{ msg: string; data?: Readonly<Record<string, unknown>> }> = [];
+    const logger = {
+      info(_msg: string, _data?: Readonly<Record<string, unknown>>) {},
+      error(msg: string, data?: Readonly<Record<string, unknown>>) { errors.push({ msg, data }); },
+    };
+
+    const service = new AgentLoopService(makeFailingExecutor(), makeRegistry(), makeCycledLlm(), makeToolContext());
+    await service.run('test', { maxIterations: 1, logger });
+
+    const errorData = errors.flatMap((e) => Object.values(e.data ?? {})).join(' ');
+    expect(errorData).toContain('runtime');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 8.2 — state query without blocking
+// ---------------------------------------------------------------------------
+
+describe('AgentLoopService task 8.2 — state query during execution', () => {
+  it('getState() returns a non-null snapshot during run() execution', async () => {
+    let snapshotDuringExecution: Readonly<AgentState> | null = null;
+    let svc!: AgentLoopService;
+
+    const executor: IToolExecutor = {
+      async invoke(_name, _input, _ctx) {
+        snapshotDuringExecution = svc.getState();
+        return { ok: true, value: {} };
+      },
+    };
+
+    svc = new AgentLoopService(executor, makeRegistry(), makeCycledLlm(), makeToolContext());
+    await svc.run('my-task', { maxIterations: 1 });
+
+    expect(snapshotDuringExecution).not.toBeNull();
+  });
+
+  it('getState() snapshot during execution contains the task string', async () => {
+    let snapshotDuringExecution: Readonly<AgentState> | null = null;
+    let svc!: AgentLoopService;
+
+    const executor: IToolExecutor = {
+      async invoke(_name, _input, _ctx) {
+        snapshotDuringExecution = svc.getState();
+        return { ok: true, value: {} };
+      },
+    };
+
+    svc = new AgentLoopService(executor, makeRegistry(), makeCycledLlm(), makeToolContext());
+    await svc.run('my-special-task', { maxIterations: 1 });
+
+    expect(snapshotDuringExecution!.task).toBe('my-special-task');
+  });
+
+  it('getState() snapshot during execution includes iterationCount and completedSteps', async () => {
+    let snapshotDuringExecution: Readonly<AgentState> | null = null;
+    let svc!: AgentLoopService;
+
+    const executor: IToolExecutor = {
+      async invoke(_name, _input, _ctx) {
+        snapshotDuringExecution = svc.getState();
+        return { ok: true, value: {} };
+      },
+    };
+
+    svc = new AgentLoopService(executor, makeRegistry(), makeCycledLlm(), makeToolContext());
+    await svc.run('test', { maxIterations: 1 });
+
+    expect(typeof snapshotDuringExecution!.iterationCount).toBe('number');
+    expect(Array.isArray(snapshotDuringExecution!.completedSteps)).toBe(true);
+  });
+});

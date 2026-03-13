@@ -114,14 +114,14 @@
   - _Requirements: 8.2, 8.4, 8.5_
 
 - [ ] 8. Observability — event emission and structured logging
-- [ ] 8.1 Integrate event bus for per-step and per-iteration events
+- [x] 8.1 Integrate event bus for per-step and per-iteration events
   - At the start of each iteration, emit an iteration-start event carrying the iteration number, active step, and timestamp
   - At the start and end of each of the five sub-steps, emit step-start and step-complete events with the step name, iteration number, and elapsed time in milliseconds
   - At the end of each iteration, emit an iteration-complete event carrying the action category, tool invoked, total duration, and reflection assessment
   - When no event bus is configured, skip emission silently — the loop must continue normally without one
   - _Requirements: 9.1, 9.2, 9.3_
 
-- [ ] 8.2 Implement structured logging and status query
+- [x] 8.2 Implement structured logging and status query
   - At each sub-step boundary, log an info entry through the injected logger with the step name, iteration number, action type, tool name, result status, and execution time — redact tool input values that exceed a byte limit to avoid logging sensitive data
   - Ensure the state query method returns the current snapshot (iteration count, active step, completed step count) without blocking or delaying the iteration in progress
   - On any error path, log an error entry with the error category, message, and recovery context
