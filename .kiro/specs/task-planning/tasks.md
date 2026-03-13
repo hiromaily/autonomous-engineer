@@ -33,8 +33,8 @@
   - Define all supporting option, outcome, result, and logger types, including the configurable step threshold, retry count, and skip-review flag.
   - _Requirements: 2.1, 2.3, 2.5, 7.1, 8.1, 8.3, 9.1, 9.5, 10.1, 10.2, 11.1, 11.3, 11.4, 11.5_
 
-- [ ] 4. (P) Implement plan file persistence
-- [ ] 4.1 Implement the file store adapter
+- [x] 4. (P) Implement plan file persistence
+- [x] 4.1 Implement the file store adapter
   - Write the plan file store that saves plan state as JSON at `.memory/tasks/task_{id}.json`.
   - Use the atomic write pattern (write to a temp sibling file, datasync, then rename) to ensure no partial state is ever visible to readers.
   - Create the parent directory with recursive mkdir on first write; return null on a not-found error and throw for all other filesystem errors.
@@ -42,7 +42,7 @@
   - Implement list-resumable by scanning all JSON files in the directory and returning IDs of plans that still have tasks not yet completed or failed.
   - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5_
 
-- [ ] 4.2 Write tests for the file store
+- [x] 4.2 Write tests for the file store
   - Verify a saved plan is fully readable and matches the original after a round-trip.
   - Verify that load returns null when the plan file does not exist.
   - Verify that a filesystem write error halts rather than continuing without persistence.
