@@ -61,11 +61,15 @@ interface CompressionEventRecord {
 }
 
 // Layers that callers may expand via expandContext
-const EXPANDABLE_LAYERS: ReadonlyArray<string> = [
+const EXPANDABLE_LAYERS: ReadonlySet<LayerId> = new Set([
 	"codeContext",
 	"activeSpecification",
 	"memoryRetrieval",
-];
+]);
+
+const REVERSE_CANONICAL_LAYER_ORDER: ReadonlyArray<LayerId> = Object.freeze(
+	[...LAYER_REGISTRY].reverse().map((e) => e.id),
+);
 
 interface BudgetedLayers {
 	readonly layers: LayerContent[];
@@ -92,6 +96,7 @@ export class ContextEngineService implements IContextEngine {
 	private readonly accumulator: IContextAccumulator;
 	private readonly cache: IContextCache;
 	private readonly options: ContextEngineServiceOptions;
+	private readonly _toolContext: ToolContext;
 
 	/** Current assembled layer content — updated after each buildContext/expandContext call. */
 	private currentLayers = new Map<LayerId, string>();
@@ -116,6 +121,22 @@ export class ContextEngineService implements IContextEngine {
 		this.accumulator = accumulator;
 		this.cache = cache;
 		this.options = options;
+		this._toolContext = {
+			workspaceRoot: options.workspaceRoot,
+			workingDirectory: options.workspaceRoot,
+			permissions: {
+				filesystemRead: true,
+				filesystemWrite: false,
+				shellExecution: false,
+				gitWrite: false,
+				networkAccess: false,
+			},
+			memory: { search: async () => [] },
+			logger: {
+				info: () => {},
+				error: () => {},
+			},
+		};
 	}
 
 	// -------------------------------------------------------------------------
@@ -217,7 +238,7 @@ export class ContextEngineService implements IContextEngine {
 	// -------------------------------------------------------------------------
 
 	async expandContext(request: ExpansionRequest): Promise<ExpansionResult> {
-		if (!EXPANDABLE_LAYERS.includes(request.targetLayer)) {
+		if (!EXPANDABLE_LAYERS.has(request.targetLayer)) {
 			return {
 				ok: false,
 				updatedTokenCount: 0,
@@ -235,7 +256,7 @@ export class ContextEngineService implements IContextEngine {
 				const result = await this.toolExecutor.invoke(
 					"read_file",
 					{ path: request.resourceId },
-					this.toolContext(),
+					this._toolContext,
 				);
 				if (!result.ok) {
 					return {
@@ -529,7 +550,7 @@ export class ContextEngineService implements IContextEngine {
 			const result = await this.toolExecutor.invoke(
 				"git_status",
 				{},
-				this.toolContext(),
+				this._toolContext,
 			);
 
 			if (!result.ok) {
@@ -590,7 +611,7 @@ export class ContextEngineService implements IContextEngine {
 				return null;
 			}
 
-			const ctx = this.toolContext();
+			const ctx = this._toolContext;
 			const parts: string[] = [];
 
 			if (query.pattern) {
@@ -690,7 +711,7 @@ export class ContextEngineService implements IContextEngine {
 
 		if (overage > 0) {
 			// Lowest-priority = reverse canonical order; skip system-level layers
-			const reversePriority = [...LAYER_REGISTRY].reverse().map((e) => e.id);
+			const reversePriority = REVERSE_CANONICAL_LAYER_ORDER;
 
 			for (const layerId of reversePriority) {
 				if (layerId === "systemInstructions" || layerId === "taskDescription") continue;
@@ -812,29 +833,6 @@ export class ContextEngineService implements IContextEngine {
 			plannerDecision: emptyPlan,
 			degraded: true,
 			omittedLayers,
-		};
-	}
-
-	// -------------------------------------------------------------------------
-	// toolContext — minimal ToolContext for IToolExecutor.invoke() calls
-	// -------------------------------------------------------------------------
-
-	private toolContext(): ToolContext {
-		return {
-			workspaceRoot: this.options.workspaceRoot,
-			workingDirectory: this.options.workspaceRoot,
-			permissions: {
-				filesystemRead: true,
-				filesystemWrite: false,
-				shellExecution: false,
-				gitWrite: false,
-				networkAccess: false,
-			},
-			memory: { search: async () => [] },
-			logger: {
-				info: () => {},
-				error: () => {},
-			},
 		};
 	}
 

@@ -217,7 +217,7 @@ export interface AccumulatedEntry {
 	readonly content: string;
 	readonly phaseId: string;
 	readonly taskId: string;
-	readonly resourceId?: string;
+	readonly resourceId: string | undefined;
 }
 
 export interface ExpansionEvent {
