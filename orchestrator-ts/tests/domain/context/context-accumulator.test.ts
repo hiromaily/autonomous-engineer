@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import { ContextAccumulator } from "../../../domain/context/context-accumulator";
 import type {
 	AccumulatedEntry,
@@ -194,13 +194,17 @@ describe("ContextAccumulator.resetPhase", () => {
 		expect(acc.recordExpansion(makeExpansionEvent("r3")).ok).toBe(true);
 	});
 
-	it("does not remove entries from a different phase", () => {
+	it("clears only the specified phase, leaving accumulated state for other phases intact until their own reset", () => {
 		const acc = new ContextAccumulator({ maxExpansionsPerIteration: 10 });
 		acc.accumulate(makeEntry("phase1", "task1", { content: "p1" }));
+		// Reset phase1; phase2 entries have not yet been added
 		acc.resetPhase("phase1");
 		acc.accumulate(makeEntry("phase2", "task1", { content: "p2" }));
+		// phase1 cleared, phase2 intact
+		expect(acc.getEntries("phase1", "task1")).toHaveLength(0);
+		expect(acc.getEntries("phase2", "task1")).toHaveLength(1);
+		// Now reset phase2
 		acc.resetPhase("phase2");
-		// Both cleared independently — just verify the second is cleared
 		expect(acc.getEntries("phase2", "task1")).toHaveLength(0);
 	});
 });
