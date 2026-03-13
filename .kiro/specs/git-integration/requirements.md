@@ -75,8 +75,8 @@ The git-integration spec (spec8) provides all repository operations required for
 #### Acceptance Criteria
 
 1. The Git Integration Service shall expose all operations through a `IGitController` port interface defined in the application ports layer (`application/ports/git-controller-port.ts`).
-2. The Git Integration Service shall implement the `IGitController` interface in an adapter (`infra/git/`) that can be replaced without changing core application logic.
-3. Where multiple repository hosting providers are required, the Git Integration Service shall support provider-specific adapters (e.g., `GitHubAdapter`, `GitLabAdapter`) that implement the same `IGitController` interface.
+2. The Git Integration Service shall implement the `IGitController` interface in an adapter (`adapters/git/`) that can be replaced without changing core application logic.
+3. Where multiple repository hosting providers are required, the Git Integration Service shall support provider-specific adapters (e.g., `GitHubAdapter`, `GitLabAdapter`) that implement the same `IPullRequestProvider` interface.
 4. The Git Integration Service shall use the tool-system's git tools (`git_status`, `git_diff`, `git_commit`, `git_branch`) for all local Git CLI operations.
 5. The Git Integration Service shall not import directly from Git CLI libraries or repository API SDKs in the application or domain layers; all such dependencies shall reside in the adapter and infra layers.
 
@@ -89,7 +89,7 @@ The git-integration spec (spec8) provides all repository operations required for
 #### Acceptance Criteria
 
 1. The Git Integration Service shall enforce workspace isolation: all git operations must target the configured workspace root and reject any operation referencing paths outside it.
-2. While any git operation is in progress, the Git Integration Service shall maintain an audit log entry containing: timestamp, operation type, parameters, and outcome.
+2. The Git Integration Service shall write an audit log entry to record the start and outcome of each git operation, containing: timestamp, operation type, parameters, and outcome.
 3. If a git operation fails due to a permission denied error, the Git Integration Service shall emit a structured `ToolError` with category `"permission"` and halt the operation.
 4. The Git Integration Service shall respect the `PermissionSet` flags from the tool-system: `gitWrite` must be `true` for all write operations (commit, push, branch creation); operations shall be rejected with a `"permission"` error if `gitWrite` is `false`.
 5. If the same git operation fails identically three consecutive times, the Git Integration Service shall pause execution, emit a `repeated-git-failure` event, and escalate to human review.

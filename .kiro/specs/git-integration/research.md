@@ -121,7 +121,7 @@
 - **Alternatives Considered**:
   1. Add raw `child_process` calls inside `GitControllerAdapter`.
   2. Extend `adapters/tools/git.ts` with two new tool definitions.
-- **Selected Approach**: Extend `adapters/tools/git.ts` with `git_add` (staged file listing + protected filter) and `git_push` (with non-fast-forward detection).
+- **Selected Approach**: Extend `adapters/tools/git.ts` with `git_add` and `git_push` (with non-fast-forward detection).
 - **Rationale**: Consistent with existing pattern; benefits from tool executor's permission checks, timeouts, and logging automatically.
 - **Trade-offs**: `git_add` takes a file list parameter; the protected-pattern filter runs in `GitControllerAdapter` before the tool call.
 

@@ -105,7 +105,7 @@ graph TB
     end
 
     subgraph Infra
-        ToolExecutor[application/tools/executor.ts]
+        ToolExecutor[infra/tools/executor.ts]
         EventBus[infra/events/git-event-bus.ts]
         AuditLogger[adapters/safety/audit-logger.ts]
     end
@@ -137,7 +137,7 @@ graph TB
 | Layer | Choice / Version | Role in Feature | Notes |
 |-------|------------------|-----------------|-------|
 | Backend / Services | TypeScript (strict), Bun v1.3.10+ | Service implementation | Existing stack |
-| Git CLI | `git` via existing `git_add` / `git_push` tools | Local repository operations | Extended from `adapters/tools/git.ts` |
+| Git CLI | `git` via new `git_add` / `git_push` tools | Local repository operations | Added to `adapters/tools/git.ts` as part of this feature |
 | GitHub API | GitHub REST API v2022-11-28 via native `fetch` | PR creation / update | No SDK; Bun includes `fetch` |
 | GitLab API | GitLab REST API v4 via native `fetch` (deferred) | MR creation (future) | Same `IPullRequestProvider` contract |
 | Messaging / Events | `IGitEventBus` (sync, in-process) | Git operation observability | Mirrors `IWorkflowEventBus` pattern |
@@ -529,9 +529,9 @@ export interface IPullRequestProvider {
 
 ---
 
-#### IGitEventBus (`application/ports/git-controller.ts`)
+#### IGitEventBus (`application/ports/git-event-bus.ts`)
 
-Defined in the same file as `IGitController`.
+Defined in its own file for separation of concerns.
 
 **Contracts**: Event [x]
 
@@ -623,8 +623,8 @@ export interface IGitIntegrationService {
 - Invariants: `consecutiveFailureCounts` resets to 0 on each successful operation of that type.
 
 **Implementation Notes**
-- Integration: Constructed at the composition root with all five injected dependencies.
-- Validation: Branch name derived as `agent/<specName>` or `agent/<taskSlug>`; validated before every attempt; suffix `–N` appended (N = 2..99) on collision.
+- Integration: Constructed at the composition root with all six injected interface dependencies and config.
+- Validation: Branch name derived as `agent/<specName>` or `agent/<taskSlug>`; validated before every attempt; suffix `-N` appended (N = 2..99) on collision.
 - Risks: LLM-generated commit messages may occasionally exceed subject-line length guidelines; truncation at 72 characters for the title is enforced in the service before calling `stageAndCommit`.
 
 ---
