@@ -1,4 +1,4 @@
-import { describe, expect, it, mock, beforeEach } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import type {
 	IContextAccumulator,
 	IContextCache,
@@ -10,8 +10,10 @@ import type {
 	TokenBudgetConfig,
 	PlannerDecision,
 	LayerBudgetMap,
+	LayerId,
 	CachedEntry,
 } from "../../../application/ports/context";
+import type { ContextEngineServiceOptions } from "../../../application/context/context-engine-service";
 import type { MemoryPort } from "../../../application/ports/memory";
 import type { IToolExecutor } from "../../../application/tools/executor";
 import { ContextEngineService } from "../../../application/context/context-engine-service";
@@ -21,13 +23,13 @@ import { ContextEngineService } from "../../../application/context/context-engin
 // ---------------------------------------------------------------------------
 
 function makePlanner(
-	layersToRetrieve: string[] = ["repositoryState", "memoryRetrieval"],
+	layersToRetrieve: LayerId[] = ["repositoryState", "memoryRetrieval"],
 ): IContextPlanner {
 	return {
 		plan: () => ({
 			layersToRetrieve,
 			rationale: "stepType:Exploration taskExcerpt:test task",
-			codeContextQuery: { paths: [], pattern: undefined },
+			codeContextQuery: { paths: [] },
 			memoryQuery: { text: "test task", topN: 5 },
 		}),
 	};
@@ -153,11 +155,7 @@ function makeService(
 		cache?: IContextCache;
 		memoryPort?: MemoryPort;
 		toolExecutor?: IToolExecutor;
-		options?: {
-			workspaceRoot?: string;
-			steeringDocPaths?: string[];
-			tokenBudgetConfig?: TokenBudgetConfig;
-		};
+		options?: ContextEngineServiceOptions;
 	} = {},
 ): ContextEngineService {
 	return new ContextEngineService(
@@ -332,7 +330,7 @@ describe("ContextEngineService (task 8.1)", () => {
 				options: {
 					workspaceRoot: "/nonexistent",
 					activeSpecPath: "/nonexistent/.kiro/specs/my-spec/requirements.md",
-				} as { workspaceRoot: string; activeSpecPath: string },
+				},
 			});
 			const result = await svc.buildContext(makeRequest());
 			// No throw — graceful degradation
@@ -344,7 +342,7 @@ describe("ContextEngineService (task 8.1)", () => {
 				options: {
 					workspaceRoot: "/workspace",
 					activeSpecPath: "/definitely/does/not/exist.md",
-				} as { workspaceRoot: string; activeSpecPath: string },
+				},
 			});
 			await expect(svc.buildContext(makeRequest())).resolves.toBeDefined();
 		});

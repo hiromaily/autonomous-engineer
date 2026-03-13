@@ -8,23 +8,25 @@ import type {
 	ContextBuildRequest,
 	CompressionResult,
 	LayerBudgetMap,
+	LayerId,
 	TokenBudgetConfig,
 	CachedEntry,
 } from "../../../application/ports/context";
 import type { MemoryPort } from "../../../application/ports/memory";
 import type { IToolExecutor } from "../../../application/tools/executor";
 import { ContextEngineService } from "../../../application/context/context-engine-service";
+import type { ContextEngineServiceOptions } from "../../../application/context/context-engine-service";
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-function makePlannerWith(layersToRetrieve: string[]): IContextPlanner {
+function makePlannerWith(layersToRetrieve: LayerId[]): IContextPlanner {
 	return {
 		plan: () => ({
 			layersToRetrieve,
 			rationale: "stepType:Exploration taskExcerpt:test",
-			codeContextQuery: { paths: [], pattern: undefined },
+			codeContextQuery: { paths: [] },
 			memoryQuery: { text: "test", topN: 5 },
 		}),
 	};
@@ -170,6 +172,10 @@ function makeService(opts: {
 	toolExecutor?: IToolExecutor;
 	memoryPort?: MemoryPort;
 }) {
+	const serviceOpts: ContextEngineServiceOptions = {
+		workspaceRoot: "/workspace",
+		...(opts.tokenBudgetConfig !== undefined && { tokenBudgetConfig: opts.tokenBudgetConfig }),
+	};
 	return new ContextEngineService(
 		opts.memoryPort ?? makeMemoryPort(),
 		opts.toolExecutor ?? makeToolExecutor(),
@@ -178,11 +184,7 @@ function makeService(opts: {
 		opts.compressor ?? makeCompressor(),
 		makeAccumulator(),
 		makeCache(),
-		{
-			workspaceRoot: "/workspace",
-			steeringDocPaths: [],
-			tokenBudgetConfig: opts.tokenBudgetConfig,
-		},
+		serviceOpts,
 	);
 }
 

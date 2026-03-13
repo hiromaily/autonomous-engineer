@@ -11,6 +11,7 @@ import type {
 	ILayerCompressor,
 	ITokenBudgetManager,
 	LayerId,
+	LayerBudgetMap,
 	LayerTokenUsage,
 	PlannerDecision,
 	TokenBudgetConfig,
@@ -18,6 +19,7 @@ import type {
 import type { MemoryPort } from "../ports/memory";
 import type { IToolExecutor } from "../tools/executor";
 import { LAYER_REGISTRY } from "../../domain/context/layer-registry";
+import type { ToolContext } from "../../domain/tools/types";
 
 // ---------------------------------------------------------------------------
 // Service configuration
@@ -40,13 +42,18 @@ interface LayerContent {
 	readonly layerId: LayerId;
 	readonly content: string;
 	readonly cacheHit: boolean;
-	readonly compressed?: boolean;
+	readonly compressed: boolean;
 }
 
 interface PopulationResult {
 	readonly layers: LayerContent[];
 	readonly omittedLayers: LayerId[];
 	readonly degraded: boolean;
+}
+
+interface BudgetedLayers {
+	readonly layers: LayerContent[];
+	readonly budgetMap: LayerBudgetMap;
 }
 
 // ---------------------------------------------------------------------------
@@ -103,7 +110,7 @@ export class ContextEngineService implements IContextEngine {
 			!request.taskId ||
 			!request.taskDescription
 		) {
-			return this.buildDegradedResult(request, [], "invalid_request");
+			return this.buildDegradedResult([]);
 		}
 
 		// Plan retrieval
@@ -116,11 +123,11 @@ export class ContextEngineService implements IContextEngine {
 		// Populate all layers
 		const population = await this.populateLayers(request, plan);
 
-		// Apply budget enforcement and compression
-		const assembled = this.applyBudgets(population.layers);
+		// Apply budget enforcement and compression (returns layers + budgetMap)
+		const { layers: budgeted, budgetMap } = this.applyBudgets(population.layers);
 
 		// Assemble final content string in canonical order
-		const { content, layers, layerUsage, totalTokens } = this.assembleContent(assembled);
+		const { content, layers, layerUsage, totalTokens } = this.assembleContent(budgeted, budgetMap);
 
 		const durationMs = Date.now() - startMs;
 		void durationMs; // used for observability (task 9.3)
@@ -286,7 +293,6 @@ export class ContextEngineService implements IContextEngine {
 					parts.push(content);
 				}
 			} catch {
-				// File not found or unreadable — skip this path
 				console.warn(
 					`[ContextEngineService] Failed to read steering doc: ${filePath}`,
 				);
@@ -301,6 +307,7 @@ export class ContextEngineService implements IContextEngine {
 			layerId: "systemInstructions",
 			content: parts.join("\n\n---\n\n"),
 			cacheHit: anyCacheHit,
+			compressed: false,
 		};
 	}
 
@@ -313,6 +320,7 @@ export class ContextEngineService implements IContextEngine {
 			layerId: "taskDescription",
 			content: taskDescription,
 			cacheHit: false,
+			compressed: false,
 		};
 	}
 
@@ -328,7 +336,7 @@ export class ContextEngineService implements IContextEngine {
 
 		try {
 			const content = await readFile(specPath, "utf-8");
-			return { layerId: "activeSpecification", content, cacheHit: false };
+			return { layerId: "activeSpecification", content, cacheHit: false, compressed: false };
 		} catch {
 			console.warn(
 				`[ContextEngineService] Failed to read active specification: ${specPath}`,
@@ -346,19 +354,7 @@ export class ContextEngineService implements IContextEngine {
 			const result = await this.toolExecutor.invoke(
 				"git_status",
 				{},
-				{
-					workspaceRoot: this.options.workspaceRoot,
-					workingDirectory: this.options.workspaceRoot,
-					permissions: {
-						filesystemRead: true,
-						filesystemWrite: false,
-						shellExecution: false,
-						gitWrite: false,
-						networkAccess: false,
-					},
-					memory: { search: async () => [] },
-					logger: { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} },
-				},
+				this.toolContext(),
 			);
 
 			if (!result.ok) {
@@ -376,7 +372,7 @@ export class ContextEngineService implements IContextEngine {
 				`Staged: ${(value.staged ?? []).join(", ") || "none"}\n` +
 				`Unstaged: ${(value.unstaged ?? []).join(", ") || "none"}`;
 
-			return { layerId: "repositoryState", content, cacheHit: false };
+			return { layerId: "repositoryState", content, cacheHit: false, compressed: false };
 		} catch (err) {
 			console.error("[ContextEngineService] Unexpected error in git_status:", err);
 			return null;
@@ -408,6 +404,7 @@ export class ContextEngineService implements IContextEngine {
 				layerId: "memoryRetrieval",
 				content: content || "(no memory entries)",
 				cacheHit: false,
+				compressed: false,
 			};
 		} catch (err) {
 			console.warn("[ContextEngineService] Memory retrieval failed:", err);
@@ -426,27 +423,14 @@ export class ContextEngineService implements IContextEngine {
 				return null;
 			}
 
-			const context = {
-				workspaceRoot: this.options.workspaceRoot,
-				workingDirectory: this.options.workspaceRoot,
-				permissions: {
-					filesystemRead: true,
-					filesystemWrite: false,
-					shellExecution: false,
-					gitWrite: false,
-					networkAccess: false,
-				},
-				memory: { search: async () => [] },
-				logger: { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} },
-			};
-
+			const ctx = this.toolContext();
 			const parts: string[] = [];
 
 			if (query.pattern) {
 				const result = await this.toolExecutor.invoke(
 					"search_files",
 					{ pattern: query.pattern },
-					context,
+					ctx,
 				);
 				if (result.ok) {
 					parts.push(String(result.value));
@@ -456,7 +440,7 @@ export class ContextEngineService implements IContextEngine {
 				}
 			} else {
 				for (const path of query.paths) {
-					const result = await this.toolExecutor.invoke("read_file", { path }, context);
+					const result = await this.toolExecutor.invoke("read_file", { path }, ctx);
 					if (result.ok) {
 						parts.push(String(result.value));
 					} else {
@@ -470,6 +454,7 @@ export class ContextEngineService implements IContextEngine {
 				layerId: "codeContext",
 				content: parts.join("\n\n"),
 				cacheHit: false,
+				compressed: false,
 			};
 		} catch (err) {
 			console.error("[ContextEngineService] Unexpected error in code context:", err);
@@ -487,19 +472,19 @@ export class ContextEngineService implements IContextEngine {
 		const content = previousToolResults
 			.map((r) => `[Tool: ${r.toolName}]\n${r.content}`)
 			.join("\n\n");
-		return { layerId: "toolResults", content, cacheHit: false };
+		return { layerId: "toolResults", content, cacheHit: false, compressed: false };
 	}
 
 	// -------------------------------------------------------------------------
 	// applyBudgets — compression enforcement (task 8.3)
 	// -------------------------------------------------------------------------
 
-	private applyBudgets(layers: LayerContent[]): LayerContent[] {
+	private applyBudgets(layers: LayerContent[]): BudgetedLayers {
 		const config = this.options.tokenBudgetConfig ?? this.defaultBudgetConfig();
 		const budgetMap = this.budgetManager.allocate(config);
 
 		// Phase 1: per-layer compression
-		const compressed: LayerContent[] = layers.map((layer) => {
+		const result: LayerContent[] = layers.map((layer) => {
 			const budget = budgetMap.budgets[layer.layerId];
 			const { overBy } = this.budgetManager.checkBudget(layer.content, budget);
 
@@ -508,20 +493,20 @@ export class ContextEngineService implements IContextEngine {
 				layer.layerId !== "systemInstructions" &&
 				layer.layerId !== "taskDescription"
 			) {
-				const result = this.compressor.compress(
+				const compressed = this.compressor.compress(
 					layer.layerId,
 					layer.content,
 					budget,
 					this.budgetManager.countTokens.bind(this.budgetManager),
 				);
-				return { ...layer, content: result.compressed, compressed: true };
+				return { ...layer, content: compressed.compressed, compressed: true };
 			}
 
 			return { ...layer, compressed: false };
 		});
 
 		// Phase 2: total budget check — truncate lowest-priority layer on overage
-		const tokenCounts = compressed.map((l) => ({
+		const tokenCounts = result.map((l) => ({
 			layerId: l.layerId,
 			tokens: this.budgetManager.countTokens(l.content),
 		}));
@@ -529,15 +514,16 @@ export class ContextEngineService implements IContextEngine {
 
 		if (overage > 0) {
 			// Lowest-priority = reverse canonical order; skip system-level layers
-			const canonicalOrder = LAYER_REGISTRY.map((e) => e.id);
-			const reversePriority = [...canonicalOrder].reverse();
+			const reversePriority = [...LAYER_REGISTRY].reverse().map((e) => e.id);
 
 			for (const layerId of reversePriority) {
 				if (layerId === "systemInstructions" || layerId === "taskDescription") continue;
-				const idx = compressed.findIndex((l) => l.layerId === layerId);
+				const idx = result.findIndex((l) => l.layerId === layerId);
 				if (idx === -1) continue;
 
-				const target = compressed[idx];
+				const target = result[idx];
+				if (target === undefined) continue;
+
 				const targetTokens = this.budgetManager.countTokens(target.content);
 				const remainingBudget = Math.max(0, targetTokens - overage);
 				const charBudget = remainingBudget * 4;
@@ -546,20 +532,22 @@ export class ContextEngineService implements IContextEngine {
 					`[ContextEngineService] Total token overage of ${overage} tokens — truncating layer "${layerId}"`,
 				);
 
-				const truncated = target.content.slice(0, charBudget);
-				compressed[idx] = { ...target, content: truncated, compressed: true };
+				result[idx] = { ...target, content: target.content.slice(0, charBudget), compressed: true };
 				break;
 			}
 		}
 
-		return compressed;
+		return { layers: result, budgetMap };
 	}
 
 	// -------------------------------------------------------------------------
 	// assembleContent — build final output (task 8.3)
 	// -------------------------------------------------------------------------
 
-	private assembleContent(populatedLayers: LayerContent[]): {
+	private assembleContent(
+		populatedLayers: LayerContent[],
+		budgetMap: LayerBudgetMap,
+	): {
 		content: string;
 		layers: ReadonlyArray<{ layerId: LayerId; content: string }>;
 		layerUsage: ReadonlyArray<LayerTokenUsage>;
@@ -574,9 +562,6 @@ export class ContextEngineService implements IContextEngine {
 				ordered.push(layer);
 			}
 		}
-
-		const config = this.options.tokenBudgetConfig ?? this.defaultBudgetConfig();
-		const budgetMap = this.budgetManager.allocate(config);
 
 		const parts: string[] = [];
 		const layerResults: { layerId: LayerId; content: string }[] = [];
@@ -594,7 +579,7 @@ export class ContextEngineService implements IContextEngine {
 				actualTokens,
 				budget: budgetMap.budgets[layer.layerId],
 				cacheHit: layer.cacheHit,
-				compressed: layer.compressed ?? false,
+				compressed: layer.compressed,
 			});
 		}
 
@@ -610,11 +595,7 @@ export class ContextEngineService implements IContextEngine {
 	// buildDegradedResult — validation failure shortcut
 	// -------------------------------------------------------------------------
 
-	private buildDegradedResult(
-		request: ContextBuildRequest,
-		omittedLayers: LayerId[],
-		_reason: string,
-	): ContextAssemblyResult {
+	private buildDegradedResult(omittedLayers: LayerId[]): ContextAssemblyResult {
 		const emptyPlan: PlannerDecision = {
 			layersToRetrieve: [],
 			rationale: "validation_failure",
@@ -628,6 +609,29 @@ export class ContextEngineService implements IContextEngine {
 			plannerDecision: emptyPlan,
 			degraded: true,
 			omittedLayers,
+		};
+	}
+
+	// -------------------------------------------------------------------------
+	// toolContext — minimal ToolContext for IToolExecutor.invoke() calls
+	// -------------------------------------------------------------------------
+
+	private toolContext(): ToolContext {
+		return {
+			workspaceRoot: this.options.workspaceRoot,
+			workingDirectory: this.options.workspaceRoot,
+			permissions: {
+				filesystemRead: true,
+				filesystemWrite: false,
+				shellExecution: false,
+				gitWrite: false,
+				networkAccess: false,
+			},
+			memory: { search: async () => [] },
+			logger: {
+				info: () => {},
+				error: () => {},
+			},
 		};
 	}
 

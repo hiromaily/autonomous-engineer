@@ -8,23 +8,24 @@ import type {
 	ContextBuildRequest,
 	PlannerDecision,
 	LayerBudgetMap,
+	LayerId,
 	CachedEntry,
 } from "../../../application/ports/context";
 import type { MemoryPort, RankedMemoryEntry } from "../../../application/ports/memory";
 import type { IToolExecutor } from "../../../application/tools/executor";
 import { ContextEngineService } from "../../../application/context/context-engine-service";
-import type { ToolError } from "../../../domain/tools/types";
+import type { ToolResult } from "../../../domain/tools/types";
 
 // ---------------------------------------------------------------------------
 // Helpers — minimal mocks
 // ---------------------------------------------------------------------------
 
-function makePlannerWith(layersToRetrieve: string[], override: Partial<PlannerDecision> = {}): IContextPlanner {
+function makePlannerWith(layersToRetrieve: LayerId[], override: Partial<PlannerDecision> = {}): IContextPlanner {
 	return {
 		plan: () => ({
 			layersToRetrieve,
 			rationale: "stepType:Exploration taskExcerpt:test",
-			codeContextQuery: { paths: [], pattern: undefined },
+			codeContextQuery: { paths: [] },
 			memoryQuery: { text: "test", topN: 5 },
 			...override,
 		}),
@@ -106,13 +107,11 @@ function makeMemoryPort(
 }
 
 function makeToolExecutor(
-	handler?: (name: string, input: unknown) => Promise<{ ok: boolean; value?: unknown; error?: ToolError }>,
+	handler?: (name: string, input: unknown) => Promise<unknown>,
 ): IToolExecutor {
 	return {
-		invoke: async (name, input) => {
-			if (handler) return handler(name, input) as ReturnType<IToolExecutor["invoke"]>;
-			return { ok: true, value: {} };
-		},
+		invoke: (name, input, _ctx) =>
+			(handler ? handler(name, input) : Promise.resolve({ ok: true, value: {} })) as Promise<ToolResult<unknown>>,
 	};
 }
 
@@ -301,7 +300,7 @@ describe("ContextEngineService (task 8.2)", () => {
 			const lines = layer!.content.split("\n");
 			expect(lines.length).toBe(2);
 
-			const first = JSON.parse(lines[0]) as { title: string; description: string; relevanceScore: number };
+			const first = JSON.parse(lines[0] ?? "{}") as { title: string; description: string; relevanceScore: number };
 			expect(first.title).toBe("Pattern A");
 			expect(first.relevanceScore).toBe(0.9);
 		});
@@ -422,10 +421,7 @@ describe("ContextEngineService (task 8.2)", () => {
 
 			const svc = makeService({
 				planner: makePlannerWith(["codeContext"], {
-					codeContextQuery: {
-						paths: ["src/foo.ts", "src/bar.ts"],
-						pattern: undefined,
-					},
+					codeContextQuery: { paths: ["src/foo.ts", "src/bar.ts"] },
 				}),
 				toolExecutor: executor,
 			});
@@ -450,7 +446,7 @@ describe("ContextEngineService (task 8.2)", () => {
 
 			const svc = makeService({
 				planner: makePlannerWith(["codeContext"], {
-					codeContextQuery: { paths: ["a.ts", "b.ts"], pattern: undefined },
+					codeContextQuery: { paths: ["a.ts", "b.ts"] },
 				}),
 				toolExecutor: executor,
 			});
@@ -474,7 +470,7 @@ describe("ContextEngineService (task 8.2)", () => {
 
 			const svc = makeService({
 				planner: makePlannerWith(["codeContext"], {
-					codeContextQuery: { paths: ["missing.ts"], pattern: undefined },
+					codeContextQuery: { paths: ["missing.ts"] },
 				}),
 				toolExecutor: executor,
 			});
@@ -518,7 +514,7 @@ describe("ContextEngineService (task 8.2)", () => {
 
 			const svc = makeService({
 				planner: makePlannerWith(["repositoryState"], {
-					codeContextQuery: { paths: ["src/x.ts"], pattern: undefined },
+					codeContextQuery: { paths: ["src/x.ts"] },
 				}),
 				toolExecutor: executor,
 			});
@@ -650,7 +646,7 @@ describe("ContextEngineService (task 8.2)", () => {
 
 			const svc = makeService({
 				planner: makePlannerWith(["repositoryState", "memoryRetrieval", "codeContext"], {
-					codeContextQuery: { paths: ["src/x.ts"], pattern: undefined },
+					codeContextQuery: { paths: ["src/x.ts"] },
 					memoryQuery: { text: "task", topN: 5 },
 				}),
 				toolExecutor: executor,
