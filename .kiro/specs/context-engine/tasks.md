@@ -78,7 +78,7 @@
   - Implement `populateActiveSpecification()`: read spec artifacts from the orchestrator workflow state path; wrap in try/catch; omit layer and set degraded on failure
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 6.1, 6.2, 6.3, 10.3, 11.3_
 
-- [ ] 8.2 Implement repository state, memory, code context, and tool result layer population
+- [x] 8.2 Implement repository state, memory, code context, and tool result layer population
   - `populateRepositoryState()`: call `IToolExecutor.invoke("git_status")`; format output as `Branch: <branch>\nStaged: <files>\nUnstaged: <files>`; omit layer on tool failure, log error
   - `populateMemoryRetrieval()`: call `MemoryPort.query({ text: taskDescription, topN: 5 })`; format ranked entries as memory layer content; omit layer on memory-system failure, log warning
   - `populateCodeContext(plan)`: if `plan.codeContextQuery.pattern` is present, call `IToolExecutor.invoke("search_files", { pattern })` once; otherwise call `IToolExecutor.invoke("read_file", { path })` for each entry in `plan.codeContextQuery.paths`; concatenate all results; omit the layer and log an error on any tool failure
