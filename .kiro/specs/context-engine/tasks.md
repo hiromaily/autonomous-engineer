@@ -86,7 +86,7 @@
   - Apply the planner's `layersToRetrieve` list to skip unrequested layers entirely
   - _Requirements: 1.3, 1.5, 2.1, 2.4, 10.1, 10.2, 10.4, 10.5, 11.1, 11.2_
 
-- [ ] 8.3 Implement token budget enforcement and compression within buildContext
+- [x] 8.3 Implement token budget enforcement and compression within buildContext
   - After populating all layers, call `TokenBudgetManager.allocate()` to get per-layer budgets
   - For each populated layer check budget; call `LayerCompressor.compress()` on any layer that exceeds its allocation (skip `systemInstructions` and `taskDescription`)
   - After per-layer compression, call `TokenBudgetManager.checkTotal()`; if total exceeds the model limit, truncate the lowest-priority populated layer (reverse canonical order) to the remaining budget and emit an error log entry with the overage amount

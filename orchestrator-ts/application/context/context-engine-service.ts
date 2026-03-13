@@ -40,6 +40,7 @@ interface LayerContent {
 	readonly layerId: LayerId;
 	readonly content: string;
 	readonly cacheHit: boolean;
+	readonly compressed?: boolean;
 }
 
 interface PopulationResult {
@@ -497,22 +498,61 @@ export class ContextEngineService implements IContextEngine {
 		const config = this.options.tokenBudgetConfig ?? this.defaultBudgetConfig();
 		const budgetMap = this.budgetManager.allocate(config);
 
-		return layers.map((layer) => {
+		// Phase 1: per-layer compression
+		const compressed: LayerContent[] = layers.map((layer) => {
 			const budget = budgetMap.budgets[layer.layerId];
 			const { overBy } = this.budgetManager.checkBudget(layer.content, budget);
 
-			if (overBy > 0 && layer.layerId !== "systemInstructions" && layer.layerId !== "taskDescription") {
+			if (
+				overBy > 0 &&
+				layer.layerId !== "systemInstructions" &&
+				layer.layerId !== "taskDescription"
+			) {
 				const result = this.compressor.compress(
 					layer.layerId,
 					layer.content,
 					budget,
 					this.budgetManager.countTokens.bind(this.budgetManager),
 				);
-				return { ...layer, content: result.compressed };
+				return { ...layer, content: result.compressed, compressed: true };
 			}
 
-			return layer;
+			return { ...layer, compressed: false };
 		});
+
+		// Phase 2: total budget check — truncate lowest-priority layer on overage
+		const tokenCounts = compressed.map((l) => ({
+			layerId: l.layerId,
+			tokens: this.budgetManager.countTokens(l.content),
+		}));
+		const overage = this.budgetManager.checkTotal(tokenCounts, budgetMap.totalBudget);
+
+		if (overage > 0) {
+			// Lowest-priority = reverse canonical order; skip system-level layers
+			const canonicalOrder = LAYER_REGISTRY.map((e) => e.id);
+			const reversePriority = [...canonicalOrder].reverse();
+
+			for (const layerId of reversePriority) {
+				if (layerId === "systemInstructions" || layerId === "taskDescription") continue;
+				const idx = compressed.findIndex((l) => l.layerId === layerId);
+				if (idx === -1) continue;
+
+				const target = compressed[idx];
+				const targetTokens = this.budgetManager.countTokens(target.content);
+				const remainingBudget = Math.max(0, targetTokens - overage);
+				const charBudget = remainingBudget * 4;
+
+				console.error(
+					`[ContextEngineService] Total token overage of ${overage} tokens — truncating layer "${layerId}"`,
+				);
+
+				const truncated = target.content.slice(0, charBudget);
+				compressed[idx] = { ...target, content: truncated, compressed: true };
+				break;
+			}
+		}
+
+		return compressed;
 	}
 
 	// -------------------------------------------------------------------------
@@ -554,7 +594,7 @@ export class ContextEngineService implements IContextEngine {
 				actualTokens,
 				budget: budgetMap.budgets[layer.layerId],
 				cacheHit: layer.cacheHit,
-				compressed: false, // compression tracking detailed in task 8.3
+				compressed: layer.compressed ?? false,
 			});
 		}
 
