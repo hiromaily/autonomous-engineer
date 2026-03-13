@@ -1250,43 +1250,11 @@ describe('AgentLoopService UPDATE STATE step', () => {
 // ---------------------------------------------------------------------------
 
 describe('AgentLoopService task 6.1 — stopping conditions', () => {
-  /** LLM: odd calls → valid ActionPlan, even calls → valid ReflectionOutput with overrides. */
-  function makeCycledLlmWith(reflectionOverrides: Partial<ReflectionOutput> = {}): LlmProviderPort {
-    let callCount = 0;
-    return {
-      async complete(_prompt) {
-        callCount++;
-        if (callCount % 2 === 1) {
-          return {
-            ok: true,
-            value: {
-              content: JSON.stringify({
-                category: 'Exploration',
-                toolName: 'read_file',
-                toolInput: { path: '/workspace/src/index.ts' },
-                rationale: 'Read the file',
-              }),
-              usage: { inputTokens: 1, outputTokens: 1 },
-            },
-          };
-        }
-        return {
-          ok: true,
-          value: {
-            content: makeValidReflectionJson(reflectionOverrides),
-            usage: { inputTokens: 1, outputTokens: 1 },
-          },
-        };
-      },
-      clearContext() {},
-    };
-  }
-
   it('reflection with taskComplete=true and planAdjustment=stop terminates with TASK_COMPLETED', async () => {
     const service = new AgentLoopService(
       makeExecutor(),
       makeRegistry(),
-      makeCycledLlmWith({ planAdjustment: 'stop', taskComplete: true }),
+      makeCycledLlm({ planAdjustment: 'stop', taskComplete: true }),
       makeToolContext(),
     );
     const result = await service.run('test task', { maxIterations: 5 });
@@ -1298,7 +1266,7 @@ describe('AgentLoopService task 6.1 — stopping conditions', () => {
     const service = new AgentLoopService(
       makeExecutor(),
       makeRegistry(),
-      makeCycledLlmWith({ planAdjustment: 'stop', taskComplete: true }),
+      makeCycledLlm({ planAdjustment: 'stop', taskComplete: true }),
       makeToolContext(),
     );
     const result = await service.run('test task', { maxIterations: 5 });
@@ -1310,7 +1278,7 @@ describe('AgentLoopService task 6.1 — stopping conditions', () => {
     const service = new AgentLoopService(
       makeExecutor(),
       makeRegistry(),
-      makeCycledLlmWith({ requiresHumanIntervention: true }),
+      makeCycledLlm({ requiresHumanIntervention: true }),
       makeToolContext(),
     );
     const result = await service.run('test task', { maxIterations: 5 });
@@ -1332,7 +1300,7 @@ describe('AgentLoopService task 6.1 — stopping conditions', () => {
     service = new AgentLoopService(
       executor,
       makeRegistry(),
-      makeCycledLlmWith(),
+      makeCycledLlm(),
       makeToolContext(),
     );
     const result = await service.run('test task', { maxIterations: 5 });
@@ -1354,7 +1322,7 @@ describe('AgentLoopService task 6.1 — stopping conditions', () => {
     const service = new AgentLoopService(
       makeExecutor(),
       makeRegistry(),
-      makeCycledLlmWith(),
+      makeCycledLlm(),
       makeToolContext(),
     );
     await service.run('test task', { maxIterations: 2, logger });
@@ -1375,7 +1343,7 @@ describe('AgentLoopService task 6.1 — stopping conditions', () => {
     const service = new AgentLoopService(
       makeExecutor(),
       makeRegistry(),
-      makeCycledLlmWith(),
+      makeCycledLlm(),
       makeToolContext(),
     );
     await service.run('test task', { maxIterations: 2, logger });
@@ -1408,25 +1376,10 @@ function makeSummaryLogger(): { logger: AgentLoopLogger; infos: Array<{ msg: str
   return { logger, infos };
 }
 
-/** LLM that cycles: odd calls → valid ActionPlan, even calls → valid reflection. */
-function makeStandardCycledLlm(reflectionOverrides: Partial<ReflectionOutput> = {}): LlmProviderPort {
-  let n = 0;
-  return {
-    async complete(_prompt) {
-      n++;
-      if (n % 2 === 1) {
-        return { ok: true, value: { content: JSON.stringify({ category: 'Exploration', toolName: 'read_file', toolInput: {}, rationale: 'r' }), usage: { inputTokens: 1, outputTokens: 1 } } };
-      }
-      return { ok: true, value: { content: makeValidReflectionJson(reflectionOverrides), usage: { inputTokens: 1, outputTokens: 1 } } };
-    },
-    clearContext() {},
-  };
-}
-
 describe('AgentLoopService task 6.2 — termination event emission', () => {
   it('emits a terminated event when loop exits via MAX_ITERATIONS_REACHED', async () => {
     const { bus, events } = makeEventBus();
-    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeStandardCycledLlm(), makeToolContext());
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeCycledLlm(), makeToolContext());
     await service.run('test', { maxIterations: 1, eventBus: bus });
 
     const termEvents = events.filter((e) => e.type === 'terminated');
@@ -1436,7 +1389,7 @@ describe('AgentLoopService task 6.2 — termination event emission', () => {
 
   it('terminated event carries the final agent state', async () => {
     const { bus, events } = makeEventBus();
-    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeStandardCycledLlm(), makeToolContext());
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeCycledLlm(), makeToolContext());
     const result = await service.run('test task', { maxIterations: 1, eventBus: bus });
 
     const termEvent = events.find((e) => e.type === 'terminated') as Extract<AgentLoopEvent, { type: 'terminated' }> | undefined;
@@ -1446,7 +1399,7 @@ describe('AgentLoopService task 6.2 — termination event emission', () => {
 
   it('emits terminated event with TASK_COMPLETED condition when task finishes', async () => {
     const { bus, events } = makeEventBus();
-    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeStandardCycledLlm({ planAdjustment: 'stop', taskComplete: true }), makeToolContext());
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeCycledLlm({ planAdjustment: 'stop', taskComplete: true }), makeToolContext());
     await service.run('test', { maxIterations: 5, eventBus: bus });
 
     const termEvent = events.find((e) => e.type === 'terminated') as Extract<AgentLoopEvent, { type: 'terminated' }> | undefined;
@@ -1455,7 +1408,7 @@ describe('AgentLoopService task 6.2 — termination event emission', () => {
 
   it('emits terminated event with HUMAN_INTERVENTION_REQUIRED when reflection requests it', async () => {
     const { bus, events } = makeEventBus();
-    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeStandardCycledLlm({ requiresHumanIntervention: true }), makeToolContext());
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeCycledLlm({ requiresHumanIntervention: true }), makeToolContext());
     await service.run('test', { maxIterations: 5, eventBus: bus });
 
     const termEvent = events.find((e) => e.type === 'terminated') as Extract<AgentLoopEvent, { type: 'terminated' }> | undefined;
@@ -1468,7 +1421,7 @@ describe('AgentLoopService task 6.2 — termination event emission', () => {
       async invoke(_n, _i, _c) { svc.stop(); return { ok: true, value: {} }; },
     };
     const { bus, events } = makeEventBus();
-    svc = new AgentLoopService(executor, makeRegistry(), makeStandardCycledLlm(), makeToolContext());
+    svc = new AgentLoopService(executor, makeRegistry(), makeCycledLlm(), makeToolContext());
     await svc.run('test', { maxIterations: 5, eventBus: bus });
 
     const termEvent = events.find((e) => e.type === 'terminated') as Extract<AgentLoopEvent, { type: 'terminated' }> | undefined;
@@ -1477,7 +1430,7 @@ describe('AgentLoopService task 6.2 — termination event emission', () => {
 
   it('terminated event carries an ISO 8601 timestamp', async () => {
     const { bus, events } = makeEventBus();
-    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeStandardCycledLlm(), makeToolContext());
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeCycledLlm(), makeToolContext());
     await service.run('test', { maxIterations: 0, eventBus: bus });
 
     const termEvent = events.find((e) => e.type === 'terminated') as Extract<AgentLoopEvent, { type: 'terminated' }> | undefined;
@@ -1491,7 +1444,7 @@ describe('AgentLoopService task 6.2 — termination event emission', () => {
       list: () => { throw new Error('internal boom'); },
     };
     const { bus, events } = makeEventBus();
-    const service = new AgentLoopService(makeExecutor(), throwingRegistry, makeStandardCycledLlm(), makeToolContext());
+    const service = new AgentLoopService(makeExecutor(), throwingRegistry, makeCycledLlm(), makeToolContext());
     await service.run('test', { maxIterations: 1, eventBus: bus });
 
     const termEvent = events.find((e) => e.type === 'terminated');
@@ -1499,7 +1452,7 @@ describe('AgentLoopService task 6.2 — termination event emission', () => {
   });
 
   it('no event bus — run() still completes without error', async () => {
-    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeStandardCycledLlm(), makeToolContext());
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeCycledLlm(), makeToolContext());
     const result = await service.run('test', { maxIterations: 1 });
     expect(result.terminationCondition).toBeDefined();
   });
@@ -1512,7 +1465,7 @@ describe('AgentLoopService task 6.2 — onSafetyStop callback', () => {
     const executor: IToolExecutor = {
       async invoke(_n, _i, _c) { svc.stop(); return { ok: true, value: {} }; },
     };
-    svc = new AgentLoopService(executor, makeRegistry(), makeStandardCycledLlm(), makeToolContext());
+    svc = new AgentLoopService(executor, makeRegistry(), makeCycledLlm(), makeToolContext());
     await svc.run('test', { maxIterations: 5, onSafetyStop: () => { safetyStopNotified = true; } });
 
     expect(safetyStopNotified).toBe(true);
@@ -1520,7 +1473,7 @@ describe('AgentLoopService task 6.2 — onSafetyStop callback', () => {
 
   it('onSafetyStop is NOT called when termination is MAX_ITERATIONS_REACHED', async () => {
     let safetyStopNotified = false;
-    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeStandardCycledLlm(), makeToolContext());
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeCycledLlm(), makeToolContext());
     await service.run('test', { maxIterations: 1, onSafetyStop: () => { safetyStopNotified = true; } });
 
     expect(safetyStopNotified).toBe(false);
@@ -1528,7 +1481,7 @@ describe('AgentLoopService task 6.2 — onSafetyStop callback', () => {
 
   it('onSafetyStop is NOT called when termination is TASK_COMPLETED', async () => {
     let safetyStopNotified = false;
-    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeStandardCycledLlm({ planAdjustment: 'stop', taskComplete: true }), makeToolContext());
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeCycledLlm({ planAdjustment: 'stop', taskComplete: true }), makeToolContext());
     await service.run('test', { maxIterations: 5, onSafetyStop: () => { safetyStopNotified = true; } });
 
     expect(safetyStopNotified).toBe(false);
@@ -1538,7 +1491,7 @@ describe('AgentLoopService task 6.2 — onSafetyStop callback', () => {
 describe('AgentLoopService task 6.2 — final summary log on termination', () => {
   it('logs a final summary info entry on MAX_ITERATIONS_REACHED with terminal condition', async () => {
     const { logger, infos } = makeSummaryLogger();
-    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeStandardCycledLlm(), makeToolContext());
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeCycledLlm(), makeToolContext());
     await service.run('test', { maxIterations: 2, logger });
 
     // Must have at least one info log containing terminal condition info
@@ -1552,7 +1505,7 @@ describe('AgentLoopService task 6.2 — final summary log on termination', () =>
 
   it('logs total iterations in the final summary', async () => {
     const { logger, infos } = makeSummaryLogger();
-    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeStandardCycledLlm(), makeToolContext());
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeCycledLlm(), makeToolContext());
     await service.run('test', { maxIterations: 2, logger });
 
     const allData = Object.assign({}, ...infos.map((l) => l.data ?? {}));
@@ -1561,7 +1514,7 @@ describe('AgentLoopService task 6.2 — final summary log on termination', () =>
 
   it('logs a final summary on TASK_COMPLETED path', async () => {
     const { logger, infos } = makeSummaryLogger();
-    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeStandardCycledLlm({ planAdjustment: 'stop', taskComplete: true }), makeToolContext());
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeCycledLlm({ planAdjustment: 'stop', taskComplete: true }), makeToolContext());
     await service.run('test', { maxIterations: 5, logger });
 
     expect(infos.length).toBeGreaterThan(0);
@@ -1569,7 +1522,7 @@ describe('AgentLoopService task 6.2 — final summary log on termination', () =>
 
   it('logs a final summary on HUMAN_INTERVENTION_REQUIRED path', async () => {
     const { logger, infos } = makeSummaryLogger();
-    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeStandardCycledLlm({ requiresHumanIntervention: true }), makeToolContext());
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeCycledLlm({ requiresHumanIntervention: true }), makeToolContext());
     await service.run('test', { maxIterations: 5, logger });
 
     expect(infos.length).toBeGreaterThan(0);
@@ -1581,7 +1534,7 @@ describe('AgentLoopService task 6.2 — final summary log on termination', () =>
       async invoke(_n, _i, _c) { svc.stop(); return { ok: true, value: {} }; },
     };
     const { logger, infos } = makeSummaryLogger();
-    svc = new AgentLoopService(executor, makeRegistry(), makeStandardCycledLlm(), makeToolContext());
+    svc = new AgentLoopService(executor, makeRegistry(), makeCycledLlm(), makeToolContext());
     await svc.run('test', { maxIterations: 5, logger });
 
     expect(infos.length).toBeGreaterThan(0);
@@ -1940,17 +1893,18 @@ describe('AgentLoopService task 7.2 — repeated failure detection', () => {
     expect(recoveryEvents.length).toBeGreaterThanOrEqual(2);
   });
 
-  it('different tool name — does not count toward pattern for first tool', async () => {
-    // Iter 1: tool_A fails → recovery succeeds
-    // Iter 2: tool_B fails (different tool) — pattern count for tool_A is 0, not matched → recovery runs
+  it('iter 1 fails → recovery succeeds; iter 2 tool succeeds → no escalation', async () => {
+    // Iter 1: read_file ACT fails → recovery runs (1 attempt) → validation ok → resumes
+    // Iter 2: read_file ACT succeeds (executor returns ok) but REFLECT says failure.
+    //   Since failingObs has no tool error (success=true), pattern detection is skipped.
+    //   Recovery runs and validation passes immediately.
     let execCount = 0;
     const executor: IToolExecutor = {
       async invoke(_name, _input, _ctx) {
         execCount++;
         if (execCount === 1) return { ok: false, error: { type: 'runtime', message: 'tests failed' } };
         if (execCount <= 3) return { ok: true, value: {} }; // recovery for iter 1
-        // Iter 2: we can't easily get a different tool without a complex LLM mock
-        // Just return success here — this test checks the non-escalation path
+        // Iter 2: executor always succeeds (no tool error)
         return { ok: true, value: {} };
       },
     };

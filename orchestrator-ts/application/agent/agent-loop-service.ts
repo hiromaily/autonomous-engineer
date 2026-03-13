@@ -100,14 +100,12 @@ export class AgentLoopService implements IAgentLoop {
           return this.#terminate('HUMAN_INTERVENTION_REQUIRED', state, false, opts);
         }
 
-        // Task 7.1 — error recovery sub-loop: enter when reflection indicates failure
         if (latestReflection?.assessment === 'failure') {
           const recoveryResult = await this.#errorRecovery(state, opts);
-          if ('type' in recoveryResult && recoveryResult.type === 'RECOVERY_EXHAUSTED') {
-            // Task 7.2 — use the state with failure context (recoveryAttempts set) for the result
+          if (recoveryResult.type === 'exhausted') {
             return this.#terminate('RECOVERY_EXHAUSTED', recoveryResult.state, false, opts);
           }
-          state = recoveryResult as AgentState;
+          state = recoveryResult.state;
           this.#currentState = state;
         }
       }
@@ -476,11 +474,11 @@ export class AgentLoopService implements IAgentLoop {
   /**
    * Orchestrates the error recovery cycle when REFLECT returns assessment='failure'.
    *
-   * Task 7.2 additions:
-   * - Detects repeated failure patterns: if the same (toolName, errorMessage) has appeared in
-   *   previous observations >= maxRecoveryAttempts times, escalates immediately without retrying.
-   * - Returns the updated state (with recoveryAttempts set) on exhaustion so the caller can
-   *   surface the failure context in the AgentLoopResult.
+   * Repeated failure pattern detection:
+   * - If the same (toolName, errorMessage) has appeared in previous observations >= maxRecoveryAttempts
+   *   times, escalates immediately without retrying.
+   * - Returns `{ type: 'exhausted', state }` (with recoveryAttempts set) on exhaustion so the caller
+   *   can surface the failure context in the AgentLoopResult.
    *
    * For each attempt (up to maxRecoveryAttempts):
    * 1. Emit a recovery:attempt event.
@@ -490,29 +488,29 @@ export class AgentLoopService implements IAgentLoop {
    * 5a. Validation passes → append validation observation, reset counter, return recovered state.
    * 5b. Validation fails → increment counter and loop back.
    *
-   * On exhaustion, returns `{ type: 'RECOVERY_EXHAUSTED', state }` with the failure context preserved.
+   * On exhaustion, returns `{ type: 'exhausted', state }` with the failure context preserved.
    */
   async #errorRecovery(
     state: AgentState,
     opts: Pick<AgentLoopOptions, 'maxRecoveryAttempts' | 'eventBus' | 'logger'>,
-  ): Promise<AgentState | Readonly<{ type: 'RECOVERY_EXHAUSTED'; state: AgentState }>> {
+  ): Promise<Readonly<{ type: 'success'; state: AgentState }> | Readonly<{ type: 'exhausted'; state: AgentState }>> {
     const failingObs = state.observations[state.observations.length - 1]!;
     const errorMessage = failingObs.error?.message ?? 'unknown failure';
 
-    // Task 7.2 — repeated failure pattern detection: only when the failing observation has
-    // a real tool error (success=false with an error). Count prior observations with the same
-    // (toolName, errorMessage) combination; if already at or above the budget, escalate immediately.
+    // Repeated failure pattern detection: only when the failing observation has a real tool error.
+    // Count prior observations with the same (toolName, errorMessage) combination;
+    // if already at or above the budget, escalate immediately without retrying.
     if (failingObs.error) {
-      const previousSameErrorCount = state.observations.slice(0, -1).filter(
-        (obs) =>
-          !obs.success &&
-          obs.toolName === failingObs.toolName &&
-          obs.error?.message === failingObs.error!.message,
-      ).length;
+      let previousSameErrorCount = 0;
+      for (let i = 0; i < state.observations.length - 1; i++) {
+        const obs = state.observations[i]!;
+        if (!obs.success && obs.toolName === failingObs.toolName && obs.error?.message === failingObs.error.message) {
+          previousSameErrorCount++;
+        }
+      }
 
       if (previousSameErrorCount >= opts.maxRecoveryAttempts) {
-        // Repeated failure pattern — escalate without attempting recovery
-        return { type: 'RECOVERY_EXHAUSTED', state } as const;
+        return { type: 'exhausted', state };
       }
     }
 
@@ -553,7 +551,10 @@ export class AgentLoopService implements IAgentLoop {
       }
 
       // Execute the fix action
-      await this.#executor.invoke(fixPlan.toolName, fixPlan.toolInput, this.#toolContext);
+      const fixResult = await this.#executor.invoke(fixPlan.toolName, fixPlan.toolInput, this.#toolContext);
+      if (!fixResult.ok) {
+        opts.logger?.info('Recovery fix action failed', { tool: fixPlan.toolName, error: fixResult.error.message });
+      }
 
       // Re-run original failing tool as validation
       const validationResult = await this.#executor.invoke(
@@ -572,17 +573,16 @@ export class AgentLoopService implements IAgentLoop {
           recordedAt: new Date().toISOString(),
         };
         return {
-          ...currentState,
-          observations: [...currentState.observations, validationObs],
-          recoveryAttempts: 0,
+          type: 'success',
+          state: { ...currentState, observations: [...currentState.observations, validationObs], recoveryAttempts: 0 },
         };
       }
 
       // Validation failed — loop back for next attempt
     }
 
-    // Task 7.2 — return the state with failure context (recoveryAttempts reflects exhausted count)
-    return { type: 'RECOVERY_EXHAUSTED', state: currentState } as const;
+    // Return the state with failure context (recoveryAttempts reflects exhausted count)
+    return { type: 'exhausted', state: currentState };
   }
 
   /** Builds the error-analysis prompt for the recovery LLM call. */
