@@ -294,12 +294,15 @@ function buildSandboxCommand(toolName: string, rawInput: unknown): { command: st
   const input = rawInput as Record<string, unknown>;
   switch (toolName) {
     case "run_test_suite": {
+      const command = typeof input["framework"] === "string" ? input["framework"] : "bun";
       const args = ["test"];
       if (typeof input["pattern"] === "string") args.push(input["pattern"]);
-      return { command: "bun", args };
+      return { command, args };
     }
-    case "install_dependencies":
-      return { command: "bun", args: ["install"] };
+    case "install_dependencies": {
+      const command = typeof input["packageManager"] === "string" ? input["packageManager"] : "bun";
+      return { command, args: ["install"] };
+    }
     default:
       return { command: toolName, args: [] };
   }
