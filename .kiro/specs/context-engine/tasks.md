@@ -47,7 +47,7 @@
   - Record `originalTokenCount`, `technique`, and final `tokenCount` in the returned `CompressionResult`
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6_
 
-- [ ] 6. Implement ContextAccumulator
+- [x] 6. Implement ContextAccumulator
   - Implement `IContextAccumulator` in `domain/context/context-accumulator.ts`; pure domain state, no I/O
   - Store accumulated entries in a `Map<string, AccumulatedEntry[]>` keyed by `"phaseId:taskId"`
   - `accumulate(entry)` — add to the correct scope; validate that entry's `phaseId` matches the active phase or throw
