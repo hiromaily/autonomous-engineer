@@ -8,7 +8,7 @@
   - Keep all types isolated in the domain layer with no dependencies on application or infrastructure layers.
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 10.1_
 
-- [ ] 2. (P) Implement plan structure validator
+- [x] 2. (P) Implement plan structure validator
 - [x] 2.1 Implement validation logic
   - Build a stateless validator in the domain layer with no I/O side effects.
   - Phase 1: collect all step and task IDs across the plan and detect duplicates.
@@ -49,7 +49,7 @@
   - Verify that list-resumable returns only plans with incomplete tasks and excludes fully completed plans.
   - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5_
 
-- [ ] 5. (P) Implement the task planning service
+- [x] 5. (P) Implement the task planning service
 - [x] 5.1 Build the plan generation pipeline
   - Assemble the LLM prompt for initial plan generation using the context builder with the goal and optional repository context.
   - Parse the LLM response as a plan with a newly assigned UUID plan ID; retry up to the configured parse-retry limit on responses that cannot be parsed.
@@ -125,7 +125,7 @@
   - Verify that execution does not advance while a revision is in progress.
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 10.1, 10.2, 10.3, 10.4, 10.5_
 
-- [ ] 7. Write integration tests for the full task-planning lifecycle
+- [x] 7. Write integration tests for the full task-planning lifecycle
 - [x] 7.1 Test the full plan generation and execution cycle
   - Run the full pipeline (generation → validation → human auto-approve → step execution → completion) using a stub agent loop that returns task-completed.
   - Verify the persisted plan JSON is readable and matches the expected structure after each step completion.

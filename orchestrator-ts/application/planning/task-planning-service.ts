@@ -1,3 +1,4 @@
+import { z } from "zod";
 import type { AgentLoopResult, IAgentLoop } from "../ports/agent-loop";
 import type {
   IHumanReviewGateway,
@@ -44,6 +45,37 @@ const HIGH_RISK_KEYWORDS: ReadonlyArray<string> = [
 
 /** Timeout in milliseconds passed to reviewPlan(). */
 const REVIEW_TIMEOUT_MS = 30_000;
+
+// ---------------------------------------------------------------------------
+// Zod schema for LLM plan response validation
+// ---------------------------------------------------------------------------
+
+const StepSchema = z.object({
+  id: z.string(),
+  description: z.string(),
+  status: z.enum(["pending", "in_progress", "completed", "failed"]).default("pending"),
+  dependsOn: z.array(z.string()).default([]),
+  statusHistory: z
+    .array(
+      z.object({
+        status: z.enum(["pending", "in_progress", "completed", "failed"]),
+        at: z.string(),
+      }),
+    )
+    .default([]),
+});
+
+const TaskSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  status: z.enum(["pending", "in_progress", "completed", "failed"]).default("pending"),
+  steps: z.array(StepSchema),
+});
+
+const PlanBodySchema = z.object({
+  goal: z.string().optional(),
+  tasks: z.array(TaskSchema),
+});
 
 /**
  * Default number of retries per step before entering LLM-driven revision.
@@ -134,7 +166,18 @@ export class TaskPlanningService implements ITaskPlanner {
       return { outcome: "dependency-unavailable", plan: this.#createEmptyPlan(planId) };
     }
 
-    const loaded = await this.#store.load(planId);
+    let loaded: TaskPlan | null;
+    try {
+      loaded = await this.#store.load(planId);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return {
+        outcome: "escalated",
+        plan: this.#createEmptyPlan(planId),
+        escalationContext: `Failed to load plan ${planId}: ${message}`,
+      };
+    }
+
     if (loaded === null) {
       return { outcome: "validation-error", plan: this.#createEmptyPlan(planId) };
     }
@@ -837,20 +880,17 @@ export class TaskPlanningService implements ITaskPlanner {
       return null;
     }
 
-    if (
-      parsed === null ||
-      typeof parsed !== "object" ||
-      !Array.isArray((parsed as Record<string, unknown>)["tasks"])
-    ) {
+    const result = PlanBodySchema.safeParse(parsed);
+    if (!result.success) {
       return null;
     }
 
-    const body = parsed as Record<string, unknown>;
+    const body = result.data;
 
     return {
       id: planId,
-      goal: typeof body["goal"] === "string" ? body["goal"] : goal,
-      tasks: body["tasks"] as TaskPlan["tasks"],
+      goal: body.goal ?? goal,
+      tasks: body.tasks as TaskPlan["tasks"],
       createdAt: now,
       updatedAt: now,
     };
