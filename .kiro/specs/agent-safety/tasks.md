@@ -134,7 +134,7 @@
 
 ---
 
-- [ ] 7. Composition Root Integration
+- [x] 7. Composition Root Integration
   - Instantiate `SafetyConfig` with operator-supplied overrides merged over validated defaults; instantiate `SafetySession` with a fresh UUID session ID and the current epoch milliseconds as the start timestamp
   - Instantiate the audit logger, approval gateway, and sandbox executor adapters; inject them along with the existing `ToolExecutor` (spec2), the session, and the config into `SafetyGuardedToolExecutor`
   - Register the `EmergencyStopHandler` with the session and audit logger immediately after construction; replace the bare `ToolExecutor` reference in the agent loop composition root with `SafetyGuardedToolExecutor`
