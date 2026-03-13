@@ -22,11 +22,11 @@ Rules for modifying TypeScript (`*.ts`, `*.tsx`) and JavaScript (`*.js`, `*.jsx`
 
 ```bash
 cd orchestrator-ts
-bun install           # Install dependencies (if needed)
+bun install           # Install dependencies (if needed) — run this first if lint/fmt commands fail
 bun run lint          # Lint with Biome
 bun run lint:fix      # Lint plus fix with Biome
-bun run fmt           # Format with Biome
-bun run fmt:check.    # Format with Biome Check only
+bun run fmt           # Format with dprint (NOTE: formatter is dprint, not Biome; Biome's formatter is disabled in biome.json)
+bun run fmt:check     # Format check only with dprint
 bun run typecheck     # TypeScript type checking
 bun run test          # Run tests with Bun
 bun run aes           # Run application
@@ -35,12 +35,14 @@ bun run build         # Build for production
 ```
 
 > **DO NOT** use `npm`/`npx` commands - always use `bun`/`bunx` instead.
+>
+> **NOTE on tooling:** Two separate tools are used — **dprint** for formatting (`bun run fmt`) and **Biome** for linting only. Biome's formatter is intentionally disabled in `biome.json`. If any script fails with "command not found", run `bun install` first to ensure all dev dependencies (including `@biomejs/biome` and `dprint`) are installed.
 
 ## Command Summary
 
 | App              | Lint              | Format           | Build           | Test                |
 | ---------------- | ----------------- | ---------------- | --------------- | ------------------- |
-| orchestrator-ts | `bun run lint:fix`    | `bun run fmt` | `bun run build` | `bun run test` |
+| orchestrator-ts | `bun run lint:fix` | `bun run fmt` (dprint) | `bun run build` | `bun run test` |
 
 ## Code Style
 
