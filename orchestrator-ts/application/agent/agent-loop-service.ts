@@ -1,10 +1,20 @@
-import type { IAgentLoop, AgentLoopOptions, AgentLoopResult, IContextProvider } from '../ports/agent-loop';
-import type { IToolExecutor } from '../tools/executor';
-import type { IToolRegistry, ToolListEntry } from '../../domain/tools/registry';
-import type { LlmProviderPort } from '../ports/llm';
-import type { ToolContext } from '../../domain/tools/types';
-import type { AgentState, ActionPlan, ActionCategory, Observation, ReflectionOutput, ReflectionAssessment, PlanAdjustment, TerminationCondition, LoopStep } from '../../domain/agent/types';
-import { ACTION_CATEGORIES } from '../../domain/agent/types';
+import type {
+  ActionCategory,
+  ActionPlan,
+  AgentState,
+  LoopStep,
+  Observation,
+  PlanAdjustment,
+  ReflectionAssessment,
+  ReflectionOutput,
+  TerminationCondition,
+} from "../../domain/agent/types";
+import { ACTION_CATEGORIES } from "../../domain/agent/types";
+import type { IToolRegistry, ToolListEntry } from "../../domain/tools/registry";
+import type { ToolContext } from "../../domain/tools/types";
+import type { AgentLoopOptions, AgentLoopResult, IAgentLoop, IContextProvider } from "../ports/agent-loop";
+import type { LlmProviderPort } from "../ports/llm";
+import type { IToolExecutor } from "../tools/executor";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -17,7 +27,9 @@ const REDACT_THRESHOLD = 256;
 // Default option values — applied when callers omit a field
 // ---------------------------------------------------------------------------
 
-const DEFAULT_OPTIONS: Readonly<Required<Pick<AgentLoopOptions, 'maxIterations' | 'maxRecoveryAttempts' | 'maxPlanParseRetries'>>> = {
+const DEFAULT_OPTIONS: Readonly<
+  Required<Pick<AgentLoopOptions, "maxIterations" | "maxRecoveryAttempts" | "maxPlanParseRetries">>
+> = {
   maxIterations: 50,
   maxRecoveryAttempts: 3,
   maxPlanParseRetries: 2,
@@ -92,73 +104,100 @@ export class AgentLoopService implements IAgentLoop {
 
         // Task 8.1 — emit iteration:start at the beginning of each iteration
         opts.eventBus?.emit({
-          type: 'iteration:start',
+          type: "iteration:start",
           iteration: currentIteration,
           currentStep: state.currentStep,
           timestamp: new Date().toISOString(),
         });
 
         // PLAN step — throws on exhausted retries (caught below → HUMAN_INTERVENTION_REQUIRED)
-        const endPlan = this.#beginStep('PLAN', currentIteration, opts);
+        const endPlan = this.#beginStep("PLAN", currentIteration, opts);
         const plan = await this.#planStep(state, toolSchemas, opts);
         const planDuration = endPlan();
-        opts.logger?.info('step:PLAN', { step: 'PLAN', iteration: currentIteration, durationMs: planDuration });
+        opts.logger?.info("step:PLAN", { step: "PLAN", iteration: currentIteration, durationMs: planDuration });
 
         // ACT step — throws on permission error (caught below → HUMAN_INTERVENTION_REQUIRED)
-        const endAct = this.#beginStep('ACT', currentIteration, opts);
+        const endAct = this.#beginStep("ACT", currentIteration, opts);
         const observation = await this.#actStep(plan);
         const actDuration = endAct();
         if (opts.logger) {
-          opts.logger.info('step:ACT', { step: 'ACT', iteration: currentIteration, category: plan.category, toolName: plan.toolName, toolInput: this.#redactToolInput(plan.toolInput), success: observation.success, durationMs: actDuration });
+          opts.logger.info("step:ACT", {
+            step: "ACT",
+            iteration: currentIteration,
+            category: plan.category,
+            toolName: plan.toolName,
+            toolInput: this.#redactToolInput(plan.toolInput),
+            success: observation.success,
+            durationMs: actDuration,
+          });
           if (!observation.success && observation.error) {
-            opts.logger.error('Tool invocation failed', { step: 'ACT', iteration: currentIteration, errorType: observation.error.type, errorMessage: observation.error.message });
+            opts.logger.error("Tool invocation failed", {
+              step: "ACT",
+              iteration: currentIteration,
+              errorType: observation.error.type,
+              errorMessage: observation.error.message,
+            });
           }
         }
 
         // OBSERVE step (task 5.1) — append observation to state (immutable)
-        const endObserve = this.#beginStep('OBSERVE', currentIteration, opts);
+        const endObserve = this.#beginStep("OBSERVE", currentIteration, opts);
         state = this.#observeStep(observation, state);
         const observeDuration = endObserve();
-        opts.logger?.info('step:OBSERVE', { step: 'OBSERVE', iteration: currentIteration, observationCount: state.observations.length, durationMs: observeDuration });
+        opts.logger?.info("step:OBSERVE", {
+          step: "OBSERVE",
+          iteration: currentIteration,
+          observationCount: state.observations.length,
+          durationMs: observeDuration,
+        });
 
         // REFLECT step (task 5.2) — embed reflection into latest observation
-        const endReflect = this.#beginStep('REFLECT', currentIteration, opts);
+        const endReflect = this.#beginStep("REFLECT", currentIteration, opts);
         state = await this.#reflectStep(plan, state);
         const reflectDuration = endReflect();
         // Capture reflection now — observations are unchanged by UPDATE_STATE, so this stays valid
         const latestReflection = state.observations[state.observations.length - 1]?.reflection;
-        opts.logger?.info('step:REFLECT', { step: 'REFLECT', iteration: currentIteration, assessment: latestReflection?.assessment, durationMs: reflectDuration });
+        opts.logger?.info("step:REFLECT", {
+          step: "REFLECT",
+          iteration: currentIteration,
+          assessment: latestReflection?.assessment,
+          durationMs: reflectDuration,
+        });
 
         // UPDATE STATE step (task 5.3) — advance step pointer, increment iteration counter
-        const endUpdate = this.#beginStep('UPDATE_STATE', currentIteration, opts);
+        const endUpdate = this.#beginStep("UPDATE_STATE", currentIteration, opts);
         state = this.#updateStateStep(state);
         const updateDuration = endUpdate();
-        opts.logger?.info('step:UPDATE_STATE', { step: 'UPDATE_STATE', iteration: currentIteration, durationMs: updateDuration });
+        opts.logger?.info("step:UPDATE_STATE", {
+          step: "UPDATE_STATE",
+          iteration: currentIteration,
+          durationMs: updateDuration,
+        });
 
         this.#currentState = state;
 
         // Task 8.1 — emit iteration:complete after the full cycle
         opts.eventBus?.emit({
-          type: 'iteration:complete',
+          type: "iteration:complete",
           iteration: currentIteration,
           category: plan.category,
           toolName: plan.toolName,
           durationMs: Date.now() - iterationStartTime,
-          assessment: latestReflection?.assessment ?? 'expected',
+          assessment: latestReflection?.assessment ?? "expected",
         });
 
         // Task 6.1 — check termination conditions from reflection after each complete cycle
         if (latestReflection?.taskComplete === true) {
-          return this.#terminate('TASK_COMPLETED', state, true, opts);
+          return this.#terminate("TASK_COMPLETED", state, true, opts);
         }
         if (latestReflection?.requiresHumanIntervention === true) {
-          return this.#terminate('HUMAN_INTERVENTION_REQUIRED', state, false, opts);
+          return this.#terminate("HUMAN_INTERVENTION_REQUIRED", state, false, opts);
         }
 
-        if (latestReflection?.assessment === 'failure') {
+        if (latestReflection?.assessment === "failure") {
           const recoveryResult = await this.#errorRecovery(state, opts);
-          if (recoveryResult.type === 'exhausted') {
-            return this.#terminate('RECOVERY_EXHAUSTED', recoveryResult.state, false, opts);
+          if (recoveryResult.type === "exhausted") {
+            return this.#terminate("RECOVERY_EXHAUSTED", recoveryResult.state, false, opts);
           }
           state = recoveryResult.state;
           this.#currentState = state;
@@ -167,13 +206,13 @@ export class AgentLoopService implements IAgentLoop {
 
       // Task 6.1 — distinguish stop signal from max-iterations exhaustion
       if (this.#stopRequested) {
-        return this.#terminate('SAFETY_STOP', state, false, opts);
+        return this.#terminate("SAFETY_STOP", state, false, opts);
       }
 
-      return this.#terminate('MAX_ITERATIONS_REACHED', state, false, opts);
+      return this.#terminate("MAX_ITERATIONS_REACHED", state, false, opts);
     } catch (_err) {
       // run() must never throw — catch-all for unexpected internal failures
-      return this.#terminate('HUMAN_INTERVENTION_REQUIRED', state, false, opts);
+      return this.#terminate("HUMAN_INTERVENTION_REQUIRED", state, false, opts);
     } finally {
       // Always clear current state on exit (req 9.4 — query returns null when not running)
       this.#currentState = null;
@@ -218,7 +257,7 @@ export class AgentLoopService implements IAgentLoop {
     condition: TerminationCondition,
     state: AgentState,
     taskCompleted: boolean,
-    opts: Pick<AgentLoopOptions, 'eventBus' | 'logger' | 'onSafetyStop'>,
+    opts: Pick<AgentLoopOptions, "eventBus" | "logger" | "onSafetyStop">,
   ): AgentLoopResult {
     const result: AgentLoopResult = {
       terminationCondition: condition,
@@ -229,7 +268,7 @@ export class AgentLoopService implements IAgentLoop {
 
     // Emit terminated event for every exit path (task 6.2)
     opts.eventBus?.emit({
-      type: 'terminated',
+      type: "terminated",
       condition,
       finalState: state,
       timestamp: new Date().toISOString(),
@@ -246,7 +285,7 @@ export class AgentLoopService implements IAgentLoop {
     });
 
     // Notify safety layer on SAFETY_STOP (task 6.2)
-    if (condition === 'SAFETY_STOP') {
+    if (condition === "SAFETY_STOP") {
       opts.onSafetyStop?.();
     }
 
@@ -272,7 +311,7 @@ export class AgentLoopService implements IAgentLoop {
       : this.#buildFallbackContext(state, toolSchemas);
 
     const totalAttempts = 1 + opts.maxPlanParseRetries;
-    let lastError = '';
+    let lastError = "";
 
     for (let attempt = 0; attempt < totalAttempts; attempt++) {
       const prompt = attempt === 0
@@ -322,7 +361,7 @@ export class AgentLoopService implements IAgentLoop {
     }
 
     // Permission errors bypass the recovery sub-loop — throw immediately
-    if (result.error.type === 'permission') {
+    if (result.error.type === "permission") {
       throw new Error(`ACT step: permission denied — ${result.error.message}`);
     }
 
@@ -393,7 +432,7 @@ export class AgentLoopService implements IAgentLoop {
       ? latestObs.success
         ? JSON.stringify(latestObs.rawOutput).slice(0, MAX_OUTPUT_CHARS)
         : `Error (${latestObs.error?.type}): ${latestObs.error?.message}`
-      : '(none)';
+      : "(none)";
 
     return [
       `Task: ${state.task}`,
@@ -401,16 +440,16 @@ export class AgentLoopService implements IAgentLoop {
       `Rationale: ${plan.rationale}`,
       `Tool result: ${toolResultStr}`,
       `Iteration: ${state.iterationCount}`,
-      '\nEvaluate the result and respond with JSON: { "assessment": "expected"|"unexpected"|"failure", "learnings": string[], "planAdjustment": "continue"|"revise"|"stop", "revisedPlan": string[] (optional), "requiresHumanIntervention": boolean (optional), "taskComplete": boolean (optional), "summary": string }',
-    ].join('\n\n');
+      "\nEvaluate the result and respond with JSON: { \"assessment\": \"expected\"|\"unexpected\"|\"failure\", \"learnings\": string[], \"planAdjustment\": \"continue\"|\"revise\"|\"stop\", \"revisedPlan\": string[] (optional), \"requiresHumanIntervention\": boolean (optional), \"taskComplete\": boolean (optional), \"summary\": string }",
+    ].join("\n\n");
   }
 
   /** Returns a failure-assessment ReflectionOutput for use when LLM response cannot be parsed. */
   #makeFailureReflection(reason: string): ReflectionOutput {
     return {
-      assessment: 'failure',
+      assessment: "failure",
       learnings: [],
-      planAdjustment: 'stop',
+      planAdjustment: "stop",
       summary: reason,
     };
   }
@@ -424,7 +463,7 @@ export class AgentLoopService implements IAgentLoop {
     try {
       const jsonStr = content.match(/```(?:json)?\s*([\s\S]*?)```/)?.[1] ?? content;
       const parsed: unknown = JSON.parse(jsonStr);
-      if (typeof parsed !== 'object' || parsed === null) return null;
+      if (typeof parsed !== "object" || parsed === null) return null;
       return parsed as Record<string, unknown>;
     } catch {
       return null;
@@ -436,29 +475,29 @@ export class AgentLoopService implements IAgentLoop {
     const obj = this.#parseLlmJson(content);
     if (!obj) return null;
 
-    const assessment = obj['assessment'];
-    if (!['expected', 'unexpected', 'failure'].includes(assessment as string)) return null;
+    const assessment = obj["assessment"];
+    if (!["expected", "unexpected", "failure"].includes(assessment as string)) return null;
 
-    const learnings = obj['learnings'];
-    if (!Array.isArray(learnings) || !learnings.every((l) => typeof l === 'string')) return null;
+    const learnings = obj["learnings"];
+    if (!Array.isArray(learnings) || !learnings.every((l) => typeof l === "string")) return null;
 
-    const planAdjustment = obj['planAdjustment'];
-    if (!['continue', 'revise', 'stop'].includes(planAdjustment as string)) return null;
+    const planAdjustment = obj["planAdjustment"];
+    if (!["continue", "revise", "stop"].includes(planAdjustment as string)) return null;
 
-    const summary = obj['summary'];
-    if (typeof summary !== 'string') return null;
+    const summary = obj["summary"];
+    if (typeof summary !== "string") return null;
 
-    const revisedPlan = obj['revisedPlan'];
-    const requiresHumanIntervention = obj['requiresHumanIntervention'];
-    const taskComplete = obj['taskComplete'];
+    const revisedPlan = obj["revisedPlan"];
+    const requiresHumanIntervention = obj["requiresHumanIntervention"];
+    const taskComplete = obj["taskComplete"];
 
     return {
       assessment: assessment as ReflectionAssessment,
       learnings: learnings as ReadonlyArray<string>,
       planAdjustment: planAdjustment as PlanAdjustment,
       ...(Array.isArray(revisedPlan) ? { revisedPlan: revisedPlan as ReadonlyArray<string> } : {}),
-      ...(typeof requiresHumanIntervention === 'boolean' ? { requiresHumanIntervention } : {}),
-      ...(typeof taskComplete === 'boolean' ? { taskComplete } : {}),
+      ...(typeof requiresHumanIntervention === "boolean" ? { requiresHumanIntervention } : {}),
+      ...(typeof taskComplete === "boolean" ? { taskComplete } : {}),
       summary,
     };
   }
@@ -482,13 +521,13 @@ export class AgentLoopService implements IAgentLoop {
     // Always increment iteration counter
     const base: AgentState = { ...state, iterationCount: state.iterationCount + 1 };
 
-    if (!reflection || reflection.assessment === 'failure') {
+    if (!reflection || reflection.assessment === "failure") {
       // Failure or no reflection: increment only
       return base;
     }
 
     // Plan revision: replace plan, set currentStep to first incomplete step
-    if (reflection.planAdjustment === 'revise' && reflection.revisedPlan && reflection.revisedPlan.length > 0) {
+    if (reflection.planAdjustment === "revise" && reflection.revisedPlan && reflection.revisedPlan.length > 0) {
       const newPlan = reflection.revisedPlan;
       const completedSet = new Set(base.completedSteps);
       const newCurrentStep = newPlan.find((s) => !completedSet.has(s)) ?? null;
@@ -508,18 +547,16 @@ export class AgentLoopService implements IAgentLoop {
 
   /** Inline context builder used when no IContextProvider is injected. */
   #buildFallbackContext(state: AgentState, toolSchemas: ReadonlyArray<ToolListEntry>): string {
-    const toolList = toolSchemas.map((t) => `- ${t.name}: ${t.description}`).join('\n');
-    const recentObs = state.observations.slice(-5).map((o) =>
-      `Tool: ${o.toolName}, Success: ${o.success}`,
-    ).join('\n');
+    const toolList = toolSchemas.map((t) => `- ${t.name}: ${t.description}`).join("\n");
+    const recentObs = state.observations.slice(-5).map((o) => `Tool: ${o.toolName}, Success: ${o.success}`).join("\n");
 
     return [
       `Task: ${state.task}`,
-      `Available tools:\n${toolList || '(none)'}`,
-      `Recent observations:\n${recentObs || '(none)'}`,
+      `Available tools:\n${toolList || "(none)"}`,
+      `Recent observations:\n${recentObs || "(none)"}`,
       `Iteration: ${state.iterationCount}`,
-      '\nRespond with JSON: { "category": "Exploration"|"Modification"|"Validation"|"Documentation", "toolName": string, "toolInput": object, "rationale": string }',
-    ].join('\n\n');
+      "\nRespond with JSON: { \"category\": \"Exploration\"|\"Modification\"|\"Validation\"|\"Documentation\", \"toolName\": string, \"toolInput\": object, \"rationale\": string }",
+    ].join("\n\n");
   }
 
   // ---------------------------------------------------------------------------
@@ -547,10 +584,10 @@ export class AgentLoopService implements IAgentLoop {
    */
   async #errorRecovery(
     state: AgentState,
-    opts: Pick<AgentLoopOptions, 'maxRecoveryAttempts' | 'eventBus' | 'logger'>,
-  ): Promise<Readonly<{ type: 'success'; state: AgentState }> | Readonly<{ type: 'exhausted'; state: AgentState }>> {
+    opts: Pick<AgentLoopOptions, "maxRecoveryAttempts" | "eventBus" | "logger">,
+  ): Promise<Readonly<{ type: "success"; state: AgentState }> | Readonly<{ type: "exhausted"; state: AgentState }>> {
     const failingObs = state.observations[state.observations.length - 1]!;
-    const errorMessage = failingObs.error?.message ?? 'unknown failure';
+    const errorMessage = failingObs.error?.message ?? "unknown failure";
 
     // Repeated failure pattern detection: only when the failing observation has a real tool error.
     // Count prior observations with the same (toolName, errorMessage) combination;
@@ -565,7 +602,7 @@ export class AgentLoopService implements IAgentLoop {
       }
 
       if (previousSameErrorCount >= opts.maxRecoveryAttempts) {
-        return { type: 'exhausted', state };
+        return { type: "exhausted", state };
       }
     }
 
@@ -577,7 +614,7 @@ export class AgentLoopService implements IAgentLoop {
 
       // Emit recovery:attempt event
       opts.eventBus?.emit({
-        type: 'recovery:attempt',
+        type: "recovery:attempt",
         attempt: currentState.recoveryAttempts,
         maxAttempts: opts.maxRecoveryAttempts,
         errorMessage,
@@ -608,7 +645,7 @@ export class AgentLoopService implements IAgentLoop {
       // Execute the fix action
       const fixResult = await this.#executor.invoke(fixPlan.toolName, fixPlan.toolInput, this.#toolContext);
       if (!fixResult.ok) {
-        opts.logger?.info('Recovery fix action failed', { tool: fixPlan.toolName, error: fixResult.error.message });
+        opts.logger?.info("Recovery fix action failed", { tool: fixPlan.toolName, error: fixResult.error.message });
       }
 
       // Re-run original failing tool as validation
@@ -628,7 +665,7 @@ export class AgentLoopService implements IAgentLoop {
           recordedAt: new Date().toISOString(),
         };
         return {
-          type: 'success',
+          type: "success",
           state: { ...currentState, observations: [...currentState.observations, validationObs], recoveryAttempts: 0 },
         };
       }
@@ -637,7 +674,7 @@ export class AgentLoopService implements IAgentLoop {
     }
 
     // Return the state with failure context (recoveryAttempts reflects exhausted count)
-    return { type: 'exhausted', state: currentState };
+    return { type: "exhausted", state: currentState };
   }
 
   /** Builds the error-analysis prompt for the recovery LLM call. */
@@ -647,10 +684,10 @@ export class AgentLoopService implements IAgentLoop {
       `Error recovery attempt ${state.recoveryAttempts}:`,
       `The previous action failed:`,
       `  Tool: ${failingObs.toolName}`,
-      `  Error: ${failingObs.error?.message ?? 'unknown error'}`,
-      '\nAnalyze the error and propose a fix action. Respond with JSON:',
-      '{ "category": "Exploration"|"Modification"|"Validation"|"Documentation", "toolName": string, "toolInput": object, "rationale": string }',
-    ].join('\n');
+      `  Error: ${failingObs.error?.message ?? "unknown error"}`,
+      "\nAnalyze the error and propose a fix action. Respond with JSON:",
+      "{ \"category\": \"Exploration\"|\"Modification\"|\"Validation\"|\"Documentation\", \"toolName\": string, \"toolInput\": object, \"rationale\": string }",
+    ].join("\n");
   }
 
   /**
@@ -659,12 +696,12 @@ export class AgentLoopService implements IAgentLoop {
    * with the elapsed duration and get the duration back as a number.
    * Both emissions are silently skipped when no event bus is configured.
    */
-  #beginStep(step: LoopStep, iteration: number, opts: Pick<AgentLoopOptions, 'eventBus'>): () => number {
-    opts.eventBus?.emit({ type: 'step:start', step, iteration, timestamp: new Date().toISOString() });
+  #beginStep(step: LoopStep, iteration: number, opts: Pick<AgentLoopOptions, "eventBus">): () => number {
+    opts.eventBus?.emit({ type: "step:start", step, iteration, timestamp: new Date().toISOString() });
     const t0 = Date.now();
     return (): number => {
       const d = Date.now() - t0;
-      opts.eventBus?.emit({ type: 'step:complete', step, iteration, durationMs: d });
+      opts.eventBus?.emit({ type: "step:complete", step, iteration, durationMs: d });
       return d;
     };
   }
@@ -676,7 +713,7 @@ export class AgentLoopService implements IAgentLoop {
   #redactToolInput(input: Readonly<Record<string, unknown>>): Record<string, unknown> {
     const result: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(input)) {
-      result[key] = typeof value === 'string' && value.length > REDACT_THRESHOLD
+      result[key] = typeof value === "string" && value.length > REDACT_THRESHOLD
         ? `[REDACTED: ${value.length} chars]`
         : value;
     }
@@ -688,17 +725,17 @@ export class AgentLoopService implements IAgentLoop {
     const obj = this.#parseLlmJson(content);
     if (!obj) return null;
 
-    const category = obj['category'];
+    const category = obj["category"];
     if (!ACTION_CATEGORIES.includes(category as ActionCategory)) return null;
 
-    const toolName = obj['toolName'];
-    if (typeof toolName !== 'string' || toolName.length === 0) return null;
+    const toolName = obj["toolName"];
+    if (typeof toolName !== "string" || toolName.length === 0) return null;
 
-    const toolInput = obj['toolInput'];
-    if (typeof toolInput !== 'object' || toolInput === null || Array.isArray(toolInput)) return null;
+    const toolInput = obj["toolInput"];
+    if (typeof toolInput !== "object" || toolInput === null || Array.isArray(toolInput)) return null;
 
-    const rationale = obj['rationale'];
-    if (typeof rationale !== 'string') return null;
+    const rationale = obj["rationale"];
+    if (typeof rationale !== "string") return null;
 
     return {
       category: category as ActionCategory,

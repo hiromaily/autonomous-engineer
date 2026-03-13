@@ -1,45 +1,49 @@
-import type { ToolError } from '../tools/types';
+import type { ToolError } from "../tools/types";
 
 // ---------------------------------------------------------------------------
 // Action category
 // ---------------------------------------------------------------------------
 
 export type ActionCategory =
-  | 'Exploration'
-  | 'Modification'
-  | 'Validation'
-  | 'Documentation';
+  | "Exploration"
+  | "Modification"
+  | "Validation"
+  | "Documentation";
 
 /** Frozen tuple of all valid ActionCategory values — useful for iteration and validation. */
-export const ACTION_CATEGORIES = Object.freeze([
-  'Exploration',
-  'Modification',
-  'Validation',
-  'Documentation',
-] as const satisfies ReadonlyArray<ActionCategory>);
+export const ACTION_CATEGORIES = Object.freeze(
+  [
+    "Exploration",
+    "Modification",
+    "Validation",
+    "Documentation",
+  ] as const satisfies ReadonlyArray<ActionCategory>,
+);
 
 // ---------------------------------------------------------------------------
 // Loop step names
 // ---------------------------------------------------------------------------
 
-export type LoopStep = 'PLAN' | 'ACT' | 'OBSERVE' | 'REFLECT' | 'UPDATE_STATE';
+export type LoopStep = "PLAN" | "ACT" | "OBSERVE" | "REFLECT" | "UPDATE_STATE";
 
 /** Frozen tuple of all valid LoopStep values — in execution order. */
-export const LOOP_STEPS = Object.freeze([
-  'PLAN',
-  'ACT',
-  'OBSERVE',
-  'REFLECT',
-  'UPDATE_STATE',
-] as const satisfies ReadonlyArray<LoopStep>);
+export const LOOP_STEPS = Object.freeze(
+  [
+    "PLAN",
+    "ACT",
+    "OBSERVE",
+    "REFLECT",
+    "UPDATE_STATE",
+  ] as const satisfies ReadonlyArray<LoopStep>,
+);
 
 // ---------------------------------------------------------------------------
 // Supporting union types
 // ---------------------------------------------------------------------------
 
-export type ReflectionAssessment = 'expected' | 'unexpected' | 'failure';
+export type ReflectionAssessment = "expected" | "unexpected" | "failure";
 
-export type PlanAdjustment = 'continue' | 'revise' | 'stop';
+export type PlanAdjustment = "continue" | "revise" | "stop";
 
 // ---------------------------------------------------------------------------
 // ActionPlan — transient value produced by the PLAN step
@@ -71,20 +75,22 @@ export interface ReflectionOutput {
 // ---------------------------------------------------------------------------
 
 export type TerminationCondition =
-  | 'TASK_COMPLETED'
-  | 'MAX_ITERATIONS_REACHED'
-  | 'HUMAN_INTERVENTION_REQUIRED'
-  | 'SAFETY_STOP'
-  | 'RECOVERY_EXHAUSTED';
+  | "TASK_COMPLETED"
+  | "MAX_ITERATIONS_REACHED"
+  | "HUMAN_INTERVENTION_REQUIRED"
+  | "SAFETY_STOP"
+  | "RECOVERY_EXHAUSTED";
 
 /** Frozen tuple of all valid TerminationCondition values. */
-export const TERMINATION_CONDITIONS = Object.freeze([
-  'TASK_COMPLETED',
-  'MAX_ITERATIONS_REACHED',
-  'HUMAN_INTERVENTION_REQUIRED',
-  'SAFETY_STOP',
-  'RECOVERY_EXHAUSTED',
-] as const satisfies ReadonlyArray<TerminationCondition>);
+export const TERMINATION_CONDITIONS = Object.freeze(
+  [
+    "TASK_COMPLETED",
+    "MAX_ITERATIONS_REACHED",
+    "HUMAN_INTERVENTION_REQUIRED",
+    "SAFETY_STOP",
+    "RECOVERY_EXHAUSTED",
+  ] as const satisfies ReadonlyArray<TerminationCondition>,
+);
 
 // ---------------------------------------------------------------------------
 // Observation — value object recording a single tool invocation result
@@ -126,40 +132,40 @@ export interface AgentState {
 
 export type AgentLoopEvent =
   | {
-      readonly type: 'iteration:start';
-      readonly iteration: number;
-      readonly currentStep: string | null;
-      readonly timestamp: string;
-    }
+    readonly type: "iteration:start";
+    readonly iteration: number;
+    readonly currentStep: string | null;
+    readonly timestamp: string;
+  }
   | {
-      readonly type: 'iteration:complete';
-      readonly iteration: number;
-      readonly category: ActionCategory;
-      readonly toolName: string;
-      readonly durationMs: number;
-      readonly assessment: ReflectionAssessment;
-    }
+    readonly type: "iteration:complete";
+    readonly iteration: number;
+    readonly category: ActionCategory;
+    readonly toolName: string;
+    readonly durationMs: number;
+    readonly assessment: ReflectionAssessment;
+  }
   | {
-      readonly type: 'step:start';
-      readonly step: LoopStep;
-      readonly iteration: number;
-      readonly timestamp: string;
-    }
+    readonly type: "step:start";
+    readonly step: LoopStep;
+    readonly iteration: number;
+    readonly timestamp: string;
+  }
   | {
-      readonly type: 'step:complete';
-      readonly step: LoopStep;
-      readonly iteration: number;
-      readonly durationMs: number;
-    }
+    readonly type: "step:complete";
+    readonly step: LoopStep;
+    readonly iteration: number;
+    readonly durationMs: number;
+  }
   | {
-      readonly type: 'recovery:attempt';
-      readonly attempt: number;
-      readonly maxAttempts: number;
-      readonly errorMessage: string;
-    }
+    readonly type: "recovery:attempt";
+    readonly attempt: number;
+    readonly maxAttempts: number;
+    readonly errorMessage: string;
+  }
   | {
-      readonly type: 'terminated';
-      readonly condition: TerminationCondition;
-      readonly finalState: AgentState;
-      readonly timestamp: string;
-    };
+    readonly type: "terminated";
+    readonly condition: TerminationCondition;
+    readonly finalState: AgentState;
+    readonly timestamp: string;
+  };
