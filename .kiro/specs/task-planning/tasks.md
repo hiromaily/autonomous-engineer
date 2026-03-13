@@ -126,18 +126,18 @@
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 10.1, 10.2, 10.3, 10.4, 10.5_
 
 - [ ] 7. Write integration tests for the full task-planning lifecycle
-- [ ] 7.1 Test the full plan generation and execution cycle
+- [x] 7.1 Test the full plan generation and execution cycle
   - Run the full pipeline (generation → validation → human auto-approve → step execution → completion) using a stub agent loop that returns task-completed.
   - Verify the persisted plan JSON is readable and matches the expected structure after each step completion.
   - Verify the final outcome is completed and all steps are in completed status.
   - _Requirements: 2.1, 4.1, 4.2, 6.1, 8.1, 8.2, 8.5_
 
-- [ ] 7.2 Test crash recovery and resumption
+- [x] 7.2 Test crash recovery and resumption
   - Persist a plan in in-progress state, instantiate a fresh service instance, call resume with the plan ID, and verify execution continues from the last incomplete step rather than restarting.
   - Verify list-resumable returns the plan ID before resumption and excludes it after completion.
   - _Requirements: 8.3, 8.5_
 
-- [ ] 7.3 Test dependency failure cascade
+- [x] 7.3 Test dependency failure cascade
   - Create a plan where step B depends on step A; configure the stub agent loop to exhaust all retries for step A.
   - Verify that step B is automatically set to failed status after step A escalates.
   - Verify the plan outcome is escalated with the correct failed step ID.
