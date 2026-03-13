@@ -427,7 +427,7 @@ describe("SafetyGuardedToolExecutor", () => {
       expect(entry.timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T/); // ISO 8601
     });
 
-    it("caps inputSummary at 512 bytes", async () => {
+    it("passes full serialized inputSummary to the audit logger (truncation is the adapter's responsibility)", async () => {
       const auditLogger = makeAuditLogger();
       const executor = new SafetyGuardedToolExecutor(
         makeInnerExecutor(),
@@ -439,7 +439,10 @@ describe("SafetyGuardedToolExecutor", () => {
       );
       const largeInput = { path: "/workspace/foo.txt", extra: "x".repeat(1000) };
       await executor.invoke("read_file", largeInput, makeContext());
-      expect(auditLogger.entries[0].inputSummary.length).toBeLessThanOrEqual(512);
+      // The executor serializes input to JSON and passes it to the logger unchanged.
+      // Byte-safe truncation to 512 bytes is the AuditLogger adapter's responsibility.
+      expect(typeof auditLogger.entries[0].inputSummary).toBe("string");
+      expect(auditLogger.entries[0].inputSummary).toContain("/workspace/foo.txt");
     });
   });
 

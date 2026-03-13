@@ -1,3 +1,4 @@
+import { API_REQUEST_TOOLS, REPO_WRITE_TOOLS } from "../../domain/safety/constants";
 import type { ISafetyGuard, SafetyContext } from "../../domain/safety/guards";
 import {
   DestructiveActionGuard,
@@ -22,14 +23,6 @@ import type { AuditEntry, IApprovalGateway, IAuditLogger, ISandboxExecutor } fro
 
 /** Tool names delegated to the sandbox executor instead of the inner tool executor. */
 const SANDBOX_TOOL_NAMES = new Set(["run_test_suite", "install_dependencies"]);
-
-/** Tool names that trigger the per-session repository write counter. */
-const REPO_WRITE_TOOLS = new Set(["git_commit", "git_branch_create", "git_push"]);
-
-/** Tool names that trigger the per-minute external API request counter. */
-const API_REQUEST_TOOLS = new Set(["llm_chat", "llm_complete", "search_web", "fetch_url"]);
-
-const INPUT_SUMMARY_MAX_BYTES = 512;
 
 // ---------------------------------------------------------------------------
 // SafetyGuardedToolExecutor
@@ -206,10 +199,11 @@ export class SafetyGuardedToolExecutor implements IToolExecutor {
     let toolResult: ToolResult<unknown>;
     try {
       if (SANDBOX_TOOL_NAMES.has(name)) {
+        const { command, args } = buildSandboxCommand(name, rawInput);
         const sandboxResult = await this.#sandboxExecutor.execute(
           {
-            command: name,
-            args: [],
+            command,
+            args,
             workingDirectory: context.workingDirectory,
             method: this.#config.sandboxMethod,
             ...(this.#config.containerImage !== undefined ? { containerImage: this.#config.containerImage } : {}),
@@ -281,10 +275,32 @@ export class SafetyGuardedToolExecutor implements IToolExecutor {
 
   #sanitizeInput(rawInput: unknown): string {
     try {
-      const json = JSON.stringify(rawInput) ?? "null";
-      return json.length <= INPUT_SUMMARY_MAX_BYTES ? json : json.slice(0, INPUT_SUMMARY_MAX_BYTES);
+      return JSON.stringify(rawInput) ?? "null";
     } catch {
       return "[unserializable]";
     }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Map a sandboxed tool name and its raw input to the actual executable command
+ * and arguments that the sandbox executor should spawn.
+ */
+function buildSandboxCommand(toolName: string, rawInput: unknown): { command: string; args: string[] } {
+  const input = rawInput as Record<string, unknown>;
+  switch (toolName) {
+    case "run_test_suite": {
+      const args = ["test"];
+      if (typeof input["pattern"] === "string") args.push(input["pattern"]);
+      return { command: "bun", args };
+    }
+    case "install_dependencies":
+      return { command: "bun", args: ["install"] };
+    default:
+      return { command: toolName, args: [] };
   }
 }

@@ -1,5 +1,6 @@
 import { basename } from "node:path";
 import type { ToolResult } from "../tools/types";
+import { API_REQUEST_TOOLS, REPO_WRITE_TOOLS } from "./constants";
 import type { ApprovalRequest, ISafetyGuard, SafetyCheckResult, SafetyContext } from "./guards";
 import { allowedResult, blockedResult, requiresApprovalResult } from "./guards";
 import type { SafetySession } from "./types";
@@ -127,12 +128,6 @@ export class FailureDetectionGuard implements ISafetyGuard {
 // ---------------------------------------------------------------------------
 // 3.3 RateLimitGuard
 // ---------------------------------------------------------------------------
-
-/** Tools that trigger the per-session repository write counter. */
-const REPO_WRITE_TOOLS = new Set(["git_commit", "git_branch_create", "git_push"]);
-
-/** Tools that trigger the per-minute external API request counter. */
-const API_REQUEST_TOOLS = new Set(["llm_chat", "llm_complete", "search_web", "fetch_url"]);
 
 /** Explicit set of tool names that perform file deletion and require bulk-delete checks. */
 const DELETE_TOOLS = new Set(["delete_files", "remove_files", "bulk_delete"]);
