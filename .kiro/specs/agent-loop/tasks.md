@@ -140,30 +140,30 @@
   - _Requirements: 9.2, 7.2_
 
 - [ ] 10. (P) Unit tests — AgentLoopService
-- [ ] 10.1 Test PLAN step — parse success and retry behavior
+- [x] 10.1 Test PLAN step — parse success and retry behavior
   - Mock the LLM to return valid action plan JSON on the first call; verify the service extracts a correctly structured plan with all required fields and proceeds to the ACT step
   - Mock the LLM to return invalid JSON twice then valid JSON; verify the service retries and succeeds on the last allowed attempt
   - Mock the LLM to always return invalid JSON beyond the retry limit; verify the loop exits with the human-intervention-required termination condition
   - _Requirements: 2.1, 2.2, 2.4, 2.5_
 
-- [ ] 10.2 Test ACT step — success and failure paths
+- [x] 10.2 Test ACT step — success and failure paths
   - Mock the tool executor to succeed; verify the resulting observation records success and captures the raw output
   - Mock the tool executor to return a runtime error; verify the observation records the failure and the loop enters error recovery
   - Mock the tool executor to return a permission error; verify the loop terminates immediately with human-intervention-required without entering recovery
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
 
-- [ ] 10.3 Test REFLECT and UPDATE STATE — assessment branching and step promotion
+- [x] 10.3 Test REFLECT and UPDATE STATE — assessment branching and step promotion
   - Mock the LLM reflection response with task-complete status; verify the loop terminates with the task-completed condition and the success flag set to true
   - Mock the reflection response with an unexpected assessment and a revised plan; verify the agent state is updated with the new plan and the active step points to the first step of the revised plan
   - Verify the iteration counter increments after each complete cycle regardless of assessment outcome
   - _Requirements: 5.2, 5.3, 5.5, 6.1, 6.2, 6.3, 6.4_
 
-- [ ] 10.4 Test stop signal and maxIterations termination
+- [x] 10.4 Test stop signal and maxIterations termination
   - Call the stop method during an async tool execution; verify the loop completes the in-progress step and halts at the next PLAN boundary rather than mid-step
   - Configure a maximum of three iterations and mock tools and LLM to always succeed without completing the task; verify the loop exits with the max-iterations-reached condition after exactly three iterations
   - _Requirements: 7.1, 7.2, 7.6_
 
-- [ ] 10.5 Test error recovery — resolution and exhaustion
+- [x] 10.5 Test error recovery — resolution and exhaustion
   - Mock the tool to fail on the first call and succeed on the second within the recovery cycle; verify the loop resumes normal iteration after recovery and the attempt counter resets
   - Configure a maximum of three recovery attempts and mock the tool to always fail; verify the loop exits with the recovery-exhausted condition after exactly three attempts
   - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5_

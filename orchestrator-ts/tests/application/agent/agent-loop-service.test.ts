@@ -2531,3 +2531,315 @@ describe("AgentLoopService task 8.2 — state query during execution", () => {
     expect(Array.isArray(snapshotDuringExecution!.completedSteps)).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Task 10.2 — ACT step unit tests: success path, runtime error, permission error
+// ---------------------------------------------------------------------------
+
+describe("AgentLoopService task 10.2 — ACT step success and failure paths", () => {
+  // Uses module-level makeCycledLlm() for success path and makeRecoveryLlm() for error paths.
+
+  it("successful tool execution — observation records success=true", async () => {
+    const executor: IToolExecutor = {
+      async invoke(_name, _input, _ctx) {
+        return { ok: true, value: { result: "file contents here", lineCount: 20 } };
+      },
+    };
+
+    const service = new AgentLoopService(executor, makeRegistry(), makeCycledLlm(), makeToolContext());
+    const result = await service.run("test task", { maxIterations: 1 });
+
+    expect(result.finalState.observations[0]!.success).toBe(true);
+  });
+
+  it("successful tool execution — observation captures the raw output from the executor", async () => {
+    const rawOutput = { result: "file contents here", lineCount: 20 };
+    const executor: IToolExecutor = {
+      async invoke(_name, _input, _ctx) {
+        return { ok: true, value: rawOutput };
+      },
+    };
+
+    const service = new AgentLoopService(executor, makeRegistry(), makeCycledLlm(), makeToolContext());
+    const result = await service.run("test task", { maxIterations: 1 });
+
+    expect(result.finalState.observations[0]!.rawOutput).toEqual(rawOutput);
+  });
+
+  it("successful tool execution — observation has no error field", async () => {
+    const executor: IToolExecutor = {
+      async invoke(_name, _input, _ctx) {
+        return { ok: true, value: { data: "output" } };
+      },
+    };
+
+    const service = new AgentLoopService(executor, makeRegistry(), makeCycledLlm(), makeToolContext());
+    const result = await service.run("test task", { maxIterations: 1 });
+
+    expect(result.finalState.observations[0]!.error).toBeUndefined();
+  });
+
+  it("runtime tool error — observation records success=false", async () => {
+    const executor: IToolExecutor = {
+      async invoke(_name, _input, _ctx) {
+        return { ok: false, error: { type: "runtime", message: "process exited with code 1" } };
+      },
+    };
+
+    // makeRecoveryLlm: PLAN → REFLECT(failure) → recovery fix plans
+    const service = new AgentLoopService(executor, makeRegistry(), makeRecoveryLlm(), makeToolContext());
+    const result = await service.run("test task", { maxIterations: 1 });
+
+    expect(result.finalState.observations[0]!.success).toBe(false);
+  });
+
+  it("runtime tool error — observation carries the structured error with type and message", async () => {
+    const executor: IToolExecutor = {
+      async invoke(_name, _input, _ctx) {
+        return { ok: false, error: { type: "runtime", message: "process exited with code 1" } };
+      },
+    };
+
+    const service = new AgentLoopService(executor, makeRegistry(), makeRecoveryLlm(), makeToolContext());
+    const result = await service.run("test task", { maxIterations: 1 });
+
+    const obs = result.finalState.observations[0]!;
+    expect(obs.error).toBeDefined();
+    expect(obs.error!.type).toBe("runtime");
+    expect(obs.error!.message).toBe("process exited with code 1");
+  });
+
+  it("runtime tool error — loop enters error recovery (emits at least one recovery:attempt event)", async () => {
+    const executor: IToolExecutor = {
+      async invoke(_name, _input, _ctx) {
+        return { ok: false, error: { type: "runtime", message: "process exited with code 1" } };
+      },
+    };
+
+    const { bus, events } = makeEventBus();
+    const service = new AgentLoopService(executor, makeRegistry(), makeRecoveryLlm(), makeToolContext());
+    await service.run("test task", { maxIterations: 1, eventBus: bus, maxRecoveryAttempts: 3 });
+
+    const recoveryEvents = events.filter((e) => e.type === "recovery:attempt");
+    expect(recoveryEvents.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("permission tool error — terminates immediately with HUMAN_INTERVENTION_REQUIRED", async () => {
+    const executor: IToolExecutor = {
+      async invoke(_name, _input, _ctx) {
+        return { ok: false, error: { type: "permission", message: "write not permitted" } };
+      },
+    };
+
+    const service = new AgentLoopService(executor, makeRegistry(), makeCycledLlm(), makeToolContext());
+    const result = await service.run("test task", { maxIterations: 1 });
+
+    expect(result.terminationCondition).toBe("HUMAN_INTERVENTION_REQUIRED");
+    expect(result.taskCompleted).toBe(false);
+  });
+
+  it("permission tool error — does not enter error recovery (no recovery:attempt events emitted)", async () => {
+    const executor: IToolExecutor = {
+      async invoke(_name, _input, _ctx) {
+        return { ok: false, error: { type: "permission", message: "write not permitted" } };
+      },
+    };
+
+    const { bus, events } = makeEventBus();
+    const service = new AgentLoopService(executor, makeRegistry(), makeCycledLlm(), makeToolContext());
+    await service.run("test task", { maxIterations: 1, eventBus: bus, maxRecoveryAttempts: 3 });
+
+    const recoveryEvents = events.filter((e) => e.type === "recovery:attempt");
+    expect(recoveryEvents.length).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 10.4 — stop signal and maxIterations termination
+// ---------------------------------------------------------------------------
+
+describe("AgentLoopService task 10.4 — stop signal and maxIterations termination", () => {
+  it("stop() during ACT step — loop terminates with SAFETY_STOP (not mid-step panic)", async () => {
+    let svc!: AgentLoopService;
+    let toolInvocationCompleted = false;
+
+    const executor: IToolExecutor = {
+      async invoke(_name, _input, _ctx) {
+        svc.stop(); // signal stop mid-execution
+        const value = { result: "completed output" };
+        toolInvocationCompleted = true; // tool finishes before loop checks stop flag
+        return { ok: true, value };
+      },
+    };
+
+    svc = new AgentLoopService(executor, makeRegistry(), makeCycledLlm(), makeToolContext());
+    const result = await svc.run("test task", { maxIterations: 5 });
+
+    expect(result.terminationCondition).toBe("SAFETY_STOP");
+    expect(toolInvocationCompleted).toBe(true); // in-progress step completed before halt
+  });
+
+  it("stop() during ACT step — the completed step's observation is recorded in finalState", async () => {
+    let svc!: AgentLoopService;
+
+    const executor: IToolExecutor = {
+      async invoke(_name, _input, _ctx) {
+        svc.stop();
+        return { ok: true, value: { data: "step output" } };
+      },
+    };
+
+    svc = new AgentLoopService(executor, makeRegistry(), makeCycledLlm(), makeToolContext());
+    const result = await svc.run("test task", { maxIterations: 5 });
+
+    // The step that was in progress must have produced an observation
+    expect(result.finalState.observations.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("stop() halts at the next PLAN boundary — taskCompleted is false", async () => {
+    let svc!: AgentLoopService;
+
+    const executor: IToolExecutor = {
+      async invoke(_name, _input, _ctx) {
+        svc.stop();
+        return { ok: true, value: {} };
+      },
+    };
+
+    svc = new AgentLoopService(executor, makeRegistry(), makeCycledLlm(), makeToolContext());
+    const result = await svc.run("test task", { maxIterations: 5 });
+
+    expect(result.taskCompleted).toBe(false);
+  });
+
+  it("maxIterations: 3 — terminates with MAX_ITERATIONS_REACHED after exactly three iterations", async () => {
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeCycledLlm(), makeToolContext());
+    const result = await service.run("test task", { maxIterations: 3 });
+
+    expect(result.terminationCondition).toBe("MAX_ITERATIONS_REACHED");
+    expect(result.totalIterations).toBe(3);
+  });
+
+  it("maxIterations: 3 — finalState.iterationCount is exactly 3", async () => {
+    const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeCycledLlm(), makeToolContext());
+    const result = await service.run("test task", { maxIterations: 3 });
+
+    expect(result.finalState.iterationCount).toBe(3);
+  });
+
+  it("maxIterations: 3 — taskCompleted is false when task never signals completion", async () => {
+    const service = new AgentLoopService(
+      makeExecutor(),
+      makeRegistry(),
+      // Never returns taskComplete=true
+      makeCycledLlm({ planAdjustment: "continue" }),
+      makeToolContext(),
+    );
+    const result = await service.run("test task", { maxIterations: 3 });
+
+    expect(result.taskCompleted).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 10.5 — error recovery: resolution from tool failure and exhaustion
+// ---------------------------------------------------------------------------
+
+describe("AgentLoopService task 10.5 — error recovery resolution and exhaustion", () => {
+  /**
+   * Executor where the first call (main ACT) fails and all subsequent calls succeed.
+   * Simulates: initial tool failure → recovery fix succeeds → validation succeeds.
+   */
+  function makeFirstFailThenSucceedExecutor(): IToolExecutor {
+    let callCount = 0;
+    return {
+      async invoke(_name, _input, _ctx) {
+        callCount++;
+        if (callCount === 1) return { ok: false, error: { type: "runtime", message: "tests failed" } };
+        return { ok: true, value: { result: "ok" } };
+      },
+    };
+  }
+
+  /**
+   * Executor where the main ACT (call 1) succeeds, fix actions (even calls) succeed,
+   * and validation attempts (odd calls after 1) always fail.
+   * Simulates: tool succeeds → REFLECT fails → recovery loops until exhausted.
+   */
+  function makeValidationAlwaysFailExecutor(): IToolExecutor {
+    let callCount = 0;
+    return {
+      async invoke(_name, _input, _ctx) {
+        callCount++;
+        if (callCount === 1) return { ok: true, value: {} }; // main ACT succeeds so REFLECT runs
+        if (callCount % 2 === 0) return { ok: true, value: {} }; // fix actions succeed
+        return { ok: false, error: { type: "runtime", message: "always fails" } }; // validations fail
+      },
+    };
+  }
+
+  // Uses module-level makeRecoveryLlm() which mirrors this same scenario:
+  // PLAN (run_tests) → REFLECT (failure) → recovery fix plans (write_file).
+
+  it("tool fails first call, validation succeeds — loop resumes with MAX_ITERATIONS_REACHED", async () => {
+    const service = new AgentLoopService(
+      makeFirstFailThenSucceedExecutor(),
+      makeRegistry(),
+      makeRecoveryLlm(),
+      makeToolContext(),
+    );
+    const result = await service.run("test task", { maxIterations: 1, maxRecoveryAttempts: 3 });
+
+    expect(result.terminationCondition).toBe("MAX_ITERATIONS_REACHED");
+  });
+
+  it("tool fails first call, validation succeeds — recoveryAttempts resets to 0 in finalState", async () => {
+    const service = new AgentLoopService(
+      makeFirstFailThenSucceedExecutor(),
+      makeRegistry(),
+      makeRecoveryLlm(),
+      makeToolContext(),
+    );
+    const result = await service.run("test task", { maxIterations: 1, maxRecoveryAttempts: 3 });
+
+    expect(result.finalState.recoveryAttempts).toBe(0);
+  });
+
+  it("validation always fails — RECOVERY_EXHAUSTED after exactly 3 attempts (maxRecoveryAttempts: 3)", async () => {
+    const service = new AgentLoopService(
+      makeValidationAlwaysFailExecutor(),
+      makeRegistry(),
+      makeRecoveryLlm(),
+      makeToolContext(),
+    );
+    const result = await service.run("test task", { maxIterations: 5, maxRecoveryAttempts: 3 });
+
+    expect(result.terminationCondition).toBe("RECOVERY_EXHAUSTED");
+  });
+
+  it("validation always fails — emits exactly 3 recovery:attempt events when maxRecoveryAttempts is 3", async () => {
+    const { bus, events } = makeEventBus();
+    const service = new AgentLoopService(
+      makeValidationAlwaysFailExecutor(),
+      makeRegistry(),
+      makeRecoveryLlm(),
+      makeToolContext(),
+    );
+    await service.run("test task", { maxIterations: 5, maxRecoveryAttempts: 3, eventBus: bus });
+
+    const recoveryEvents = events.filter((e) => e.type === "recovery:attempt");
+    expect(recoveryEvents.length).toBe(3);
+  });
+
+  it("validation always fails — taskCompleted is false on RECOVERY_EXHAUSTED", async () => {
+    const service = new AgentLoopService(
+      makeValidationAlwaysFailExecutor(),
+      makeRegistry(),
+      makeRecoveryLlm(),
+      makeToolContext(),
+    );
+    const result = await service.run("test task", { maxIterations: 5, maxRecoveryAttempts: 3 });
+
+    expect(result.taskCompleted).toBe(false);
+  });
+});
