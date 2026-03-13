@@ -3,9 +3,9 @@
 // ---------------------------------------------------------------------------
 
 export interface SafetyRateLimitConfig {
-  readonly toolInvocationsPerMinute: number;  // default: 60
-  readonly repoWritesPerSession: number;       // default: 20
-  readonly apiRequestsPerMinute: number;       // default: 30
+  readonly toolInvocationsPerMinute: number; // default: 60
+  readonly repoWritesPerSession: number; // default: 20
+  readonly apiRequestsPerMinute: number; // default: 30
 }
 
 // ---------------------------------------------------------------------------
@@ -25,16 +25,16 @@ export interface SafetyConfig {
   readonly maxFileDeletes: number;
   readonly rateLimits: SafetyRateLimitConfig;
   readonly approvalTimeoutMs: number;
-  readonly sandboxMethod: 'container' | 'restricted-shell' | 'temp-directory';
+  readonly sandboxMethod: "container" | "restricted-shell" | "temp-directory";
   readonly containerImage?: string;
 }
 
 export const DEFAULT_SAFETY_CONFIG = {
-  protectedFilePatterns: Object.freeze(['.env', '.env.local', '.env.production', 'secrets.json', '.git/config']),
-  protectedBranches: Object.freeze(['main', 'production']),
-  branchNamePattern: '^agent\\/.+',
+  protectedFilePatterns: Object.freeze([".env", ".env.local", ".env.production", "secrets.json", ".git/config"]),
+  protectedBranches: Object.freeze(["main", "production"]),
+  branchNamePattern: "^agent\\/.+",
   maxFilesPerCommit: 50,
-  shellBlocklist: Object.freeze(['rm -rf /', 'shutdown', 'reboot']),
+  shellBlocklist: Object.freeze(["rm -rf /", "shutdown", "reboot"]),
   shellAllowlist: null,
   maxIterations: 50,
   maxRuntimeMs: 600_000,
@@ -45,10 +45,10 @@ export const DEFAULT_SAFETY_CONFIG = {
     apiRequestsPerMinute: 30,
   }),
   approvalTimeoutMs: 300_000,
-  sandboxMethod: 'temp-directory' as const,
+  sandboxMethod: "temp-directory" as const,
 } as const;
 
-export type SafetyConfigOverrides = Partial<Omit<SafetyConfig, 'workspaceRoot'>> & {
+export type SafetyConfigOverrides = Partial<Omit<SafetyConfig, "workspaceRoot">> & {
   workspaceRoot: string;
 };
 
@@ -59,7 +59,9 @@ export type SafetyConfigOverrides = Partial<Omit<SafetyConfig, 'workspaceRoot'>>
 export function createSafetyConfig(overrides: SafetyConfigOverrides): SafetyConfig {
   const merged: SafetyConfig = {
     workspaceRoot: overrides.workspaceRoot,
-    protectedFilePatterns: Object.freeze([...(overrides.protectedFilePatterns ?? DEFAULT_SAFETY_CONFIG.protectedFilePatterns)]),
+    protectedFilePatterns: Object.freeze([
+      ...(overrides.protectedFilePatterns ?? DEFAULT_SAFETY_CONFIG.protectedFilePatterns),
+    ]),
     protectedBranches: Object.freeze([...(overrides.protectedBranches ?? DEFAULT_SAFETY_CONFIG.protectedBranches)]),
     branchNamePattern: overrides.branchNamePattern ?? DEFAULT_SAFETY_CONFIG.branchNamePattern,
     maxFilesPerCommit: overrides.maxFilesPerCommit ?? DEFAULT_SAFETY_CONFIG.maxFilesPerCommit,
@@ -81,22 +83,22 @@ export function createSafetyConfig(overrides: SafetyConfigOverrides): SafetyConf
 
   // Validate
   if (!merged.workspaceRoot) {
-    throw new Error('workspaceRoot must be a non-empty string');
+    throw new Error("workspaceRoot must be a non-empty string");
   }
   if (merged.maxIterations <= 0) {
-    throw new Error('maxIterations must be a positive integer');
+    throw new Error("maxIterations must be a positive integer");
   }
   if (merged.maxRuntimeMs <= 0) {
-    throw new Error('maxRuntimeMs must be positive');
+    throw new Error("maxRuntimeMs must be positive");
   }
   if (merged.maxFilesPerCommit <= 0) {
-    throw new Error('maxFilesPerCommit must be a positive integer');
+    throw new Error("maxFilesPerCommit must be a positive integer");
   }
   if (merged.maxFileDeletes <= 0) {
-    throw new Error('maxFileDeletes must be a positive integer');
+    throw new Error("maxFileDeletes must be a positive integer");
   }
   if (merged.approvalTimeoutMs <= 0) {
-    throw new Error('approvalTimeoutMs must be positive');
+    throw new Error("approvalTimeoutMs must be positive");
   }
 
   return Object.freeze(merged);
@@ -107,9 +109,9 @@ export function createSafetyConfig(overrides: SafetyConfigOverrides): SafetyConf
 // ---------------------------------------------------------------------------
 
 export type EmergencyStopSource =
-  | { readonly kind: 'signal'; readonly signal: 'SIGINT' | 'SIGTERM' }
-  | { readonly kind: 'safety-violation'; readonly description: string }
-  | { readonly kind: 'resource-exhaustion'; readonly resource: string };
+  | { readonly kind: "signal"; readonly signal: "SIGINT" | "SIGTERM" }
+  | { readonly kind: "safety-violation"; readonly description: string }
+  | { readonly kind: "resource-exhaustion"; readonly resource: string };
 
 // ---------------------------------------------------------------------------
 // Safety Session (mutable per-session aggregate)

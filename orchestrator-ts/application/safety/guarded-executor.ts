@@ -1,33 +1,33 @@
-import type { IToolExecutor } from '../tools/executor';
-import type { ToolContext, ToolResult } from '../../domain/tools/types';
-import type { IAuditLogger, IApprovalGateway, ISandboxExecutor, AuditEntry } from './ports';
-import type { SafetyConfig, SafetySession } from '../../domain/safety/types';
-import type { ISafetyGuard, SafetyContext } from '../../domain/safety/guards';
+import type { ISafetyGuard, SafetyContext } from "../../domain/safety/guards";
 import {
-  IterationLimitGuard,
-  FailureDetectionGuard,
-  RateLimitGuard,
   DestructiveActionGuard,
-} from '../../domain/safety/stateful-guards';
+  FailureDetectionGuard,
+  IterationLimitGuard,
+  RateLimitGuard,
+} from "../../domain/safety/stateful-guards";
 import {
-  WorkspaceIsolationGuard,
   FilesystemGuard,
   GitSafetyGuard,
   ShellRestrictionGuard,
-} from '../../domain/safety/stateless-guards';
+  WorkspaceIsolationGuard,
+} from "../../domain/safety/stateless-guards";
+import type { SafetyConfig, SafetySession } from "../../domain/safety/types";
+import type { ToolContext, ToolResult } from "../../domain/tools/types";
+import type { IToolExecutor } from "../tools/executor";
+import type { AuditEntry, IApprovalGateway, IAuditLogger, ISandboxExecutor } from "./ports";
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
 /** Tool names delegated to the sandbox executor instead of the inner tool executor. */
-const SANDBOX_TOOL_NAMES = new Set(['run_test_suite', 'install_dependencies']);
+const SANDBOX_TOOL_NAMES = new Set(["run_test_suite", "install_dependencies"]);
 
 /** Tool names that trigger the per-session repository write counter. */
-const REPO_WRITE_TOOLS = new Set(['git_commit', 'git_branch_create', 'git_push']);
+const REPO_WRITE_TOOLS = new Set(["git_commit", "git_branch_create", "git_push"]);
 
 /** Tool names that trigger the per-minute external API request counter. */
-const API_REQUEST_TOOLS = new Set(['llm_chat', 'llm_complete', 'search_web', 'fetch_url']);
+const API_REQUEST_TOOLS = new Set(["llm_chat", "llm_complete", "search_web", "fetch_url"]);
 
 const INPUT_SUMMARY_MAX_BYTES = 512;
 
@@ -112,14 +112,14 @@ export class SafetyGuardedToolExecutor implements IToolExecutor {
     // 1. Emergency stop — immediate rejection
     // -----------------------------------------------------------------------
     if (this.#session.emergencyStopRequested) {
-      await this.#writeAudit(name, rawInput, iterationNumber, 'emergency-stop', {
-        blockReason: 'Emergency stop requested',
+      await this.#writeAudit(name, rawInput, iterationNumber, "emergency-stop", {
+        blockReason: "Emergency stop requested",
       });
       return {
         ok: false,
         error: {
-          type: 'runtime',
-          message: 'Invocation rejected: emergency stop is active',
+          type: "runtime",
+          message: "Invocation rejected: emergency stop is active",
         },
       };
     }
@@ -131,7 +131,7 @@ export class SafetyGuardedToolExecutor implements IToolExecutor {
     for (const guard of sessionGuards) {
       const result = await guard.check(name, rawInput, safetyCtx);
       if (!result.allowed) {
-        await this.#writeAudit(name, rawInput, iterationNumber, 'blocked', {
+        await this.#writeAudit(name, rawInput, iterationNumber, "blocked", {
           blockReason: result.error?.message,
         });
         return { ok: false, error: result.error! };
@@ -150,7 +150,7 @@ export class SafetyGuardedToolExecutor implements IToolExecutor {
     for (const guard of toolGuards) {
       const result = await guard.check(name, rawInput, safetyCtx);
       if (!result.allowed) {
-        await this.#writeAudit(name, rawInput, iterationNumber, 'blocked', {
+        await this.#writeAudit(name, rawInput, iterationNumber, "blocked", {
           blockReason: result.error?.message,
         });
         return { ok: false, error: result.error! };
@@ -160,7 +160,7 @@ export class SafetyGuardedToolExecutor implements IToolExecutor {
     // -----------------------------------------------------------------------
     // 8. Destructive action guard — may require approval
     // -----------------------------------------------------------------------
-    let approvalDecision: 'approved' | 'denied' | 'timeout' | undefined;
+    let approvalDecision: "approved" | "denied" | "timeout" | undefined;
     const destructiveResult = await this.#destructiveGuard.check(name, rawInput, safetyCtx);
 
     if (destructiveResult.requiresApproval && destructiveResult.approvalRequest) {
@@ -169,21 +169,21 @@ export class SafetyGuardedToolExecutor implements IToolExecutor {
         this.#config.approvalTimeoutMs,
       );
 
-      if (approvalDecision !== 'approved') {
-        await this.#writeAudit(name, rawInput, iterationNumber, 'blocked', {
-          blockReason: `Destructive action ${approvalDecision === 'denied' ? 'denied' : 'timed out'} by human operator`,
+      if (approvalDecision !== "approved") {
+        await this.#writeAudit(name, rawInput, iterationNumber, "blocked", {
+          blockReason: `Destructive action ${approvalDecision === "denied" ? "denied" : "timed out"} by human operator`,
           approvalDecision,
         });
         return {
           ok: false,
           error: {
-            type: 'permission',
+            type: "permission",
             message: `Destructive action was ${approvalDecision} by the human operator`,
           },
         };
       }
     } else if (!destructiveResult.allowed) {
-      await this.#writeAudit(name, rawInput, iterationNumber, 'blocked', {
+      await this.#writeAudit(name, rawInput, iterationNumber, "blocked", {
         blockReason: destructiveResult.error?.message,
       });
       return { ok: false, error: destructiveResult.error! };
@@ -194,7 +194,7 @@ export class SafetyGuardedToolExecutor implements IToolExecutor {
     // -----------------------------------------------------------------------
     const rateLimitResult = await this.#rateLimitGuard.check(name, rawInput, safetyCtx);
     if (!rateLimitResult.allowed) {
-      await this.#writeAudit(name, rawInput, iterationNumber, 'blocked', {
+      await this.#writeAudit(name, rawInput, iterationNumber, "blocked", {
         blockReason: rateLimitResult.error?.message,
       });
       return { ok: false, error: rateLimitResult.error! };
@@ -222,13 +222,13 @@ export class SafetyGuardedToolExecutor implements IToolExecutor {
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      toolResult = { ok: false, error: { type: 'runtime', message } };
+      toolResult = { ok: false, error: { type: "runtime", message } };
     }
 
     // -----------------------------------------------------------------------
     // 11. Post-execution: write audit, update session state
     // -----------------------------------------------------------------------
-    const outcome = toolResult.ok ? 'success' : 'error';
+    const outcome = toolResult.ok ? "success" : "error";
     await this.#writeAudit(name, rawInput, iterationNumber, outcome, {
       approvalDecision,
       errorDetails: !toolResult.ok ? toolResult.error.message : undefined,
@@ -258,10 +258,10 @@ export class SafetyGuardedToolExecutor implements IToolExecutor {
     toolName: string,
     rawInput: unknown,
     iterationNumber: number,
-    outcome: AuditEntry['outcome'],
+    outcome: AuditEntry["outcome"],
     extras: {
       blockReason?: string;
-      approvalDecision?: AuditEntry['approvalDecision'];
+      approvalDecision?: AuditEntry["approvalDecision"];
       errorDetails?: string;
     } = {},
   ): Promise<void> {
@@ -281,10 +281,10 @@ export class SafetyGuardedToolExecutor implements IToolExecutor {
 
   #sanitizeInput(rawInput: unknown): string {
     try {
-      const json = JSON.stringify(rawInput) ?? 'null';
+      const json = JSON.stringify(rawInput) ?? "null";
       return json.length <= INPUT_SUMMARY_MAX_BYTES ? json : json.slice(0, INPUT_SUMMARY_MAX_BYTES);
     } catch {
-      return '[unserializable]';
+      return "[unserializable]";
     }
   }
 }

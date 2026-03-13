@@ -1,9 +1,9 @@
-import { resolve, basename } from 'node:path';
-import { execFile as execFileCb } from 'node:child_process';
-import { promisify } from 'node:util';
-import type { ISafetyGuard, SafetyCheckResult, SafetyContext } from './guards';
-import { allowedResult, blockedResult } from './guards';
-import type { SafetyConfig } from './types';
+import { execFile as execFileCb } from "node:child_process";
+import { basename, resolve } from "node:path";
+import { promisify } from "node:util";
+import type { ISafetyGuard, SafetyCheckResult, SafetyContext } from "./guards";
+import { allowedResult, blockedResult } from "./guards";
+import type { SafetyConfig } from "./types";
 
 const execFile = promisify(execFileCb);
 
@@ -17,21 +17,21 @@ const execFile = promisify(execFileCb);
  * file path arguments and are always passed through.
  */
 const PATH_FIELDS: Readonly<Record<string, ReadonlyArray<string>>> = {
-  read_file:      ['path'],
-  write_file:     ['path'],
-  list_directory: ['path'],
-  search_files:   ['directory'],
-  run_command:    ['cwd'],   // optional field; guard skips if absent
+  read_file: ["path"],
+  write_file: ["path"],
+  list_directory: ["path"],
+  search_files: ["directory"],
+  run_command: ["cwd"], // optional field; guard skips if absent
 };
 
 function isWithinWorkspace(workspaceRoot: string, requestedPath: string): boolean {
   const resolved = resolve(workspaceRoot, requestedPath);
-  const rootWithSep = workspaceRoot.endsWith('/') ? workspaceRoot : workspaceRoot + '/';
+  const rootWithSep = workspaceRoot.endsWith("/") ? workspaceRoot : workspaceRoot + "/";
   return resolved === workspaceRoot || resolved.startsWith(rootWithSep);
 }
 
 export class WorkspaceIsolationGuard implements ISafetyGuard {
-  readonly name = 'workspace-isolation';
+  readonly name = "workspace-isolation";
 
   async check(toolName: string, rawInput: unknown, context: SafetyContext): Promise<SafetyCheckResult> {
     const fields = PATH_FIELDS[toolName];
@@ -46,11 +46,11 @@ export class WorkspaceIsolationGuard implements ISafetyGuard {
     for (const field of fields) {
       const value = input[field];
       if (value === undefined || value === null) continue; // optional field absent
-      if (typeof value !== 'string') continue;
+      if (typeof value !== "string") continue;
 
       if (!isWithinWorkspace(workspaceRoot, value)) {
         return blockedResult({
-          type: 'permission',
+          type: "permission",
           message: `Path '${value}' resolves outside workspace root '${workspaceRoot}'`,
         });
       }
@@ -70,7 +70,7 @@ export class WorkspaceIsolationGuard implements ISafetyGuard {
  */
 function matchesProtectedPattern(normalizedPath: string, pattern: string): boolean {
   // Directory-anchored patterns (e.g. `.git/config`) — full-path substring match
-  if (pattern.includes('/')) {
+  if (pattern.includes("/")) {
     return normalizedPath.includes(pattern);
   }
   // Simple basename patterns (e.g. `.env`, `secrets.json`)
@@ -78,11 +78,11 @@ function matchesProtectedPattern(normalizedPath: string, pattern: string): boole
 }
 
 export class FilesystemGuard implements ISafetyGuard {
-  readonly name = 'filesystem';
+  readonly name = "filesystem";
 
   async check(toolName: string, rawInput: unknown, context: SafetyContext): Promise<SafetyCheckResult> {
     // Only intercept write operations
-    if (toolName !== 'write_file') return allowedResult();
+    if (toolName !== "write_file") return allowedResult();
 
     const input = rawInput as { path: string };
     const normalizedPath = resolve(context.config.workspaceRoot, input.path);
@@ -90,7 +90,7 @@ export class FilesystemGuard implements ISafetyGuard {
     for (const pattern of context.config.protectedFilePatterns) {
       if (matchesProtectedPattern(normalizedPath, pattern)) {
         return blockedResult({
-          type: 'permission',
+          type: "permission",
           message: `Write to '${input.path}' is blocked: file matches protected pattern '${pattern}'`,
         });
       }
@@ -107,12 +107,12 @@ export class FilesystemGuard implements ISafetyGuard {
 export type GitRunner = (args: string[], cwd: string) => Promise<string>;
 
 const defaultGitRunner: GitRunner = async (args, cwd) => {
-  const { stdout } = await execFile('git', args, { cwd });
+  const { stdout } = await execFile("git", args, { cwd });
   return stdout;
 };
 
 export class GitSafetyGuard implements ISafetyGuard {
-  readonly name = 'git-safety';
+  readonly name = "git-safety";
   private readonly gitRunner: GitRunner;
 
   constructor(gitRunner: GitRunner = defaultGitRunner) {
@@ -123,11 +123,11 @@ export class GitSafetyGuard implements ISafetyGuard {
     const { config } = context;
     const cwd = context.workingDirectory;
 
-    if (toolName === 'git_commit') {
+    if (toolName === "git_commit") {
       return this.checkCommit(rawInput, config, cwd);
     }
 
-    if (toolName === 'git_branch_create') {
+    if (toolName === "git_branch_create") {
       return this.checkBranchCreate(rawInput, config);
     }
 
@@ -141,24 +141,25 @@ export class GitSafetyGuard implements ISafetyGuard {
     cwd: string,
   ): Promise<SafetyCheckResult> {
     // Check current branch
-    const branchOutput = await this.gitRunner(['rev-parse', '--abbrev-ref', 'HEAD'], cwd);
+    const branchOutput = await this.gitRunner(["rev-parse", "--abbrev-ref", "HEAD"], cwd);
     const currentBranch = branchOutput.trim();
 
     if (config.protectedBranches.includes(currentBranch)) {
       return blockedResult({
-        type: 'permission',
+        type: "permission",
         message: `Commits to protected branch '${currentBranch}' are not allowed`,
       });
     }
 
     // Check staged file count
-    const stagedOutput = await this.gitRunner(['diff', '--staged', '--name-only'], cwd);
-    const stagedFiles = stagedOutput.split('\n').filter(line => line.trim() !== '');
+    const stagedOutput = await this.gitRunner(["diff", "--staged", "--name-only"], cwd);
+    const stagedFiles = stagedOutput.split("\n").filter(line => line.trim() !== "");
 
     if (stagedFiles.length > config.maxFilesPerCommit) {
       return blockedResult({
-        type: 'validation',
-        message: `Staged file count (${stagedFiles.length}) exceeds maxFilesPerCommit limit (${config.maxFilesPerCommit})`,
+        type: "validation",
+        message:
+          `Staged file count (${stagedFiles.length}) exceeds maxFilesPerCommit limit (${config.maxFilesPerCommit})`,
       });
     }
 
@@ -172,7 +173,7 @@ export class GitSafetyGuard implements ISafetyGuard {
 
     if (!pattern.test(branchName)) {
       return blockedResult({
-        type: 'validation',
+        type: "validation",
         message: `Branch name '${branchName}' does not match required pattern '${config.branchNamePattern}'`,
       });
     }
@@ -190,20 +191,20 @@ interface CompiledPattern {
   readonly regex: RegExp;
 }
 
-const SHELL_TOOL_NAMES = new Set(['run_command', 'run_test_suite', 'install_dependencies']);
+const SHELL_TOOL_NAMES = new Set(["run_command", "run_test_suite", "install_dependencies"]);
 
 function buildCommandString(toolName: string, rawInput: unknown): string | null {
-  if (toolName === 'run_command') {
+  if (toolName === "run_command") {
     const inp = rawInput as { command: string; args?: string[] };
-    return [inp.command, ...(inp.args ?? [])].join(' ');
+    return [inp.command, ...(inp.args ?? [])].join(" ");
   }
   // run_test_suite and install_dependencies use fixed, predefined commands —
   // the blocklist/allowlist is applied to these too via the synthesized string
-  if (toolName === 'run_test_suite') {
+  if (toolName === "run_test_suite") {
     const inp = rawInput as { framework: string; pattern?: string };
-    return `${inp.framework} test${inp.pattern !== undefined ? ` ${inp.pattern}` : ''}`;
+    return `${inp.framework} test${inp.pattern !== undefined ? ` ${inp.pattern}` : ""}`;
   }
-  if (toolName === 'install_dependencies') {
+  if (toolName === "install_dependencies") {
     const inp = rawInput as { packageManager: string };
     return `${inp.packageManager} install`;
   }
@@ -211,7 +212,7 @@ function buildCommandString(toolName: string, rawInput: unknown): string | null 
 }
 
 export class ShellRestrictionGuard implements ISafetyGuard {
-  readonly name = 'shell-restriction';
+  readonly name = "shell-restriction";
   private readonly blocklistPatterns: ReadonlyArray<CompiledPattern>;
   private readonly allowlistPatterns: ReadonlyArray<CompiledPattern> | null;
 
@@ -235,7 +236,7 @@ export class ShellRestrictionGuard implements ISafetyGuard {
     for (const { source, regex } of this.blocklistPatterns) {
       if (regex.test(commandString)) {
         return blockedResult({
-          type: 'permission',
+          type: "permission",
           message: `Command '${commandString}' is blocked by pattern '${source}'`,
         });
       }
@@ -246,7 +247,7 @@ export class ShellRestrictionGuard implements ISafetyGuard {
       const isAllowed = this.allowlistPatterns.some(({ regex }) => regex.test(commandString));
       if (!isAllowed) {
         return blockedResult({
-          type: 'permission',
+          type: "permission",
           message: `Command '${commandString}' is not permitted: does not match any allowlist pattern`,
         });
       }

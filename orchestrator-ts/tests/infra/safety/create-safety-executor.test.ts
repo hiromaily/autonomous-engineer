@@ -1,8 +1,8 @@
-import { describe, it, expect, mock } from 'bun:test';
-import { createSafetyExecutor } from '../../../infra/safety/create-safety-executor';
-import type { ToolContext, ToolInvocationLog, PermissionSet } from '../../../domain/tools/types';
-import type { IToolExecutor } from '../../../application/tools/executor';
-import type { IAuditLogger, AuditEntry } from '../../../application/safety/ports';
+import { describe, expect, it, mock } from "bun:test";
+import type { AuditEntry, IAuditLogger } from "../../../application/safety/ports";
+import type { IToolExecutor } from "../../../application/tools/executor";
+import type { PermissionSet, ToolContext, ToolInvocationLog } from "../../../domain/tools/types";
+import { createSafetyExecutor } from "../../../infra/safety/create-safety-executor";
 
 // ---------------------------------------------------------------------------
 // Test helpers
@@ -27,8 +27,8 @@ function makeLogger() {
 
 function makeContext(): ToolContext {
   return {
-    workspaceRoot: '/workspace',
-    workingDirectory: '/workspace',
+    workspaceRoot: "/workspace",
+    workingDirectory: "/workspace",
     permissions: makePermissions(),
     memory: { search: async () => [] },
     logger: makeLogger(),
@@ -38,7 +38,7 @@ function makeContext(): ToolContext {
 function makeInnerExecutor(
   result: { ok: true; value: unknown } | { ok: false; error: { type: string; message: string } } = {
     ok: true,
-    value: { data: 'test-result' },
+    value: { data: "test-result" },
   },
 ): IToolExecutor & { invoked: boolean } {
   let invoked = false;
@@ -68,10 +68,10 @@ function makeAuditLogger(): IAuditLogger & { entries: AuditEntry[] } {
 // Tests
 // ---------------------------------------------------------------------------
 
-describe('createSafetyExecutor', () => {
-  const workspaceRoot = '/workspace';
+describe("createSafetyExecutor", () => {
+  const workspaceRoot = "/workspace";
 
-  it('returns an executor bundle with executor, session, emergencyStopHandler, and cleanup', () => {
+  it("returns an executor bundle with executor, session, emergencyStopHandler, and cleanup", () => {
     const innerExecutor = makeInnerExecutor();
     const bundle = createSafetyExecutor({
       configOverrides: { workspaceRoot },
@@ -79,19 +79,19 @@ describe('createSafetyExecutor', () => {
     });
 
     expect(bundle).toBeDefined();
-    expect(typeof bundle.executor.invoke).toBe('function');
+    expect(typeof bundle.executor.invoke).toBe("function");
     expect(bundle.session).toBeDefined();
-    expect(typeof bundle.session.sessionId).toBe('string');
-    expect(typeof bundle.session.startedAtMs).toBe('number');
-    expect(typeof bundle.emergencyStopHandler.register).toBe('function');
-    expect(typeof bundle.emergencyStopHandler.deregister).toBe('function');
-    expect(typeof bundle.cleanup).toBe('function');
+    expect(typeof bundle.session.sessionId).toBe("string");
+    expect(typeof bundle.session.startedAtMs).toBe("number");
+    expect(typeof bundle.emergencyStopHandler.register).toBe("function");
+    expect(typeof bundle.emergencyStopHandler.deregister).toBe("function");
+    expect(typeof bundle.cleanup).toBe("function");
 
     // Immediately deregister to avoid leaking SIGINT/SIGTERM handlers in tests
     bundle.cleanup();
   });
 
-  it('initializes session with zero counters and a UUID session ID', () => {
+  it("initializes session with zero counters and a UUID session ID", () => {
     const innerExecutor = makeInnerExecutor();
     const bundle = createSafetyExecutor({
       configOverrides: { workspaceRoot },
@@ -112,7 +112,7 @@ describe('createSafetyExecutor', () => {
     bundle.cleanup();
   });
 
-  it('applies operator-supplied config overrides', () => {
+  it("applies operator-supplied config overrides", () => {
     const innerExecutor = makeInnerExecutor();
     const bundle = createSafetyExecutor({
       configOverrides: {
@@ -128,15 +128,15 @@ describe('createSafetyExecutor', () => {
     bundle.cleanup();
   });
 
-  it('executor passes ToolContext unchanged to the inner executor for allowed tools', async () => {
-    const innerExecutor = makeInnerExecutor({ ok: true, value: { data: 'ok' } });
+  it("executor passes ToolContext unchanged to the inner executor for allowed tools", async () => {
+    const innerExecutor = makeInnerExecutor({ ok: true, value: { data: "ok" } });
     const bundle = createSafetyExecutor({
       configOverrides: { workspaceRoot },
       innerExecutor,
     });
 
     const ctx = makeContext();
-    const result = await bundle.executor.invoke('read_file', { path: '/workspace/foo.ts' }, ctx);
+    const result = await bundle.executor.invoke("read_file", { path: "/workspace/foo.ts" }, ctx);
 
     expect(result.ok).toBe(true);
     expect(innerExecutor.invoked).toBe(true);
@@ -144,7 +144,7 @@ describe('createSafetyExecutor', () => {
     bundle.cleanup();
   });
 
-  it('executor blocks invocations that violate workspace boundary', async () => {
+  it("executor blocks invocations that violate workspace boundary", async () => {
     const innerExecutor = makeInnerExecutor();
     const bundle = createSafetyExecutor({
       configOverrides: { workspaceRoot },
@@ -153,22 +153,22 @@ describe('createSafetyExecutor', () => {
 
     const ctx = makeContext();
     const result = await bundle.executor.invoke(
-      'read_file',
-      { path: '/etc/passwd' },
+      "read_file",
+      { path: "/etc/passwd" },
       ctx,
     );
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.error.type).toBe('permission');
+      expect(result.error.type).toBe("permission");
     }
     expect(innerExecutor.invoked).toBe(false);
 
     bundle.cleanup();
   });
 
-  it('accepts an injected audit logger and writes entries on invocation', async () => {
-    const innerExecutor = makeInnerExecutor({ ok: true, value: { data: 'ok' } });
+  it("accepts an injected audit logger and writes entries on invocation", async () => {
+    const innerExecutor = makeInnerExecutor({ ok: true, value: { data: "ok" } });
     const auditLogger = makeAuditLogger();
     const bundle = createSafetyExecutor({
       configOverrides: { workspaceRoot },
@@ -177,17 +177,17 @@ describe('createSafetyExecutor', () => {
     });
 
     const ctx = makeContext();
-    await bundle.executor.invoke('read_file', { path: '/workspace/foo.ts' }, ctx);
+    await bundle.executor.invoke("read_file", { path: "/workspace/foo.ts" }, ctx);
 
     expect(auditLogger.entries.length).toBeGreaterThanOrEqual(1);
     const entry = auditLogger.entries[0];
     expect(entry.sessionId).toBe(bundle.session.sessionId);
-    expect(entry.toolName).toBe('read_file');
+    expect(entry.toolName).toBe("read_file");
 
     bundle.cleanup();
   });
 
-  it('registers the emergency stop handler and sets the stop flag when triggered', async () => {
+  it("registers the emergency stop handler and sets the stop flag when triggered", async () => {
     const innerExecutor = makeInnerExecutor();
     let exitCode: number | undefined;
     const exitFn = (code: number) => {
@@ -204,8 +204,8 @@ describe('createSafetyExecutor', () => {
 
     // Trigger programmatic stop
     await bundle.emergencyStopHandler.trigger({
-      kind: 'safety-violation',
-      description: 'test violation',
+      kind: "safety-violation",
+      description: "test violation",
     });
 
     expect(bundle.session.emergencyStopRequested).toBe(true);
@@ -215,8 +215,8 @@ describe('createSafetyExecutor', () => {
     bundle.cleanup();
   });
 
-  it('executor rejects all calls after emergency stop is requested', async () => {
-    const innerExecutor = makeInnerExecutor({ ok: true, value: { data: 'ok' } });
+  it("executor rejects all calls after emergency stop is requested", async () => {
+    const innerExecutor = makeInnerExecutor({ ok: true, value: { data: "ok" } });
     const bundle = createSafetyExecutor({
       configOverrides: { workspaceRoot },
       innerExecutor,
@@ -227,7 +227,7 @@ describe('createSafetyExecutor', () => {
     bundle.session.emergencyStopRequested = true;
 
     const ctx = makeContext();
-    const result = await bundle.executor.invoke('read_file', { path: '/workspace/foo.ts' }, ctx);
+    const result = await bundle.executor.invoke("read_file", { path: "/workspace/foo.ts" }, ctx);
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
@@ -238,24 +238,24 @@ describe('createSafetyExecutor', () => {
     bundle.cleanup();
   });
 
-  it('cleanup() deregisters the emergency stop handler (no SIGINT/SIGTERM listeners remain)', () => {
+  it("cleanup() deregisters the emergency stop handler (no SIGINT/SIGTERM listeners remain)", () => {
     const innerExecutor = makeInnerExecutor();
     const bundle = createSafetyExecutor({
       configOverrides: { workspaceRoot },
       innerExecutor,
     });
 
-    const sigintCount = process.listenerCount('SIGINT');
-    const sigtermCount = process.listenerCount('SIGTERM');
+    const sigintCount = process.listenerCount("SIGINT");
+    const sigtermCount = process.listenerCount("SIGTERM");
 
     bundle.cleanup();
 
     // After cleanup, listener counts should be restored (not increased)
-    expect(process.listenerCount('SIGINT')).toBeLessThanOrEqual(sigintCount);
-    expect(process.listenerCount('SIGTERM')).toBeLessThanOrEqual(sigtermCount);
+    expect(process.listenerCount("SIGINT")).toBeLessThanOrEqual(sigintCount);
+    expect(process.listenerCount("SIGTERM")).toBeLessThanOrEqual(sigtermCount);
   });
 
-  it('uses default audit log path when none supplied', () => {
+  it("uses default audit log path when none supplied", () => {
     const innerExecutor = makeInnerExecutor();
     // Should not throw when creating with default audit log path
     expect(() => {
@@ -267,7 +267,7 @@ describe('createSafetyExecutor', () => {
     }).not.toThrow();
   });
 
-  it('increments session.iterationCount after each successful tool invocation', async () => {
+  it("increments session.iterationCount after each successful tool invocation", async () => {
     const innerExecutor = makeInnerExecutor({ ok: true, value: {} });
     const bundle = createSafetyExecutor({
       configOverrides: { workspaceRoot },
@@ -277,10 +277,10 @@ describe('createSafetyExecutor', () => {
     expect(bundle.session.iterationCount).toBe(0);
 
     const ctx = makeContext();
-    await bundle.executor.invoke('read_file', { path: '/workspace/a.ts' }, ctx);
+    await bundle.executor.invoke("read_file", { path: "/workspace/a.ts" }, ctx);
     expect(bundle.session.iterationCount).toBe(1);
 
-    await bundle.executor.invoke('read_file', { path: '/workspace/b.ts' }, ctx);
+    await bundle.executor.invoke("read_file", { path: "/workspace/b.ts" }, ctx);
     expect(bundle.session.iterationCount).toBe(2);
 
     bundle.cleanup();

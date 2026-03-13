@@ -1,5 +1,5 @@
-import type { IAuditLogger, AuditEntry, IEmergencyStopHandler } from './ports';
-import type { EmergencyStopSource, SafetySession } from '../../domain/safety/types';
+import type { EmergencyStopSource, SafetySession } from "../../domain/safety/types";
+import type { AuditEntry, IAuditLogger, IEmergencyStopHandler } from "./ports";
 
 /**
  * EmergencyStopHandler implements IEmergencyStopHandler.
@@ -30,14 +30,14 @@ export class EmergencyStopHandler implements IEmergencyStopHandler {
     this.#auditLogger = auditLogger;
 
     this.#sigintHandler = () => {
-      void this.trigger({ kind: 'signal', signal: 'SIGINT' });
+      void this.trigger({ kind: "signal", signal: "SIGINT" });
     };
     this.#sigtermHandler = () => {
-      void this.trigger({ kind: 'signal', signal: 'SIGTERM' });
+      void this.trigger({ kind: "signal", signal: "SIGTERM" });
     };
 
-    process.on('SIGINT', this.#sigintHandler);
-    process.on('SIGTERM', this.#sigtermHandler);
+    process.on("SIGINT", this.#sigintHandler);
+    process.on("SIGTERM", this.#sigtermHandler);
   }
 
   async trigger(source: EmergencyStopSource): Promise<void> {
@@ -52,9 +52,9 @@ export class EmergencyStopHandler implements IEmergencyStopHandler {
         timestamp: new Date().toISOString(),
         sessionId: session.sessionId,
         iterationNumber: session.iterationCount,
-        toolName: 'N/A',
+        toolName: "N/A",
         inputSummary: JSON.stringify(source).slice(0, 512),
-        outcome: 'emergency-stop',
+        outcome: "emergency-stop",
         blockReason: `Emergency stop triggered: ${source.kind}`,
       };
 
@@ -71,11 +71,11 @@ export class EmergencyStopHandler implements IEmergencyStopHandler {
 
   deregister(): void {
     if (this.#sigintHandler) {
-      process.removeListener('SIGINT', this.#sigintHandler);
+      process.removeListener("SIGINT", this.#sigintHandler);
       this.#sigintHandler = null;
     }
     if (this.#sigtermHandler) {
-      process.removeListener('SIGTERM', this.#sigtermHandler);
+      process.removeListener("SIGTERM", this.#sigtermHandler);
       this.#sigtermHandler = null;
     }
     this.#session = null;

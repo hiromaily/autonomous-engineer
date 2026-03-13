@@ -1,7 +1,7 @@
-import { mkdtemp, rm } from 'node:fs/promises';
-import { join } from 'node:path';
-import { tmpdir } from 'node:os';
-import type { ISandboxExecutor, SandboxExecutionRequest, SandboxExecutionResult } from '../../application/safety/ports';
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import type { ISandboxExecutor, SandboxExecutionRequest, SandboxExecutionResult } from "../../application/safety/ports";
 
 /**
  * Sandbox executor using an isolated temporary directory.
@@ -17,7 +17,7 @@ import type { ISandboxExecutor, SandboxExecutionRequest, SandboxExecutionResult 
  */
 export class TempDirSandboxExecutor implements ISandboxExecutor {
   async execute(request: SandboxExecutionRequest, timeoutMs: number): Promise<SandboxExecutionResult> {
-    const tempDir = await mkdtemp(join(tmpdir(), 'aes-sandbox-'));
+    const tempDir = await mkdtemp(join(tmpdir(), "aes-sandbox-"));
 
     try {
       return await this.runWithTimeout(request, tempDir, timeoutMs);
@@ -36,15 +36,17 @@ export class TempDirSandboxExecutor implements ISandboxExecutor {
 
       const proc = Bun.spawn([request.command, ...request.args], {
         cwd,
-        stdout: 'pipe',
-        stderr: 'pipe',
+        stdout: "pipe",
+        stderr: "pipe",
       });
 
       let timedOut = false;
 
       const timer = setTimeout(() => {
         timedOut = true;
-        try { proc.kill(); } catch { /* ignore */ }
+        try {
+          proc.kill();
+        } catch { /* ignore */ }
         reject(new Error(`Sandbox execution timeout after ${timeoutMs}ms`));
       }, timeoutMs);
 

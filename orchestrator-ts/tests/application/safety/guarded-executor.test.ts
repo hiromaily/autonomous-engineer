@@ -1,10 +1,10 @@
-import { describe, it, expect, mock } from 'bun:test';
-import { SafetyGuardedToolExecutor } from '../../../application/safety/guarded-executor';
-import type { IToolExecutor } from '../../../application/tools/executor';
-import type { IAuditLogger, IApprovalGateway, ISandboxExecutor, AuditEntry } from '../../../application/safety/ports';
-import { createSafetyConfig, createSafetySession } from '../../../domain/safety/types';
-import type { SafetySession, SafetyConfig } from '../../../domain/safety/types';
-import type { ToolContext, ToolResult, PermissionSet, ToolInvocationLog } from '../../../domain/tools/types';
+import { describe, expect, it, mock } from "bun:test";
+import { SafetyGuardedToolExecutor } from "../../../application/safety/guarded-executor";
+import type { AuditEntry, IApprovalGateway, IAuditLogger, ISandboxExecutor } from "../../../application/safety/ports";
+import type { IToolExecutor } from "../../../application/tools/executor";
+import { createSafetyConfig, createSafetySession } from "../../../domain/safety/types";
+import type { SafetyConfig, SafetySession } from "../../../domain/safety/types";
+import type { PermissionSet, ToolContext, ToolInvocationLog, ToolResult } from "../../../domain/tools/types";
 
 // ---------------------------------------------------------------------------
 // Test helpers
@@ -29,8 +29,8 @@ function makeLogger() {
 
 function makeContext(): ToolContext {
   return {
-    workspaceRoot: '/workspace',
-    workingDirectory: '/workspace',
+    workspaceRoot: "/workspace",
+    workingDirectory: "/workspace",
     permissions: makePermissions(),
     memory: { search: async () => [] },
     logger: makeLogger(),
@@ -38,10 +38,10 @@ function makeContext(): ToolContext {
 }
 
 function makeConfig(overrides: Partial<Parameters<typeof createSafetyConfig>[0]> = {}): SafetyConfig {
-  return createSafetyConfig({ workspaceRoot: '/workspace', ...overrides });
+  return createSafetyConfig({ workspaceRoot: "/workspace", ...overrides });
 }
 
-function makeInnerExecutor(result: ToolResult<unknown> = { ok: true, value: { result: 'ok' } }): IToolExecutor {
+function makeInnerExecutor(result: ToolResult<unknown> = { ok: true, value: { result: "ok" } }): IToolExecutor {
   return {
     invoke: mock(async () => result),
   };
@@ -51,12 +51,14 @@ function makeAuditLogger(): IAuditLogger & { entries: AuditEntry[] } {
   const entries: AuditEntry[] = [];
   return {
     entries,
-    write: mock(async (entry: AuditEntry) => { entries.push(entry); }),
+    write: mock(async (entry: AuditEntry) => {
+      entries.push(entry);
+    }),
     flush: mock(async () => {}),
   };
 }
 
-function makeApprovalGateway(decision: 'approved' | 'denied' | 'timeout' = 'approved'): IApprovalGateway {
+function makeApprovalGateway(decision: "approved" | "denied" | "timeout" = "approved"): IApprovalGateway {
   return {
     requestApproval: mock(async () => decision),
   };
@@ -65,10 +67,12 @@ function makeApprovalGateway(decision: 'approved' | 'denied' | 'timeout' = 'appr
 function makeSandboxExecutor(): ISandboxExecutor & { called: boolean } {
   let called = false;
   return {
-    get called() { return called; },
+    get called() {
+      return called;
+    },
     execute: mock(async () => {
       called = true;
-      return { stdout: 'ok', stderr: '', exitCode: 0, durationMs: 10 };
+      return { stdout: "ok", stderr: "", exitCode: 0, durationMs: 10 };
     }),
   };
 }
@@ -83,15 +87,14 @@ function makeSession(overrides: Partial<SafetySession> = {}): SafetySession {
 // Test suite
 // ---------------------------------------------------------------------------
 
-describe('SafetyGuardedToolExecutor', () => {
-
+describe("SafetyGuardedToolExecutor", () => {
   // -------------------------------------------------------------------------
   // Guard pipeline pass-through
   // -------------------------------------------------------------------------
 
-  describe('when all guards pass', () => {
-    it('delegates to inner executor and returns its result', async () => {
-      const inner = makeInnerExecutor({ ok: true, value: { result: 'success' } });
+  describe("when all guards pass", () => {
+    it("delegates to inner executor and returns its result", async () => {
+      const inner = makeInnerExecutor({ ok: true, value: { result: "success" } });
       const auditLogger = makeAuditLogger();
       const executor = new SafetyGuardedToolExecutor(
         inner,
@@ -101,12 +104,12 @@ describe('SafetyGuardedToolExecutor', () => {
         makeApprovalGateway(),
         makeSandboxExecutor(),
       );
-      const result = await executor.invoke('read_file', { path: '/workspace/foo.txt' }, makeContext());
+      const result = await executor.invoke("read_file", { path: "/workspace/foo.txt" }, makeContext());
       expect(result.ok).toBe(true);
       expect((inner.invoke as ReturnType<typeof mock>).mock.calls.length).toBe(1);
     });
 
-    it('writes a success audit entry', async () => {
+    it("writes a success audit entry", async () => {
       const auditLogger = makeAuditLogger();
       const executor = new SafetyGuardedToolExecutor(
         makeInnerExecutor(),
@@ -116,13 +119,13 @@ describe('SafetyGuardedToolExecutor', () => {
         makeApprovalGateway(),
         makeSandboxExecutor(),
       );
-      await executor.invoke('read_file', { path: '/workspace/foo.txt' }, makeContext());
+      await executor.invoke("read_file", { path: "/workspace/foo.txt" }, makeContext());
       expect(auditLogger.entries.length).toBe(1);
-      expect(auditLogger.entries[0].outcome).toBe('success');
-      expect(auditLogger.entries[0].toolName).toBe('read_file');
+      expect(auditLogger.entries[0].outcome).toBe("success");
+      expect(auditLogger.entries[0].toolName).toBe("read_file");
     });
 
-    it('increments session.iterationCount after execution', async () => {
+    it("increments session.iterationCount after execution", async () => {
       const session = makeSession();
       const executor = new SafetyGuardedToolExecutor(
         makeInnerExecutor(),
@@ -133,11 +136,11 @@ describe('SafetyGuardedToolExecutor', () => {
         makeSandboxExecutor(),
       );
       expect(session.iterationCount).toBe(0);
-      await executor.invoke('read_file', { path: '/workspace/foo.txt' }, makeContext());
+      await executor.invoke("read_file", { path: "/workspace/foo.txt" }, makeContext());
       expect(session.iterationCount).toBe(1);
     });
 
-    it('appends to toolInvocationTimestamps after execution', async () => {
+    it("appends to toolInvocationTimestamps after execution", async () => {
       const session = makeSession();
       const executor = new SafetyGuardedToolExecutor(
         makeInnerExecutor(),
@@ -147,11 +150,11 @@ describe('SafetyGuardedToolExecutor', () => {
         makeApprovalGateway(),
         makeSandboxExecutor(),
       );
-      await executor.invoke('read_file', { path: '/workspace/foo.txt' }, makeContext());
+      await executor.invoke("read_file", { path: "/workspace/foo.txt" }, makeContext());
       expect(session.toolInvocationTimestamps.length).toBe(1);
     });
 
-    it('increments repoWriteCount for git_branch_create', async () => {
+    it("increments repoWriteCount for git_branch_create", async () => {
       const session = makeSession();
       const executor = new SafetyGuardedToolExecutor(
         makeInnerExecutor(),
@@ -163,7 +166,7 @@ describe('SafetyGuardedToolExecutor', () => {
       );
       // Use a non-git tool for simplicity (git_commit would run git subprocess checks)
       // Use git_branch_create with a valid name for a simpler repo-write counter test
-      await executor.invoke('git_branch_create', { name: 'agent/test-branch' }, makeContext());
+      await executor.invoke("git_branch_create", { name: "agent/test-branch" }, makeContext());
       expect(session.repoWriteCount).toBe(1);
     });
   });
@@ -172,8 +175,8 @@ describe('SafetyGuardedToolExecutor', () => {
   // Emergency stop
   // -------------------------------------------------------------------------
 
-  describe('when emergency stop is requested', () => {
-    it('immediately rejects new invocations', async () => {
+  describe("when emergency stop is requested", () => {
+    it("immediately rejects new invocations", async () => {
       const session = makeSession();
       session.emergencyStopRequested = true;
       const inner = makeInnerExecutor();
@@ -185,16 +188,16 @@ describe('SafetyGuardedToolExecutor', () => {
         makeApprovalGateway(),
         makeSandboxExecutor(),
       );
-      const result = await executor.invoke('read_file', { path: '/workspace/foo.txt' }, makeContext());
+      const result = await executor.invoke("read_file", { path: "/workspace/foo.txt" }, makeContext());
       expect(result.ok).toBe(false);
       if (!result.ok) {
-        expect(result.error.type).toBe('runtime');
-        expect(result.error.message).toContain('emergency stop');
+        expect(result.error.type).toBe("runtime");
+        expect(result.error.message).toContain("emergency stop");
       }
       expect((inner.invoke as ReturnType<typeof mock>).mock.calls.length).toBe(0);
     });
 
-    it('writes an emergency-stop audit entry', async () => {
+    it("writes an emergency-stop audit entry", async () => {
       const session = makeSession();
       session.emergencyStopRequested = true;
       const auditLogger = makeAuditLogger();
@@ -206,9 +209,9 @@ describe('SafetyGuardedToolExecutor', () => {
         makeApprovalGateway(),
         makeSandboxExecutor(),
       );
-      await executor.invoke('read_file', { path: '/workspace/foo.txt' }, makeContext());
+      await executor.invoke("read_file", { path: "/workspace/foo.txt" }, makeContext());
       expect(auditLogger.entries.length).toBe(1);
-      expect(auditLogger.entries[0].outcome).toBe('emergency-stop');
+      expect(auditLogger.entries[0].outcome).toBe("emergency-stop");
     });
   });
 
@@ -216,8 +219,8 @@ describe('SafetyGuardedToolExecutor', () => {
   // Guard blocks
   // -------------------------------------------------------------------------
 
-  describe('when a guard blocks the invocation', () => {
-    it('does not call the inner executor', async () => {
+  describe("when a guard blocks the invocation", () => {
+    it("does not call the inner executor", async () => {
       const inner = makeInnerExecutor();
       // Path outside workspace will be blocked by WorkspaceIsolationGuard
       const executor = new SafetyGuardedToolExecutor(
@@ -228,12 +231,12 @@ describe('SafetyGuardedToolExecutor', () => {
         makeApprovalGateway(),
         makeSandboxExecutor(),
       );
-      const result = await executor.invoke('read_file', { path: '/etc/passwd' }, makeContext());
+      const result = await executor.invoke("read_file", { path: "/etc/passwd" }, makeContext());
       expect(result.ok).toBe(false);
       expect((inner.invoke as ReturnType<typeof mock>).mock.calls.length).toBe(0);
     });
 
-    it('writes a blocked audit entry', async () => {
+    it("writes a blocked audit entry", async () => {
       const auditLogger = makeAuditLogger();
       const executor = new SafetyGuardedToolExecutor(
         makeInnerExecutor(),
@@ -243,13 +246,13 @@ describe('SafetyGuardedToolExecutor', () => {
         makeApprovalGateway(),
         makeSandboxExecutor(),
       );
-      await executor.invoke('read_file', { path: '/etc/passwd' }, makeContext());
+      await executor.invoke("read_file", { path: "/etc/passwd" }, makeContext());
       expect(auditLogger.entries.length).toBe(1);
-      expect(auditLogger.entries[0].outcome).toBe('blocked');
+      expect(auditLogger.entries[0].outcome).toBe("blocked");
       expect(auditLogger.entries[0].blockReason).toBeDefined();
     });
 
-    it('blocks when iteration limit is reached', async () => {
+    it("blocks when iteration limit is reached", async () => {
       const session = makeSession();
       const config = makeConfig({ maxIterations: 2 });
       session.iterationCount = 2; // at limit
@@ -262,15 +265,15 @@ describe('SafetyGuardedToolExecutor', () => {
         makeApprovalGateway(),
         makeSandboxExecutor(),
       );
-      const result = await executor.invoke('read_file', { path: '/workspace/foo.txt' }, makeContext());
+      const result = await executor.invoke("read_file", { path: "/workspace/foo.txt" }, makeContext());
       expect(result.ok).toBe(false);
       expect((inner.invoke as ReturnType<typeof mock>).mock.calls.length).toBe(0);
     });
 
-    it('blocks when session is paused', async () => {
+    it("blocks when session is paused", async () => {
       const session = makeSession();
       session.paused = true;
-      session.pauseReason = 'test pause';
+      session.pauseReason = "test pause";
       const inner = makeInnerExecutor();
       const executor = new SafetyGuardedToolExecutor(
         inner,
@@ -280,7 +283,7 @@ describe('SafetyGuardedToolExecutor', () => {
         makeApprovalGateway(),
         makeSandboxExecutor(),
       );
-      const result = await executor.invoke('read_file', { path: '/workspace/foo.txt' }, makeContext());
+      const result = await executor.invoke("read_file", { path: "/workspace/foo.txt" }, makeContext());
       expect(result.ok).toBe(false);
       expect((inner.invoke as ReturnType<typeof mock>).mock.calls.length).toBe(0);
     });
@@ -290,14 +293,14 @@ describe('SafetyGuardedToolExecutor', () => {
   // Approval flow
   // -------------------------------------------------------------------------
 
-  describe('approval flow', () => {
+  describe("approval flow", () => {
     // force-push triggers DestructiveActionGuard → requiresApproval
-    const forcePushInput = { remote: 'origin', branch: 'main', force: true };
+    const forcePushInput = { remote: "origin", branch: "main", force: true };
 
-    it('approved: executes the tool and writes success audit entry', async () => {
+    it("approved: executes the tool and writes success audit entry", async () => {
       const inner = makeInnerExecutor({ ok: true, value: {} });
       const auditLogger = makeAuditLogger();
-      const approvalGateway = makeApprovalGateway('approved');
+      const approvalGateway = makeApprovalGateway("approved");
       const executor = new SafetyGuardedToolExecutor(
         inner,
         makeSession(),
@@ -306,16 +309,16 @@ describe('SafetyGuardedToolExecutor', () => {
         approvalGateway,
         makeSandboxExecutor(),
       );
-      const result = await executor.invoke('git_push', forcePushInput, makeContext());
+      const result = await executor.invoke("git_push", forcePushInput, makeContext());
       expect(result.ok).toBe(true);
-      expect(auditLogger.entries[0].approvalDecision).toBe('approved');
-      expect(auditLogger.entries[0].outcome).toBe('success');
+      expect(auditLogger.entries[0].approvalDecision).toBe("approved");
+      expect(auditLogger.entries[0].outcome).toBe("success");
     });
 
-    it('denied: does not execute the tool and writes blocked audit entry', async () => {
+    it("denied: does not execute the tool and writes blocked audit entry", async () => {
       const inner = makeInnerExecutor();
       const auditLogger = makeAuditLogger();
-      const approvalGateway = makeApprovalGateway('denied');
+      const approvalGateway = makeApprovalGateway("denied");
       const executor = new SafetyGuardedToolExecutor(
         inner,
         makeSession(),
@@ -324,18 +327,18 @@ describe('SafetyGuardedToolExecutor', () => {
         approvalGateway,
         makeSandboxExecutor(),
       );
-      const result = await executor.invoke('git_push', forcePushInput, makeContext());
+      const result = await executor.invoke("git_push", forcePushInput, makeContext());
       expect(result.ok).toBe(false);
-      if (!result.ok) expect(result.error.type).toBe('permission');
+      if (!result.ok) expect(result.error.type).toBe("permission");
       expect((inner.invoke as ReturnType<typeof mock>).mock.calls.length).toBe(0);
-      expect(auditLogger.entries[0].outcome).toBe('blocked');
-      expect(auditLogger.entries[0].approvalDecision).toBe('denied');
+      expect(auditLogger.entries[0].outcome).toBe("blocked");
+      expect(auditLogger.entries[0].approvalDecision).toBe("denied");
     });
 
-    it('timeout: does not execute the tool and writes blocked audit entry', async () => {
+    it("timeout: does not execute the tool and writes blocked audit entry", async () => {
       const inner = makeInnerExecutor();
       const auditLogger = makeAuditLogger();
-      const approvalGateway = makeApprovalGateway('timeout');
+      const approvalGateway = makeApprovalGateway("timeout");
       const executor = new SafetyGuardedToolExecutor(
         inner,
         makeSession(),
@@ -344,9 +347,9 @@ describe('SafetyGuardedToolExecutor', () => {
         approvalGateway,
         makeSandboxExecutor(),
       );
-      const result = await executor.invoke('git_push', forcePushInput, makeContext());
+      const result = await executor.invoke("git_push", forcePushInput, makeContext());
       expect(result.ok).toBe(false);
-      expect(auditLogger.entries[0].approvalDecision).toBe('timeout');
+      expect(auditLogger.entries[0].approvalDecision).toBe("timeout");
     });
   });
 
@@ -354,8 +357,8 @@ describe('SafetyGuardedToolExecutor', () => {
   // Sandbox delegation
   // -------------------------------------------------------------------------
 
-  describe('sandbox delegation', () => {
-    it('delegates run_test_suite to sandbox executor instead of inner executor', async () => {
+  describe("sandbox delegation", () => {
+    it("delegates run_test_suite to sandbox executor instead of inner executor", async () => {
       const inner = makeInnerExecutor();
       const sandbox = makeSandboxExecutor();
       const auditLogger = makeAuditLogger();
@@ -368,17 +371,17 @@ describe('SafetyGuardedToolExecutor', () => {
         sandbox,
       );
       const result = await executor.invoke(
-        'run_test_suite',
-        { framework: 'bun', pattern: '*.test.ts' },
+        "run_test_suite",
+        { framework: "bun", pattern: "*.test.ts" },
         makeContext(),
       );
       expect(result.ok).toBe(true);
       expect(sandbox.called).toBe(true);
       expect((inner.invoke as ReturnType<typeof mock>).mock.calls.length).toBe(0);
-      expect(auditLogger.entries[0].outcome).toBe('success');
+      expect(auditLogger.entries[0].outcome).toBe("success");
     });
 
-    it('delegates install_dependencies to sandbox executor', async () => {
+    it("delegates install_dependencies to sandbox executor", async () => {
       const inner = makeInnerExecutor();
       const sandbox = makeSandboxExecutor();
       const executor = new SafetyGuardedToolExecutor(
@@ -390,8 +393,8 @@ describe('SafetyGuardedToolExecutor', () => {
         sandbox,
       );
       const result = await executor.invoke(
-        'install_dependencies',
-        { packageManager: 'bun' },
+        "install_dependencies",
+        { packageManager: "bun" },
         makeContext(),
       );
       expect(result.ok).toBe(true);
@@ -404,8 +407,8 @@ describe('SafetyGuardedToolExecutor', () => {
   // Audit entry fields
   // -------------------------------------------------------------------------
 
-  describe('audit entry fields', () => {
-    it('includes sessionId, iterationNumber, and toolName in every entry', async () => {
+  describe("audit entry fields", () => {
+    it("includes sessionId, iterationNumber, and toolName in every entry", async () => {
       const session = makeSession();
       const auditLogger = makeAuditLogger();
       const executor = new SafetyGuardedToolExecutor(
@@ -416,15 +419,15 @@ describe('SafetyGuardedToolExecutor', () => {
         makeApprovalGateway(),
         makeSandboxExecutor(),
       );
-      await executor.invoke('read_file', { path: '/workspace/foo.txt' }, makeContext());
+      await executor.invoke("read_file", { path: "/workspace/foo.txt" }, makeContext());
       const entry = auditLogger.entries[0];
       expect(entry.sessionId).toBe(session.sessionId);
-      expect(typeof entry.iterationNumber).toBe('number');
-      expect(entry.toolName).toBe('read_file');
+      expect(typeof entry.iterationNumber).toBe("number");
+      expect(entry.toolName).toBe("read_file");
       expect(entry.timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T/); // ISO 8601
     });
 
-    it('caps inputSummary at 512 bytes', async () => {
+    it("caps inputSummary at 512 bytes", async () => {
       const auditLogger = makeAuditLogger();
       const executor = new SafetyGuardedToolExecutor(
         makeInnerExecutor(),
@@ -434,8 +437,8 @@ describe('SafetyGuardedToolExecutor', () => {
         makeApprovalGateway(),
         makeSandboxExecutor(),
       );
-      const largeInput = { path: '/workspace/foo.txt', extra: 'x'.repeat(1000) };
-      await executor.invoke('read_file', largeInput, makeContext());
+      const largeInput = { path: "/workspace/foo.txt", extra: "x".repeat(1000) };
+      await executor.invoke("read_file", largeInput, makeContext());
       expect(auditLogger.entries[0].inputSummary.length).toBeLessThanOrEqual(512);
     });
   });
@@ -444,10 +447,12 @@ describe('SafetyGuardedToolExecutor', () => {
   // Never throws
   // -------------------------------------------------------------------------
 
-  describe('error resilience', () => {
-    it('never throws — returns ToolResult even when inner executor throws', async () => {
+  describe("error resilience", () => {
+    it("never throws — returns ToolResult even when inner executor throws", async () => {
       const throwingInner: IToolExecutor = {
-        invoke: mock(async () => { throw new Error('unexpected crash'); }),
+        invoke: mock(async () => {
+          throw new Error("unexpected crash");
+        }),
       };
       const executor = new SafetyGuardedToolExecutor(
         throwingInner,
@@ -457,7 +462,7 @@ describe('SafetyGuardedToolExecutor', () => {
         makeApprovalGateway(),
         makeSandboxExecutor(),
       );
-      const result = await executor.invoke('read_file', { path: '/workspace/foo.txt' }, makeContext());
+      const result = await executor.invoke("read_file", { path: "/workspace/foo.txt" }, makeContext());
       expect(result.ok).toBe(false);
     });
   });

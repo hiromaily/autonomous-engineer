@@ -1,8 +1,8 @@
-import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
-import { EmergencyStopHandler } from '../../../application/safety/emergency-stop-handler';
-import type { IAuditLogger, AuditEntry } from '../../../application/safety/ports';
-import type { EmergencyStopSource } from '../../../domain/safety/types';
-import { createSafetySession } from '../../../domain/safety/types';
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { EmergencyStopHandler } from "../../../application/safety/emergency-stop-handler";
+import type { AuditEntry, IAuditLogger } from "../../../application/safety/ports";
+import type { EmergencyStopSource } from "../../../domain/safety/types";
+import { createSafetySession } from "../../../domain/safety/types";
 
 // ---------------------------------------------------------------------------
 // Test helpers
@@ -13,7 +13,9 @@ function makeAuditLogger(): IAuditLogger & { entries: AuditEntry[]; flushed: num
   let flushed = 0;
   return {
     entries,
-    get flushed() { return flushed; },
+    get flushed() {
+      return flushed;
+    },
     async write(entry: AuditEntry): Promise<void> {
       entries.push(entry);
     },
@@ -27,8 +29,8 @@ function makeAuditLogger(): IAuditLogger & { entries: AuditEntry[]; flushed: num
 // register() and deregister()
 // ---------------------------------------------------------------------------
 
-describe('EmergencyStopHandler.register()', () => {
-  it('binds session and audit logger without throwing', () => {
+describe("EmergencyStopHandler.register()", () => {
+  it("binds session and audit logger without throwing", () => {
     const session = createSafetySession();
     const logger = makeAuditLogger();
     const handler = new EmergencyStopHandler((_code) => undefined as unknown as never);
@@ -39,40 +41,40 @@ describe('EmergencyStopHandler.register()', () => {
     handler.deregister();
   });
 
-  it('registers SIGINT and SIGTERM listeners on the process', () => {
+  it("registers SIGINT and SIGTERM listeners on the process", () => {
     const session = createSafetySession();
     const logger = makeAuditLogger();
     const handler = new EmergencyStopHandler((_code) => undefined as unknown as never);
 
-    const sigintBefore = process.listenerCount('SIGINT');
-    const sigtermBefore = process.listenerCount('SIGTERM');
+    const sigintBefore = process.listenerCount("SIGINT");
+    const sigtermBefore = process.listenerCount("SIGTERM");
 
     handler.register(session, logger);
 
-    expect(process.listenerCount('SIGINT')).toBe(sigintBefore + 1);
-    expect(process.listenerCount('SIGTERM')).toBe(sigtermBefore + 1);
+    expect(process.listenerCount("SIGINT")).toBe(sigintBefore + 1);
+    expect(process.listenerCount("SIGTERM")).toBe(sigtermBefore + 1);
 
     handler.deregister();
   });
 });
 
-describe('EmergencyStopHandler.deregister()', () => {
-  it('removes SIGINT and SIGTERM listeners', () => {
+describe("EmergencyStopHandler.deregister()", () => {
+  it("removes SIGINT and SIGTERM listeners", () => {
     const session = createSafetySession();
     const logger = makeAuditLogger();
     const handler = new EmergencyStopHandler((_code) => undefined as unknown as never);
 
-    const sigintBefore = process.listenerCount('SIGINT');
-    const sigtermBefore = process.listenerCount('SIGTERM');
+    const sigintBefore = process.listenerCount("SIGINT");
+    const sigtermBefore = process.listenerCount("SIGTERM");
 
     handler.register(session, logger);
     handler.deregister();
 
-    expect(process.listenerCount('SIGINT')).toBe(sigintBefore);
-    expect(process.listenerCount('SIGTERM')).toBe(sigtermBefore);
+    expect(process.listenerCount("SIGINT")).toBe(sigintBefore);
+    expect(process.listenerCount("SIGTERM")).toBe(sigtermBefore);
   });
 
-  it('is idempotent — calling deregister twice does not throw', () => {
+  it("is idempotent — calling deregister twice does not throw", () => {
     const session = createSafetySession();
     const logger = makeAuditLogger();
     const handler = new EmergencyStopHandler((_code) => undefined as unknown as never);
@@ -89,7 +91,7 @@ describe('EmergencyStopHandler.deregister()', () => {
 // trigger() — signal source
 // ---------------------------------------------------------------------------
 
-describe('EmergencyStopHandler.trigger() with signal source', () => {
+describe("EmergencyStopHandler.trigger() with signal source", () => {
   let session: ReturnType<typeof createSafetySession>;
   let logger: ReturnType<typeof makeAuditLogger>;
   let exitCodes: number[];
@@ -99,7 +101,10 @@ describe('EmergencyStopHandler.trigger() with signal source', () => {
     session = createSafetySession();
     logger = makeAuditLogger();
     exitCodes = [];
-    handler = new EmergencyStopHandler((code) => { exitCodes.push(code); return undefined as unknown as never; });
+    handler = new EmergencyStopHandler((code) => {
+      exitCodes.push(code);
+      return undefined as unknown as never;
+    });
     handler.register(session, logger);
   });
 
@@ -107,43 +112,43 @@ describe('EmergencyStopHandler.trigger() with signal source', () => {
     handler.deregister();
   });
 
-  it('sets session.emergencyStopRequested = true', async () => {
-    await handler.trigger({ kind: 'signal', signal: 'SIGINT' });
+  it("sets session.emergencyStopRequested = true", async () => {
+    await handler.trigger({ kind: "signal", signal: "SIGINT" });
     expect(session.emergencyStopRequested).toBe(true);
   });
 
-  it('sets session.emergencyStopSource to the given source', async () => {
-    const source: EmergencyStopSource = { kind: 'signal', signal: 'SIGTERM' };
+  it("sets session.emergencyStopSource to the given source", async () => {
+    const source: EmergencyStopSource = { kind: "signal", signal: "SIGTERM" };
     await handler.trigger(source);
     expect(session.emergencyStopSource).toEqual(source);
   });
 
-  it('writes an audit entry with emergency-stop outcome', async () => {
-    await handler.trigger({ kind: 'signal', signal: 'SIGINT' });
+  it("writes an audit entry with emergency-stop outcome", async () => {
+    await handler.trigger({ kind: "signal", signal: "SIGINT" });
     expect(logger.entries).toHaveLength(1);
-    expect(logger.entries[0]?.outcome).toBe('emergency-stop');
+    expect(logger.entries[0]?.outcome).toBe("emergency-stop");
   });
 
-  it('includes sessionId and iterationNumber in the audit entry', async () => {
+  it("includes sessionId and iterationNumber in the audit entry", async () => {
     session.iterationCount = 7;
-    await handler.trigger({ kind: 'signal', signal: 'SIGINT' });
+    await handler.trigger({ kind: "signal", signal: "SIGINT" });
     const entry = logger.entries[0]!;
     expect(entry.sessionId).toBe(session.sessionId);
     expect(entry.iterationNumber).toBe(7);
   });
 
-  it('calls auditLogger.flush() after writing the entry', async () => {
-    await handler.trigger({ kind: 'signal', signal: 'SIGINT' });
+  it("calls auditLogger.flush() after writing the entry", async () => {
+    await handler.trigger({ kind: "signal", signal: "SIGINT" });
     expect(logger.flushed).toBeGreaterThanOrEqual(1);
   });
 
-  it('calls exitFn(1) after flush', async () => {
-    await handler.trigger({ kind: 'signal', signal: 'SIGINT' });
+  it("calls exitFn(1) after flush", async () => {
+    await handler.trigger({ kind: "signal", signal: "SIGINT" });
     expect(exitCodes).toEqual([1]);
   });
 
-  it('writes an ISO 8601 timestamp in the audit entry', async () => {
-    await handler.trigger({ kind: 'signal', signal: 'SIGINT' });
+  it("writes an ISO 8601 timestamp in the audit entry", async () => {
+    await handler.trigger({ kind: "signal", signal: "SIGINT" });
     const ts = logger.entries[0]?.timestamp;
     expect(ts).toBeDefined();
     expect(new Date(ts!).toISOString()).toBe(ts);
@@ -154,39 +159,45 @@ describe('EmergencyStopHandler.trigger() with signal source', () => {
 // trigger() — programmatic sources
 // ---------------------------------------------------------------------------
 
-describe('EmergencyStopHandler.trigger() with safety-violation source', () => {
-  it('sets emergencyStopSource and writes audit entry', async () => {
+describe("EmergencyStopHandler.trigger() with safety-violation source", () => {
+  it("sets emergencyStopSource and writes audit entry", async () => {
     const session = createSafetySession();
     const logger = makeAuditLogger();
     const exitCodes: number[] = [];
-    const handler = new EmergencyStopHandler((code) => { exitCodes.push(code); return undefined as unknown as never; });
+    const handler = new EmergencyStopHandler((code) => {
+      exitCodes.push(code);
+      return undefined as unknown as never;
+    });
     handler.register(session, logger);
 
-    const source: EmergencyStopSource = { kind: 'safety-violation', description: 'shell command blocklist match' };
+    const source: EmergencyStopSource = { kind: "safety-violation", description: "shell command blocklist match" };
     await handler.trigger(source);
 
     expect(session.emergencyStopRequested).toBe(true);
     expect(session.emergencyStopSource).toEqual(source);
-    expect(logger.entries[0]?.outcome).toBe('emergency-stop');
+    expect(logger.entries[0]?.outcome).toBe("emergency-stop");
     expect(exitCodes).toEqual([1]);
     handler.deregister();
   });
 });
 
-describe('EmergencyStopHandler.trigger() with resource-exhaustion source', () => {
-  it('sets emergencyStopSource and exits', async () => {
+describe("EmergencyStopHandler.trigger() with resource-exhaustion source", () => {
+  it("sets emergencyStopSource and exits", async () => {
     const session = createSafetySession();
     const logger = makeAuditLogger();
     const exitCodes: number[] = [];
-    const handler = new EmergencyStopHandler((code) => { exitCodes.push(code); return undefined as unknown as never; });
+    const handler = new EmergencyStopHandler((code) => {
+      exitCodes.push(code);
+      return undefined as unknown as never;
+    });
     handler.register(session, logger);
 
-    const source: EmergencyStopSource = { kind: 'resource-exhaustion', resource: 'disk' };
+    const source: EmergencyStopSource = { kind: "resource-exhaustion", resource: "disk" };
     await handler.trigger(source);
 
     expect(session.emergencyStopRequested).toBe(true);
     expect(session.emergencyStopSource).toEqual(source);
-    expect(logger.entries[0]?.outcome).toBe('emergency-stop');
+    expect(logger.entries[0]?.outcome).toBe("emergency-stop");
     expect(exitCodes).toEqual([1]);
     handler.deregister();
   });
@@ -196,22 +207,25 @@ describe('EmergencyStopHandler.trigger() with resource-exhaustion source', () =>
 // SIGINT simulation
 // ---------------------------------------------------------------------------
 
-describe('EmergencyStopHandler — SIGINT signal simulation', () => {
-  it('sets emergencyStopRequested when process receives SIGINT', async () => {
+describe("EmergencyStopHandler — SIGINT signal simulation", () => {
+  it("sets emergencyStopRequested when process receives SIGINT", async () => {
     const session = createSafetySession();
     const logger = makeAuditLogger();
     const exitCodes: number[] = [];
-    const handler = new EmergencyStopHandler((code) => { exitCodes.push(code); return undefined as unknown as never; });
+    const handler = new EmergencyStopHandler((code) => {
+      exitCodes.push(code);
+      return undefined as unknown as never;
+    });
     handler.register(session, logger);
 
     // Simulate OS signal
-    process.emit('SIGINT');
+    process.emit("SIGINT");
 
     // Signal handler is async — yield to the microtask queue
     await new Promise<void>((resolve) => setTimeout(resolve, 10));
 
     expect(session.emergencyStopRequested).toBe(true);
-    expect(session.emergencyStopSource).toEqual({ kind: 'signal', signal: 'SIGINT' });
+    expect(session.emergencyStopSource).toEqual({ kind: "signal", signal: "SIGINT" });
     expect(logger.entries.length).toBeGreaterThanOrEqual(1);
     expect(exitCodes).toEqual([1]);
 
@@ -223,12 +237,15 @@ describe('EmergencyStopHandler — SIGINT signal simulation', () => {
 // trigger() without prior register()
 // ---------------------------------------------------------------------------
 
-describe('EmergencyStopHandler.trigger() without register()', () => {
-  it('still calls exitFn(1) even when session is not set', async () => {
+describe("EmergencyStopHandler.trigger() without register()", () => {
+  it("still calls exitFn(1) even when session is not set", async () => {
     const exitCodes: number[] = [];
-    const handler = new EmergencyStopHandler((code) => { exitCodes.push(code); return undefined as unknown as never; });
+    const handler = new EmergencyStopHandler((code) => {
+      exitCodes.push(code);
+      return undefined as unknown as never;
+    });
 
-    await handler.trigger({ kind: 'signal', signal: 'SIGINT' });
+    await handler.trigger({ kind: "signal", signal: "SIGINT" });
 
     expect(exitCodes).toEqual([1]);
   });

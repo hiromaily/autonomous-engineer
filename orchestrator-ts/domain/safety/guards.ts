@@ -1,5 +1,5 @@
-import type { ToolContext, ToolError } from '../tools/types';
-import type { SafetyConfig, SafetySession } from './types';
+import type { ToolContext, ToolError } from "../tools/types";
+import type { SafetyConfig, SafetySession } from "./types";
 
 // ---------------------------------------------------------------------------
 // ApprovalRequest value object
@@ -7,7 +7,7 @@ import type { SafetyConfig, SafetySession } from './types';
 
 export interface ApprovalRequest {
   readonly description: string;
-  readonly riskClassification: 'high' | 'critical';
+  readonly riskClassification: "high" | "critical";
   readonly expectedImpact: string;
   readonly proposedAction: string;
 }

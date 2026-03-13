@@ -1,103 +1,103 @@
-import { describe, it, expect } from 'bun:test';
+import { describe, expect, it } from "bun:test";
 import type {
-  AuditEntry,
-  IAuditLogger,
   ApprovalDecision,
+  AuditEntry,
   IApprovalGateway,
+  IAuditLogger,
+  IEmergencyStopHandler,
+  ISandboxExecutor,
   SandboxExecutionRequest,
   SandboxExecutionResult,
-  ISandboxExecutor,
-  IEmergencyStopHandler,
-} from '../../../application/safety/ports';
-import { APPROVAL_DECISIONS, AUDIT_OUTCOMES } from '../../../application/safety/ports';
-import type { ApprovalRequest } from '../../../domain/safety/guards';
-import type { EmergencyStopSource, SafetySession } from '../../../domain/safety/types';
-import { createSafetySession } from '../../../domain/safety/types';
+} from "../../../application/safety/ports";
+import { APPROVAL_DECISIONS, AUDIT_OUTCOMES } from "../../../application/safety/ports";
+import type { ApprovalRequest } from "../../../domain/safety/guards";
+import type { EmergencyStopSource, SafetySession } from "../../../domain/safety/types";
+import { createSafetySession } from "../../../domain/safety/types";
 
 // ---------------------------------------------------------------------------
 // AuditEntry value object shape
 // ---------------------------------------------------------------------------
 
-describe('AuditEntry', () => {
-  it('accepts all required fields with success outcome', () => {
+describe("AuditEntry", () => {
+  it("accepts all required fields with success outcome", () => {
     const entry: AuditEntry = {
-      timestamp: '2026-03-11T12:00:00.000Z',
-      sessionId: 'abc-123',
+      timestamp: "2026-03-11T12:00:00.000Z",
+      sessionId: "abc-123",
       iterationNumber: 1,
-      toolName: 'read_file',
-      inputSummary: '{"path":"/workspace/src/index.ts"}',
-      outcome: 'success',
+      toolName: "read_file",
+      inputSummary: "{\"path\":\"/workspace/src/index.ts\"}",
+      outcome: "success",
     };
-    expect(entry.outcome).toBe('success');
+    expect(entry.outcome).toBe("success");
     expect(entry.blockReason).toBeUndefined();
     expect(entry.approvalDecision).toBeUndefined();
     expect(entry.errorDetails).toBeUndefined();
   });
 
-  it('accepts blocked outcome with blockReason', () => {
+  it("accepts blocked outcome with blockReason", () => {
     const entry: AuditEntry = {
-      timestamp: '2026-03-11T12:00:00.000Z',
-      sessionId: 'abc-123',
+      timestamp: "2026-03-11T12:00:00.000Z",
+      sessionId: "abc-123",
       iterationNumber: 2,
-      toolName: 'write_file',
-      inputSummary: '{"path":"/etc/passwd"}',
-      outcome: 'blocked',
-      blockReason: 'path outside workspace boundary',
+      toolName: "write_file",
+      inputSummary: "{\"path\":\"/etc/passwd\"}",
+      outcome: "blocked",
+      blockReason: "path outside workspace boundary",
     };
-    expect(entry.outcome).toBe('blocked');
-    expect(entry.blockReason).toBe('path outside workspace boundary');
+    expect(entry.outcome).toBe("blocked");
+    expect(entry.blockReason).toBe("path outside workspace boundary");
   });
 
-  it('accepts error outcome with errorDetails', () => {
+  it("accepts error outcome with errorDetails", () => {
     const entry: AuditEntry = {
-      timestamp: '2026-03-11T12:00:00.000Z',
-      sessionId: 'abc-123',
+      timestamp: "2026-03-11T12:00:00.000Z",
+      sessionId: "abc-123",
       iterationNumber: 3,
-      toolName: 'git_commit',
-      inputSummary: '{"message":"fix: bug"}',
-      outcome: 'error',
-      errorDetails: 'subprocess exited with code 1',
+      toolName: "git_commit",
+      inputSummary: "{\"message\":\"fix: bug\"}",
+      outcome: "error",
+      errorDetails: "subprocess exited with code 1",
     };
-    expect(entry.outcome).toBe('error');
-    expect(entry.errorDetails).toBe('subprocess exited with code 1');
+    expect(entry.outcome).toBe("error");
+    expect(entry.errorDetails).toBe("subprocess exited with code 1");
   });
 
-  it('accepts emergency-stop outcome', () => {
+  it("accepts emergency-stop outcome", () => {
     const entry: AuditEntry = {
-      timestamp: '2026-03-11T12:00:01.000Z',
-      sessionId: 'abc-123',
+      timestamp: "2026-03-11T12:00:01.000Z",
+      sessionId: "abc-123",
       iterationNumber: 4,
-      toolName: 'N/A',
-      inputSummary: '',
-      outcome: 'emergency-stop',
+      toolName: "N/A",
+      inputSummary: "",
+      outcome: "emergency-stop",
     };
-    expect(entry.outcome).toBe('emergency-stop');
+    expect(entry.outcome).toBe("emergency-stop");
   });
 
-  it('accepts approvalDecision field', () => {
+  it("accepts approvalDecision field", () => {
     const entry: AuditEntry = {
-      timestamp: '2026-03-11T12:00:00.000Z',
-      sessionId: 'abc-123',
+      timestamp: "2026-03-11T12:00:00.000Z",
+      sessionId: "abc-123",
       iterationNumber: 5,
-      toolName: 'delete_files',
-      inputSummary: '{"paths":["a","b"]}',
-      outcome: 'blocked',
-      blockReason: 'denied by operator',
-      approvalDecision: 'denied',
+      toolName: "delete_files",
+      inputSummary: "{\"paths\":[\"a\",\"b\"]}",
+      outcome: "blocked",
+      blockReason: "denied by operator",
+      approvalDecision: "denied",
     };
-    expect(entry.approvalDecision).toBe('denied');
+    expect(entry.approvalDecision).toBe("denied");
   });
 
-  it('inputSummary is bounded to 512 bytes by convention', () => {
+  it("inputSummary is bounded to 512 bytes by convention", () => {
     // This test documents the contract — enforcement is in the adapter
-    const longInput = 'x'.repeat(600);
+    const longInput = "x".repeat(600);
     const entry: AuditEntry = {
-      timestamp: '2026-03-11T12:00:00.000Z',
-      sessionId: 's1',
+      timestamp: "2026-03-11T12:00:00.000Z",
+      sessionId: "s1",
       iterationNumber: 1,
-      toolName: 'tool',
+      toolName: "tool",
       inputSummary: longInput.slice(0, 512),
-      outcome: 'success',
+      outcome: "success",
     };
     expect(entry.inputSummary.length).toBeLessThanOrEqual(512);
   });
@@ -107,8 +107,8 @@ describe('AuditEntry', () => {
 // IAuditLogger structural compliance
 // ---------------------------------------------------------------------------
 
-describe('IAuditLogger structural compliance', () => {
-  it('a conforming logger writes and flushes without throwing', async () => {
+describe("IAuditLogger structural compliance", () => {
+  it("a conforming logger writes and flushes without throwing", async () => {
     const written: AuditEntry[] = [];
 
     const logger: IAuditLogger = {
@@ -122,17 +122,17 @@ describe('IAuditLogger structural compliance', () => {
 
     const entry: AuditEntry = {
       timestamp: new Date().toISOString(),
-      sessionId: 's1',
+      sessionId: "s1",
       iterationNumber: 1,
-      toolName: 'read_file',
-      inputSummary: '{}',
-      outcome: 'success',
+      toolName: "read_file",
+      inputSummary: "{}",
+      outcome: "success",
     };
 
     await logger.write(entry);
     await logger.flush();
     expect(written).toHaveLength(1);
-    expect(written.at(0)?.toolName).toBe('read_file');
+    expect(written.at(0)?.toolName).toBe("read_file");
   });
 });
 
@@ -140,21 +140,21 @@ describe('IAuditLogger structural compliance', () => {
 // ApprovalDecision constants
 // ---------------------------------------------------------------------------
 
-describe('APPROVAL_DECISIONS', () => {
-  it('contains all three decision values', () => {
-    expect(APPROVAL_DECISIONS).toContain('approved');
-    expect(APPROVAL_DECISIONS).toContain('denied');
-    expect(APPROVAL_DECISIONS).toContain('timeout');
+describe("APPROVAL_DECISIONS", () => {
+  it("contains all three decision values", () => {
+    expect(APPROVAL_DECISIONS).toContain("approved");
+    expect(APPROVAL_DECISIONS).toContain("denied");
+    expect(APPROVAL_DECISIONS).toContain("timeout");
     expect(APPROVAL_DECISIONS).toHaveLength(3);
   });
 });
 
-describe('AUDIT_OUTCOMES', () => {
-  it('contains all four outcome values', () => {
-    expect(AUDIT_OUTCOMES).toContain('success');
-    expect(AUDIT_OUTCOMES).toContain('blocked');
-    expect(AUDIT_OUTCOMES).toContain('error');
-    expect(AUDIT_OUTCOMES).toContain('emergency-stop');
+describe("AUDIT_OUTCOMES", () => {
+  it("contains all four outcome values", () => {
+    expect(AUDIT_OUTCOMES).toContain("success");
+    expect(AUDIT_OUTCOMES).toContain("blocked");
+    expect(AUDIT_OUTCOMES).toContain("error");
+    expect(AUDIT_OUTCOMES).toContain("emergency-stop");
     expect(AUDIT_OUTCOMES).toHaveLength(4);
   });
 });
@@ -163,49 +163,49 @@ describe('AUDIT_OUTCOMES', () => {
 // IApprovalGateway structural compliance
 // ---------------------------------------------------------------------------
 
-describe('IApprovalGateway structural compliance', () => {
-  it('a conforming gateway resolves to approved without throwing', async () => {
+describe("IApprovalGateway structural compliance", () => {
+  it("a conforming gateway resolves to approved without throwing", async () => {
     const gateway: IApprovalGateway = {
       async requestApproval(_request: ApprovalRequest, _timeoutMs: number): Promise<ApprovalDecision> {
-        return 'approved';
+        return "approved";
       },
     };
 
     const request: ApprovalRequest = {
-      description: 'Delete 12 files',
-      riskClassification: 'high',
-      expectedImpact: 'Removes build artifacts',
-      proposedAction: 'rm -rf dist/',
+      description: "Delete 12 files",
+      riskClassification: "high",
+      expectedImpact: "Removes build artifacts",
+      proposedAction: "rm -rf dist/",
     };
 
     const decision = await gateway.requestApproval(request, 30_000);
-    expect(decision).toBe('approved');
+    expect(decision).toBe("approved");
   });
 
-  it('a conforming gateway resolves to denied', async () => {
+  it("a conforming gateway resolves to denied", async () => {
     const gateway: IApprovalGateway = {
       async requestApproval(): Promise<ApprovalDecision> {
-        return 'denied';
+        return "denied";
       },
     };
     const decision = await gateway.requestApproval(
-      { description: 'x', riskClassification: 'critical', expectedImpact: 'y', proposedAction: 'z' },
+      { description: "x", riskClassification: "critical", expectedImpact: "y", proposedAction: "z" },
       5_000,
     );
-    expect(decision).toBe('denied');
+    expect(decision).toBe("denied");
   });
 
-  it('a conforming gateway resolves to timeout', async () => {
+  it("a conforming gateway resolves to timeout", async () => {
     const gateway: IApprovalGateway = {
       async requestApproval(): Promise<ApprovalDecision> {
-        return 'timeout';
+        return "timeout";
       },
     };
     const decision = await gateway.requestApproval(
-      { description: 'x', riskClassification: 'high', expectedImpact: 'y', proposedAction: 'z' },
+      { description: "x", riskClassification: "high", expectedImpact: "y", proposedAction: "z" },
       1,
     );
-    expect(decision).toBe('timeout');
+    expect(decision).toBe("timeout");
   });
 });
 
@@ -213,47 +213,47 @@ describe('IApprovalGateway structural compliance', () => {
 // SandboxExecutionRequest and SandboxExecutionResult value objects
 // ---------------------------------------------------------------------------
 
-describe('SandboxExecutionRequest', () => {
-  it('carries command, args, workingDirectory, method', () => {
+describe("SandboxExecutionRequest", () => {
+  it("carries command, args, workingDirectory, method", () => {
     const req: SandboxExecutionRequest = {
-      command: 'bun',
-      args: ['test'],
-      workingDirectory: '/workspace',
-      method: 'temp-directory',
+      command: "bun",
+      args: ["test"],
+      workingDirectory: "/workspace",
+      method: "temp-directory",
     };
-    expect(req.command).toBe('bun');
-    expect(req.method).toBe('temp-directory');
+    expect(req.command).toBe("bun");
+    expect(req.method).toBe("temp-directory");
     expect(req.containerImage).toBeUndefined();
   });
 
-  it('accepts container method with containerImage', () => {
+  it("accepts container method with containerImage", () => {
     const req: SandboxExecutionRequest = {
-      command: 'npm',
-      args: ['install'],
-      workingDirectory: '/workspace',
-      method: 'container',
-      containerImage: 'node:20-alpine',
+      command: "npm",
+      args: ["install"],
+      workingDirectory: "/workspace",
+      method: "container",
+      containerImage: "node:20-alpine",
     };
-    expect(req.method).toBe('container');
-    expect(req.containerImage).toBe('node:20-alpine');
+    expect(req.method).toBe("container");
+    expect(req.containerImage).toBe("node:20-alpine");
   });
 
-  it('accepts restricted-shell method', () => {
+  it("accepts restricted-shell method", () => {
     const req: SandboxExecutionRequest = {
-      command: 'bun',
-      args: ['test'],
-      workingDirectory: '/workspace',
-      method: 'restricted-shell',
+      command: "bun",
+      args: ["test"],
+      workingDirectory: "/workspace",
+      method: "restricted-shell",
     };
-    expect(req.method).toBe('restricted-shell');
+    expect(req.method).toBe("restricted-shell");
   });
 });
 
-describe('SandboxExecutionResult', () => {
-  it('carries stdout, stderr, exitCode, durationMs', () => {
+describe("SandboxExecutionResult", () => {
+  it("carries stdout, stderr, exitCode, durationMs", () => {
     const result: SandboxExecutionResult = {
-      stdout: 'ok',
-      stderr: '',
+      stdout: "ok",
+      stderr: "",
       exitCode: 0,
       durationMs: 123,
     };
@@ -266,19 +266,19 @@ describe('SandboxExecutionResult', () => {
 // ISandboxExecutor structural compliance
 // ---------------------------------------------------------------------------
 
-describe('ISandboxExecutor structural compliance', () => {
-  it('a conforming executor resolves to a SandboxExecutionResult', async () => {
+describe("ISandboxExecutor structural compliance", () => {
+  it("a conforming executor resolves to a SandboxExecutionResult", async () => {
     const executor: ISandboxExecutor = {
       async execute(_request: SandboxExecutionRequest, _timeoutMs: number): Promise<SandboxExecutionResult> {
-        return { stdout: 'tests passed', stderr: '', exitCode: 0, durationMs: 50 };
+        return { stdout: "tests passed", stderr: "", exitCode: 0, durationMs: 50 };
       },
     };
 
     const result = await executor.execute(
-      { command: 'bun', args: ['test'], workingDirectory: '/workspace', method: 'temp-directory' },
+      { command: "bun", args: ["test"], workingDirectory: "/workspace", method: "temp-directory" },
       30_000,
     );
-    expect(result.stdout).toBe('tests passed');
+    expect(result.stdout).toBe("tests passed");
     expect(result.exitCode).toBe(0);
   });
 });
@@ -287,8 +287,8 @@ describe('ISandboxExecutor structural compliance', () => {
 // IEmergencyStopHandler structural compliance
 // ---------------------------------------------------------------------------
 
-describe('IEmergencyStopHandler structural compliance', () => {
-  it('a conforming handler registers, triggers, and deregisters without throwing', async () => {
+describe("IEmergencyStopHandler structural compliance", () => {
+  it("a conforming handler registers, triggers, and deregisters without throwing", async () => {
     let stopped = false;
     let registeredSession: SafetySession | null = null;
 
@@ -318,10 +318,10 @@ describe('IEmergencyStopHandler structural compliance', () => {
     expect(registeredSession).not.toBe(null);
     expect(registeredSession === session).toBe(true);
 
-    await handler.trigger({ kind: 'signal', signal: 'SIGINT' });
+    await handler.trigger({ kind: "signal", signal: "SIGINT" });
     expect(stopped).toBe(true);
     expect(session.emergencyStopRequested).toBe(true);
-    expect(session.emergencyStopSource).toEqual({ kind: 'signal', signal: 'SIGINT' });
+    expect(session.emergencyStopSource).toEqual({ kind: "signal", signal: "SIGINT" });
 
     handler.deregister();
     expect(registeredSession).toBe(null);

@@ -1,13 +1,13 @@
-import { open, mkdir } from 'node:fs/promises';
-import { dirname } from 'node:path';
-import type { IAuditLogger, AuditEntry } from '../../application/safety/ports';
+import { mkdir, open } from "node:fs/promises";
+import { dirname } from "node:path";
+import type { AuditEntry, IAuditLogger } from "../../application/safety/ports";
 
 const MAX_INPUT_SUMMARY_BYTES = 512;
 
 function sanitizeInputSummary(input: string): string {
-  const buf = Buffer.from(input, 'utf-8');
+  const buf = Buffer.from(input, "utf-8");
   if (buf.byteLength <= MAX_INPUT_SUMMARY_BYTES) return input;
-  return buf.subarray(0, MAX_INPUT_SUMMARY_BYTES).toString('utf-8').replace(/\uFFFD$/, '');
+  return buf.subarray(0, MAX_INPUT_SUMMARY_BYTES).toString("utf-8").replace(/\uFFFD$/, "");
 }
 
 /**
@@ -44,8 +44,8 @@ export class AuditLogger implements IAuditLogger {
   private async appendLine(entry: AuditEntry): Promise<void> {
     try {
       await mkdir(dirname(this.logPath), { recursive: true });
-      const line = JSON.stringify(entry) + '\n';
-      const fh = await open(this.logPath, 'a');
+      const line = JSON.stringify(entry) + "\n";
+      const fh = await open(this.logPath, "a");
       try {
         await fh.write(line);
         await fh.datasync();
@@ -53,7 +53,7 @@ export class AuditLogger implements IAuditLogger {
         await fh.close();
       }
     } catch (err) {
-      console.error('[AuditLogger] Failed to write audit entry:', err);
+      console.error("[AuditLogger] Failed to write audit entry:", err);
     }
   }
 }

@@ -1,29 +1,31 @@
-import type { ApprovalRequest } from '../../domain/safety/guards';
-import type { EmergencyStopSource, SafetySession } from '../../domain/safety/types';
+import type { ApprovalRequest } from "../../domain/safety/guards";
+import type { EmergencyStopSource, SafetySession } from "../../domain/safety/types";
 
 // ---------------------------------------------------------------------------
 // Audit Logger port
 // ---------------------------------------------------------------------------
 
-export type AuditOutcome = 'success' | 'blocked' | 'error' | 'emergency-stop';
+export type AuditOutcome = "success" | "blocked" | "error" | "emergency-stop";
 
 /** Frozen tuple of all valid audit outcome values. */
-export const AUDIT_OUTCOMES = Object.freeze([
-  'success',
-  'blocked',
-  'error',
-  'emergency-stop',
-] as const satisfies ReadonlyArray<AuditOutcome>);
+export const AUDIT_OUTCOMES = Object.freeze(
+  [
+    "success",
+    "blocked",
+    "error",
+    "emergency-stop",
+  ] as const satisfies ReadonlyArray<AuditOutcome>,
+);
 
 export interface AuditEntry {
-  readonly timestamp: string;            // ISO 8601 UTC
+  readonly timestamp: string; // ISO 8601 UTC
   readonly sessionId: string;
   readonly iterationNumber: number;
   readonly toolName: string;
-  readonly inputSummary: string;         // sanitized, max 512 bytes
+  readonly inputSummary: string; // sanitized, max 512 bytes
   readonly outcome: AuditOutcome;
   readonly blockReason?: string;
-  readonly approvalDecision?: 'approved' | 'denied' | 'timeout';
+  readonly approvalDecision?: "approved" | "denied" | "timeout";
   readonly errorDetails?: string;
 }
 
@@ -45,14 +47,16 @@ export interface IAuditLogger {
 // Approval Gateway port
 // ---------------------------------------------------------------------------
 
-export type ApprovalDecision = 'approved' | 'denied' | 'timeout';
+export type ApprovalDecision = "approved" | "denied" | "timeout";
 
 /** Frozen tuple of all valid approval decision values. */
-export const APPROVAL_DECISIONS = Object.freeze([
-  'approved',
-  'denied',
-  'timeout',
-] as const satisfies ReadonlyArray<ApprovalDecision>);
+export const APPROVAL_DECISIONS = Object.freeze(
+  [
+    "approved",
+    "denied",
+    "timeout",
+  ] as const satisfies ReadonlyArray<ApprovalDecision>,
+);
 
 export interface IApprovalGateway {
   /**
@@ -73,7 +77,7 @@ export interface SandboxExecutionRequest {
   readonly command: string;
   readonly args: ReadonlyArray<string>;
   readonly workingDirectory: string;
-  readonly method: 'container' | 'restricted-shell' | 'temp-directory';
+  readonly method: "container" | "restricted-shell" | "temp-directory";
   readonly containerImage?: string;
 }
 

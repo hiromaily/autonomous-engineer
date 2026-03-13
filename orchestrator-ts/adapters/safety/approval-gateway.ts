@@ -1,6 +1,6 @@
-import { createInterface } from 'node:readline';
-import type { IApprovalGateway, ApprovalDecision } from '../../application/safety/ports';
-import type { ApprovalRequest } from '../../domain/safety/guards';
+import { createInterface } from "node:readline";
+import type { ApprovalDecision, IApprovalGateway } from "../../application/safety/ports";
+import type { ApprovalRequest } from "../../domain/safety/guards";
 
 /**
  * Factory function that presents a question to the user and awaits input.
@@ -18,7 +18,7 @@ const defaultReadlineFactory: ReadlineFactory = (question, timeoutMs) => {
 
     const timer = setTimeout(() => {
       rl.close();
-      reject(new Error('timeout'));
+      reject(new Error("timeout"));
     }, timeoutMs);
 
     rl.question(question, (answer: string) => {
@@ -31,26 +31,26 @@ const defaultReadlineFactory: ReadlineFactory = (question, timeoutMs) => {
 
 function buildPrompt(request: ApprovalRequest): string {
   return (
-    `\n[SAFETY APPROVAL REQUIRED]\n` +
-    `  Risk: ${request.riskClassification}\n` +
-    `  Description: ${request.description}\n` +
-    `  Expected impact: ${request.expectedImpact}\n` +
-    `  Proposed action: ${request.proposedAction}\n` +
-    `Approve? [y/N]: `
+    `\n[SAFETY APPROVAL REQUIRED]\n`
+    + `  Risk: ${request.riskClassification}\n`
+    + `  Description: ${request.description}\n`
+    + `  Expected impact: ${request.expectedImpact}\n`
+    + `  Proposed action: ${request.proposedAction}\n`
+    + `Approve? [y/N]: `
   );
 }
 
 function parseAnswer(raw: string): ApprovalDecision {
   const normalized = raw.trim().toLowerCase();
-  if (normalized === 'y' || normalized === 'yes') return 'approved';
-  return 'denied';
+  if (normalized === "y" || normalized === "yes") return "approved";
+  return "denied";
 }
 
 function isTimeoutError(err: unknown): boolean {
   if (!(err instanceof Error)) return false;
   const code = (err as NodeJS.ErrnoException).code;
-  if (code === 'ABORT_ERR') return true;
-  return err.message.toLowerCase().includes('timeout') || err.message.toLowerCase().includes('aborted');
+  if (code === "ABORT_ERR") return true;
+  return err.message.toLowerCase().includes("timeout") || err.message.toLowerCase().includes("aborted");
 }
 
 /**
@@ -76,8 +76,8 @@ export class CliApprovalGateway implements IApprovalGateway {
       const answer = await this.readlineFactory(prompt, timeoutMs);
       return parseAnswer(answer);
     } catch (err) {
-      if (isTimeoutError(err)) return 'timeout';
-      return 'denied';
+      if (isTimeoutError(err)) return "timeout";
+      return "denied";
     }
   }
 }
