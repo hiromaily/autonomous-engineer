@@ -99,6 +99,16 @@ export class AgentLoopService implements IAgentLoop {
         if (latestReflection?.requiresHumanIntervention === true) {
           return this.#terminate('HUMAN_INTERVENTION_REQUIRED', state, false, opts);
         }
+
+        // Task 7.1 — error recovery sub-loop: enter when reflection indicates failure
+        if (latestReflection?.assessment === 'failure') {
+          const recoveryResult = await this.#errorRecovery(state, opts);
+          if (recoveryResult === 'RECOVERY_EXHAUSTED') {
+            return this.#terminate('RECOVERY_EXHAUSTED', state, false, opts);
+          }
+          state = recoveryResult;
+          this.#currentState = state;
+        }
       }
 
       // Task 6.1 — distinguish stop signal from max-iterations exhaustion
@@ -456,6 +466,111 @@ export class AgentLoopService implements IAgentLoop {
       `Iteration: ${state.iterationCount}`,
       '\nRespond with JSON: { "category": "Exploration"|"Modification"|"Validation"|"Documentation", "toolName": string, "toolInput": object, "rationale": string }',
     ].join('\n\n');
+  }
+
+  // ---------------------------------------------------------------------------
+  // Error recovery sub-loop (task 7.1)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Orchestrates the error recovery cycle when REFLECT returns assessment='failure'.
+   *
+   * For each attempt (up to maxRecoveryAttempts):
+   * 1. Emit a recovery:attempt event.
+   * 2. Ask the LLM for an error-analysis fix plan.
+   * 3. Execute the fix action via the executor.
+   * 4. Re-run the original failing tool as validation.
+   * 5a. Validation passes → append validation observation, reset counter, return recovered state.
+   * 5b. Validation fails → increment counter and loop back.
+   *
+   * If all attempts are exhausted, returns 'RECOVERY_EXHAUSTED'.
+   */
+  async #errorRecovery(
+    state: AgentState,
+    opts: Pick<AgentLoopOptions, 'maxRecoveryAttempts' | 'eventBus' | 'logger'>,
+  ): Promise<AgentState | 'RECOVERY_EXHAUSTED'> {
+    const failingObs = state.observations[state.observations.length - 1]!;
+    const errorMessage = failingObs.error?.message ?? 'unknown failure';
+
+    let currentState = state;
+
+    while (currentState.recoveryAttempts < opts.maxRecoveryAttempts) {
+      // Increment attempt counter
+      currentState = { ...currentState, recoveryAttempts: currentState.recoveryAttempts + 1 };
+
+      // Emit recovery:attempt event
+      opts.eventBus?.emit({
+        type: 'recovery:attempt',
+        attempt: currentState.recoveryAttempts,
+        maxAttempts: opts.maxRecoveryAttempts,
+        errorMessage,
+      });
+
+      // Log recovery attempt
+      opts.logger?.info(`Recovery attempt ${currentState.recoveryAttempts}/${opts.maxRecoveryAttempts}`, {
+        attempt: currentState.recoveryAttempts,
+        maxAttempts: opts.maxRecoveryAttempts,
+        failingTool: failingObs.toolName,
+      });
+
+      // Get error-analysis fix plan from LLM
+      const errorPrompt = this.#buildErrorAnalysisPrompt(failingObs, currentState);
+      const llmResult = await this.#llm.complete(errorPrompt);
+
+      if (!llmResult.ok) {
+        // LLM error — can't get fix plan; continue to next attempt
+        continue;
+      }
+
+      const fixPlan = this.#parseActionPlan(llmResult.value.content);
+      if (!fixPlan) {
+        // Unparseable fix plan — continue
+        continue;
+      }
+
+      // Execute the fix action
+      await this.#executor.invoke(fixPlan.toolName, fixPlan.toolInput, this.#toolContext);
+
+      // Re-run original failing tool as validation
+      const validationResult = await this.#executor.invoke(
+        failingObs.toolName,
+        failingObs.toolInput,
+        this.#toolContext,
+      );
+
+      if (validationResult.ok) {
+        // Recovery succeeded — append validation observation and reset counter
+        const validationObs: Observation = {
+          toolName: failingObs.toolName,
+          toolInput: failingObs.toolInput,
+          rawOutput: validationResult.value,
+          success: true,
+          recordedAt: new Date().toISOString(),
+        };
+        return {
+          ...currentState,
+          observations: [...currentState.observations, validationObs],
+          recoveryAttempts: 0,
+        };
+      }
+
+      // Validation failed — loop back for next attempt
+    }
+
+    return 'RECOVERY_EXHAUSTED';
+  }
+
+  /** Builds the error-analysis prompt for the recovery LLM call. */
+  #buildErrorAnalysisPrompt(failingObs: Observation, state: AgentState): string {
+    return [
+      `Task: ${state.task}`,
+      `Error recovery attempt ${state.recoveryAttempts}:`,
+      `The previous action failed:`,
+      `  Tool: ${failingObs.toolName}`,
+      `  Error: ${failingObs.error?.message ?? 'unknown error'}`,
+      '\nAnalyze the error and propose a fix action. Respond with JSON:',
+      '{ "category": "Exploration"|"Modification"|"Validation"|"Documentation", "toolName": string, "toolInput": object, "rationale": string }',
+    ].join('\n');
   }
 
   /** Parses and validates LLM response content into an ActionPlan, or returns null on failure. */
