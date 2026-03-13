@@ -116,21 +116,21 @@
   - Confirm that no helper passes raw layer content to the logger — only metadata fields are emitted at every log call site
   - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5_
 
-- [ ] 10. Write unit tests for all domain components
-- [ ] 10.1 (P) Unit tests for ContextPlanner
+- [x] 10. Write unit tests for all domain components
+- [x] 10.1 (P) Unit tests for ContextPlanner
   - Verify each `StepType` produces the correct `layersToRetrieve` set including always-present layers
   - Verify `rationale` is populated and contains the step type and a task description excerpt
   - Verify that the planner never adds `systemInstructions` or `taskDescription` to the explicit retrieve list (they are unconditional)
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5_
 
-- [ ] 10.2 (P) Unit tests for TokenBudgetManager
+- [x] 10.2 (P) Unit tests for TokenBudgetManager
   - Verify token counts for known fixed strings match expected values from cl100k_base encoding
   - Verify `allocate()` returns budgets whose sum is ≤ the effective model limit (after safety buffer)
   - Verify `checkBudget()` returns `overBy > 0` when content exceeds budget
   - Verify the fallback approximation is used when tiktoken throws during `countTokens()`
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
 
-- [ ] 10.3 (P) Unit tests for LayerCompressor
+- [x] 10.3 (P) Unit tests for LayerCompressor
   - Verify spec extraction retains headings and acceptance-criteria bullet lines while removing body prose
   - Verify code skeleton extraction retains `export` declaration lines and drops function bodies
   - Verify memory score filter drops entries with `relevanceScore < 0.3` and retains higher-scored entries
@@ -138,14 +138,14 @@
   - Verify that calling compress on `systemInstructions` or `taskDescription` returns the original content unchanged
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6_
 
-- [ ] 10.4 (P) Unit tests for ContextAccumulator
+- [x] 10.4 (P) Unit tests for ContextAccumulator
   - Verify that `getEntries()` never returns entries whose `phaseId` differs from the requested phase
   - Verify `recordExpansion()` returns `{ ok: false }` once `maxExpansionsPerIteration` is reached
   - Verify `resetPhase()` removes only entries tagged with the given phaseId and resets the expansion counter
   - Verify `resetTask()` removes only entries tagged with the given taskId and does not touch entries from other tasks
   - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 7.1, 7.2, 7.3, 7.4, 7.5, 8.1, 8.2, 8.3, 8.4, 8.5_
 
-- [ ] 10.5 (P) Unit tests for ContextCache
+- [x] 10.5 (P) Unit tests for ContextCache
   - Verify `get()` returns the cached entry when `currentMtime` matches and null when it differs
   - Verify LRU eviction occurs when the store reaches capacity (51st insert evicts the least-recently-used entry)
   - Verify `stats()` increments `hits` and `misses` correctly across successive `get()` calls

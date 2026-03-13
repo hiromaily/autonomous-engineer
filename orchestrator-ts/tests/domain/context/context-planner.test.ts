@@ -12,26 +12,21 @@ describe("ContextPlanner", () => {
 	const planner = new ContextPlanner();
 
 	describe("always-present layers", () => {
-		it("includes systemInstructions in all step types", () => {
-			for (const stepType of ["Exploration", "Modification", "Validation"] as const) {
-				const decision = planner.plan(stepType, "some task", noTools);
-				expect(decision.layersToRetrieve).toContain("systemInstructions" satisfies LayerId);
-			}
-		});
+		// These three layers are unconditionally included regardless of step type.
+		const UNCONDITIONAL_LAYERS: LayerId[] = [
+			"systemInstructions",
+			"taskDescription",
+			"memoryRetrieval",
+		];
 
-		it("includes taskDescription in all step types", () => {
-			for (const stepType of ["Exploration", "Modification", "Validation"] as const) {
-				const decision = planner.plan(stepType, "some task", noTools);
-				expect(decision.layersToRetrieve).toContain("taskDescription" satisfies LayerId);
-			}
-		});
-
-		it("includes memoryRetrieval in all step types", () => {
-			for (const stepType of ["Exploration", "Modification", "Validation"] as const) {
-				const decision = planner.plan(stepType, "some task", noTools);
-				expect(decision.layersToRetrieve).toContain("memoryRetrieval" satisfies LayerId);
-			}
-		});
+		for (const layerId of UNCONDITIONAL_LAYERS) {
+			it(`includes ${layerId} in all step types`, () => {
+				for (const stepType of ["Exploration", "Modification", "Validation"] as const) {
+					const decision = planner.plan(stepType, "some task", noTools);
+					expect(decision.layersToRetrieve).toContain(layerId);
+				}
+			});
+		}
 	});
 
 	describe("Exploration step", () => {

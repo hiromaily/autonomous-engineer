@@ -5,6 +5,11 @@ import type {
 	LayerId,
 } from "../../application/ports/context";
 
+// Compiled once at module load; reused across all compress() calls.
+const HEADING_OR_LISTITEM = /^#{1,4}\s|^\s*[-*]\s/;
+const EXPORT_DECLARATION = /^export\s+(function|class|interface|type|const|abstract)/;
+const MEMORY_SCORE_FILTER = 0.3;
+
 export class LayerCompressor implements ILayerCompressor {
 	compress(
 		layerId: LayerId,
@@ -77,7 +82,7 @@ export class LayerCompressor implements ILayerCompressor {
 		const lines = content.split("\n");
 		const kept: string[] = [];
 		for (const line of lines) {
-			if (/^#{1,4}\s/.test(line) || /^\s*[-*]\s/.test(line)) {
+			if (HEADING_OR_LISTITEM.test(line)) {
 				kept.push(line);
 			}
 		}
@@ -89,12 +94,10 @@ export class LayerCompressor implements ILayerCompressor {
 	// ---------------------------------------------------------------------------
 
 	private extractCodeSkeleton(content: string): string {
-		const result = content
+		return content
 			.split("\n")
-			.filter((line) =>
-				/^export\s+(function|class|interface|type|const|abstract)/.test(line),
-			);
-		return result.join("\n");
+			.filter((line) => EXPORT_DECLARATION.test(line))
+			.join("\n");
 	}
 
 	// ---------------------------------------------------------------------------
@@ -108,7 +111,7 @@ export class LayerCompressor implements ILayerCompressor {
 			try {
 				const entry = JSON.parse(line) as Record<string, unknown>;
 				const score = entry.relevanceScore;
-				if (typeof score === "number" && score >= 0.3) {
+				if (typeof score === "number" && score >= MEMORY_SCORE_FILTER) {
 					kept.push(line);
 				}
 				// else drop (score too low or missing)
