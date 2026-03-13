@@ -1,0 +1,613 @@
+import { readFile, stat } from "node:fs/promises";
+import type {
+	ContextAssemblyResult,
+	ContextBuildRequest,
+	ExpansionRequest,
+	ExpansionResult,
+	IContextAccumulator,
+	IContextCache,
+	IContextEngine,
+	IContextPlanner,
+	ILayerCompressor,
+	ITokenBudgetManager,
+	LayerId,
+	LayerTokenUsage,
+	PlannerDecision,
+	TokenBudgetConfig,
+} from "../ports/context";
+import type { MemoryPort } from "../ports/memory";
+import type { IToolExecutor } from "../tools/executor";
+import { LAYER_REGISTRY } from "../../domain/context/layer-registry";
+
+// ---------------------------------------------------------------------------
+// Service configuration
+// ---------------------------------------------------------------------------
+
+export interface ContextEngineServiceOptions {
+	readonly workspaceRoot: string;
+	/** Absolute paths to steering documents for systemInstructions layer. */
+	readonly steeringDocPaths?: ReadonlyArray<string>;
+	/** Optional path to the active specification file for activeSpecification layer. */
+	readonly activeSpecPath?: string;
+	readonly tokenBudgetConfig?: TokenBudgetConfig;
+}
+
+// ---------------------------------------------------------------------------
+// Internal layer population result
+// ---------------------------------------------------------------------------
+
+interface LayerContent {
+	readonly layerId: LayerId;
+	readonly content: string;
+	readonly cacheHit: boolean;
+}
+
+interface PopulationResult {
+	readonly layers: LayerContent[];
+	readonly omittedLayers: LayerId[];
+	readonly degraded: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// ContextEngineService
+// ---------------------------------------------------------------------------
+
+/**
+ * Application service that orchestrates all domain services and I/O ports
+ * to fulfill the IContextEngine contract.
+ *
+ * Never throws from buildContext — all errors surface as degraded/omittedLayers.
+ */
+export class ContextEngineService implements IContextEngine {
+	private readonly memoryPort: MemoryPort;
+	private readonly toolExecutor: IToolExecutor;
+	private readonly planner: IContextPlanner;
+	private readonly budgetManager: ITokenBudgetManager;
+	private readonly compressor: ILayerCompressor;
+	private readonly accumulator: IContextAccumulator;
+	private readonly cache: IContextCache;
+	private readonly options: ContextEngineServiceOptions;
+
+	constructor(
+		memoryPort: MemoryPort,
+		toolExecutor: IToolExecutor,
+		planner: IContextPlanner,
+		budgetManager: ITokenBudgetManager,
+		compressor: ILayerCompressor,
+		accumulator: IContextAccumulator,
+		cache: IContextCache,
+		options: ContextEngineServiceOptions,
+	) {
+		this.memoryPort = memoryPort;
+		this.toolExecutor = toolExecutor;
+		this.planner = planner;
+		this.budgetManager = budgetManager;
+		this.compressor = compressor;
+		this.accumulator = accumulator;
+		this.cache = cache;
+		this.options = options;
+	}
+
+	// -------------------------------------------------------------------------
+	// buildContext — entry point
+	// -------------------------------------------------------------------------
+
+	async buildContext(request: ContextBuildRequest): Promise<ContextAssemblyResult> {
+		const startMs = Date.now();
+
+		// Validate required fields
+		if (
+			!request.sessionId ||
+			!request.phaseId ||
+			!request.taskId ||
+			!request.taskDescription
+		) {
+			return this.buildDegradedResult(request, [], "invalid_request");
+		}
+
+		// Plan retrieval
+		const plan = this.planner.plan(
+			request.stepType,
+			request.taskDescription,
+			request.previousToolResults ?? [],
+		);
+
+		// Populate all layers
+		const population = await this.populateLayers(request, plan);
+
+		// Apply budget enforcement and compression
+		const assembled = this.applyBudgets(population.layers);
+
+		// Assemble final content string in canonical order
+		const { content, layers, layerUsage, totalTokens } = this.assembleContent(assembled);
+
+		const durationMs = Date.now() - startMs;
+		void durationMs; // used for observability (task 9.3)
+
+		return {
+			content,
+			layers,
+			totalTokens,
+			layerUsage,
+			plannerDecision: plan,
+			degraded: population.degraded,
+			omittedLayers: population.omittedLayers,
+		};
+	}
+
+	// -------------------------------------------------------------------------
+	// expandContext — stub (implemented in task 9.1)
+	// -------------------------------------------------------------------------
+
+	async expandContext(request: ExpansionRequest): Promise<ExpansionResult> {
+		const expandable: ReadonlyArray<string> = [
+			"codeContext",
+			"activeSpecification",
+			"memoryRetrieval",
+		];
+		if (!expandable.includes(request.targetLayer)) {
+			return {
+				ok: false,
+				updatedTokenCount: 0,
+				errorReason: `Layer "${request.targetLayer}" is not expandable`,
+			};
+		}
+		// Full implementation deferred to task 9.1
+		return { ok: true, updatedTokenCount: 0 };
+	}
+
+	// -------------------------------------------------------------------------
+	// resetPhase — delegates to accumulator (task 9.2 adds observability)
+	// -------------------------------------------------------------------------
+
+	resetPhase(phaseId: string): void {
+		this.accumulator.resetPhase(phaseId);
+	}
+
+	// -------------------------------------------------------------------------
+	// resetTask — delegates to accumulator (task 9.2 adds observability)
+	// -------------------------------------------------------------------------
+
+	resetTask(taskId: string): void {
+		this.accumulator.resetTask(taskId);
+	}
+
+	// -------------------------------------------------------------------------
+	// Layer population helpers
+	// -------------------------------------------------------------------------
+
+	private async populateLayers(
+		request: ContextBuildRequest,
+		plan: PlannerDecision,
+	): Promise<PopulationResult> {
+		const layers: LayerContent[] = [];
+		const omittedLayers: LayerId[] = [];
+		let degraded = false;
+
+		const layersToRetrieve = new Set(plan.layersToRetrieve);
+
+		// systemInstructions — always populated
+		const sysInstr = await this.populateSystemInstructions();
+		if (sysInstr !== null) {
+			layers.push(sysInstr);
+		} else {
+			// systemInstructions omitted but not fatal
+			omittedLayers.push("systemInstructions");
+		}
+
+		// taskDescription — always populated, never compressed/cached
+		layers.push(this.populateTaskDescription(request.taskDescription));
+
+		// activeSpecification
+		if (layersToRetrieve.has("activeSpecification")) {
+			const specLayer = await this.populateActiveSpecification();
+			if (specLayer !== null) {
+				layers.push(specLayer);
+			} else {
+				omittedLayers.push("activeSpecification");
+				degraded = true;
+			}
+		}
+
+		// repositoryState
+		if (layersToRetrieve.has("repositoryState")) {
+			const repoLayer = await this.populateRepositoryState();
+			if (repoLayer !== null) {
+				layers.push(repoLayer);
+			} else {
+				omittedLayers.push("repositoryState");
+				degraded = true;
+			}
+		}
+
+		// memoryRetrieval
+		if (layersToRetrieve.has("memoryRetrieval")) {
+			const memLayer = await this.populateMemoryRetrieval(request.taskDescription);
+			if (memLayer !== null) {
+				layers.push(memLayer);
+			} else {
+				omittedLayers.push("memoryRetrieval");
+				degraded = true;
+			}
+		}
+
+		// codeContext
+		if (layersToRetrieve.has("codeContext")) {
+			const codeLayer = await this.populateCodeContext(plan);
+			if (codeLayer !== null) {
+				layers.push(codeLayer);
+			} else {
+				omittedLayers.push("codeContext");
+				degraded = true;
+			}
+		}
+
+		// toolResults
+		if (layersToRetrieve.has("toolResults") && request.previousToolResults?.length) {
+			layers.push(this.populateToolResults(request.previousToolResults));
+		}
+
+		return { layers, omittedLayers, degraded };
+	}
+
+	// -------------------------------------------------------------------------
+	// populateSystemInstructions
+	// -------------------------------------------------------------------------
+
+	private async populateSystemInstructions(): Promise<LayerContent | null> {
+		const paths = this.options.steeringDocPaths;
+		if (!paths || paths.length === 0) {
+			return null;
+		}
+
+		const parts: string[] = [];
+		let anyCacheHit = false;
+
+		for (const filePath of paths) {
+			try {
+				const statResult = await stat(filePath);
+				const mtime = statResult.mtimeMs;
+				const cached = this.cache.get(filePath, mtime);
+
+				if (cached !== null) {
+					parts.push(cached.content);
+					anyCacheHit = true;
+				} else {
+					const content = await readFile(filePath, "utf-8");
+					const tokenCount = this.budgetManager.countTokens(content);
+					this.cache.set({
+						filePath,
+						content,
+						tokenCount,
+						mtime,
+						cachedAt: new Date().toISOString(),
+					});
+					parts.push(content);
+				}
+			} catch {
+				// File not found or unreadable — skip this path
+				console.warn(
+					`[ContextEngineService] Failed to read steering doc: ${filePath}`,
+				);
+			}
+		}
+
+		if (parts.length === 0) {
+			return null;
+		}
+
+		return {
+			layerId: "systemInstructions",
+			content: parts.join("\n\n---\n\n"),
+			cacheHit: anyCacheHit,
+		};
+	}
+
+	// -------------------------------------------------------------------------
+	// populateTaskDescription
+	// -------------------------------------------------------------------------
+
+	private populateTaskDescription(taskDescription: string): LayerContent {
+		return {
+			layerId: "taskDescription",
+			content: taskDescription,
+			cacheHit: false,
+		};
+	}
+
+	// -------------------------------------------------------------------------
+	// populateActiveSpecification
+	// -------------------------------------------------------------------------
+
+	private async populateActiveSpecification(): Promise<LayerContent | null> {
+		const specPath = this.options.activeSpecPath;
+		if (!specPath) {
+			return null;
+		}
+
+		try {
+			const content = await readFile(specPath, "utf-8");
+			return { layerId: "activeSpecification", content, cacheHit: false };
+		} catch {
+			console.warn(
+				`[ContextEngineService] Failed to read active specification: ${specPath}`,
+			);
+			return null;
+		}
+	}
+
+	// -------------------------------------------------------------------------
+	// populateRepositoryState (task 8.2)
+	// -------------------------------------------------------------------------
+
+	private async populateRepositoryState(): Promise<LayerContent | null> {
+		try {
+			const result = await this.toolExecutor.invoke(
+				"git_status",
+				{},
+				{
+					workspaceRoot: this.options.workspaceRoot,
+					workingDirectory: this.options.workspaceRoot,
+					permissions: {
+						filesystemRead: true,
+						filesystemWrite: false,
+						shellExecution: false,
+						gitWrite: false,
+						networkAccess: false,
+					},
+					memory: { search: async () => [] },
+					logger: { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} },
+				},
+			);
+
+			if (!result.ok) {
+				console.error("[ContextEngineService] git_status failed:", result.error);
+				return null;
+			}
+
+			const value = result.value as {
+				branch?: string;
+				staged?: string[];
+				unstaged?: string[];
+			};
+			const content =
+				`Branch: ${value.branch ?? "unknown"}\n` +
+				`Staged: ${(value.staged ?? []).join(", ") || "none"}\n` +
+				`Unstaged: ${(value.unstaged ?? []).join(", ") || "none"}`;
+
+			return { layerId: "repositoryState", content, cacheHit: false };
+		} catch (err) {
+			console.error("[ContextEngineService] Unexpected error in git_status:", err);
+			return null;
+		}
+	}
+
+	// -------------------------------------------------------------------------
+	// populateMemoryRetrieval (task 8.2)
+	// -------------------------------------------------------------------------
+
+	private async populateMemoryRetrieval(taskDescription: string): Promise<LayerContent | null> {
+		try {
+			const result = await this.memoryPort.query({
+				text: taskDescription,
+				topN: 5,
+			});
+
+			const content = result.entries
+				.map((e) =>
+					JSON.stringify({
+						title: e.entry.title,
+						description: e.entry.description,
+						relevanceScore: e.relevanceScore,
+					}),
+				)
+				.join("\n");
+
+			return {
+				layerId: "memoryRetrieval",
+				content: content || "(no memory entries)",
+				cacheHit: false,
+			};
+		} catch (err) {
+			console.warn("[ContextEngineService] Memory retrieval failed:", err);
+			return null;
+		}
+	}
+
+	// -------------------------------------------------------------------------
+	// populateCodeContext (task 8.2)
+	// -------------------------------------------------------------------------
+
+	private async populateCodeContext(plan: PlannerDecision): Promise<LayerContent | null> {
+		try {
+			const query = plan.codeContextQuery;
+			if (!query || (query.paths.length === 0 && !query.pattern)) {
+				return null;
+			}
+
+			const context = {
+				workspaceRoot: this.options.workspaceRoot,
+				workingDirectory: this.options.workspaceRoot,
+				permissions: {
+					filesystemRead: true,
+					filesystemWrite: false,
+					shellExecution: false,
+					gitWrite: false,
+					networkAccess: false,
+				},
+				memory: { search: async () => [] },
+				logger: { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} },
+			};
+
+			const parts: string[] = [];
+
+			if (query.pattern) {
+				const result = await this.toolExecutor.invoke(
+					"search_files",
+					{ pattern: query.pattern },
+					context,
+				);
+				if (result.ok) {
+					parts.push(String(result.value));
+				} else {
+					console.error("[ContextEngineService] search_files failed:", result.error);
+					return null;
+				}
+			} else {
+				for (const path of query.paths) {
+					const result = await this.toolExecutor.invoke("read_file", { path }, context);
+					if (result.ok) {
+						parts.push(String(result.value));
+					} else {
+						console.error("[ContextEngineService] read_file failed:", result.error);
+						return null;
+					}
+				}
+			}
+
+			return {
+				layerId: "codeContext",
+				content: parts.join("\n\n"),
+				cacheHit: false,
+			};
+		} catch (err) {
+			console.error("[ContextEngineService] Unexpected error in code context:", err);
+			return null;
+		}
+	}
+
+	// -------------------------------------------------------------------------
+	// populateToolResults (task 8.2)
+	// -------------------------------------------------------------------------
+
+	private populateToolResults(
+		previousToolResults: ReadonlyArray<{ toolName: string; content: string }>,
+	): LayerContent {
+		const content = previousToolResults
+			.map((r) => `[Tool: ${r.toolName}]\n${r.content}`)
+			.join("\n\n");
+		return { layerId: "toolResults", content, cacheHit: false };
+	}
+
+	// -------------------------------------------------------------------------
+	// applyBudgets — compression enforcement (task 8.3)
+	// -------------------------------------------------------------------------
+
+	private applyBudgets(layers: LayerContent[]): LayerContent[] {
+		const config = this.options.tokenBudgetConfig ?? this.defaultBudgetConfig();
+		const budgetMap = this.budgetManager.allocate(config);
+
+		return layers.map((layer) => {
+			const budget = budgetMap.budgets[layer.layerId];
+			const { overBy } = this.budgetManager.checkBudget(layer.content, budget);
+
+			if (overBy > 0 && layer.layerId !== "systemInstructions" && layer.layerId !== "taskDescription") {
+				const result = this.compressor.compress(
+					layer.layerId,
+					layer.content,
+					budget,
+					this.budgetManager.countTokens.bind(this.budgetManager),
+				);
+				return { ...layer, content: result.compressed };
+			}
+
+			return layer;
+		});
+	}
+
+	// -------------------------------------------------------------------------
+	// assembleContent — build final output (task 8.3)
+	// -------------------------------------------------------------------------
+
+	private assembleContent(populatedLayers: LayerContent[]): {
+		content: string;
+		layers: ReadonlyArray<{ layerId: LayerId; content: string }>;
+		layerUsage: ReadonlyArray<LayerTokenUsage>;
+		totalTokens: number;
+	} {
+		// Order by canonical layer registry
+		const populatedMap = new Map(populatedLayers.map((l) => [l.layerId, l]));
+		const ordered: LayerContent[] = [];
+		for (const entry of LAYER_REGISTRY) {
+			const layer = populatedMap.get(entry.id);
+			if (layer) {
+				ordered.push(layer);
+			}
+		}
+
+		const config = this.options.tokenBudgetConfig ?? this.defaultBudgetConfig();
+		const budgetMap = this.budgetManager.allocate(config);
+
+		const parts: string[] = [];
+		const layerResults: { layerId: LayerId; content: string }[] = [];
+		const layerUsage: LayerTokenUsage[] = [];
+		let totalTokens = 0;
+
+		for (const layer of ordered) {
+			parts.push(`=== [LAYER: ${layer.layerId}] ===\n${layer.content}`);
+			layerResults.push({ layerId: layer.layerId, content: layer.content });
+
+			const actualTokens = this.budgetManager.countTokens(layer.content);
+			totalTokens += actualTokens;
+			layerUsage.push({
+				layerId: layer.layerId,
+				actualTokens,
+				budget: budgetMap.budgets[layer.layerId],
+				cacheHit: layer.cacheHit,
+				compressed: false, // compression tracking detailed in task 8.3
+			});
+		}
+
+		return {
+			content: parts.join("\n\n"),
+			layers: layerResults,
+			layerUsage,
+			totalTokens,
+		};
+	}
+
+	// -------------------------------------------------------------------------
+	// buildDegradedResult — validation failure shortcut
+	// -------------------------------------------------------------------------
+
+	private buildDegradedResult(
+		request: ContextBuildRequest,
+		omittedLayers: LayerId[],
+		_reason: string,
+	): ContextAssemblyResult {
+		const emptyPlan: PlannerDecision = {
+			layersToRetrieve: [],
+			rationale: "validation_failure",
+		};
+
+		return {
+			content: "",
+			layers: [],
+			totalTokens: 0,
+			layerUsage: [],
+			plannerDecision: emptyPlan,
+			degraded: true,
+			omittedLayers,
+		};
+	}
+
+	// -------------------------------------------------------------------------
+	// defaultBudgetConfig
+	// -------------------------------------------------------------------------
+
+	private defaultBudgetConfig(): TokenBudgetConfig {
+		return {
+			layerBudgets: {
+				systemInstructions: 1000,
+				taskDescription: 500,
+				activeSpecification: 2000,
+				codeContext: 4000,
+				repositoryState: 500,
+				memoryRetrieval: 1500,
+				toolResults: 2000,
+			},
+			modelTokenLimit: 128000,
+			safetyBufferFraction: 0.05,
+		};
+	}
+}

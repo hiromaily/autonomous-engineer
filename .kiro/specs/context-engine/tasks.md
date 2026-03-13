@@ -69,7 +69,7 @@
   - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5_
 
 - [ ] 8. Implement ContextEngineService — core context assembly
-- [ ] 8.1 Scaffold the service class and layer population helpers
+- [x] 8.1 Scaffold the service class and layer population helpers
   - Create `application/context/context-engine-service.ts` implementing `IContextEngine`
   - Accept `MemoryPort`, `IToolExecutor`, `IContextPlanner`, `ITokenBudgetManager`, `ILayerCompressor`, `IContextAccumulator`, `IContextCache`, and an optional `TokenBudgetConfig` in the constructor
   - Implement `buildContext(request)` entry point: start a timer for `durationMs`, validate required fields, and delegate layer population to individual helpers
