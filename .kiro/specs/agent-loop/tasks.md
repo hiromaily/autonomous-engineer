@@ -169,18 +169,18 @@
   - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5_
 
 - [ ] 11. Integration tests
-- [ ] 11.1 Full PLAN→ACT→OBSERVE→REFLECT→UPDATE cycle with real registry
+- [x] 11.1 Full PLAN→ACT→OBSERVE→REFLECT→UPDATE cycle with real registry
   - Instantiate the agent loop service with a real tool registry populated with a mock tool, a mock LLM provider, and a mock event bus; run a three-iteration task where the mock LLM returns valid plan and reflection responses
   - Verify the final agent state has three completed steps, an iteration count of three, and three observations accumulated
   - Verify the state query method returns the correct iteration number and active step when called between steps during asynchronous execution
   - _Requirements: 1.1, 1.2, 1.3, 4.1, 4.2, 5.1, 5.2, 6.1, 10.3_
 
-- [ ] 11.2 Error recovery integration — full recovery cycle
+- [x] 11.2 Error recovery integration — full recovery cycle
   - Configure the mock tool executor to fail on the first call and succeed on the second; run a single-step task and verify the loop completes successfully with the task-completed condition and that exactly one recovery-attempt event was emitted
   - Configure the mock tool executor to always fail; verify the loop exits with the recovery-exhausted condition and the termination event carries a final state with a non-zero recovery attempt count
   - _Requirements: 8.1, 8.2, 8.3, 8.4, 9.2_
 
-- [ ] 11.3 Event bus ordering and AgentState serialization
+- [x] 11.3 Event bus ordering and AgentState serialization
   - Run a two-iteration task with a concrete event bus implementation; collect all emitted events and verify the correct sequence for both iterations — iteration-start, then five step-start/step-complete pairs in PLAN→ACT→OBSERVE→REFLECT→UPDATE order, then iteration-complete — followed by the final termination event
   - Take the final agent state from the loop result, serialize it to JSON, parse it back, and verify that all string fields, array contents, and numeric counts round-trip without data loss
   - _Requirements: 9.1, 9.2, 9.3, 1.4_
