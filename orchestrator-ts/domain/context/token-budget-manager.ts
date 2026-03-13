@@ -1,4 +1,4 @@
-import { getEncoding } from "js-tiktoken";
+import { type Tiktoken, getEncoding } from "js-tiktoken";
 import type {
 	ITokenBudgetManager,
 	LayerBudgetMap,
@@ -7,17 +7,19 @@ import type {
 } from "../../application/ports/context";
 import { LAYER_REGISTRY } from "./layer-registry";
 
-export class TokenBudgetManager implements ITokenBudgetManager {
-	// biome-ignore lint/suspicious/noExplicitAny: internal encoder type not exported by js-tiktoken
-	private _encoder: any;
+// Initialized once at module load; reused across all TokenBudgetManager instances.
+const DEFAULT_ENCODER = getEncoding("cl100k_base");
 
-	constructor() {
-		this._encoder = getEncoding("cl100k_base");
+export class TokenBudgetManager implements ITokenBudgetManager {
+	private readonly encoder: Tiktoken;
+
+	constructor(encoder?: Tiktoken) {
+		this.encoder = encoder ?? DEFAULT_ENCODER;
 	}
 
 	countTokens(text: string): number {
 		try {
-			return this._encoder.encode(text).length;
+			return this.encoder.encode(text).length;
 		} catch {
 			console.warn(
 				"[TokenBudgetManager] tiktoken encode error — falling back to length/4 approximation",
@@ -31,21 +33,27 @@ export class TokenBudgetManager implements ITokenBudgetManager {
 			config.modelTokenLimit * (1 - config.safetyBufferFraction),
 		);
 
-		const defaultSum = LAYER_REGISTRY.reduce(
-			(sum, layer) => sum + (config.layerBudgets[layer.id] ?? layer.defaultBudget),
-			0,
-		);
-
-		const scaleFactor = defaultSum > effectiveTotal ? effectiveTotal / defaultSum : 1;
-
+		// Single pass: collect per-layer defaults and their sum.
 		const budgets: Record<LayerId, number> = {} as Record<LayerId, number>;
-		let allocatedSum = 0;
-
+		let defaultSum = 0;
 		for (const layer of LAYER_REGISTRY) {
-			const raw = (config.layerBudgets[layer.id] ?? layer.defaultBudget) * scaleFactor;
-			const budget = Math.floor(raw);
+			const budget = config.layerBudgets[layer.id] ?? layer.defaultBudget;
 			budgets[layer.id] = budget;
-			allocatedSum += budget;
+			defaultSum += budget;
+		}
+
+		// Fast path: defaults already fit within the effective limit.
+		if (defaultSum <= effectiveTotal) {
+			return { budgets, totalBudget: defaultSum };
+		}
+
+		// Scale down proportionally to fit.
+		const scaleFactor = effectiveTotal / defaultSum;
+		let allocatedSum = 0;
+		for (const layer of LAYER_REGISTRY) {
+			const scaled = Math.floor(budgets[layer.id] * scaleFactor);
+			budgets[layer.id] = scaled;
+			allocatedSum += scaled;
 		}
 
 		return { budgets, totalBudget: allocatedSum };
