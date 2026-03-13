@@ -128,13 +128,13 @@
   - _Requirements: 9.1, 9.3, 9.4, 9.5_
 
 - [ ] 9. (P) Unit tests — domain types
-- [ ] 9.1 Test agent state structure and initialization
+- [x] 9.1 Test agent state structure and initialization
   - Verify that a fresh agent state produced by the initialization logic has empty plan, completed steps, and observations arrays, iteration count of zero, recovery attempts of zero, and a valid ISO timestamp
   - Verify that an observation with a failure carries the structured error and has its success flag set to false
   - Verify that an agent state with observations can be serialized to JSON and parsed back without data loss when the raw output is a string value
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5_
 
-- [ ] 9.2 Test agent loop event union and termination conditions
+- [x] 9.2 Test agent loop event union and termination conditions
   - Verify that each event variant can be narrowed by its type discriminant in an exhaustive switch with no default branch needed
   - Verify that all five termination condition values are present in the union and can be exhaustively checked
   - _Requirements: 9.2, 7.2_
