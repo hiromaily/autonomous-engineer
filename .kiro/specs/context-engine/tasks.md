@@ -14,7 +14,7 @@
   - Ensure every method signature is `readonly`-safe and matches the contracts in design.md exactly
   - _Requirements: 1.1, 1.4, 2.5, 3.5, 4.5, 5.4, 5.5, 6.5, 9.1_
 
-- [ ] 2. Implement LayerRegistry
+- [x] 2. Implement LayerRegistry
   - Define the seven ordered layer entries with their default token budgets and cacheable/compressible flags as a frozen constant in `domain/context/layer-registry.ts`
   - Expose a helper that returns layers in canonical order and a lookup by `LayerId`
   - Enforce the invariant that `systemInstructions` precedes `taskDescription` and `toolResults` is last
