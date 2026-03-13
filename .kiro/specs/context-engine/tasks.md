@@ -1,13 +1,13 @@
 # Implementation Plan
 
 - [ ] 1. Install dependency and define all application port types
-- [ ] 1.1 Add js-tiktoken to the orchestrator-ts package and verify it resolves synchronously
+- [x] 1.1 Add js-tiktoken to the orchestrator-ts package and verify it resolves synchronously
   - Add `js-tiktoken` to `orchestrator-ts/package.json` dependencies
   - Run `bun install` inside `orchestrator-ts/` and confirm the package resolves without WASM errors
   - Verify that `import { Tiktoken } from "js-tiktoken"` works in a quick smoke file
   - _Requirements: 3.1_
 
-- [ ] 1.2 (P) Define all shared types and the IContextEngine port in `application/ports/context.ts`
+- [x] 1.2 (P) Define all shared types and the IContextEngine port in `application/ports/context.ts`
   - Declare `LayerId` union, `StepType` union, and all request/result value-object interfaces (`ContextBuildRequest`, `ContextAssemblyResult`, `ExpansionRequest`, `ExpansionResult`, `ToolResultEntry`, `LayerTokenUsage`)
   - Declare `PlannerDecision`, `LayerBudgetConfig`, `TokenBudgetConfig`, `LayerBudgetMap`, `CompressionTechnique`, `CompressionResult`, `AccumulatedEntry`, `ExpansionEvent`, `ContextAccumulatorConfig`, `CachedEntry`, `CacheStats`, `ContextAssemblyLog` types
   - Declare the `IContextEngine`, `IContextPlanner`, `ITokenBudgetManager`, `ILayerCompressor`, `IContextAccumulator`, `IContextCache` interfaces with full JSDoc
