@@ -145,21 +145,21 @@
 ---
 
 - [ ] 8. Unit Tests
-- [ ] 8.1 (P) Stateless guard unit tests
+- [x] 8.1 (P) Stateless guard unit tests
   - `WorkspaceIsolationGuard`: path traversal sequences (e.g., `../../../etc/passwd`) rejected, paths at workspace root boundary accepted, paths outside root rejected, all four filesystem tool categories covered, git tool paths covered, shell tool paths covered
   - `FilesystemGuard`: each default protected pattern (`.env`, `secrets.json`, `.git/config`) rejected on write; operator-added patterns rejected; read operations on same paths pass through
   - `GitSafetyGuard`: commit on `main` rejected with `"permission"` error; commit on `agent/foo` accepted; staged file count at limit accepted; staged file count above limit rejected with `"validation"` error; branch name `agent/foo` accepted; branch name `no-prefix` rejected
   - `ShellRestrictionGuard`: blocklist match rejected with matched pattern in error message; blocklist non-match allowed; allowlist present with match allowed; allowlist present with non-match rejected
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 2.1, 2.2, 2.3, 2.4, 2.5, 3.1, 3.2, 3.3, 3.4, 3.5, 4.1, 4.2, 4.3, 4.4, 4.5_
 
-- [ ] 8.2 (P) Stateful guard unit tests
+- [x] 8.2 (P) Stateful guard unit tests
   - `IterationLimitGuard`: at-limit invocation accepted; one-over-limit rejected with limit type and current count in message; runtime limit similarly tested with a mocked elapsed time
   - `FailureDetectionGuard`: first and second consecutive identical failures pass; third consecutive identical failure sets `session.paused` and emits notification; subsequent invocations on paused session all rejected; counter resets on a different result
   - `RateLimitGuard`: at-limit for each of the three categories accepted; one-over-limit for each rejected with category name and count in message; rolling window prunes timestamps older than 60 seconds; repo write counter increments correctly per session
   - `DestructiveActionGuard`: bulk delete above threshold returns `requiresApproval: true` with populated `ApprovalRequest`; force-push flag triggers approval request; protected file write triggers approval request; delete count below threshold passes through
   - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 7.1, 7.2, 7.3, 7.4, 7.5, 8.1, 8.2, 9.1, 9.2, 9.3, 9.4, 9.5_
 
-- [ ] 8.3 (P) Adapter unit tests
+- [x] 8.3 (P) Adapter unit tests
   - `AuditLogger`: writes valid NDJSON entries in append mode; all required fields present (session ID, iteration number, tool name, outcome, block reason); directory created on first write; existing content preserved across multiple writes; sanitized input summary capped at 512 bytes
   - `ApprovalGateway`: `'y'` input returns `'approved'`; non-`'y'` input returns `'denied'`; no input within timeout returns `'timeout'` without blocking the test
   - `SandboxExecutor`: temp directory created and removed after successful execution; temp directory removed on timeout; setup failure (unwritable temp parent) returns `"runtime"` category error before any execution
