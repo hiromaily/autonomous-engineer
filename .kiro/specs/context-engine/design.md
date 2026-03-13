@@ -294,7 +294,7 @@ export interface IContextEngine {
 
   /**
    * Append additional content to an expandable layer mid-iteration.
-   * Rejected with error when targetLayer is not expandable or max expansions reached.
+   * Always resolves — returns a result with `ok: false` when targetLayer is not expandable or max expansions reached.
    */
   expandContext(request: ExpansionRequest): Promise<ExpansionResult>;
 
@@ -470,10 +470,10 @@ export interface ILayerCompressor {
 
 **Implementation Notes**
 - Integration: Spec extraction uses regex `/^#{1,4}\s.+/gm` for headings and `/^[\s]*[-*]\s.+/gm` within `Acceptance Criteria` sections.
-- Code skeleton extraction uses `/^export\s+(function|class|interface|type|const|abstract)/gm` and retains the matched line plus one closing-brace line.
+- Code skeleton extraction uses `/^export\s+(function|class|interface|type|const|abstract)/gm` to collect only the export declaration lines (signatures only — no bodies). This is intentionally a signature-extraction approach: it gives the LLM the public API surface (what exists and its type) without the implementation. Multi-line type definitions and generic constraints on a second line are not captured; this limitation is acceptable for v1 token reduction purposes. Upgrade to ts-morph AST extraction in v2 for complete signatures.
 - Memory filter: drops entries with `relevanceScore < 0.3` (configurable threshold).
-- Validation: After extraction, if `tokenCount > budget`, falls back to `content.slice(0, charBudget)` where `charBudget = budget * 4`.
-- Risks: Multi-line type definitions are truncated by single-line regex. Acceptable for v1; upgrade to ts-morph AST extraction in v2 if needed.
+- Validation: After extraction, if `tokenCount > budget` (budget-based check), falls back to `content.slice(0, charBudget)` where `charBudget = budget * 4`.
+- Risks: Single-line regex extraction misses multi-line declarations (e.g., generic type parameters spanning multiple lines). Acceptable for v1; upgrade to ts-morph AST extraction in v2 if needed.
 
 ---
 

@@ -40,7 +40,7 @@
 - [ ] 5. Implement LayerCompressor
   - Implement `ILayerCompressor` in `domain/context/layer-compressor.ts`; pure domain, no I/O
   - Spec extraction (`activeSpecification`): apply regex `/^#{1,4}\s.+/gm` for headings and collect acceptance-criteria list items within those sections; join retained lines
-  - Code skeleton extraction (`codeContext`): apply `/^export\s+(function|class|interface|type|const|abstract)/gm` and retain the matched declaration line plus one closing-brace line per match
+  - Code skeleton extraction (`codeContext`): apply `/^export\s+(function|class|interface|type|const|abstract)/gm` and retain only the matched declaration lines (signatures only — no bodies, no closing braces); this is intentional — the goal is to surface the public API surface for the LLM, not to produce syntactically valid code; multi-line type definitions not fully captured are a known v1 limitation
   - Memory score filter (`memoryRetrieval`): parse entries as objects with a `relevanceScore` field and drop those below 0.3; join retained entries
   - Truncation fallback: after any extraction, if `tokenCounter(result) > budget`, slice to `budget * 4` characters
   - Guard: return the original content unchanged when `layerId` is `systemInstructions` or `taskDescription`; emit a warning when compression is called on those layers
@@ -81,7 +81,7 @@
 - [ ] 8.2 Implement repository state, memory, code context, and tool result layer population
   - `populateRepositoryState()`: call `IToolExecutor.invoke("git_status")`; format output as `Branch: <branch>\nStaged: <files>\nUnstaged: <files>`; omit layer on tool failure, log error
   - `populateMemoryRetrieval()`: call `MemoryPort.query({ text: taskDescription, topN: 5 })`; format ranked entries as memory layer content; omit layer on memory-system failure, log warning
-  - `populateCodeContext(plan)`: call `IToolExecutor.invoke("read_file" | "search_files")` for each path in `plan.codeContextQuery.paths`; concatenate results; omit on failure, log error
+  - `populateCodeContext(plan)`: if `plan.codeContextQuery.pattern` is present, call `IToolExecutor.invoke("search_files", { pattern })` once; otherwise call `IToolExecutor.invoke("read_file", { path })` for each entry in `plan.codeContextQuery.paths`; concatenate all results; omit the layer and log an error on any tool failure
   - `populateToolResults(previousToolResults)`: format the entries array as tool-results layer content; always succeed (input is already in-memory)
   - Apply the planner's `layersToRetrieve` list to skip unrequested layers entirely
   - _Requirements: 1.3, 1.5, 2.1, 2.4, 10.1, 10.2, 10.4, 10.5, 11.1, 11.2_

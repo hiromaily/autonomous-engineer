@@ -165,7 +165,7 @@
 ## Risks & Mitigations
 
 - **Risk**: `js-tiktoken` token count diverges from Anthropic's actual count by more than the 5% safety buffer, causing context window overflows. — Mitigation: log actual token counts from each API response; add automated alerting when estimated vs. actual diverges by >10%.
-- **Risk**: Regex-based code extraction strips semantically important lines (e.g., decorators, multi-line type definitions). — Mitigation: the compressor falls back to truncation when extraction reduces content below a minimum useful threshold. Track quality in observability logs.
+- **Risk**: Regex-based code extraction strips semantically important lines (e.g., decorators, multi-line type definitions). — Mitigation: the compressor uses a budget-based fallback — if the extracted content still exceeds the token budget, it truncates to `budget * 4` characters. Additionally, the extraction is signature-only by design; single-line export declarations are the authoritative v1 output. Multi-line type definitions are a known limitation deferred to v2 (ts-morph AST extraction). Track extraction outcomes in observability logs.
 - **Risk**: Phase isolation logic in the Context Engine diverges from `PhaseRunner.onEnter()` lifecycle hook timing. — Mitigation: the Context Engine exposes an explicit `resetPhase(phaseId)` method; `PhaseRunner.onEnter()` is extended (in spec4/spec9) to call this method, ensuring a single reset trigger.
 - **Risk**: ContextCache grows without bound during a long session if many unique steering files are loaded. — Mitigation: cache is bounded to 50 entries (configurable); LRU eviction on overflow.
 
