@@ -20,7 +20,7 @@
   - Enforce the invariant that `systemInstructions` precedes `taskDescription` and `toolResults` is last
   - _Requirements: 1.1, 1.2, 1.4, 1.5, 4.6_
 
-- [ ] 3. Implement ContextPlanner
+- [x] 3. Implement ContextPlanner
   - Implement `IContextPlanner.plan()` as a pure function in `domain/context/context-planner.ts`; no I/O, no imports from application or adapter layers
   - For `Exploration` steps always include `codeContext` and `repositoryState` in `layersToRetrieve`
   - For `Modification` steps always include `codeContext` and `activeSpecification`
