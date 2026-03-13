@@ -199,7 +199,7 @@ describe("SafetyGuardedToolExecutor — end-to-end integration", () => {
       expect(entries.length).toBe(1);
       expect(entries[0].outcome).toBe("blocked");
       expect(typeof entries[0].blockReason).toBe("string");
-      expect(entries[0].blockReason!.length).toBeGreaterThan(0);
+      expect(entries[0].blockReason?.length).toBeGreaterThan(0);
 
       // The error is returned after the audit entry is written
       expect(result.ok).toBe(false);
@@ -379,8 +379,8 @@ describe("SafetyGuardedToolExecutor — end-to-end integration", () => {
         expect(result.error.message).toContain("iterations");
         // Progress summary must be present in details
         expect(result.error.details).toBeDefined();
-        expect(typeof result.error.details!["progressSummary"]).toBe("string");
-        expect((result.error.details!["progressSummary"] as string).length).toBeGreaterThan(0);
+        expect(typeof result.error.details?.progressSummary).toBe("string");
+        expect((result.error.details?.progressSummary as string).length).toBeGreaterThan(0);
       }
 
       // Blocked audit entry must be written for the rejected invocation
@@ -391,7 +391,7 @@ describe("SafetyGuardedToolExecutor — end-to-end integration", () => {
       const lastEntry = entries[entries.length - 1];
       expect(lastEntry.outcome).toBe("blocked");
       expect(typeof lastEntry.blockReason).toBe("string");
-      expect(lastEntry.blockReason!).toContain("iterations");
+      expect(lastEntry.blockReason as string).toContain("iterations");
     });
   });
 });

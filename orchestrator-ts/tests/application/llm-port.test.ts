@@ -12,7 +12,7 @@ import type {
 // Helper: build a minimal mock that satisfies LlmProviderPort
 // ---------------------------------------------------------------------------
 
-function makeProvider(result: LlmResult, trackContext = false): LlmProviderPort & { history: string[] } {
+function makeProvider(result: LlmResult, _trackContext = false): LlmProviderPort & { history: string[] } {
   const history: string[] = [];
   let cleared = false;
 

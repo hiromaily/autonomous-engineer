@@ -13,7 +13,7 @@ export class JsonLogWriter {
 
   async write(event: WorkflowEvent): Promise<void> {
     const fh = await this.openPromise;
-    await fh.write(JSON.stringify(event) + "\n");
+    await fh.write(`${JSON.stringify(event)}\n`);
   }
 
   async close(): Promise<void> {

@@ -31,11 +31,11 @@ export class ConfigLoader implements IConfigLoader {
 
   private mergeWithEnv(file: Partial<RawConfig>): MergedConfig {
     return {
-      provider: this.env["AES_LLM_PROVIDER"] ?? file.llm?.provider,
-      modelName: this.env["AES_LLM_MODEL_NAME"] ?? file.llm?.modelName,
-      apiKey: this.env["AES_LLM_API_KEY"] ?? file.llm?.apiKey,
-      specDir: this.env["AES_SPEC_DIR"] ?? file.specDir,
-      sddFramework: this.env["AES_SDD_FRAMEWORK"] ?? file.sddFramework,
+      provider: this.env.AES_LLM_PROVIDER ?? file.llm?.provider,
+      modelName: this.env.AES_LLM_MODEL_NAME ?? file.llm?.modelName,
+      apiKey: this.env.AES_LLM_API_KEY ?? file.llm?.apiKey,
+      specDir: this.env.AES_SPEC_DIR ?? file.specDir,
+      sddFramework: this.env.AES_SDD_FRAMEWORK ?? file.sddFramework,
     };
   }
 
@@ -52,9 +52,9 @@ export class ConfigLoader implements IConfigLoader {
 
     return {
       llm: {
-        provider: merged.provider!,
-        modelName: merged.modelName!,
-        apiKey: merged.apiKey!,
+        provider: merged.provider as string,
+        modelName: merged.modelName as string,
+        apiKey: merged.apiKey as string,
       },
       specDir: merged.specDir ?? ".kiro/specs",
       sddFramework: this.parseSddFramework(merged.sddFramework),

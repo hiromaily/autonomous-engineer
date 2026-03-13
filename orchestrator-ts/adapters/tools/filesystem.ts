@@ -53,7 +53,7 @@ export interface SearchFilesOutput {
 export function resolveWorkspacePath(workspaceRoot: string, requestedPath: string): string {
   const resolved = resolve(workspaceRoot, requestedPath);
   // Normalise root with trailing separator to avoid false matches on prefixes
-  const rootWithSep = workspaceRoot.endsWith("/") ? workspaceRoot : workspaceRoot + "/";
+  const rootWithSep = workspaceRoot.endsWith("/") ? workspaceRoot : `${workspaceRoot}/`;
   if (resolved !== workspaceRoot && !resolved.startsWith(rootWithSep)) {
     throw new PathTraversalError(
       `Path traversal rejected: '${requestedPath}' resolves outside workspace root '${workspaceRoot}'`,

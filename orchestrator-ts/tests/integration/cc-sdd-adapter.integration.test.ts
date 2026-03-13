@@ -111,7 +111,7 @@ async function makeSpecDir(specName: string): Promise<{ specDir: string; ctx: Sp
 
 describe("CcSddAdapter — integration: generateRequirements", () => {
   it("creates requirements.md on disk and returns ok: true", async () => {
-    const { specDir, ctx } = await makeSpecDir("my-spec");
+    const { ctx } = await makeSpecDir("my-spec");
     const adapter = new CcSddAdapter(makeRealSpawnWithBinary(fakeBinaryPath));
 
     const result = await adapter.generateRequirements(ctx);

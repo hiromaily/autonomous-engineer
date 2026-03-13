@@ -157,8 +157,8 @@ describe("EmergencyStopHandler + AuditLogger — integration", () => {
         expect(entries.length).toBeGreaterThanOrEqual(1);
         const stopEntry = entries.find(e => e.outcome === "emergency-stop");
         expect(stopEntry).toBeDefined();
-        expect(stopEntry!.sessionId).toBe(session.sessionId);
-        expect(stopEntry!.toolName).toBe("N/A");
+        expect(stopEntry?.sessionId).toBe(session.sessionId);
+        expect(stopEntry?.toolName).toBe("N/A");
 
         // Subsequent invocations must be rejected immediately
         const result = await executor.invoke(

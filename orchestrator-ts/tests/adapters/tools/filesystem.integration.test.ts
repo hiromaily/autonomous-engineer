@@ -118,7 +118,7 @@ describe("read_file integration", () => {
     await executor.invoke("read_file", { path: join(tmpDir, "log.txt") }, ctx);
 
     expect(logger.getLogs().length).toBe(1);
-    expect(logger.getLogs()[0]!.resultStatus).toBe("success");
+    expect(logger.getLogs()[0]?.resultStatus).toBe("success");
   });
 
   it("rejects path traversal with a permission error", async () => {

@@ -97,7 +97,7 @@ describe("PermissionSet shape", () => {
 
     expect(Object.isFrozen(ps)).toBe(true);
     expect(() => {
-      (ps as Record<string, boolean>)["filesystemRead"] = false;
+      (ps as Record<string, boolean>).filesystemRead = false;
     }).toThrow();
   });
 });
@@ -115,8 +115,8 @@ describe("JSONSchema type alias", () => {
       required: ["path"],
     };
 
-    expect(schema["type"]).toBe("object");
-    expect(schema["required"]).toEqual(["path"]);
+    expect(schema.type).toBe("object");
+    expect(schema.required).toEqual(["path"]);
   });
 });
 
@@ -297,7 +297,7 @@ describe("ToolError shape", () => {
     };
 
     expect(err.type).toBe("runtime");
-    expect(err.details?.["exitCode"]).toBe(1);
+    expect(err.details?.exitCode).toBe(1);
   });
 
   it("accepts a permission error", () => {

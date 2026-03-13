@@ -127,7 +127,7 @@ export class SafetyGuardedToolExecutor implements IToolExecutor {
         await this.#writeAudit(name, rawInput, iterationNumber, "blocked", {
           blockReason: result.error?.message,
         });
-        return { ok: false, error: result.error! };
+        return { ok: false, error: result.error ?? { type: "permission", message: "blocked by guard" } };
       }
     }
 
@@ -146,7 +146,7 @@ export class SafetyGuardedToolExecutor implements IToolExecutor {
         await this.#writeAudit(name, rawInput, iterationNumber, "blocked", {
           blockReason: result.error?.message,
         });
-        return { ok: false, error: result.error! };
+        return { ok: false, error: result.error ?? { type: "permission", message: "blocked by guard" } };
       }
     }
 
@@ -179,7 +179,7 @@ export class SafetyGuardedToolExecutor implements IToolExecutor {
       await this.#writeAudit(name, rawInput, iterationNumber, "blocked", {
         blockReason: destructiveResult.error?.message,
       });
-      return { ok: false, error: destructiveResult.error! };
+      return { ok: false, error: destructiveResult.error ?? { type: "permission", message: "blocked by guard" } };
     }
 
     // -----------------------------------------------------------------------
@@ -190,7 +190,7 @@ export class SafetyGuardedToolExecutor implements IToolExecutor {
       await this.#writeAudit(name, rawInput, iterationNumber, "blocked", {
         blockReason: rateLimitResult.error?.message,
       });
-      return { ok: false, error: rateLimitResult.error! };
+      return { ok: false, error: rateLimitResult.error ?? { type: "permission", message: "blocked by guard" } };
     }
 
     // -----------------------------------------------------------------------
@@ -294,13 +294,13 @@ function buildSandboxCommand(toolName: string, rawInput: unknown): { command: st
   const input = rawInput as Record<string, unknown>;
   switch (toolName) {
     case "run_test_suite": {
-      const command = typeof input["framework"] === "string" ? input["framework"] : "bun";
+      const command = typeof input.framework === "string" ? input.framework : "bun";
       const args = ["test"];
-      if (typeof input["pattern"] === "string") args.push(input["pattern"]);
+      if (typeof input.pattern === "string") args.push(input.pattern);
       return { command, args };
     }
     case "install_dependencies": {
-      const command = typeof input["packageManager"] === "string" ? input["packageManager"] : "bun";
+      const command = typeof input.packageManager === "string" ? input.packageManager : "bun";
       return { command, args: ["install"] };
     }
     default:

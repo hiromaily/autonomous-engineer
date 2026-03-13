@@ -125,8 +125,8 @@ describe("AuditLogger", () => {
       const content = await readFile(logPath, "utf-8");
       const lines = content.trim().split("\n").filter(l => l !== "");
       expect(lines).toHaveLength(3);
-      expect(JSON.parse(lines.at(0)!).iterationNumber).toBe(1);
-      expect(JSON.parse(lines.at(2)!).iterationNumber).toBe(3);
+      expect(JSON.parse(lines.at(0) ?? "{}").iterationNumber).toBe(1);
+      expect(JSON.parse(lines.at(2) ?? "{}").iterationNumber).toBe(3);
     });
 
     it("concurrent writes produce valid NDJSON with no interleaved partial lines", async () => {

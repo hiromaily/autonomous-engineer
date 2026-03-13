@@ -132,7 +132,8 @@ describe("EmergencyStopHandler.trigger() with signal source", () => {
   it("includes sessionId and iterationNumber in the audit entry", async () => {
     session.iterationCount = 7;
     await handler.trigger({ kind: "signal", signal: "SIGINT" });
-    const entry = logger.entries[0]!;
+    const entry = logger.entries[0];
+    if (!entry) throw new Error("expected audit entry");
     expect(entry.sessionId).toBe(session.sessionId);
     expect(entry.iterationNumber).toBe(7);
   });
@@ -151,7 +152,7 @@ describe("EmergencyStopHandler.trigger() with signal source", () => {
     await handler.trigger({ kind: "signal", signal: "SIGINT" });
     const ts = logger.entries[0]?.timestamp;
     expect(ts).toBeDefined();
-    expect(new Date(ts!).toISOString()).toBe(ts);
+    expect(new Date(ts ?? "").toISOString()).toBe(ts);
   });
 });
 

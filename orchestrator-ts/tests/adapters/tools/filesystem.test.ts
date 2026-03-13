@@ -275,7 +275,7 @@ describe("list_directory tool", () => {
 
     const entry = output.entries.find((e) => e.name === "sized.txt");
     expect(typeof entry?.size).toBe("number");
-    expect(entry!.size).toBeGreaterThanOrEqual(0);
+    expect(entry?.size).toBeGreaterThanOrEqual(0);
   });
 
   it("throws when path traversal is attempted", async () => {

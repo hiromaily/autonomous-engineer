@@ -13,16 +13,16 @@
  *
  * Task 9.2 — Requirements: 1.1, 1.6, 1.7, 1.8, 3.6, 5.1, 5.5
  */
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it, mock } from "bun:test";
 import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { CcSddAdapter, type SpawnFn } from "../../adapters/sdd/cc-sdd-adapter";
+import type { SpawnFn } from "../../adapters/sdd/cc-sdd-adapter";
 import type { AesConfig } from "../../application/ports/config";
 import type { LlmProviderPort } from "../../application/ports/llm";
 import type { MemoryPort, ShortTermMemoryPort } from "../../application/ports/memory";
 import type { SddFrameworkPort } from "../../application/ports/sdd";
-import type { IWorkflowEventBus, IWorkflowStateStore, WorkflowEvent } from "../../application/ports/workflow";
+import type { WorkflowEvent } from "../../application/ports/workflow";
 import { RunSpecUseCase } from "../../application/usecases/run-spec";
 import { JsonLogWriter } from "../../cli/json-log-writer";
 import type { WorkflowPhase, WorkflowState } from "../../domain/workflow/types";
@@ -132,7 +132,7 @@ function makeStubSdd(): SddFrameworkPort {
   };
 }
 
-function makeFakeCcSddSpawnFn(): SpawnFn {
+function _makeFakeCcSddSpawnFn(): SpawnFn {
   return (argv) => {
     const [_ccSdd, ...rest] = argv;
     return Bun.spawn(["bun", fakeBinaryPath, ...rest] as string[], { stderr: "pipe" });
@@ -615,7 +615,7 @@ describe("E2E: --log-json writes all events as newline-delimited JSON", () => {
 
       for (const line of lines) {
         const obj = JSON.parse(line) as Record<string, unknown>;
-        expect(typeof obj["type"]).toBe("string");
+        expect(typeof obj.type).toBe("string");
       }
     } finally {
       await env.cleanup();

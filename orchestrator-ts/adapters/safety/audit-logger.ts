@@ -44,7 +44,7 @@ export class AuditLogger implements IAuditLogger {
   private async appendLine(entry: AuditEntry): Promise<void> {
     try {
       await mkdir(dirname(this.logPath), { recursive: true });
-      const line = JSON.stringify(entry) + "\n";
+      const line = `${JSON.stringify(entry)}\n`;
       const fh = await open(this.logPath, "a");
       try {
         await fh.write(line);

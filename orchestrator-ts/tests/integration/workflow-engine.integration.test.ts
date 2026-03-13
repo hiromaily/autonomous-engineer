@@ -247,6 +247,7 @@ describe("WorkflowEngine integration — resume after REQUIREMENTS approval", ()
     // Resume run: create fresh engine with restored state
     const restoredState = await stateStore.restore(SPEC_NAME);
     expect(restoredState).not.toBeNull();
+    if (!restoredState) return;
 
     const resumeRunner = makeStubPhaseRunner();
     const resumeEngine = new WorkflowEngine({
@@ -258,7 +259,7 @@ describe("WorkflowEngine integration — resume after REQUIREMENTS approval", ()
       language: "en",
     });
 
-    await resumeEngine.execute(restoredState!);
+    await resumeEngine.execute(restoredState);
 
     // SPEC_INIT must NOT be re-executed
     expect(resumeRunner.executedPhases).not.toContain("SPEC_INIT");
@@ -274,6 +275,7 @@ describe("WorkflowEngine integration — resume after REQUIREMENTS approval", ()
 
     // Resume without updating spec.json
     const restoredState = await stateStore.restore(SPEC_NAME);
+    if (!restoredState) return;
     const resumeEvents: WorkflowEvent[] = [];
     const resumeBus = new WorkflowEventBus();
     resumeBus.on((e) => resumeEvents.push(e));
@@ -288,7 +290,7 @@ describe("WorkflowEngine integration — resume after REQUIREMENTS approval", ()
       language: "en",
     });
 
-    const result = await resumeEngine.execute(restoredState!);
+    const result = await resumeEngine.execute(restoredState);
 
     expect(result.status).toBe("paused");
     expect(resumeEvents.some((e) => e.type === "approval:required")).toBe(true);
