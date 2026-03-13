@@ -1,6 +1,6 @@
 # Implementation Plan
 
-- [ ] 1. Define planning domain types
+- [x] 1. Define planning domain types
   - Define status union types for steps and tasks, supporting the four lifecycle states: pending, in-progress, completed, and failed.
   - Define entity types for the full four-level planning hierarchy (plan → task → step) with readonly fields, including a step status history array that records ISO 8601 timestamps for each transition.
   - Define a discriminated event union covering all observable planning lifecycle events: plan creation, validation, revision, step start/complete/fail/escalate, human review activation, and plan completion/escalation.
