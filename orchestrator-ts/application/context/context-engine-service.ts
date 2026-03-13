@@ -435,19 +435,17 @@ export class ContextEngineService implements IContextEngine {
 			return null;
 		}
 
-		const parts: string[] = [];
-		let anyCacheHit = false;
+		const results = await Promise.all(
+			paths.map(async (filePath) => {
+				try {
+					const statResult = await stat(filePath);
+					const mtime = statResult.mtimeMs;
+					const cached = this.cache.get(filePath, mtime);
 
-		for (const filePath of paths) {
-			try {
-				const statResult = await stat(filePath);
-				const mtime = statResult.mtimeMs;
-				const cached = this.cache.get(filePath, mtime);
+					if (cached !== null) {
+						return { content: cached.content, cacheHit: true };
+					}
 
-				if (cached !== null) {
-					parts.push(cached.content);
-					anyCacheHit = true;
-				} else {
 					const content = await readFile(filePath, "utf-8");
 					const tokenCount = this.budgetManager.countTokens(content);
 					this.cache.set({
@@ -457,12 +455,22 @@ export class ContextEngineService implements IContextEngine {
 						mtime,
 						cachedAt: new Date().toISOString(),
 					});
-					parts.push(content);
+					return { content, cacheHit: false };
+				} catch {
+					console.warn(
+						`[ContextEngineService] Failed to read steering doc: ${filePath}`,
+					);
+					return null;
 				}
-			} catch {
-				console.warn(
-					`[ContextEngineService] Failed to read steering doc: ${filePath}`,
-				);
+			}),
+		);
+
+		const parts: string[] = [];
+		let anyCacheHit = false;
+		for (const r of results) {
+			if (r !== null) {
+				parts.push(r.content);
+				if (r.cacheHit) anyCacheHit = true;
 			}
 		}
 
@@ -598,8 +606,10 @@ export class ContextEngineService implements IContextEngine {
 					return null;
 				}
 			} else {
-				for (const path of query.paths) {
-					const result = await this.toolExecutor.invoke("read_file", { path }, ctx);
+				const fileResults = await Promise.all(
+					query.paths.map((path) => this.toolExecutor.invoke("read_file", { path }, ctx)),
+				);
+				for (const result of fileResults) {
 					if (result.ok) {
 						parts.push(String(result.value));
 					} else {
@@ -692,24 +702,45 @@ export class ContextEngineService implements IContextEngine {
 
 				const targetTokens = this.budgetManager.countTokens(target.content);
 				const remainingBudget = Math.max(0, targetTokens - overage);
-				const charBudget = remainingBudget * 4;
 
 				console.error(
 					`[ContextEngineService] Total token overage of ${overage} tokens — truncating layer "${layerId}"`,
 				);
 
+				const truncatedContent = this.#truncateContentAware(layerId, target.content, remainingBudget);
 				compressionEvents.push({
 					layerId,
 					original: targetTokens,
-					compressed: remainingBudget,
+					compressed: this.budgetManager.countTokens(truncatedContent),
 					technique: "truncation",
 				});
-				result[idx] = { ...target, content: target.content.slice(0, charBudget), compressed: true };
+				result[idx] = { ...target, content: truncatedContent, compressed: true };
 				break;
 			}
 		}
 
 		return { layers: result, budgetMap, compressionEvents };
+	}
+
+	// -------------------------------------------------------------------------
+	// #truncateContentAware — content-aware truncation to a token budget
+	// -------------------------------------------------------------------------
+
+	#truncateContentAware(layerId: LayerId, content: string, tokenBudget: number): string {
+		// For memoryRetrieval, remove whole JSON-line entries from the end until within budget
+		if (layerId === "memoryRetrieval") {
+			const lines = content.split("\n").filter((l) => l.trim() !== "");
+			while (lines.length > 0) {
+				const joined = lines.join("\n");
+				if (this.budgetManager.countTokens(joined) <= tokenBudget) {
+					return joined;
+				}
+				lines.pop();
+			}
+			return "";
+		}
+		// Generic fallback: character-based slice
+		return content.slice(0, tokenBudget * 4);
 	}
 
 	// -------------------------------------------------------------------------

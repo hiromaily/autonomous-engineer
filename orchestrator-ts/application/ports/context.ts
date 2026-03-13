@@ -222,7 +222,7 @@ export interface AccumulatedEntry {
 
 export interface ExpansionEvent {
 	readonly resourceId: string;
-	readonly targetLayer: LayerId;
+	readonly targetLayer: "codeContext" | "activeSpecification" | "memoryRetrieval";
 	readonly addedTokenCount: number;
 	readonly newCumulativeTokenCount: number;
 	readonly timestamp: string; // ISO 8601

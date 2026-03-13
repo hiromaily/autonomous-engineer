@@ -59,9 +59,9 @@ export class LayerCompressor implements ILayerCompressor {
 			}
 		}
 
-		// Truncation fallback: if extraction still exceeds budget, slice by chars
+		// Truncation fallback: if extraction still exceeds budget, use content-aware truncation
 		if (tokenCounter(extracted) > budget) {
-			extracted = extracted.slice(0, budget * 4);
+			extracted = this.#truncateToFit(layerId, extracted, budget, tokenCounter);
 			technique = "truncation";
 		}
 
@@ -72,6 +72,32 @@ export class LayerCompressor implements ILayerCompressor {
 			technique,
 			originalTokenCount,
 		};
+	}
+
+	// ---------------------------------------------------------------------------
+	// Content-aware truncation: whole-line removal for structured layers
+	// ---------------------------------------------------------------------------
+
+	#truncateToFit(
+		layerId: LayerId,
+		content: string,
+		budget: number,
+		tokenCounter: (text: string) => number,
+	): string {
+		// For memoryRetrieval, remove whole JSON-line entries from the end until within budget
+		if (layerId === "memoryRetrieval") {
+			const lines = content.split("\n").filter((l) => l.trim() !== "");
+			while (lines.length > 0) {
+				const joined = lines.join("\n");
+				if (tokenCounter(joined) <= budget) {
+					return joined;
+				}
+				lines.pop();
+			}
+			return "";
+		}
+		// Generic fallback: character-based slice
+		return content.slice(0, budget * 4);
 	}
 
 	// ---------------------------------------------------------------------------

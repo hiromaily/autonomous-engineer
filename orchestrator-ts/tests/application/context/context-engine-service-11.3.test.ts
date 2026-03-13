@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { join } from "node:path";
 import type {
 	IContextAccumulator,
 	IContextCache,
@@ -339,7 +340,7 @@ describe("ContextEngineService — compression integration (task 11.3)", () => {
 
 			// Use a real file for systemInstructions — the project package.json is always present
 			const steeringPath =
-				"/Users/hiroki.yasui/work/hiromaily/autonomous-engineer/orchestrator-ts/package.json";
+				join(import.meta.dir, "../../../package.json");
 
 			const service = makeService({
 				planner: makePlannerWith([]),
@@ -358,7 +359,7 @@ describe("ContextEngineService — compression integration (task 11.3)", () => {
 		it("layerUsage[systemInstructions].compressed is false even when content greatly exceeds budget", async () => {
 			// Use a real file with content — package.json is small but we use budget=1 to trigger
 			const steeringPath =
-				"/Users/hiroki.yasui/work/hiromaily/autonomous-engineer/orchestrator-ts/package.json";
+				join(import.meta.dir, "../../../package.json");
 
 			const service = makeService({
 				planner: makePlannerWith([]),
