@@ -58,7 +58,7 @@
   - Tag every entry with the `phaseId` under which it was accumulated so the assembly filter can enforce phase isolation
   - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 7.1, 7.2, 7.3, 7.4, 7.5, 8.1, 8.2, 8.3, 8.4, 8.5_
 
-- [ ] 7. Implement ContextCache
+- [x] 7. Implement ContextCache
   - Implement `IContextCache` in `application/context/context-cache.ts`; uses `fs.stat` I/O so belongs in the application layer
   - Back the store with a `Map<string, CachedEntry>` and an ordered access list for LRU eviction; enforce a configurable capacity limit (default 50)
   - `get(filePath, currentMtime)` — return the cached entry only when `entry.mtime === currentMtime`; return null and increment miss counter on staleness or absence
