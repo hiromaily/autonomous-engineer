@@ -37,7 +37,7 @@
   - `checkTotal(layerTokenCounts, totalBudget)` — sum layer tokens and return the signed difference (positive = overage)
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
 
-- [ ] 5. Implement LayerCompressor
+- [x] 5. Implement LayerCompressor
   - Implement `ILayerCompressor` in `domain/context/layer-compressor.ts`; pure domain, no I/O
   - Spec extraction (`activeSpecification`): apply regex `/^#{1,4}\s.+/gm` for headings and collect acceptance-criteria list items within those sections; join retained lines
   - Code skeleton extraction (`codeContext`): apply `/^export\s+(function|class|interface|type|const|abstract)/gm` and retain only the matched declaration lines (signatures only — no bodies, no closing braces); this is intentional — the goal is to surface the public API surface for the LLM, not to produce syntactically valid code; multi-line type definitions not fully captured are a known v1 limitation
