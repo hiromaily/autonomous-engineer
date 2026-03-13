@@ -96,15 +96,15 @@
   - At service construction, verify that the agent loop, context builder, and LLM provider are all non-null; return a dependency-unavailable outcome immediately if any is missing rather than failing silently later.
   - _Requirements: 8.3, 11.5_
 
-- [ ] 6. Write unit tests for the task planning service
-- [ ] 6.1 (P) Test the plan generation and validation flow
+- [x] 6. Write unit tests for the task planning service
+- [x] 6.1 (P) Test the plan generation and validation flow
   - Verify successful plan generation and execution using a mock agent loop that always returns task-completed.
   - Verify that an LLM parse failure triggers the parse-retry logic and returns an escalated outcome after exhaustion.
   - Verify that plan validation failure returns the validation-error outcome.
   - Verify that a stop signal halts execution after the current step completes without aborting mid-step.
   - _Requirements: 2.1, 2.2, 2.4, 2.5, 6.4_
 
-- [ ] 6.2 (P) Test the human review gate behavior
+- [x] 6.2 (P) Test the human review gate behavior
   - Verify the gate activates when step count exceeds the configured threshold.
   - Verify the gate is bypassed when the skip-review flag is true.
   - Verify rejection with feedback triggers one plan revision and re-presentation.
@@ -112,14 +112,14 @@
   - Verify review timeout returns the waiting-for-input outcome with the plan persisted and resumable.
   - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5_
 
-- [ ] 6.3 (P) Test failure recovery scenarios
+- [x] 6.3 (P) Test failure recovery scenarios
   - Verify the first retry passes when the step succeeds on the second attempt.
   - Verify that failure context (error message and observation) is included in the agent loop invocation on the second attempt.
   - Verify all retries exhausted triggers LLM-driven plan revision before the final attempt.
   - Verify that a failed revised step returns the escalated outcome with the failed step ID.
   - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
 
-- [ ] 6.4 (P) Test dynamic plan adjustment and observability
+- [x] 6.4 (P) Test dynamic plan adjustment and observability
   - Verify that a revision signal in an agent loop result triggers plan validation, revision event persistence with before/after content, and continued execution from the revised step.
   - Verify that the event bus receives the correct event types at each lifecycle milestone.
   - Verify that execution does not advance while a revision is in progress.
