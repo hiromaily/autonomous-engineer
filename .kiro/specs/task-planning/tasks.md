@@ -9,7 +9,7 @@
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 10.1_
 
 - [ ] 2. (P) Implement plan structure validator
-- [ ] 2.1 Implement validation logic
+- [x] 2.1 Implement validation logic
   - Build a stateless validator in the domain layer with no I/O side effects.
   - Phase 1: collect all step and task IDs across the plan and detect duplicates.
   - Phase 2: verify every dependency reference in steps points to an existing step within the same plan.
@@ -17,7 +17,7 @@
   - Accumulate all validation errors in a single pass and return them together in the result.
   - _Requirements: 1.5, 5.3, 6.1, 6.2, 6.3, 6.4, 6.5_
 
-- [ ] 2.2 Write unit tests for the validator
+- [x] 2.2 Write unit tests for the validator
   - Verify duplicate ID detection covers both task and step IDs.
   - Verify that a dependency reference to a non-existent step produces a missing-dependency error.
   - Verify circular dependency detection for two-node (A→B→A) and longer multi-node cycles.
