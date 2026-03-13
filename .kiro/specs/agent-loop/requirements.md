@@ -121,7 +121,7 @@ The agent-loop depends on spec1 (orchestrator-core) and spec2 (tool-system), and
 2. The Agent Loop shall track recovery attempts per error occurrence and apply a configurable `maxRecoveryAttempts` limit (default: 3) before escalating.
 3. When the error recovery sub-loop resolves the error (validation passes), the Agent Loop shall resume normal iteration from the step that originally failed.
 4. When recovery attempts are exhausted without resolution, the Agent Loop shall emit a `RECOVERY_EXHAUSTED` event, record the failure context in `AgentState`, and stop with the `HUMAN_INTERVENTION_REQUIRED` termination condition.
-5. If the same error occurs at or above the `maxRecoveryAttempts` threshold in a single task execution without recovery, the Agent Loop shall detect this as a repeated failure pattern and immediately escalate rather than retrying further.
+5. If the same error (matching tool name and normalized error message) has occurred at or above the `maxRecoveryAttempts` threshold cumulatively in a single task execution — regardless of whether intermediate recovery attempts succeeded — the Agent Loop shall detect this as a repeated failure pattern and immediately escalate rather than retrying further. The occurrence count is **not** reset after a successful recovery; escalation is based on total cumulative occurrences.
 
 ---
 

@@ -393,7 +393,8 @@ export interface AgentLoopLogger {
 
 **Responsibilities & Constraints**
 - Implements `IAgentLoop`; all loop steps are private async methods.
-- Constructor-injected dependencies: `IToolExecutor`, `IToolRegistry`, `LlmProviderPort`, `ToolContext`, `AgentLoopOptions`.
+- Constructor-injected dependencies: `IToolExecutor`, `IToolRegistry`, `LlmProviderPort`, `ToolContext`.
+- `AgentLoopOptions` (max iterations, logger, event bus, etc.) are passed per-call to `run()`, not injected at construction time.
 - No direct imports of tool implementations or the Anthropic SDK.
 - Schema validation on each tool invocation is handled by `IToolExecutor` (requirement 10.5).
 - All LLM calls go through the injected `LlmProviderPort` (requirement 11.6).
@@ -561,5 +562,5 @@ The agent loop applies the same never-throw philosophy as `ToolExecutor`: all st
 ## Security Considerations
 
 - The agent loop itself performs no filesystem, network, or shell operations. All side-effects are mediated by `IToolExecutor`, which enforces the permission system (spec2/spec3).
-- `toolInput` values in `ActionPlan` are logged only after passing through `IToolExecutor`'s input sanitizer (same `logMaxInputBytes` truncation applied by `ToolExecutor`).
+- `toolInput` values in `ActionPlan` are redacted by `AgentLoopService`'s own private `#redactToolInput` helper before logging (truncation to `logMaxInputBytes`). This is separate from `IToolExecutor`'s internal sanitization and ensures sensitive input is never written to the agent-loop log.
 - `Observation.rawOutput` must not be logged in full; consumers are responsible for truncation before emission.

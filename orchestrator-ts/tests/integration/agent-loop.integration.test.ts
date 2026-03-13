@@ -644,11 +644,11 @@ describe("AgentLoopService integration — event ordering and state serializatio
 
     // Find the index of the first step:start event for each iteration
     for (let iter = 0; iter < 2; iter++) {
-      const iterStartIdx = events.findIndex((e) =>
-        e.type === "iteration:start" && (e as { iteration?: number }).iteration === iter
+      const iterStartIdx = events.findIndex(
+        (e) => e.type === "iteration:start" && e.iteration === iter,
       );
-      const firstStepStartIdx = events.findIndex((e) =>
-        e.type === "step:start" && (e as { iteration?: number }).iteration === iter
+      const firstStepStartIdx = events.findIndex(
+        (e) => e.type === "step:start" && e.iteration === iter,
       );
       expect(iterStartIdx).toBeLessThan(firstStepStartIdx);
     }
@@ -664,10 +664,9 @@ describe("AgentLoopService integration — event ordering and state serializatio
 
     for (let iter = 0; iter < 2; iter++) {
       const stepEvents = events.filter(
-        (e) =>
-          (e.type === "step:start" || e.type === "step:complete")
-          && (e as { iteration?: number }).iteration === iter,
-      ) as Array<{ type: "step:start" | "step:complete"; step: string; iteration: number }>;
+        (e): e is Extract<AgentLoopEvent, { type: "step:start" | "step:complete" }> =>
+          (e.type === "step:start" || e.type === "step:complete") && e.iteration === iter,
+      );
 
       // Should have 10 events (5 start + 5 complete) per iteration
       expect(stepEvents).toHaveLength(10);
@@ -691,11 +690,12 @@ describe("AgentLoopService integration — event ordering and state serializatio
     await service.run("ordering test", { maxIterations: 2, eventBus: bus });
 
     for (let iter = 0; iter < 2; iter++) {
-      const lastStepIdx = [...events].map((e, i) => ({ e, i })).filter(({ e }) =>
-        e.type === "step:complete" && (e as { iteration?: number }).iteration === iter
-      ).at(-1)!.i;
-      const iterCompleteIdx = events.findIndex((e) =>
-        e.type === "iteration:complete" && (e as { iteration?: number }).iteration === iter
+      const lastStepIdx = [...events]
+        .map((e, i) => ({ e, i }))
+        .filter(({ e }) => e.type === "step:complete" && e.iteration === iter)
+        .at(-1)!.i;
+      const iterCompleteIdx = events.findIndex(
+        (e) => e.type === "iteration:complete" && e.iteration === iter,
       );
       const terminatedIdx = events.findIndex((e) =>
         e.type === "terminated"

@@ -210,8 +210,11 @@ export class AgentLoopService implements IAgentLoop {
       }
 
       return this.#terminate("MAX_ITERATIONS_REACHED", state, false, opts);
-    } catch (_err) {
+    } catch (err) {
       // run() must never throw — catch-all for unexpected internal failures
+      opts.logger?.error("Agent loop caught an unexpected internal error", {
+        error: err instanceof Error ? err.message : String(err),
+      });
       return this.#terminate("HUMAN_INTERVENTION_REQUIRED", state, false, opts);
     } finally {
       // Always clear current state on exit (req 9.4 — query returns null when not running)
@@ -596,7 +599,11 @@ export class AgentLoopService implements IAgentLoop {
       let previousSameErrorCount = 0;
       for (let i = 0; i < state.observations.length - 1; i++) {
         const obs = state.observations[i]!;
-        if (!obs.success && obs.toolName === failingObs.toolName && obs.error?.message === failingObs.error.message) {
+        if (
+          !obs.success &&
+          obs.toolName === failingObs.toolName &&
+          this.#normalizeErrorMessage(obs.error?.message) === this.#normalizeErrorMessage(failingObs.error.message)
+        ) {
           previousSameErrorCount++;
         }
       }
@@ -718,6 +725,19 @@ export class AgentLoopService implements IAgentLoop {
         : value;
     }
     return result;
+  }
+
+  /**
+   * Normalizes an error message for repeated-failure detection.
+   * Takes only the first line (removes embedded stack traces or multi-line output),
+   * then strips absolute file paths and line/column numbers so that the same
+   * logical error matches regardless of dynamic path or position information.
+   */
+  #normalizeErrorMessage(message: string | undefined): string {
+    if (!message) return "";
+    const firstLine = message.split("\n")[0] ?? "";
+    // Strip absolute paths (e.g. /Users/foo/bar.ts:12:3 or C:\foo\bar.ts)
+    return firstLine.replace(/(?:[A-Za-z]:[\\/]|\/)[^\s:,)]+(?::\d+(?::\d+)?)?/g, "<path>");
   }
 
   /** Parses and validates LLM response content into an ActionPlan, or returns null on failure. */
