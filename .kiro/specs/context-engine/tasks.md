@@ -29,7 +29,7 @@
   - Set `rationale` to `"stepType:${stepType} taskExcerpt:${taskDescription.slice(0, 100)}"` for every decision
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5_
 
-- [ ] 4. Implement TokenBudgetManager
+- [x] 4. Implement TokenBudgetManager
   - Implement `ITokenBudgetManager` in `domain/context/token-budget-manager.ts`; initialize the `cl100k_base` tiktoken encoder once at construction and reuse it
   - `countTokens(text)` — encode text and return length; on tiktoken encode error fall back to `Math.ceil(text.length / 4)` and log a warning
   - `allocate(config)` — scale per-layer defaults to fit within `modelTokenLimit * (1 - safetyBufferFraction)` and return a `LayerBudgetMap` whose budget values sum to ≤ the effective total
