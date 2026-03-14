@@ -18,8 +18,8 @@
   - All methods must be pure functions with no I/O or side effects
   - _Requirements: 1.3, 6.1, 6.6_
 
-- [ ] 2. Define application port interfaces
-- [ ] 2.1 (P) Define the IGitController port and IGitEventBus
+- [x] 2. Define application port interfaces
+- [x] 2.1 (P) Define the IGitController port and IGitEventBus
   - Define `GitResult<T>` discriminated union: `{ ok: true; value: T }` | `{ ok: false; error: ToolError }`
   - Define `IGitController` interface in `application/ports/git-controller.ts`: `listBranches`, `detectChanges`, `createAndCheckoutBranch`, `stageAndCommit`, `push`
   - Document preconditions for each method (clean working directory before `createAndCheckoutBranch`, non-empty files before `stageAndCommit`, all within workspaceRoot)
@@ -27,7 +27,7 @@
   - No implementation code — interface definitions only
   - _Requirements: 1.6, 2.4, 2.6, 2.7, 2.8, 3.2, 3.4, 3.5, 4.4, 4.6, 5.1, 5.2, 5.4, 6.5_
 
-- [ ] 2.2 (P) Define the IPullRequestProvider port
+- [x] 2.2 (P) Define the IPullRequestProvider port
   - Define `PrErrorCategory` union type: `"auth" | "conflict" | "network" | "api"`
   - Define `PrError` interface with `category`, `message`, and optional `statusCode`
   - Define `PrResult` discriminated union: `{ ok: true; value: PullRequestResult }` | `{ ok: false; error: PrError }`
