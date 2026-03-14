@@ -104,7 +104,7 @@
   - Cap title at 72 characters before submission; include required fields: `title`, `body`, `head`, `base`, `draft`
   - _Requirements: 4.1, 4.4, 4.5, 4.7, 5.3_
 
-- [ ] 7. Implement the in-process git event bus infrastructure
+- [x] 7. Implement the in-process git event bus infrastructure
   - Implement `IGitEventBus` as a synchronous in-process event bus; handlers invoked in registration order
   - Support multiple handlers via `on(handler)` / `off(handler)`; `emit(event)` calls all registered handlers synchronously
   - The implementation resides at `infra/events/git-event-bus.ts` and mirrors the `IWorkflowEventBus` pattern established in `infra/events/workflow-event-bus.ts`
