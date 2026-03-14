@@ -5,13 +5,9 @@
  * track interactions return an object with both the mock and the capture array.
  */
 
-import type { IAgentLoop, AgentLoopResult } from "../../../application/ports/agent-loop";
-import type {
-  IPlanContextBuilder,
-  IPlanEventBus,
-  ITaskPlanStore,
-} from "../../../application/ports/task-planning";
+import type { AgentLoopResult, IAgentLoop } from "../../../application/ports/agent-loop";
 import type { LlmProviderPort, LlmResult } from "../../../application/ports/llm";
+import type { IPlanContextBuilder, IPlanEventBus, ITaskPlanStore } from "../../../application/ports/task-planning";
 import type { AgentState } from "../../../domain/agent/types";
 import type { PlanEvent, TaskPlan } from "../../../domain/planning/types";
 
@@ -113,8 +109,12 @@ export function makeLlmFromResults(responses: LlmResult[]): LlmProviderPort {
 
 export function makeContextBuilder(planContextStr = "plan context"): IPlanContextBuilder {
   return {
-    async buildPlanContext() { return planContextStr; },
-    async buildRevisionContext() { return "revision context"; },
+    async buildPlanContext() {
+      return planContextStr;
+    },
+    async buildRevisionContext() {
+      return "revision context";
+    },
   };
 }
 
@@ -131,9 +131,15 @@ export function makeStore(persisted?: TaskPlan): { store: ITaskPlanStore; saves:
   return {
     saves,
     store: {
-      async save(plan) { saves.push(JSON.parse(JSON.stringify(plan)) as TaskPlan); },
-      async load() { return persisted ?? null; },
-      async listResumable() { return persisted ? [persisted.id] : []; },
+      async save(plan) {
+        saves.push(JSON.parse(JSON.stringify(plan)) as TaskPlan);
+      },
+      async load() {
+        return persisted ?? null;
+      },
+      async listResumable() {
+        return persisted ? [persisted.id] : [];
+      },
     },
   };
 }
@@ -148,9 +154,15 @@ export function makeTrackingStore(): { store: ITaskPlanStore; snapshots: TaskPla
   return {
     snapshots,
     store: {
-      async save(plan) { snapshots.push(JSON.parse(JSON.stringify(plan)) as TaskPlan); },
-      async load() { return null; },
-      async listResumable() { return []; },
+      async save(plan) {
+        snapshots.push(JSON.parse(JSON.stringify(plan)) as TaskPlan);
+      },
+      async load() {
+        return null;
+      },
+      async listResumable() {
+        return [];
+      },
     },
   };
 }
@@ -164,7 +176,9 @@ export function makeEventBus(): { bus: IPlanEventBus; events: PlanEvent[] } {
   return {
     events,
     bus: {
-      emit(e) { events.push(e); },
+      emit(e) {
+        events.push(e);
+      },
       on() {},
       off() {},
     },
@@ -179,10 +193,17 @@ export function makeEventBus(): { bus: IPlanEventBus; events: PlanEvent[] } {
 export function makeAgentLoop(): IAgentLoop {
   return {
     async run(): Promise<AgentLoopResult> {
-      return { terminationCondition: "TASK_COMPLETED", finalState: {} as AgentState, totalIterations: 1, taskCompleted: true };
+      return {
+        terminationCondition: "TASK_COMPLETED",
+        finalState: {} as AgentState,
+        totalIterations: 1,
+        taskCompleted: true,
+      };
     },
     stop() {},
-    getState() { return null; },
+    getState() {
+      return null;
+    },
   };
 }
 
@@ -203,7 +224,9 @@ export function makeSequencedAgentLoop(
         return results[idx++] ?? makeSuccessResult();
       },
       stop() {},
-      getState() { return null; },
+      getState() {
+        return null;
+      },
     },
   };
 }
@@ -233,7 +256,9 @@ export function makeBooleanAgentLoop(
         };
       },
       stop() {},
-      getState() { return null; },
+      getState() {
+        return null;
+      },
     },
   };
 }

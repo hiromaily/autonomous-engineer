@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { TaskPlanningService } from "../../../application/planning/task-planning-service";
 import type { IAgentLoop } from "../../../application/ports/agent-loop";
+import type { LlmProviderPort, LlmResult } from "../../../application/ports/llm";
 import type {
   IHumanReviewGateway,
   IPlanContextBuilder,
   ITaskPlanStore,
   PlanReviewDecision,
 } from "../../../application/ports/task-planning";
-import type { LlmProviderPort, LlmResult } from "../../../application/ports/llm";
 import type { PlanReviewReason } from "../../../domain/planning/types";
 import {
   makeAgentLoop,
@@ -49,7 +49,11 @@ describe("TaskPlanningService — task 5.2: human review gate", () => {
       const { store } = makeStore();
       const llm = makeLlmFromResults([makeSuccessLlmResult(makeLargePlanBody(15))]);
       const service = new TaskPlanningService(
-        agentLoop, makeContextBuilder(), llm, store, reviewGateway,
+        agentLoop,
+        makeContextBuilder(),
+        llm,
+        store,
+        reviewGateway,
       );
 
       await service.run("goal", { maxAutoApproveSteps: 10, skipHumanReview: true });
@@ -79,7 +83,11 @@ describe("TaskPlanningService — task 5.2: human review gate", () => {
       const { store } = makeStore();
       const llm = makeLlmFromResults([makeSuccessLlmResult(makeLargePlanBody(10))]);
       const service = new TaskPlanningService(
-        agentLoop, makeContextBuilder(), llm, store, reviewGateway,
+        agentLoop,
+        makeContextBuilder(),
+        llm,
+        store,
+        reviewGateway,
       );
 
       await service.run("goal", { maxAutoApproveSteps: 10, skipHumanReview: false });
@@ -99,7 +107,11 @@ describe("TaskPlanningService — task 5.2: human review gate", () => {
       const { store } = makeStore();
       const llm = makeLlmFromResults([makeSuccessLlmResult(makePlanBody())]);
       const service = new TaskPlanningService(
-        agentLoop, makeContextBuilder(), llm, store, reviewGateway,
+        agentLoop,
+        makeContextBuilder(),
+        llm,
+        store,
+        reviewGateway,
       );
 
       await service.run("goal", { maxAutoApproveSteps: 10, skipHumanReview: false });
@@ -125,7 +137,11 @@ describe("TaskPlanningService — task 5.2: human review gate", () => {
       const { store } = makeStore();
       const llm = makeLlmFromResults([makeSuccessLlmResult(makeLargePlanBody(11))]);
       const service = new TaskPlanningService(
-        agentLoop, makeContextBuilder(), llm, store, reviewGateway,
+        agentLoop,
+        makeContextBuilder(),
+        llm,
+        store,
+        reviewGateway,
       );
 
       await service.run("goal", { maxAutoApproveSteps: 10, skipHumanReview: false });
@@ -145,7 +161,11 @@ describe("TaskPlanningService — task 5.2: human review gate", () => {
       const { store } = makeStore();
       const llm = makeLlmFromResults([makeSuccessLlmResult(makeLargePlanBody(11))]);
       const service = new TaskPlanningService(
-        agentLoop, makeContextBuilder(), llm, store, reviewGateway,
+        agentLoop,
+        makeContextBuilder(),
+        llm,
+        store,
+        reviewGateway,
       );
 
       await service.run("goal", { maxAutoApproveSteps: 10, skipHumanReview: false });
@@ -165,7 +185,11 @@ describe("TaskPlanningService — task 5.2: human review gate", () => {
       const { store } = makeStore();
       const llm = makeLlmFromResults([makeSuccessLlmResult(makeHighRiskPlanBody())]);
       const service = new TaskPlanningService(
-        agentLoop, makeContextBuilder(), llm, store, reviewGateway,
+        agentLoop,
+        makeContextBuilder(),
+        llm,
+        store,
+        reviewGateway,
       );
 
       await service.run("goal", { maxAutoApproveSteps: 10, skipHumanReview: false });
@@ -185,7 +209,11 @@ describe("TaskPlanningService — task 5.2: human review gate", () => {
       const { store } = makeStore();
       const llm = makeLlmFromResults([makeSuccessLlmResult(makeHighRiskPlanBody())]);
       const service = new TaskPlanningService(
-        agentLoop, makeContextBuilder(), llm, store, reviewGateway,
+        agentLoop,
+        makeContextBuilder(),
+        llm,
+        store,
+        reviewGateway,
       );
 
       await service.run("goal", { maxAutoApproveSteps: 10, skipHumanReview: false });
@@ -210,7 +238,11 @@ describe("TaskPlanningService — task 5.2: human review gate", () => {
       }));
       const llm = makeLlmFromResults([makeSuccessLlmResult(makePlanBody(steps))]);
       const service = new TaskPlanningService(
-        agentLoop, makeContextBuilder(), llm, store, reviewGateway,
+        agentLoop,
+        makeContextBuilder(),
+        llm,
+        store,
+        reviewGateway,
       );
 
       await service.run("goal", { maxAutoApproveSteps: 10, skipHumanReview: false });
@@ -231,7 +263,11 @@ describe("TaskPlanningService — task 5.2: human review gate", () => {
       // 11 steps → should trigger default threshold of 10
       const llm = makeLlmFromResults([makeSuccessLlmResult(makeLargePlanBody(11))]);
       const service = new TaskPlanningService(
-        agentLoop, makeContextBuilder(), llm, store, reviewGateway,
+        agentLoop,
+        makeContextBuilder(),
+        llm,
+        store,
+        reviewGateway,
       );
 
       // No options → uses defaults
@@ -248,13 +284,19 @@ describe("TaskPlanningService — task 5.2: human review gate", () => {
   describe("approval path", () => {
     it("returns completed outcome when reviewer approves the plan", async () => {
       const reviewGateway: IHumanReviewGateway = {
-        async reviewPlan(): Promise<PlanReviewDecision> { return { approved: true }; },
+        async reviewPlan(): Promise<PlanReviewDecision> {
+          return { approved: true };
+        },
       };
 
       const { store } = makeStore();
       const llm = makeLlmFromResults([makeSuccessLlmResult(makeLargePlanBody(15))]);
       const service = new TaskPlanningService(
-        agentLoop, makeContextBuilder(), llm, store, reviewGateway,
+        agentLoop,
+        makeContextBuilder(),
+        llm,
+        store,
+        reviewGateway,
       );
 
       const result = await service.run("goal", { maxAutoApproveSteps: 10, skipHumanReview: false });
@@ -274,7 +316,11 @@ describe("TaskPlanningService — task 5.2: human review gate", () => {
       const { store } = makeStore();
       const llm = makeLlmFromResults([makeSuccessLlmResult(makeLargePlanBody(15))]);
       const service = new TaskPlanningService(
-        agentLoop, makeContextBuilder(), llm, store, reviewGateway,
+        agentLoop,
+        makeContextBuilder(),
+        llm,
+        store,
+        reviewGateway,
       );
 
       const result = await service.run("goal", { maxAutoApproveSteps: 10, skipHumanReview: false });
@@ -298,7 +344,11 @@ describe("TaskPlanningService — task 5.2: human review gate", () => {
       const { store } = makeStore();
       const llm = makeLlmFromResults([makeSuccessLlmResult(makeLargePlanBody(15))]);
       const service = new TaskPlanningService(
-        agentLoop, makeContextBuilder(), llm, store, reviewGateway,
+        agentLoop,
+        makeContextBuilder(),
+        llm,
+        store,
+        reviewGateway,
       );
 
       const result = await service.run("goal", { maxAutoApproveSteps: 10, skipHumanReview: false });
@@ -316,7 +366,11 @@ describe("TaskPlanningService — task 5.2: human review gate", () => {
       const { store } = makeStore();
       const llm = makeLlmFromResults([makeSuccessLlmResult(makeLargePlanBody(15))]);
       const service = new TaskPlanningService(
-        agentLoop, makeContextBuilder(), llm, store, reviewGateway,
+        agentLoop,
+        makeContextBuilder(),
+        llm,
+        store,
+        reviewGateway,
       );
 
       const result = await service.run("goal", { maxAutoApproveSteps: 10, skipHumanReview: false });
@@ -336,7 +390,11 @@ describe("TaskPlanningService — task 5.2: human review gate", () => {
       const { store } = makeStore();
       const llm = makeLlmFromResults([makeSuccessLlmResult(makeLargePlanBody(15))]);
       const service = new TaskPlanningService(
-        agentLoop, makeContextBuilder(), llm, store, reviewGateway,
+        agentLoop,
+        makeContextBuilder(),
+        llm,
+        store,
+        reviewGateway,
       );
 
       await service.run("goal", {
@@ -361,7 +419,11 @@ describe("TaskPlanningService — task 5.2: human review gate", () => {
       const { store } = makeStore();
       const llm = makeLlmFromResults([makeSuccessLlmResult(makeLargePlanBody(15))]);
       const service = new TaskPlanningService(
-        agentLoop, makeContextBuilder(), llm, store, reviewGateway,
+        agentLoop,
+        makeContextBuilder(),
+        llm,
+        store,
+        reviewGateway,
       );
 
       const result = await service.run("goal", {
@@ -389,7 +451,11 @@ describe("TaskPlanningService — task 5.2: human review gate", () => {
       const { store } = makeStore();
       const llm = makeLlmFromResults([makeSuccessLlmResult(makeLargePlanBody(15))]);
       const service = new TaskPlanningService(
-        agentLoop, makeContextBuilder(), llm, store, reviewGateway,
+        agentLoop,
+        makeContextBuilder(),
+        llm,
+        store,
+        reviewGateway,
       );
 
       // Must not throw even without eventBus
@@ -424,7 +490,11 @@ describe("TaskPlanningService — task 5.2: human review gate", () => {
       };
 
       const service = new TaskPlanningService(
-        agentLoop, makeContextBuilder(), llm, store, reviewGateway,
+        agentLoop,
+        makeContextBuilder(),
+        llm,
+        store,
+        reviewGateway,
       );
 
       await service.run("goal", { maxAutoApproveSteps: 10, skipHumanReview: false });
@@ -449,7 +519,11 @@ describe("TaskPlanningService — task 5.2: human review gate", () => {
         makeSuccessLlmResult(makeLargePlanBody(15)),
       ]);
       const service = new TaskPlanningService(
-        agentLoop, makeContextBuilder(), llm, store, reviewGateway,
+        agentLoop,
+        makeContextBuilder(),
+        llm,
+        store,
+        reviewGateway,
       );
 
       const result = await service.run("goal", { maxAutoApproveSteps: 10, skipHumanReview: false });
@@ -473,7 +547,11 @@ describe("TaskPlanningService — task 5.2: human review gate", () => {
         makeSuccessLlmResult(makeLargePlanBody(15)),
       ]);
       const service = new TaskPlanningService(
-        agentLoop, makeContextBuilder(), llm, store, reviewGateway,
+        agentLoop,
+        makeContextBuilder(),
+        llm,
+        store,
+        reviewGateway,
       );
 
       const result = await service.run("goal", { maxAutoApproveSteps: 10, skipHumanReview: false });
@@ -497,7 +575,11 @@ describe("TaskPlanningService — task 5.2: human review gate", () => {
         makeSuccessLlmResult(makeLargePlanBody(15)),
       ]);
       const service = new TaskPlanningService(
-        agentLoop, makeContextBuilder(), llm, store, reviewGateway,
+        agentLoop,
+        makeContextBuilder(),
+        llm,
+        store,
+        reviewGateway,
       );
 
       await service.run("goal", { maxAutoApproveSteps: 10, skipHumanReview: false });
@@ -532,7 +614,11 @@ describe("TaskPlanningService — task 5.2: human review gate", () => {
         makeSuccessLlmResult(makeLargePlanBody(15)),
       ]);
       const service = new TaskPlanningService(
-        agentLoop, contextBuilder, llm, store, reviewGateway,
+        agentLoop,
+        contextBuilder,
+        llm,
+        store,
+        reviewGateway,
       );
 
       await service.run("my goal", { maxAutoApproveSteps: 10, skipHumanReview: false });
@@ -555,7 +641,11 @@ describe("TaskPlanningService — task 5.2: human review gate", () => {
         makeSuccessLlmResult("not valid json"),
       ]);
       const service = new TaskPlanningService(
-        agentLoop, makeContextBuilder(), llm, store, reviewGateway,
+        agentLoop,
+        makeContextBuilder(),
+        llm,
+        store,
+        reviewGateway,
       );
 
       const result = await service.run("goal", { maxAutoApproveSteps: 10, skipHumanReview: false });

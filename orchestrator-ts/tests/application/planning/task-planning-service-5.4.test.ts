@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { TaskPlanningService } from "../../../application/planning/task-planning-service";
-import type { IPlanContextBuilder } from "../../../application/ports/task-planning";
 import type { LlmResult } from "../../../application/ports/llm";
+import type { IPlanContextBuilder } from "../../../application/ports/task-planning";
 import {
   makeBooleanAgentLoop,
   makeContextBuilder,
@@ -152,7 +152,9 @@ describe("TaskPlanningService — task 5.4: failure recovery chain", () => {
     it("calls the LLM for revision after all retries are exhausted", async () => {
       let buildRevisionContextCalled = false;
       const contextBuilder: IPlanContextBuilder = {
-        async buildPlanContext() { return "context"; },
+        async buildPlanContext() {
+          return "context";
+        },
         async buildRevisionContext(_plan, _stepId, _summary) {
           buildRevisionContextCalled = true;
           return "revision context";
@@ -176,7 +178,9 @@ describe("TaskPlanningService — task 5.4: failure recovery chain", () => {
     it("passes the plan and step ID to buildRevisionContext", async () => {
       let capturedStepId: string | undefined;
       const contextBuilder: IPlanContextBuilder = {
-        async buildPlanContext() { return "context"; },
+        async buildPlanContext() {
+          return "context";
+        },
         async buildRevisionContext(_plan, stepId) {
           capturedStepId = stepId;
           return "revision context";
@@ -280,7 +284,9 @@ describe("TaskPlanningService — task 5.4: failure recovery chain", () => {
 
     it("returns escalated when contextBuilder.buildRevisionContext throws", async () => {
       const failingContextBuilder: IPlanContextBuilder = {
-        async buildPlanContext() { return "context"; },
+        async buildPlanContext() {
+          return "context";
+        },
         async buildRevisionContext(): Promise<string> {
           throw new Error("context engine unavailable");
         },

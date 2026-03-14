@@ -1,15 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import { TaskPlanningService } from "../../../application/planning/task-planning-service";
 import type { IAgentLoop } from "../../../application/ports/agent-loop";
-import type { IPlanContextBuilder, ITaskPlanStore } from "../../../application/ports/task-planning";
 import type { LlmProviderPort } from "../../../application/ports/llm";
+import type { IPlanContextBuilder, ITaskPlanStore } from "../../../application/ports/task-planning";
 import type { TaskPlan } from "../../../domain/planning/types";
-import {
-  makeContextBuilder,
-  makeLlm,
-  makeSequencedAgentLoop as makeAgentLoop,
-  makeStore,
-} from "./fixtures";
+import { makeContextBuilder, makeLlm, makeSequencedAgentLoop as makeAgentLoop, makeStore } from "./fixtures";
 
 /** Builds a persisted in-progress plan: step-1 completed, step-2 pending. */
 function makeInProgressPlan(): TaskPlan {

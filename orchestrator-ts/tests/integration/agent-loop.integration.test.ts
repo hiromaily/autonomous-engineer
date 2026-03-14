@@ -697,9 +697,7 @@ describe("AgentLoopService integration — event ordering and state serializatio
       const iterCompleteIdx = events.findIndex(
         (e) => e.type === "iteration:complete" && e.iteration === iter,
       );
-      const terminatedIdx = events.findIndex((e) =>
-        e.type === "terminated"
-      );
+      const terminatedIdx = events.findIndex((e) => e.type === "terminated");
 
       expect(lastStepIdx).toBeLessThan(iterCompleteIdx);
       expect(iterCompleteIdx).toBeLessThan(terminatedIdx);

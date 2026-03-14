@@ -1,10 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { TaskPlanningService } from "../../../application/planning/task-planning-service";
-import type {
-  IHumanReviewGateway,
-  ITaskPlanStore,
-  TaskPlannerOptions,
-} from "../../../application/ports/task-planning";
+import type { IHumanReviewGateway, ITaskPlanStore, TaskPlannerOptions } from "../../../application/ports/task-planning";
 import type { TaskPlan } from "../../../domain/planning/types";
 import {
   makeContextBuilder,
@@ -239,7 +235,9 @@ describe("TaskPlanningService — task 5.5: dynamic plan adjustment and observab
       ]);
 
       const gateway: IHumanReviewGateway = {
-        async reviewPlan() { return { approved: true }; },
+        async reviewPlan() {
+          return { approved: true };
+        },
       };
 
       const service = new TaskPlanningService(

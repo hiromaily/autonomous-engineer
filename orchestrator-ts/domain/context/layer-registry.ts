@@ -1,10 +1,10 @@
 import type { LayerId } from "../../application/ports/context";
 
 export interface LayerEntry {
-	readonly id: LayerId;
-	readonly defaultBudget: number;
-	readonly cacheable: boolean;
-	readonly compressible: boolean;
+  readonly id: LayerId;
+  readonly defaultBudget: number;
+  readonly cacheable: boolean;
+  readonly compressible: boolean;
 }
 
 /**
@@ -20,26 +20,26 @@ export interface LayerEntry {
  * Cacheable: only layers whose content is stable within a session (file-backed, mtime-invalidated).
  */
 export const LAYER_REGISTRY: ReadonlyArray<LayerEntry> = Object.freeze([
-	{ id: "systemInstructions", defaultBudget: 1000, cacheable: true, compressible: false },
-	{ id: "taskDescription", defaultBudget: 500, cacheable: false, compressible: false },
-	{ id: "activeSpecification", defaultBudget: 2000, cacheable: false, compressible: true },
-	{ id: "codeContext", defaultBudget: 4000, cacheable: false, compressible: true },
-	{ id: "repositoryState", defaultBudget: 500, cacheable: false, compressible: false },
-	{ id: "memoryRetrieval", defaultBudget: 1500, cacheable: false, compressible: true },
-	{ id: "toolResults", defaultBudget: 2000, cacheable: false, compressible: false },
+  { id: "systemInstructions", defaultBudget: 1000, cacheable: true, compressible: false },
+  { id: "taskDescription", defaultBudget: 500, cacheable: false, compressible: false },
+  { id: "activeSpecification", defaultBudget: 2000, cacheable: false, compressible: true },
+  { id: "codeContext", defaultBudget: 4000, cacheable: false, compressible: true },
+  { id: "repositoryState", defaultBudget: 500, cacheable: false, compressible: false },
+  { id: "memoryRetrieval", defaultBudget: 1500, cacheable: false, compressible: true },
+  { id: "toolResults", defaultBudget: 2000, cacheable: false, compressible: false },
 ]);
 
 /** Returns all layer entries in canonical order as a new array. */
 export function getLayersInOrder(): LayerEntry[] {
-	return [...LAYER_REGISTRY];
+  return [...LAYER_REGISTRY];
 }
 
 /** Returns the layer entry for the given LayerId, or undefined if not found. */
 export function getLayerEntry(id: LayerId): LayerEntry | undefined {
-	return LAYER_REGISTRY.find((l) => l.id === id);
+  return LAYER_REGISTRY.find((l) => l.id === id);
 }
 
 /** Returns the layer entry at the given index, or undefined if out of range. */
 export function getLayerByIndex(index: number): LayerEntry | undefined {
-	return LAYER_REGISTRY[index];
+  return LAYER_REGISTRY[index];
 }

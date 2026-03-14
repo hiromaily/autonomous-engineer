@@ -199,7 +199,11 @@ describe("TaskPlanningService — task 6.2: human review gate behavior", () => {
         makeSuccessLlmResult(makeLargePlanBody(15)),
       ]);
       const service = new TaskPlanningService(
-        agentLoop, captureContextBuilder, llm, store, reviewGateway,
+        agentLoop,
+        captureContextBuilder,
+        llm,
+        store,
+        reviewGateway,
       );
 
       await service.run("my goal", { maxAutoApproveSteps: 10, skipHumanReview: false });
@@ -333,8 +337,12 @@ describe("TaskPlanningService — task 6.2: human review gate behavior", () => {
       // Use a store that dynamically tracks saves for listResumable
       const savedPlans: Array<import("../../../domain/planning/types").TaskPlan> = [];
       const trackingStore: import("../../../application/ports/task-planning").ITaskPlanStore = {
-        async save(plan) { savedPlans.push(JSON.parse(JSON.stringify(plan)) as typeof plan); },
-        async load(planId) { return savedPlans.find((p) => p.id === planId) ?? null; },
+        async save(plan) {
+          savedPlans.push(JSON.parse(JSON.stringify(plan)) as typeof plan);
+        },
+        async load(planId) {
+          return savedPlans.find((p) => p.id === planId) ?? null;
+        },
         async listResumable() {
           return savedPlans
             .filter((p) => p.tasks.some((t) => !["completed", "failed"].includes(t.status)))

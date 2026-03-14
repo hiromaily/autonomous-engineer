@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import { mkdtemp, readFile, } from "node:fs/promises";
+import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { WorkflowEvent } from "../../application/ports/workflow";

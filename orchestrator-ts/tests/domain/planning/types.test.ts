@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import {
+  PLAN_REVIEW_REASONS,
   type PlanEvent,
   type PlanReviewReason,
-  PLAN_REVIEW_REASONS,
   type Step,
   STEP_STATUSES,
   type StepStatus,

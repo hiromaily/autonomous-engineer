@@ -277,7 +277,9 @@ describe("TaskPlanningService — task 6.1: plan generation and validation flow"
           return originalRun(task, opts as never);
         },
         stop() {},
-        getState() { return null; },
+        getState() {
+          return null;
+        },
       };
 
       const { store } = makeStore();
@@ -312,7 +314,9 @@ describe("TaskPlanningService — task 6.1: plan generation and validation flow"
           return originalRun(task, opts as never);
         },
         stop() {},
-        getState() { return null; },
+        getState() {
+          return null;
+        },
       };
 
       const { store } = makeStore();

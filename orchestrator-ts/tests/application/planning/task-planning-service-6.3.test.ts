@@ -126,10 +126,9 @@ describe("TaskPlanningService — task 6.3: failure recovery scenarios", () => {
 
       // The retry string must contain "retry" or "attempt" or "failed" — i.e. some failure context
       const retryTask = taskArgs[1] ?? "";
-      const hasContext =
-        retryTask.toLowerCase().includes("retry") ||
-        retryTask.toLowerCase().includes("attempt") ||
-        retryTask.toLowerCase().includes("fail");
+      const hasContext = retryTask.toLowerCase().includes("retry")
+        || retryTask.toLowerCase().includes("attempt")
+        || retryTask.toLowerCase().includes("fail");
       expect(hasContext).toBe(true);
     });
   });
@@ -142,7 +141,9 @@ describe("TaskPlanningService — task 6.3: failure recovery scenarios", () => {
     it("calls buildRevisionContext after all retries are exhausted", async () => {
       let revisionContextCalled = false;
       const contextBuilder: IPlanContextBuilder = {
-        async buildPlanContext() { return "context"; },
+        async buildPlanContext() {
+          return "context";
+        },
         async buildRevisionContext() {
           revisionContextCalled = true;
           return "revision context";
@@ -195,7 +196,9 @@ describe("TaskPlanningService — task 6.3: failure recovery scenarios", () => {
     it("passes the plan and failed step ID to buildRevisionContext", async () => {
       let capturedStepId: string | undefined;
       const contextBuilder: IPlanContextBuilder = {
-        async buildPlanContext() { return "context"; },
+        async buildPlanContext() {
+          return "context";
+        },
         async buildRevisionContext(_plan, stepId) {
           capturedStepId = stepId;
           return "revision context";

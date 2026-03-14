@@ -120,7 +120,8 @@ describe("ToolExecutor success path", () => {
     await executor.invoke("test_tool", { value: 5 }, ctx);
 
     expect(logger.info.mock.calls.length).toBe(1);
-    const log = logger.getLogs()[0]; if (!log) throw new Error("expected log entry");
+    const log = logger.getLogs()[0];
+    if (!log) throw new Error("expected log entry");
     expect(log.resultStatus).toBe("success");
     expect(log.toolName).toBe("test_tool");
     expect(typeof log.durationMs).toBe("number");
@@ -188,7 +189,8 @@ describe("ToolExecutor permission denied", () => {
     await executor.invoke("test_tool", { value: 1 }, ctx);
 
     expect(logger.getLogs().length).toBe(1);
-    const log = logger.getLogs()[0]; if (!log) throw new Error("expected log entry");
+    const log = logger.getLogs()[0];
+    if (!log) throw new Error("expected log entry");
     expect(log.resultStatus).toBe("permission");
   });
 });
@@ -239,7 +241,8 @@ describe("ToolExecutor input validation", () => {
     await executor.invoke("test_tool", { value: "bad" }, ctx);
 
     expect(logger.getLogs().length).toBe(1);
-    const log = logger.getLogs()[0]; if (!log) throw new Error("expected log entry");
+    const log = logger.getLogs()[0];
+    if (!log) throw new Error("expected log entry");
     expect(log.resultStatus).toBe("validation");
   });
 });
@@ -275,7 +278,8 @@ describe("ToolExecutor output validation", () => {
 
     await executor.invoke("test_tool", { value: 1 }, ctx);
 
-    const log = logger.getLogs()[0]; if (!log) throw new Error("expected log entry");
+    const log = logger.getLogs()[0];
+    if (!log) throw new Error("expected log entry");
     expect(log.resultStatus).toBe("validation");
   });
 });
@@ -347,7 +351,8 @@ describe("ToolExecutor timeout", () => {
 
     await executor.invoke("test_tool", { value: 1 }, ctx);
 
-    const log = logger.getLogs()[0]; if (!log) throw new Error("expected log entry");
+    const log = logger.getLogs()[0];
+    if (!log) throw new Error("expected log entry");
     expect(log.resultStatus).toBe("runtime");
   }, 1000);
 });
@@ -390,7 +395,8 @@ describe("ToolExecutor unhandled exception", () => {
 
     await executor.invoke("test_tool", { value: 1 }, ctx);
 
-    const log = logger.getLogs()[0]; if (!log) throw new Error("expected log entry");
+    const log = logger.getLogs()[0];
+    if (!log) throw new Error("expected log entry");
     expect(log.resultStatus).toBe("runtime");
   });
 });
@@ -415,7 +421,8 @@ describe("ToolExecutor log sanitization", () => {
     // Input JSON will be longer than 20 chars
     await smallMaxExecutor.invoke("test_tool", { value: 123456789 }, ctx);
 
-    const log = logger.getLogs()[0]; if (!log) throw new Error("expected log entry");
+    const log = logger.getLogs()[0];
+    if (!log) throw new Error("expected log entry");
     expect(log.inputSummary.length).toBeLessThanOrEqual(20);
   });
 
@@ -428,7 +435,8 @@ describe("ToolExecutor log sanitization", () => {
 
     await executor.invoke("test_tool", { value: 1 }, ctx);
 
-    const log = logger.getLogs()[0]; if (!log) throw new Error("expected log entry");
+    const log = logger.getLogs()[0];
+    if (!log) throw new Error("expected log entry");
     expect(log.inputSummary.length).toBeLessThanOrEqual(256);
   });
 });

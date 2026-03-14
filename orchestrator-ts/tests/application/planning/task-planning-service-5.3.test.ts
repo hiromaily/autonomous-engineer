@@ -1,15 +1,10 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { TaskPlanningService } from "../../../application/planning/task-planning-service";
-import type { IAgentLoop, AgentLoopOptions, AgentLoopResult } from "../../../application/ports/agent-loop";
+import type { AgentLoopOptions, AgentLoopResult, IAgentLoop } from "../../../application/ports/agent-loop";
 import type { ITaskPlanStore } from "../../../application/ports/task-planning";
 import type { AgentState } from "../../../domain/agent/types";
 import type { TaskPlan } from "../../../domain/planning/types";
-import {
-  makeContextBuilder,
-  makeLlm,
-  makePlanBody,
-  makeTrackingStore,
-} from "./fixtures";
+import { makeContextBuilder, makeLlm, makePlanBody, makeTrackingStore } from "./fixtures";
 
 // ---------------------------------------------------------------------------
 // Test helpers (5.3-specific)
@@ -42,7 +37,9 @@ function makeControllableAgentLoop(
       };
     },
     stop() {},
-    getState() { return null; },
+    getState() {
+      return null;
+    },
   };
   return { agentLoop, taskArgs };
 }
@@ -201,14 +198,22 @@ describe("TaskPlanningService — task 5.3: step execution loop", () => {
           };
         },
         stop() {},
-        getState() { return null; },
+        getState() {
+          return null;
+        },
       };
 
       const snapshots: TaskPlan[] = [];
       const store: ITaskPlanStore = {
-        async save(plan) { snapshots.push(JSON.parse(JSON.stringify(plan)) as TaskPlan); },
-        async load() { return null; },
-        async listResumable() { return []; },
+        async save(plan) {
+          snapshots.push(JSON.parse(JSON.stringify(plan)) as TaskPlan);
+        },
+        async load() {
+          return null;
+        },
+        async listResumable() {
+          return [];
+        },
       };
 
       const llm = makeLlm(makePlanBody([{ id: "step-1" }]));
@@ -452,7 +457,9 @@ describe("TaskPlanningService — task 5.3: step execution loop", () => {
           };
         },
         stop() {},
-        getState() { return null; },
+        getState() {
+          return null;
+        },
       };
 
       const { store } = makeTrackingStore();
@@ -487,7 +494,9 @@ describe("TaskPlanningService — task 5.3: step execution loop", () => {
           };
         },
         stop() {},
-        getState() { return null; },
+        getState() {
+          return null;
+        },
       };
 
       const { store } = makeTrackingStore();
@@ -504,9 +513,14 @@ describe("TaskPlanningService — task 5.3: step execution loop", () => {
       const { store } = makeTrackingStore();
       const llm1 = makeLlm(makePlanBody([{ id: "step-1" }]));
 
-      const service = new TaskPlanningService(agentLoop, makeContextBuilder(), makeLlm(
-        makePlanBody([{ id: "step-1" }]),
-      ), store);
+      const service = new TaskPlanningService(
+        agentLoop,
+        makeContextBuilder(),
+        makeLlm(
+          makePlanBody([{ id: "step-1" }]),
+        ),
+        store,
+      );
 
       // First run: stop before
       service.stop();
@@ -565,7 +579,9 @@ describe("TaskPlanningService — task 5.3: step execution loop", () => {
           };
         },
         stop() {},
-        getState() { return null; },
+        getState() {
+          return null;
+        },
       };
 
       const { store } = makeTrackingStore();
