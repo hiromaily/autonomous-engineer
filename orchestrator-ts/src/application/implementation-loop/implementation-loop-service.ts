@@ -221,36 +221,142 @@ export class ImplementationLoopService implements IImplementationLoop {
   }
 
   // ---------------------------------------------------------------------------
-  // Section execution (implement→review→improve→commit)
+  // Section execution — implement → review → commit (single iteration)
   //
-  // Task 4.1: minimal stub — marks section as completed.
-  // Tasks 4.2–4.3: replaces this stub with the full cycle.
+  // Task 4.2: runs one implement→review→commit cycle.
+  // Task 4.3: wraps this in a retry loop with improve prompts.
   // ---------------------------------------------------------------------------
 
   async #executeSection(
     task: Task,
     plan: TaskPlan,
-    _options: Required<ImplementationLoopOptions>,
+    options: Required<ImplementationLoopOptions>,
   ): Promise<SectionExecutionRecord> {
-    const timestamp = new Date().toISOString();
+    const sectionStartAt = new Date().toISOString();
+    const iterationStartMs = Date.now();
 
-    // Stub: mark section as completed in the store
-    await this.#planStore.updateSectionStatus(plan.id, task.id, "completed");
+    // Step 1: Invoke the agent loop for implementation
+    const agentResult = await this.#agentLoop.run(task.title);
+    const iterationDurationMs = Date.now() - iterationStartMs;
 
-    return {
+    // Step 2: Non-TASK_COMPLETED termination → treat as section failure
+    if (!agentResult.taskCompleted) {
+      const failureReview = buildAgentFailureReview(agentResult.terminationCondition);
+      const iterRecord = buildIterationRecord(1, failureReview, undefined, iterationDurationMs, sectionStartAt);
+      await this.#planStore.updateSectionStatus(plan.id, task.id, "failed");
+      return buildSectionRecord(
+        task,
+        plan.id,
+        "failed",
+        1,
+        [iterRecord],
+        sectionStartAt,
+        undefined,
+        `Agent loop terminated: ${agentResult.terminationCondition}`,
+      );
+    }
+
+    // Step 3: Invoke the review engine to evaluate agent output
+    const reviewResult = await this.#reviewEngine.review(agentResult, task, options.qualityGateConfig);
+    const iterRecord = buildIterationRecord(1, reviewResult, undefined, iterationDurationMs, sectionStartAt);
+
+    if (reviewResult.outcome === "passed") {
+      // Step 4a: Emit review-passed signal
+      options.eventBus?.emit({ type: "section:review-passed", sectionId: task.id, iteration: 1 });
+
+      // Step 4b: Build commit message including the section title
+      const commitMessage = `feat: ${task.title}`;
+
+      // Step 4c: Detect changed files and commit
+      const changesResult = await this.#gitController.detectChanges();
+      const files: string[] = changesResult.ok
+        ? [
+          ...changesResult.value.staged,
+          ...changesResult.value.unstaged,
+          ...changesResult.value.untracked,
+        ]
+        : [];
+
+      const commitResult = await this.#gitController.stageAndCommit(files, commitMessage);
+
+      if (!commitResult.ok) {
+        // Git failure → halt; do not retry automatically (risk of duplicate commits)
+        await this.#planStore.updateSectionStatus(plan.id, task.id, "failed");
+        return buildSectionRecord(
+          task,
+          plan.id,
+          "failed",
+          0,
+          [iterRecord],
+          sectionStartAt,
+          undefined,
+          `Git commit failed: ${commitResult.error.message}`,
+        );
+      }
+
+      const commitSha = commitResult.value.hash;
+      const sectionDurationMs = Date.now() - iterationStartMs;
+
+      // Step 4d: Persist completed status and emit events
+      await this.#planStore.updateSectionStatus(plan.id, task.id, "completed");
+
+      options.eventBus?.emit({
+        type: "section:completed",
+        sectionId: task.id,
+        commitSha,
+        durationMs: sectionDurationMs,
+      });
+
+      options.logger?.logIteration({
+        planId: plan.id,
+        sectionId: task.id,
+        iterationNumber: 1,
+        reviewOutcome: "passed",
+        gateCheckResults: reviewResult.checks,
+        commitSha,
+        durationMs: iterationDurationMs,
+        timestamp: sectionStartAt,
+      });
+
+      const completedRecord = buildSectionRecord(
+        task,
+        plan.id,
+        "completed",
+        0,
+        [iterRecord],
+        sectionStartAt,
+        commitSha,
+        undefined,
+      );
+      options.logger?.logSectionComplete(completedRecord);
+      return completedRecord;
+    }
+
+    // Step 5: Review failed — task 4.3 wraps this in a retry loop
+    options.eventBus?.emit({
+      type: "section:review-failed",
       sectionId: task.id,
-      planId: plan.id,
-      title: task.title,
-      status: "completed" satisfies SectionExecutionStatus,
-      retryCount: 0,
-      iterations: [],
-      startedAt: timestamp,
-      completedAt: new Date().toISOString(),
-    };
+      iteration: 1,
+      feedback: reviewResult.feedback,
+    });
+
+    await this.#planStore.updateSectionStatus(plan.id, task.id, "failed");
+    const escalationSummary = reviewResult.feedback.map((f) => f.description).join("; ")
+      || "Review did not pass";
+    return buildSectionRecord(
+      task,
+      plan.id,
+      "failed",
+      1,
+      [iterRecord],
+      sectionStartAt,
+      undefined,
+      escalationSummary,
+    );
   }
 
   // ---------------------------------------------------------------------------
-  // Halt path helpers
+  // Halt path helper
   // ---------------------------------------------------------------------------
 
   #buildHaltResult(
@@ -298,23 +404,73 @@ export class ImplementationLoopService implements IImplementationLoop {
       haltReason,
     };
   }
+}
 
-  // ---------------------------------------------------------------------------
-  // Unused injected dependencies — retained for task 4.2+
-  // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Module-level builder helpers
+// ---------------------------------------------------------------------------
 
-  /** @internal accessed by task 4.2 implementation of #executeSection */
-  protected get _agentLoop(): IAgentLoop {
-    return this.#agentLoop;
-  }
+import type { TerminationCondition } from "@/domain/agent/types";
+import type { ReviewResult, SectionIterationRecord } from "@/domain/implementation-loop/types";
 
-  /** @internal accessed by task 4.2 implementation of #executeSection */
-  protected get _reviewEngine(): IReviewEngine {
-    return this.#reviewEngine;
-  }
+function buildAgentFailureReview(condition: TerminationCondition): ReviewResult {
+  return {
+    outcome: "failed",
+    checks: [
+      {
+        checkName: "agent-loop",
+        outcome: "failed",
+        required: true,
+        details: `Agent loop terminated with: ${condition}`,
+      },
+    ],
+    feedback: [
+      {
+        category: "requirement-alignment",
+        description: `Agent loop did not complete the task (termination: ${condition})`,
+        severity: "blocking",
+      },
+    ],
+    durationMs: 0,
+  };
+}
 
-  /** @internal accessed by task 4.2 implementation of #executeSection */
-  protected get _gitController(): IGitController {
-    return this.#gitController;
-  }
+function buildIterationRecord(
+  iterationNumber: number,
+  reviewResult: ReviewResult,
+  improvePrompt: string | undefined,
+  durationMs: number,
+  timestamp: string,
+): SectionIterationRecord {
+  return {
+    iterationNumber,
+    reviewResult,
+    ...(improvePrompt !== undefined ? { improvePrompt } : {}),
+    durationMs,
+    timestamp,
+  };
+}
+
+function buildSectionRecord(
+  task: Task,
+  planId: string,
+  status: SectionExecutionStatus,
+  retryCount: number,
+  iterations: ReadonlyArray<SectionIterationRecord>,
+  startedAt: string,
+  commitSha: string | undefined,
+  escalationSummary: string | undefined,
+): SectionExecutionRecord {
+  return {
+    sectionId: task.id,
+    planId,
+    title: task.title,
+    status,
+    retryCount,
+    iterations,
+    startedAt,
+    completedAt: new Date().toISOString(),
+    ...(commitSha !== undefined ? { commitSha } : {}),
+    ...(escalationSummary !== undefined ? { escalationSummary } : {}),
+  };
 }

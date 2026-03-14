@@ -1,7 +1,7 @@
 /**
- * Unit tests for ImplementationLoopService — Task 4.1
+ * Unit tests for ImplementationLoopService — Tasks 4.1 & 4.2
  *
- * Tests cover section loading and dependency-ordered iteration:
+ * Task 4.1 — section loading and dependency-ordered iteration:
  * - Returns "plan-not-found" when IPlanStore returns null
  * - Returns "completed" when all sections are already completed
  * - Iterates sections in plan order
@@ -11,11 +11,23 @@
  * - Returns "stopped" when stop() is called before a section begins
  * - Defers a section if its preceding task is not yet completed (sequential dependency)
  *
- * Requirements: 1.1, 1.3, 1.4, 1.6
+ * Task 4.2 — implement-review-commit cycle for a single section:
+ * - IAgentLoop.run() is called with the section title
+ * - IReviewEngine.review() is called after the agent loop completes
+ * - When review passes → git stageAndCommit() is called
+ * - Commit message contains the section title
+ * - When review passes → IPlanStore updated to "completed"
+ * - When review passes → section:completed event emitted with commitSha
+ * - When agent loop terminates without task completion → section "failed"
+ * - When review fails → no git commit, section "failed"
+ * - When git commit fails → section "failed", plan halts
+ *
+ * Requirements: 1.1, 1.3, 1.4, 1.6, 2.1, 2.3, 2.4, 3.1, 4.1, 4.4, 4.5, 6.2, 6.5
  */
 
 import { ImplementationLoopService } from "@/application/implementation-loop/implementation-loop-service";
 import type { AgentLoopResult, IAgentLoop } from "@/application/ports/agent-loop";
+import type { IGitController } from "@/application/ports/git-controller";
 import type {
   IImplementationLoopEventBus,
   IPlanStore,
@@ -23,9 +35,8 @@ import type {
   QualityGateConfig,
   ReviewResult,
 } from "@/application/ports/implementation-loop";
+import type { AgentState, TerminationCondition } from "@/domain/agent/types";
 import type { ImplementationLoopEvent } from "@/domain/implementation-loop/types";
-import type { IGitController } from "@/application/ports/git-controller";
-import type { AgentState } from "@/domain/agent/types";
 import type { Task, TaskPlan } from "@/domain/planning/types";
 import { describe, expect, it } from "bun:test";
 
@@ -551,5 +562,451 @@ describe("ImplementationLoopService — resume()", () => {
     const result = await service.resume("nonexistent");
 
     expect(result.outcome).toBe("plan-not-found");
+  });
+});
+
+// ===========================================================================
+// Task 4.2: Implement-Review-Commit Cycle Tests
+// ===========================================================================
+
+// ---------------------------------------------------------------------------
+// Task 4.2 spy helpers
+// ---------------------------------------------------------------------------
+
+/** Spy agent loop that records which task strings were passed to run(). */
+function makeSpyAgentLoop(
+  resultOverrides: Partial<AgentLoopResult> = {},
+): IAgentLoop & { calls: string[] } {
+  const calls: string[] = [];
+  const baseResult = makeAgentLoopResult();
+  const result: AgentLoopResult = { ...baseResult, ...resultOverrides };
+  return {
+    calls,
+    async run(task: string) {
+      calls.push(task);
+      return result;
+    },
+    stop() {},
+    getState() {
+      return null;
+    },
+  };
+}
+
+/** Spy agent loop that simulates a non-completing agent loop run. */
+function makeFailingAgentLoop(condition: TerminationCondition): IAgentLoop & { calls: string[] } {
+  return makeSpyAgentLoop({ terminationCondition: condition, taskCompleted: false });
+}
+
+/** Spy review engine that records how many times review() was called. */
+function makeSpyReviewEngine(
+  outcome: "passed" | "failed" = "passed",
+): IReviewEngine & { callCount: number } {
+  let callCount = 0;
+  return {
+    get callCount() {
+      return callCount;
+    },
+    async review() {
+      callCount++;
+      return makeReviewResult(outcome);
+    },
+  };
+}
+
+/** Spy git controller that records stageAndCommit calls. */
+function makeSpyGitController(
+  commitSuccess = true,
+): IGitController & { commitCalls: Array<{ files: readonly string[]; message: string }> } {
+  const commitCalls: Array<{ files: readonly string[]; message: string }> = [];
+  return {
+    commitCalls,
+    async listBranches() {
+      return { ok: true, value: [] };
+    },
+    async detectChanges() {
+      return { ok: true, value: { staged: [], unstaged: ["src/feature.ts"], untracked: [] } };
+    },
+    async createAndCheckoutBranch() {
+      return {
+        ok: true,
+        value: { branchName: "feature/test", baseBranch: "main", conflictResolved: false },
+      };
+    },
+    async stageAndCommit(files, message) {
+      commitCalls.push({ files, message });
+      if (!commitSuccess) {
+        return { ok: false, error: { type: "runtime", message: "Nothing to commit" } };
+      }
+      return { ok: true, value: { hash: "commit-sha-abc", message, fileCount: 1 } };
+    },
+    async push() {
+      return {
+        ok: true,
+        value: { branchName: "feature/test", remote: "origin", commitHash: "commit-sha-abc" },
+      };
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Agent loop invocation
+// ---------------------------------------------------------------------------
+
+describe("ImplementationLoopService (task 4.2) — agent loop invocation", () => {
+  it("calls IAgentLoop.run() with the section title", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", title: "Build the auth module", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const agentLoop = makeSpyAgentLoop();
+    const service = makeService(store, { agentLoop, reviewEngine: makeSpyReviewEngine(), gitController: makeSpyGitController() });
+
+    await service.run(plan.id);
+
+    expect(agentLoop.calls).toHaveLength(1);
+    expect(agentLoop.calls[0]).toContain("Build the auth module");
+  });
+
+  it("calls IAgentLoop.run() once per pending section", async () => {
+    const plan = makeTaskPlan([
+      makeTask({ id: "t1", title: "Section A", status: "pending" }),
+      makeTask({ id: "t2", title: "Section B", status: "pending" }),
+    ]);
+    const store = makePlanStore(plan);
+    const agentLoop = makeSpyAgentLoop();
+    const service = makeService(store, { agentLoop, reviewEngine: makeSpyReviewEngine(), gitController: makeSpyGitController() });
+
+    await service.run(plan.id);
+
+    expect(agentLoop.calls).toHaveLength(2);
+  });
+
+  it("does not call IAgentLoop.run() for already-completed sections", async () => {
+    const plan = makeTaskPlan([
+      makeTask({ id: "t1", status: "completed" }),
+      makeTask({ id: "t2", title: "Only this one", status: "pending" }),
+    ]);
+    const store = makePlanStore(plan);
+    const agentLoop = makeSpyAgentLoop();
+    const service = makeService(store, { agentLoop, reviewEngine: makeSpyReviewEngine(), gitController: makeSpyGitController() });
+
+    await service.run(plan.id);
+
+    expect(agentLoop.calls).toHaveLength(1);
+    expect(agentLoop.calls[0]).toContain("Only this one");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Review engine invocation
+// ---------------------------------------------------------------------------
+
+describe("ImplementationLoopService (task 4.2) — review engine invocation", () => {
+  it("calls IReviewEngine.review() after a successful agent loop run", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const reviewEngine = makeSpyReviewEngine();
+    const service = makeService(store, { agentLoop: makeSpyAgentLoop(), reviewEngine, gitController: makeSpyGitController() });
+
+    await service.run(plan.id);
+
+    expect(reviewEngine.callCount).toBe(1);
+  });
+
+  it("does not call IReviewEngine.review() when agent loop fails to complete", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const agentLoop = makeFailingAgentLoop("SAFETY_STOP");
+    const reviewEngine = makeSpyReviewEngine();
+    const service = makeService(store, { agentLoop, reviewEngine, gitController: makeSpyGitController() });
+
+    await service.run(plan.id);
+
+    expect(reviewEngine.callCount).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Git commit on review-passed
+// ---------------------------------------------------------------------------
+
+describe("ImplementationLoopService (task 4.2) — git commit when review passes", () => {
+  it("calls stageAndCommit when review passes", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", title: "Add caching layer", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const git = makeSpyGitController();
+    const service = makeService(store, { agentLoop: makeSpyAgentLoop(), reviewEngine: makeSpyReviewEngine("passed"), gitController: git });
+
+    await service.run(plan.id);
+
+    expect(git.commitCalls).toHaveLength(1);
+  });
+
+  it("commit message contains the section title", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", title: "Add caching layer", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const git = makeSpyGitController();
+    const service = makeService(store, { agentLoop: makeSpyAgentLoop(), reviewEngine: makeSpyReviewEngine("passed"), gitController: git });
+
+    await service.run(plan.id);
+
+    const commitMessage = git.commitCalls[0]?.message ?? "";
+    expect(commitMessage).toContain("Add caching layer");
+  });
+
+  it("does not call stageAndCommit when review fails", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const git = makeSpyGitController();
+    const service = makeService(store, { agentLoop: makeSpyAgentLoop(), reviewEngine: makeSpyReviewEngine("failed"), gitController: git });
+
+    await service.run(plan.id);
+
+    expect(git.commitCalls).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// IPlanStore status updates on commit
+// ---------------------------------------------------------------------------
+
+describe("ImplementationLoopService (task 4.2) — plan store updates", () => {
+  it("updates section to 'completed' in IPlanStore when review passes and commit succeeds", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const service = makeService(store, {
+      agentLoop: makeSpyAgentLoop(),
+      reviewEngine: makeSpyReviewEngine("passed"),
+      gitController: makeSpyGitController(),
+    });
+
+    await service.run(plan.id);
+
+    const completedUpdate = store.statusUpdates.find(
+      (u) => u.sectionId === "t1" && u.status === "completed",
+    );
+    expect(completedUpdate).toBeDefined();
+  });
+
+  it("updates section to 'failed' when agent loop does not complete (SAFETY_STOP)", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const service = makeService(store, {
+      agentLoop: makeFailingAgentLoop("SAFETY_STOP"),
+      reviewEngine: makeSpyReviewEngine(),
+      gitController: makeSpyGitController(),
+    });
+
+    await service.run(plan.id);
+
+    const failedUpdate = store.statusUpdates.find(
+      (u) => u.sectionId === "t1" && u.status === "failed",
+    );
+    expect(failedUpdate).toBeDefined();
+  });
+
+  it("updates section to 'failed' when agent loop hits MAX_ITERATIONS_REACHED", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const service = makeService(store, {
+      agentLoop: makeFailingAgentLoop("MAX_ITERATIONS_REACHED"),
+      reviewEngine: makeSpyReviewEngine(),
+      gitController: makeSpyGitController(),
+    });
+
+    await service.run(plan.id);
+
+    const failedUpdate = store.statusUpdates.find(
+      (u) => u.sectionId === "t1" && u.status === "failed",
+    );
+    expect(failedUpdate).toBeDefined();
+  });
+
+  it("updates section to 'failed' when review fails", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const service = makeService(store, {
+      agentLoop: makeSpyAgentLoop(),
+      reviewEngine: makeSpyReviewEngine("failed"),
+      gitController: makeSpyGitController(),
+    });
+
+    await service.run(plan.id);
+
+    const failedUpdate = store.statusUpdates.find(
+      (u) => u.sectionId === "t1" && u.status === "failed",
+    );
+    expect(failedUpdate).toBeDefined();
+  });
+
+  it("updates section to 'failed' when git commit fails", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const service = makeService(store, {
+      agentLoop: makeSpyAgentLoop(),
+      reviewEngine: makeSpyReviewEngine("passed"),
+      gitController: makeSpyGitController(false), // commit fails
+    });
+
+    await service.run(plan.id);
+
+    const failedUpdate = store.statusUpdates.find(
+      (u) => u.sectionId === "t1" && u.status === "failed",
+    );
+    expect(failedUpdate).toBeDefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Events emitted during section execution
+// ---------------------------------------------------------------------------
+
+describe("ImplementationLoopService (task 4.2) — lifecycle events", () => {
+  it("emits section:completed event with commitSha when review passes and commit succeeds", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const eventBus = makeEventBus();
+    const service = makeService(store, {
+      agentLoop: makeSpyAgentLoop(),
+      reviewEngine: makeSpyReviewEngine("passed"),
+      gitController: makeSpyGitController(),
+    });
+
+    await service.run(plan.id, { eventBus });
+
+    const completedEvent = eventBus.events.find((e) => e.type === "section:completed");
+    expect(completedEvent).toBeDefined();
+    expect(completedEvent?.type === "section:completed" && completedEvent.commitSha).toBe(
+      "commit-sha-abc",
+    );
+  });
+
+  it("emits section:review-passed event when review passes", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const eventBus = makeEventBus();
+    const service = makeService(store, {
+      agentLoop: makeSpyAgentLoop(),
+      reviewEngine: makeSpyReviewEngine("passed"),
+      gitController: makeSpyGitController(),
+    });
+
+    await service.run(plan.id, { eventBus });
+
+    const reviewPassedEvent = eventBus.events.find((e) => e.type === "section:review-passed");
+    expect(reviewPassedEvent).toBeDefined();
+  });
+
+  it("emits section:review-failed event when review fails", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const eventBus = makeEventBus();
+    const service = makeService(store, {
+      agentLoop: makeSpyAgentLoop(),
+      reviewEngine: makeSpyReviewEngine("failed"),
+      gitController: makeSpyGitController(),
+    });
+
+    await service.run(plan.id, { eventBus });
+
+    const reviewFailedEvent = eventBus.events.find((e) => e.type === "section:review-failed");
+    expect(reviewFailedEvent).toBeDefined();
+  });
+
+  it("emits plan:halted event when git commit fails", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const eventBus = makeEventBus();
+    const service = makeService(store, {
+      agentLoop: makeSpyAgentLoop(),
+      reviewEngine: makeSpyReviewEngine("passed"),
+      gitController: makeSpyGitController(false),
+    });
+
+    await service.run(plan.id, { eventBus });
+
+    const haltedEvent = eventBus.events.find((e) => e.type === "plan:halted");
+    expect(haltedEvent).toBeDefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Overall outcome when section execution fails
+// ---------------------------------------------------------------------------
+
+describe("ImplementationLoopService (task 4.2) — overall outcome on section failure", () => {
+  it("returns outcome: section-failed when agent loop does not complete", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const service = makeService(store, {
+      agentLoop: makeFailingAgentLoop("SAFETY_STOP"),
+      reviewEngine: makeSpyReviewEngine(),
+      gitController: makeSpyGitController(),
+    });
+
+    const result = await service.run(plan.id);
+
+    expect(result.outcome).toBe("section-failed");
+  });
+
+  it("returns outcome: section-failed when review fails", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const service = makeService(store, {
+      agentLoop: makeSpyAgentLoop(),
+      reviewEngine: makeSpyReviewEngine("failed"),
+      gitController: makeSpyGitController(),
+    });
+
+    const result = await service.run(plan.id);
+
+    expect(result.outcome).toBe("section-failed");
+  });
+
+  it("returns outcome: section-failed when git commit fails", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const service = makeService(store, {
+      agentLoop: makeSpyAgentLoop(),
+      reviewEngine: makeSpyReviewEngine("passed"),
+      gitController: makeSpyGitController(false),
+    });
+
+    const result = await service.run(plan.id);
+
+    expect(result.outcome).toBe("section-failed");
+  });
+
+  it("does not halt on first section failure; includes failed section in sections array", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const service = makeService(store, {
+      agentLoop: makeFailingAgentLoop("SAFETY_STOP"),
+      reviewEngine: makeSpyReviewEngine(),
+      gitController: makeSpyGitController(),
+    });
+
+    const result = await service.run(plan.id);
+
+    expect(result.sections.length).toBeGreaterThan(0);
+    expect(result.sections[0]?.status).toBe("failed");
+  });
+
+  it("does not execute subsequent sections after a section fails", async () => {
+    const plan = makeTaskPlan([
+      makeTask({ id: "t1", status: "pending" }),
+      makeTask({ id: "t2", status: "pending" }),
+    ]);
+    const store = makePlanStore(plan);
+    const agentLoop = makeFailingAgentLoop("SAFETY_STOP");
+    const service = makeService(store, {
+      agentLoop,
+      reviewEngine: makeSpyReviewEngine(),
+      gitController: makeSpyGitController(),
+    });
+
+    await service.run(plan.id);
+
+    // Agent loop called once (only for t1), t2 never starts
+    expect(agentLoop.calls).toHaveLength(1);
   });
 });

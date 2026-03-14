@@ -111,7 +111,7 @@
   - Support graceful stop via a private `#stopRequested` flag checked at each section boundary; return `outcome: "stopped"` when triggered
   - _Requirements: 1.1, 1.3, 1.4, 1.6_
 
-- [ ] 4.2 Implement the implement-review-commit cycle for a single section
+- [x] 4.2 Implement the implement-review-commit cycle for a single section
   - Invoke `IAgentLoop.run(sectionDescription, options)` with the prepared context snapshot and tool permissions; capture the full `AgentLoopResult` (all tool call records and observations)
   - Treat `AgentLoopResult` termination due to safety stop or iteration limit as a section failure — increment the retry counter and route to the retry/escalation logic
   - After a successful agent loop result, invoke `IReviewEngine.review(agentLoopResult, section, qualityGateConfig)` to evaluate output
