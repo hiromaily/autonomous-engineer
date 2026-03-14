@@ -11,7 +11,7 @@ import type { IGitEventBus } from "../../../src/application/ports/git-event-bus"
 import type { IAuditLogger, AuditEntry } from "../../../src/application/safety/ports";
 import type { LlmProviderPort } from "../../../src/application/ports/llm";
 import type { IGitValidator } from "../../../src/domain/git/git-validator";
-import type { GitIntegrationConfig, GitEvent, PushResult } from "../../../src/domain/git/types";
+import type { GitIntegrationConfig, GitEvent, } from "../../../src/domain/git/types";
 
 // ---------------------------------------------------------------------------
 // Test helpers
@@ -206,7 +206,7 @@ describe("GitIntegrationService.push — task 5.3", () => {
     it("emits push-rejected-non-fast-forward when adapter returns non-fast-forward error", async () => {
       const { service, eventBus } = makeService({
         controller: {
-          push: async (branchName) => ({
+          push: async (_branchName) => ({
             ok: false,
             error: {
               type: "runtime",

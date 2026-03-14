@@ -142,7 +142,7 @@ function makeCache(): IContextCache {
   };
 }
 
-function makeMemoryPort(content = "(no memory entries)"): MemoryPort {
+function makeMemoryPort(_content = "(no memory entries)"): MemoryPort {
   return {
     shortTerm: { read: () => ({ recentFiles: [] }), write: () => {}, clear: () => {} },
     query: async () => ({ entries: [] }),

@@ -326,7 +326,7 @@ describe("ContextEngineService — structured observability (task 9.3)", () => {
       await service.buildContext(makeRequest());
       const log = findAssemblyLog(logs);
       expect(typeof log?.totalTokens).toBe("number");
-      expect(log!.totalTokens).toBeGreaterThanOrEqual(0);
+      expect(log?.totalTokens).toBeGreaterThanOrEqual(0);
     } finally {
       restore();
     }
@@ -339,7 +339,7 @@ describe("ContextEngineService — structured observability (task 9.3)", () => {
       await service.buildContext(makeRequest());
       const log = findAssemblyLog(logs);
       expect(typeof log?.durationMs).toBe("number");
-      expect(log!.durationMs).toBeGreaterThanOrEqual(0);
+      expect(log?.durationMs).toBeGreaterThanOrEqual(0);
     } finally {
       restore();
     }

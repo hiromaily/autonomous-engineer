@@ -88,7 +88,8 @@ describe("IGitEventBus contract (stub implementation)", () => {
     bus.emit(event);
 
     expect(received).toHaveLength(1);
-    const e = received[0]!;
+    const e = received[0];
+    if (!e) throw new Error("expected received event");
     if (e.type === "branch-created") {
       expect(e.branchName).toBe("agent/my-feature");
       expect(e.baseBranch).toBe("main");
@@ -111,7 +112,8 @@ describe("IGitEventBus contract (stub implementation)", () => {
     };
     bus.emit(event);
 
-    const e = received[0]!;
+    const e = received[0];
+    if (!e) throw new Error("expected received event");
     if (e.type === "commit-created") {
       expect(e.hash).toBe("abc123");
       expect(e.fileCount).toBe(5);
@@ -132,7 +134,8 @@ describe("IGitEventBus contract (stub implementation)", () => {
       timestamp: "2026-03-14T00:00:00Z",
     });
 
-    const e = received[0]!;
+    const e = received[0];
+    if (!e) throw new Error("expected received event");
     if (e.type === "repeated-git-failure") {
       expect(e.operation).toBe("commit");
       expect(e.attemptCount).toBe(3);

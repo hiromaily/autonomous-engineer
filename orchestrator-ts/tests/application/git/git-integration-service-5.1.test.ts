@@ -3,9 +3,9 @@
 // tests/application/git/git-integration-service-5.1.test.ts
 // ---------------------------------------------------------------------------
 
-import { describe, it, expect, beforeEach } from "bun:test";
+import { describe, it, expect, } from "bun:test";
 import { GitIntegrationService } from "../../../src/application/git/git-integration-service";
-import type { IGitController, GitResult } from "../../../src/application/ports/git-controller";
+import type { IGitController, } from "../../../src/application/ports/git-controller";
 import type { IPullRequestProvider } from "../../../src/application/ports/pr-provider";
 import type { IGitEventBus } from "../../../src/application/ports/git-event-bus";
 import type { IAuditLogger, AuditEntry } from "../../../src/application/safety/ports";
@@ -14,7 +14,6 @@ import type { IGitValidator } from "../../../src/domain/git/git-validator";
 import type {
   GitIntegrationConfig,
   GitEvent,
-  BranchCreationResult,
   GitChangesResult,
 } from "../../../src/domain/git/types";
 
@@ -283,7 +282,7 @@ describe("GitIntegrationService.createBranch — task 5.1", () => {
     });
 
     it("appends -2 suffix when original name already exists", async () => {
-      const { service, controller } = makeService({
+      const { service, controller: _controller } = makeService({
         controller: {
           listBranches: async () => ({ ok: true, value: ["agent/my-spec"] }),
         },
@@ -297,7 +296,7 @@ describe("GitIntegrationService.createBranch — task 5.1", () => {
     });
 
     it("appends -3 suffix when -2 also exists", async () => {
-      const { service, controller } = makeService({
+      const { service, controller: _controller } = makeService({
         controller: {
           listBranches: async () => ({ ok: true, value: ["agent/my-spec", "agent/my-spec-2"] }),
         },

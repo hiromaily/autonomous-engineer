@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { TaskPlanningService } from "../../../src/application/planning/task-planning-service";
 import type { IAgentLoop } from "../../../src/application/ports/agent-loop";
 import type { LlmProviderPort } from "../../../src/application/ports/llm";
-import type { IPlanContextBuilder, ITaskPlanStore } from "../../../src/application/ports/task-planning";
+import type { IPlanContextBuilder, } from "../../../src/application/ports/task-planning";
 import type { TaskPlan } from "../../../src/domain/planning/types";
 import { makeContextBuilder, makeLlm, makeSequencedAgentLoop as makeAgentLoop, makeStore } from "./fixtures";
 

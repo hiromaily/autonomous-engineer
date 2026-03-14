@@ -432,9 +432,9 @@ describe("GitIntegrationService.createOrUpdatePullRequest — task 5.4", () => {
     it("resets failure count after success", async () => {
       const eventBus = makeEventBus();
       let callNumber = 0;
-      const prProvider = makePrProvider();
+      const _prProvider = makePrProvider();
       // Override createOrUpdate to fail for first 2, succeed for 3rd, then fail 3 more
-      const failThenSucceed = false;
+      const _failThenSucceed = false;
       const customPr: IPullRequestProvider & { calls: Array<{ method: string; params: PullRequestParams }> } = {
         calls: [],
         createOrUpdate: async (params) => {

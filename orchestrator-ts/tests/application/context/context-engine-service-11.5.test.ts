@@ -79,7 +79,7 @@ function makeMemoryPort(entries: RankedMemoryEntry[] = []): MemoryPort {
   };
 }
 
-function makeMemoryPortWithContent(description: string): MemoryPort {
+function _makeMemoryPortWithContent(description: string): MemoryPort {
   return makeMemoryPort([
     {
       relevanceScore: 0.9,

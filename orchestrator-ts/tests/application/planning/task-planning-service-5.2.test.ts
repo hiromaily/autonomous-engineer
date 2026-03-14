@@ -5,7 +5,6 @@ import type { LlmProviderPort, LlmResult } from "../../../src/application/ports/
 import type {
   IHumanReviewGateway,
   IPlanContextBuilder,
-  ITaskPlanStore,
   PlanReviewDecision,
 } from "../../../src/application/ports/task-planning";
 import type { PlanReviewReason } from "../../../src/domain/planning/types";

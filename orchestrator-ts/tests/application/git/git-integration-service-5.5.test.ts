@@ -121,7 +121,7 @@ function makeAuditLogger(): IAuditLogger & { entries: AuditEntry[] } {
   return { entries, write: async (e) => { entries.push(e); }, flush: async () => {} };
 }
 
-function makeLlmWithJson(title = "feat: implement", body = "PR body"): LlmProviderPort & { prompts: string[] } {
+function _makeLlmWithJson(title = "feat: implement", body = "PR body"): LlmProviderPort & { prompts: string[] } {
   const prompts: string[] = [];
   return {
     prompts,
@@ -236,7 +236,7 @@ describe("GitIntegrationService.runFullWorkflow — task 5.5", () => {
     it("uses the branchName from createBranch result for the push call", async () => {
       const { service, controller } = makeService({
         controller: makeFullWorkflowController({
-          createAndCheckoutBranch: async (branchName, baseBranch) => ({
+          createAndCheckoutBranch: async (_branchName, baseBranch) => ({
             ok: true,
             value: { branchName: "agent/custom-branch", baseBranch, conflictResolved: false },
           }),
@@ -304,7 +304,7 @@ describe("GitIntegrationService.runFullWorkflow — task 5.5", () => {
 
     it("halts and returns Err from generateAndCommit without calling push", async () => {
       let detectChangesCount = 0;
-      const { service, controller } = makeService({
+      const { service, controller: _controller } = makeService({
         controller: {
           calls: [],
           listBranches: async () => ({ ok: true, value: [] }),
@@ -421,7 +421,7 @@ describe("GitIntegrationService.runFullWorkflow — task 5.5", () => {
             ok: true,
             value: { branchName, baseBranch, conflictResolved: false },
           }),
-          stageAndCommit: async (files: ReadonlyArray<string>, message: string) => ({
+          stageAndCommit: async (_files: ReadonlyArray<string>, message: string) => ({
             ok: true,
             value: { hash: "", message, fileCount: 0 },
           }),

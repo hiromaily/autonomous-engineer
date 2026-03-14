@@ -419,9 +419,11 @@ export class AgentLoopService implements IAgentLoop {
     // Embed reflection into the latest observation — never mutate existing state
     const lastIdx = state.observations.length - 1;
     if (lastIdx < 0) return state;
+    const lastObs = state.observations[lastIdx];
+    if (!lastObs) return state;
     const observations = [
       ...state.observations.slice(0, lastIdx),
-      { ...state.observations[lastIdx]!, reflection },
+      { ...lastObs, reflection },
     ];
 
     return { ...state, observations };
@@ -478,21 +480,21 @@ export class AgentLoopService implements IAgentLoop {
     const obj = this.#parseLlmJson(content);
     if (!obj) return null;
 
-    const assessment = obj["assessment"];
+    const assessment = obj.assessment;
     if (!["expected", "unexpected", "failure"].includes(assessment as string)) return null;
 
-    const learnings = obj["learnings"];
+    const learnings = obj.learnings;
     if (!Array.isArray(learnings) || !learnings.every((l) => typeof l === "string")) return null;
 
-    const planAdjustment = obj["planAdjustment"];
+    const planAdjustment = obj.planAdjustment;
     if (!["continue", "revise", "stop"].includes(planAdjustment as string)) return null;
 
-    const summary = obj["summary"];
+    const summary = obj.summary;
     if (typeof summary !== "string") return null;
 
-    const revisedPlan = obj["revisedPlan"];
-    const requiresHumanIntervention = obj["requiresHumanIntervention"];
-    const taskComplete = obj["taskComplete"];
+    const revisedPlan = obj.revisedPlan;
+    const requiresHumanIntervention = obj.requiresHumanIntervention;
+    const taskComplete = obj.taskComplete;
 
     return {
       assessment: assessment as ReflectionAssessment,
@@ -589,7 +591,8 @@ export class AgentLoopService implements IAgentLoop {
     state: AgentState,
     opts: Pick<AgentLoopOptions, "maxRecoveryAttempts" | "eventBus" | "logger">,
   ): Promise<Readonly<{ type: "success"; state: AgentState }> | Readonly<{ type: "exhausted"; state: AgentState }>> {
-    const failingObs = state.observations[state.observations.length - 1]!;
+    const failingObs = state.observations[state.observations.length - 1];
+    if (!failingObs) return { type: "exhausted", state };
     const errorMessage = failingObs.error?.message ?? "unknown failure";
 
     // Repeated failure pattern detection: only when the failing observation has a real tool error.
@@ -598,7 +601,8 @@ export class AgentLoopService implements IAgentLoop {
     if (failingObs.error) {
       let previousSameErrorCount = 0;
       for (let i = 0; i < state.observations.length - 1; i++) {
-        const obs = state.observations[i]!;
+        const obs = state.observations[i];
+        if (!obs) continue;
         if (
           !obs.success
           && obs.toolName === failingObs.toolName
@@ -745,16 +749,16 @@ export class AgentLoopService implements IAgentLoop {
     const obj = this.#parseLlmJson(content);
     if (!obj) return null;
 
-    const category = obj["category"];
+    const category = obj.category;
     if (!ACTION_CATEGORIES.includes(category as ActionCategory)) return null;
 
-    const toolName = obj["toolName"];
+    const toolName = obj.toolName;
     if (typeof toolName !== "string" || toolName.length === 0) return null;
 
-    const toolInput = obj["toolInput"];
+    const toolInput = obj.toolInput;
     if (typeof toolInput !== "object" || toolInput === null || Array.isArray(toolInput)) return null;
 
-    const rationale = obj["rationale"];
+    const rationale = obj.rationale;
     if (typeof rationale !== "string") return null;
 
     return {

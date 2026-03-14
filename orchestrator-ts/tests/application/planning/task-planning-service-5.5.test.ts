@@ -1,7 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { TaskPlanningService } from "../../../src/application/planning/task-planning-service";
-import type { IHumanReviewGateway, ITaskPlanStore, TaskPlannerOptions } from "../../../src/application/ports/task-planning";
-import type { TaskPlan } from "../../../src/domain/planning/types";
+import type { IHumanReviewGateway, } from "../../../src/application/ports/task-planning";
 import {
   makeContextBuilder,
   makeEventBus,

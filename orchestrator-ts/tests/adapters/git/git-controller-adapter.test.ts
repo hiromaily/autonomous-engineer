@@ -18,7 +18,7 @@ function makeExecutor(
     calls,
     invoke: async (name: string, input: unknown, _ctx: ToolContext) => {
       calls.push({ name, input });
-      if (name in results) return results[name]!;
+      if (name in results) return results[name] ?? { ok: false, error: { type: "runtime" as const, message: `No result for: ${name}` } };
       return { ok: false, error: { type: "runtime" as const, message: `Unexpected tool: ${name}` } };
     },
   };

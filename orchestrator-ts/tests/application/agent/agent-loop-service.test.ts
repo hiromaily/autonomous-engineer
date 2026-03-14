@@ -2,7 +2,6 @@ import { describe, expect, it } from "bun:test";
 import { AgentLoopService } from "../../../src/application/agent/agent-loop-service";
 import type {
   AgentLoopLogger,
-  AgentLoopOptions,
   IAgentEventBus,
   IAgentLoop,
   IContextProvider,
@@ -10,7 +9,7 @@ import type {
 import type { LlmProviderPort } from "../../../src/application/ports/llm";
 import type { IToolExecutor } from "../../../src/application/tools/executor";
 import type { AgentLoopEvent, AgentState, ReflectionOutput } from "../../../src/domain/agent/types";
-import type { IToolRegistry, ToolListEntry } from "../../../src/domain/tools/registry";
+import type { IToolRegistry, } from "../../../src/domain/tools/registry";
 import type { MemoryEntry, ToolContext } from "../../../src/domain/tools/types";
 
 // ---------------------------------------------------------------------------
@@ -650,7 +649,7 @@ describe("AgentLoopService OBSERVE step", () => {
     const service = new AgentLoopService(executor, makeRegistry(), makeValidLlm(), makeToolContext());
     const result = await service.run("test task", { maxIterations: 1 });
 
-    expect(result.finalState.observations[0]!.toolName).toBe("read_file");
+    expect(result.finalState.observations[0]?.toolName).toBe("read_file");
   });
 
   it("successful tool execution — observation has success=true and rawOutput set", async () => {
@@ -664,7 +663,8 @@ describe("AgentLoopService OBSERVE step", () => {
     const service = new AgentLoopService(executor, makeRegistry(), makeValidLlm(), makeToolContext());
     const result = await service.run("test task", { maxIterations: 1 });
 
-    const obs = result.finalState.observations[0]!;
+    const obs = result.finalState.observations[0];
+    if (!obs) throw new Error("expected first observation");
     expect(obs.success).toBe(true);
     expect(obs.rawOutput).toEqual(rawOutput);
     expect(obs.error).toBeUndefined();
@@ -680,11 +680,12 @@ describe("AgentLoopService OBSERVE step", () => {
     const service = new AgentLoopService(executor, makeRegistry(), makeValidLlm(), makeToolContext());
     const result = await service.run("test task", { maxIterations: 1 });
 
-    const obs = result.finalState.observations[0]!;
+    const obs = result.finalState.observations[0];
+    if (!obs) throw new Error("expected first observation");
     expect(obs.success).toBe(false);
     expect(obs.error).toBeDefined();
-    expect(obs.error!.type).toBe("runtime");
-    expect(obs.error!.message).toBe("command failed");
+    expect(obs.error?.type).toBe("runtime");
+    expect(obs.error?.message).toBe("command failed");
   });
 
   it("observation records toolInput from the ActionPlan", async () => {
@@ -697,7 +698,8 @@ describe("AgentLoopService OBSERVE step", () => {
     const service = new AgentLoopService(executor, makeRegistry(), makeValidLlm(), makeToolContext());
     const result = await service.run("test task", { maxIterations: 1 });
 
-    const obs = result.finalState.observations[0]!;
+    const obs = result.finalState.observations[0];
+    if (!obs) throw new Error("expected first observation");
     expect(obs.toolInput).toEqual({ path: "/workspace/src/index.ts" });
   });
 
@@ -712,7 +714,8 @@ describe("AgentLoopService OBSERVE step", () => {
     const service = new AgentLoopService(executor, makeRegistry(), makeValidLlm(), makeToolContext());
     const result = await service.run("test task", { maxIterations: 1 });
 
-    const obs = result.finalState.observations[0]!;
+    const obs = result.finalState.observations[0];
+    if (!obs) throw new Error("expected first observation");
     const parsed = Date.parse(obs.recordedAt);
     expect(Number.isNaN(parsed)).toBe(false);
     expect(parsed).toBeGreaterThanOrEqual(before);
@@ -810,7 +813,7 @@ describe("AgentLoopService REFLECT step", () => {
     const result = await service.run("test task", { maxIterations: 1 });
 
     expect(result.finalState.observations).toHaveLength(1);
-    expect(result.finalState.observations[0]!.reflection).toBeDefined();
+    expect(result.finalState.observations[0]?.reflection).toBeDefined();
   });
 
   it("reflection has the correct assessment from the LLM response", async () => {
@@ -822,7 +825,7 @@ describe("AgentLoopService REFLECT step", () => {
     );
     const result = await service.run("test task", { maxIterations: 1 });
 
-    expect(result.finalState.observations[0]!.reflection!.assessment).toBe("expected");
+    expect(result.finalState.observations[0]?.reflection?.assessment).toBe("expected");
   });
 
   it("reflection has learnings array from the LLM response", async () => {
@@ -834,7 +837,9 @@ describe("AgentLoopService REFLECT step", () => {
     );
     const result = await service.run("test task", { maxIterations: 1 });
 
-    const ref = result.finalState.observations[0]!.reflection!;
+    const obs = result.finalState.observations[0];
+    if (!obs?.reflection) throw new Error("expected reflection on first observation");
+    const ref = obs.reflection;
     expect(Array.isArray(ref.learnings)).toBe(true);
     expect(ref.learnings).toContain("The file structure is as expected");
   });
@@ -848,7 +853,7 @@ describe("AgentLoopService REFLECT step", () => {
     );
     const result = await service.run("test task", { maxIterations: 1 });
 
-    expect(result.finalState.observations[0]!.reflection!.planAdjustment).toBe("continue");
+    expect(result.finalState.observations[0]?.reflection?.planAdjustment).toBe("continue");
   });
 
   it("reflection has a summary string from the LLM response", async () => {
@@ -860,8 +865,8 @@ describe("AgentLoopService REFLECT step", () => {
     );
     const result = await service.run("test task", { maxIterations: 1 });
 
-    expect(typeof result.finalState.observations[0]!.reflection!.summary).toBe("string");
-    expect(result.finalState.observations[0]!.reflection!.summary.length).toBeGreaterThan(0);
+    expect(typeof result.finalState.observations[0]?.reflection?.summary).toBe("string");
+    expect(result.finalState.observations[0]?.reflection?.summary.length).toBeGreaterThan(0);
   });
 
   it("invalid reflection JSON from LLM — observation still gets a failure assessment reflection (no crash)", async () => {
@@ -896,8 +901,8 @@ describe("AgentLoopService REFLECT step", () => {
     const result = await service.run("test task", { maxIterations: 1 });
 
     // Should not crash — observation should have a failure reflection
-    expect(result.finalState.observations[0]!.reflection).toBeDefined();
-    expect(result.finalState.observations[0]!.reflection!.assessment).toBe("failure");
+    expect(result.finalState.observations[0]?.reflection).toBeDefined();
+    expect(result.finalState.observations[0]?.reflection?.assessment).toBe("failure");
   });
 
   it("LLM error during REFLECT — observation still gets a failure assessment reflection", async () => {
@@ -927,8 +932,8 @@ describe("AgentLoopService REFLECT step", () => {
     const service = new AgentLoopService(makeExecutor(), makeRegistry(), llm, makeToolContext());
     const result = await service.run("test task", { maxIterations: 1 });
 
-    expect(result.finalState.observations[0]!.reflection).toBeDefined();
-    expect(result.finalState.observations[0]!.reflection!.assessment).toBe("failure");
+    expect(result.finalState.observations[0]?.reflection).toBeDefined();
+    expect(result.finalState.observations[0]?.reflection?.assessment).toBe("failure");
   });
 
   it("reflection prompt includes the task string and rationale from the plan", async () => {
@@ -965,8 +970,8 @@ describe("AgentLoopService REFLECT step", () => {
     await service.run("my important task", { maxIterations: 1 });
 
     expect(reflectPrompts.length).toBeGreaterThan(0);
-    expect(reflectPrompts[0]!).toContain("my important task");
-    expect(reflectPrompts[0]!).toContain("my specific rationale for the plan");
+    expect(reflectPrompts[0] ?? "").toContain("my important task");
+    expect(reflectPrompts[0] ?? "").toContain("my specific rationale for the plan");
   });
 
   it("reflection with taskComplete=true is embedded in observation", async () => {
@@ -1002,7 +1007,9 @@ describe("AgentLoopService REFLECT step", () => {
     const service = new AgentLoopService(makeExecutor(), makeRegistry(), llm, makeToolContext());
     const result = await service.run("test task", { maxIterations: 1 });
 
-    const ref = result.finalState.observations[0]!.reflection!;
+    const obs0 = result.finalState.observations[0];
+    if (!obs0?.reflection) throw new Error("expected reflection on first observation");
+    const ref = obs0.reflection;
     expect(ref.taskComplete).toBe(true);
     expect(ref.planAdjustment).toBe("stop");
   });
@@ -1044,7 +1051,9 @@ describe("AgentLoopService REFLECT step", () => {
     const service = new AgentLoopService(makeExecutor(), makeRegistry(), llm, makeToolContext());
     const result = await service.run("test task", { maxIterations: 1 });
 
-    const ref = result.finalState.observations[0]!.reflection!;
+    const obs1 = result.finalState.observations[0];
+    if (!obs1?.reflection) throw new Error("expected reflection on first observation");
+    const ref = obs1.reflection;
     expect(ref.planAdjustment).toBe("revise");
     expect(ref.revisedPlan).toEqual(["step 1: fix the issue", "step 2: rerun tests"]);
   });
@@ -1255,8 +1264,8 @@ describe("AgentLoopService UPDATE STATE step", () => {
     );
     const result = await service.run("test task", { maxIterations: 2 });
 
-    expect(result.finalState.observations[0]!.reflection).toBeDefined();
-    expect(result.finalState.observations[1]!.reflection).toBeDefined();
+    expect(result.finalState.observations[0]?.reflection).toBeDefined();
+    expect(result.finalState.observations[1]?.reflection).toBeDefined();
   });
 });
 
@@ -1364,7 +1373,7 @@ describe("AgentLoopService task 6.1 — stopping conditions", () => {
     await service.run("test task", { maxIterations: 2, logger });
 
     const merged = Object.assign({}, ...loggedData);
-    expect(typeof merged["iterationCount"] === "number" || typeof merged["totalIterations"] === "number").toBe(true);
+    expect(typeof merged.iterationCount === "number" || typeof merged.totalIterations === "number").toBe(true);
   });
 });
 
@@ -1418,7 +1427,7 @@ describe("AgentLoopService task 6.2 — termination event emission", () => {
       | Extract<AgentLoopEvent, { type: "terminated" }>
       | undefined;
     expect(termEvent).toBeDefined();
-    expect(termEvent!.finalState).toEqual(result.finalState);
+    expect(termEvent?.finalState).toEqual(result.finalState);
   });
 
   it("emits terminated event with TASK_COMPLETED condition when task finishes", async () => {
@@ -1579,7 +1588,7 @@ describe("AgentLoopService task 6.2 — final summary log on termination", () =>
     await service.run("test", { maxIterations: 2, logger });
 
     const allData = Object.assign({}, ...infos.map((l) => l.data ?? {}));
-    expect(typeof allData["iterationCount"] === "number" || typeof allData["totalIterations"] === "number").toBe(true);
+    expect(typeof allData.iterationCount === "number" || typeof allData.totalIterations === "number").toBe(true);
   });
 
   it("logs a final summary on TASK_COMPLETED path", async () => {
@@ -1709,11 +1718,11 @@ describe("AgentLoopService task 7.1 — error recovery sub-loop", () => {
       | undefined;
 
     expect(recoveryEvent).toBeDefined();
-    expect(typeof recoveryEvent!.attempt).toBe("number");
-    expect(recoveryEvent!.attempt).toBeGreaterThanOrEqual(1);
-    expect(typeof recoveryEvent!.maxAttempts).toBe("number");
-    expect(recoveryEvent!.maxAttempts).toBeGreaterThan(0);
-    expect(typeof recoveryEvent!.errorMessage).toBe("string");
+    expect(typeof recoveryEvent?.attempt).toBe("number");
+    expect(recoveryEvent?.attempt).toBeGreaterThanOrEqual(1);
+    expect(typeof recoveryEvent?.maxAttempts).toBe("number");
+    expect(recoveryEvent?.maxAttempts).toBeGreaterThan(0);
+    expect(typeof recoveryEvent?.errorMessage).toBe("string");
   });
 
   it("executor is called for the fix action during recovery", async () => {
@@ -1951,10 +1960,10 @@ describe("AgentLoopService task 7.2 — repeated failure detection", () => {
   it("pattern detection only applies when failingObs has an error (success=false)", async () => {
     // If the observation succeeds but REFLECT says failure (no error.message), no pattern detection
     // Two iterations with same REFLECT failure but executor always succeeds
-    let execCount = 0;
+    let _execCount = 0;
     const executor: IToolExecutor = {
       async invoke(_name, _input, _ctx) {
-        execCount++;
+        _execCount++;
         return { ok: true, value: {} }; // always succeed — no tool error
       },
     };
@@ -1983,7 +1992,7 @@ describe("AgentLoopService task 7.2 — repeated failure detection", () => {
     // With maxRecoveryAttempts: 1, if pattern detection fires on iter 2 even without a tool error,
     // it would give RECOVERY_EXHAUSTED. But since failingObs.success=true (no error), no pattern detection.
     // Recovery still runs normally, and since executor succeeds, validation also succeeds.
-    const result = await service.run("test task", { maxIterations: 2, maxRecoveryAttempts: 1, eventBus: bus });
+    const _result = await service.run("test task", { maxIterations: 2, maxRecoveryAttempts: 1, eventBus: bus });
 
     // Recovery should run for both iterations (no early escalation for no-error failure assessments)
     const recoveryEvents = events.filter((e) => e.type === "recovery:attempt");
@@ -2103,10 +2112,10 @@ describe("AgentLoopService task 8.1 — iteration:start event", () => {
       | Extract<AgentLoopEvent, { type: "iteration:start" }>
       | undefined;
 
-    expect(startEvent).toBeDefined();
-    expect(typeof startEvent!.iteration).toBe("number");
-    expect(startEvent!.timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
-    expect("currentStep" in startEvent!).toBe(true);
+    if (!startEvent) throw new Error("expected iteration:start event");
+    expect(typeof startEvent.iteration).toBe("number");
+    expect(startEvent.timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+    expect("currentStep" in startEvent).toBe(true);
   });
 
   it("iteration:start events have consecutive iteration numbers starting at 0", async () => {
@@ -2118,8 +2127,8 @@ describe("AgentLoopService task 8.1 — iteration:start event", () => {
       Extract<AgentLoopEvent, { type: "iteration:start" }>
     >;
 
-    expect(startEvents[0]!.iteration).toBe(0);
-    expect(startEvents[1]!.iteration).toBe(1);
+    expect(startEvents[0]?.iteration).toBe(0);
+    expect(startEvents[1]?.iteration).toBe(1);
   });
 });
 
@@ -2179,9 +2188,9 @@ describe("AgentLoopService task 8.1 — step:start and step:complete events", ()
       | undefined;
 
     expect(planStart).toBeDefined();
-    expect(planStart!.step).toBe("PLAN");
-    expect(typeof planStart!.iteration).toBe("number");
-    expect(planStart!.timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+    expect(planStart?.step).toBe("PLAN");
+    expect(typeof planStart?.iteration).toBe("number");
+    expect(planStart?.timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
   });
 
   it("step:complete event carries step name, iteration number, and non-negative durationMs", async () => {
@@ -2194,10 +2203,10 @@ describe("AgentLoopService task 8.1 — step:start and step:complete events", ()
       | undefined;
 
     expect(planComplete).toBeDefined();
-    expect(planComplete!.step).toBe("PLAN");
-    expect(typeof planComplete!.iteration).toBe("number");
-    expect(typeof planComplete!.durationMs).toBe("number");
-    expect(planComplete!.durationMs).toBeGreaterThanOrEqual(0);
+    expect(planComplete?.step).toBe("PLAN");
+    expect(typeof planComplete?.iteration).toBe("number");
+    expect(typeof planComplete?.durationMs).toBe("number");
+    expect(planComplete?.durationMs).toBeGreaterThanOrEqual(0);
   });
 
   it("step:complete events cover all 5 steps: PLAN, ACT, OBSERVE, REFLECT, UPDATE_STATE", async () => {
@@ -2254,12 +2263,12 @@ describe("AgentLoopService task 8.1 — iteration:complete event", () => {
       | undefined;
 
     expect(completeEvent).toBeDefined();
-    expect(typeof completeEvent!.iteration).toBe("number");
-    expect(typeof completeEvent!.category).toBe("string");
-    expect(typeof completeEvent!.toolName).toBe("string");
-    expect(typeof completeEvent!.durationMs).toBe("number");
-    expect(completeEvent!.durationMs).toBeGreaterThanOrEqual(0);
-    expect(typeof completeEvent!.assessment).toBe("string");
+    expect(typeof completeEvent?.iteration).toBe("number");
+    expect(typeof completeEvent?.category).toBe("string");
+    expect(typeof completeEvent?.toolName).toBe("string");
+    expect(typeof completeEvent?.durationMs).toBe("number");
+    expect(completeEvent?.durationMs).toBeGreaterThanOrEqual(0);
+    expect(typeof completeEvent?.assessment).toBe("string");
   });
 
   it("iteration:complete carries the correct toolName from the action plan", async () => {
@@ -2272,8 +2281,8 @@ describe("AgentLoopService task 8.1 — iteration:complete event", () => {
       | Extract<AgentLoopEvent, { type: "iteration:complete" }>
       | undefined;
 
-    expect(completeEvent!.toolName).toBe("read_file");
-    expect(completeEvent!.category).toBe("Exploration");
+    expect(completeEvent?.toolName).toBe("read_file");
+    expect(completeEvent?.category).toBe("Exploration");
   });
 
   it("no event bus — run() completes normally without errors (per-step events skipped silently)", async () => {
@@ -2293,8 +2302,8 @@ describe("AgentLoopService task 8.2 — per-step info logging", () => {
     const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeCycledLlm(), makeToolContext());
     await service.run("test", { maxIterations: 1, logger });
 
-    const stepLogs = infos.filter((l) => l.data && typeof l.data["step"] === "string");
-    const stepNames = stepLogs.map((l) => l.data!["step"] as string);
+    const stepLogs = infos.filter((l) => l.data && typeof l.data.step === "string");
+    const stepNames = stepLogs.map((l) => l.data?.step as string);
 
     expect(stepNames).toContain("PLAN");
     expect(stepNames).toContain("ACT");
@@ -2308,10 +2317,10 @@ describe("AgentLoopService task 8.2 — per-step info logging", () => {
     const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeCycledLlm(), makeToolContext());
     await service.run("test", { maxIterations: 1, logger });
 
-    const stepLogs = infos.filter((l) => l.data && typeof l.data["step"] === "string");
+    const stepLogs = infos.filter((l) => l.data && typeof l.data.step === "string");
     expect(stepLogs.length).toBeGreaterThanOrEqual(5);
     for (const log of stepLogs) {
-      expect(typeof log.data!["iteration"]).toBe("number");
+      expect(typeof log.data?.iteration).toBe("number");
     }
   });
 
@@ -2320,11 +2329,11 @@ describe("AgentLoopService task 8.2 — per-step info logging", () => {
     const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeCycledLlm(), makeToolContext());
     await service.run("test", { maxIterations: 1, logger });
 
-    const stepLogs = infos.filter((l) => l.data && typeof l.data["step"] === "string");
+    const stepLogs = infos.filter((l) => l.data && typeof l.data.step === "string");
     expect(stepLogs.length).toBeGreaterThanOrEqual(5);
     for (const log of stepLogs) {
-      expect(typeof log.data!["durationMs"]).toBe("number");
-      expect(log.data!["durationMs"] as number).toBeGreaterThanOrEqual(0);
+      expect(typeof log.data?.durationMs).toBe("number");
+      expect(log.data?.durationMs as number).toBeGreaterThanOrEqual(0);
     }
   });
 
@@ -2333,11 +2342,11 @@ describe("AgentLoopService task 8.2 — per-step info logging", () => {
     const service = new AgentLoopService(makeExecutor(), makeRegistry(), makeCycledLlm(), makeToolContext());
     await service.run("test", { maxIterations: 1, logger });
 
-    const actLog = infos.find((l) => l.data?.["step"] === "ACT");
+    const actLog = infos.find((l) => l.data?.step === "ACT");
     expect(actLog).toBeDefined();
-    expect(typeof actLog!.data!["category"]).toBe("string");
-    expect(typeof actLog!.data!["toolName"]).toBe("string");
-    expect(typeof actLog!.data!["success"]).toBe("boolean");
+    expect(typeof actLog?.data?.category).toBe("string");
+    expect(typeof actLog?.data?.toolName).toBe("string");
+    expect(typeof actLog?.data?.success).toBe("boolean");
   });
 
   it("no logger configured — run() completes normally (per-step logs skipped silently)", async () => {
@@ -2510,7 +2519,7 @@ describe("AgentLoopService task 8.2 — state query during execution", () => {
     svc = new AgentLoopService(executor, makeRegistry(), makeCycledLlm(), makeToolContext());
     await svc.run("my-special-task", { maxIterations: 1 });
 
-    expect(snapshotDuringExecution!.task).toBe("my-special-task");
+    expect(snapshotDuringExecution?.task).toBe("my-special-task");
   });
 
   it("getState() snapshot during execution includes iterationCount and completedSteps", async () => {
@@ -2527,8 +2536,8 @@ describe("AgentLoopService task 8.2 — state query during execution", () => {
     svc = new AgentLoopService(executor, makeRegistry(), makeCycledLlm(), makeToolContext());
     await svc.run("test", { maxIterations: 1 });
 
-    expect(typeof snapshotDuringExecution!.iterationCount).toBe("number");
-    expect(Array.isArray(snapshotDuringExecution!.completedSteps)).toBe(true);
+    expect(typeof snapshotDuringExecution?.iterationCount).toBe("number");
+    expect(Array.isArray(snapshotDuringExecution?.completedSteps)).toBe(true);
   });
 });
 
@@ -2549,7 +2558,7 @@ describe("AgentLoopService task 10.2 — ACT step success and failure paths", ()
     const service = new AgentLoopService(executor, makeRegistry(), makeCycledLlm(), makeToolContext());
     const result = await service.run("test task", { maxIterations: 1 });
 
-    expect(result.finalState.observations[0]!.success).toBe(true);
+    expect(result.finalState.observations[0]?.success).toBe(true);
   });
 
   it("successful tool execution — observation captures the raw output from the executor", async () => {
@@ -2563,7 +2572,7 @@ describe("AgentLoopService task 10.2 — ACT step success and failure paths", ()
     const service = new AgentLoopService(executor, makeRegistry(), makeCycledLlm(), makeToolContext());
     const result = await service.run("test task", { maxIterations: 1 });
 
-    expect(result.finalState.observations[0]!.rawOutput).toEqual(rawOutput);
+    expect(result.finalState.observations[0]?.rawOutput).toEqual(rawOutput);
   });
 
   it("successful tool execution — observation has no error field", async () => {
@@ -2576,7 +2585,7 @@ describe("AgentLoopService task 10.2 — ACT step success and failure paths", ()
     const service = new AgentLoopService(executor, makeRegistry(), makeCycledLlm(), makeToolContext());
     const result = await service.run("test task", { maxIterations: 1 });
 
-    expect(result.finalState.observations[0]!.error).toBeUndefined();
+    expect(result.finalState.observations[0]?.error).toBeUndefined();
   });
 
   it("runtime tool error — observation records success=false", async () => {
@@ -2590,7 +2599,7 @@ describe("AgentLoopService task 10.2 — ACT step success and failure paths", ()
     const service = new AgentLoopService(executor, makeRegistry(), makeRecoveryLlm(), makeToolContext());
     const result = await service.run("test task", { maxIterations: 1 });
 
-    expect(result.finalState.observations[0]!.success).toBe(false);
+    expect(result.finalState.observations[0]?.success).toBe(false);
   });
 
   it("runtime tool error — observation carries the structured error with type and message", async () => {
@@ -2603,10 +2612,11 @@ describe("AgentLoopService task 10.2 — ACT step success and failure paths", ()
     const service = new AgentLoopService(executor, makeRegistry(), makeRecoveryLlm(), makeToolContext());
     const result = await service.run("test task", { maxIterations: 1 });
 
-    const obs = result.finalState.observations[0]!;
+    const obs = result.finalState.observations[0];
+    if (!obs) throw new Error("expected first observation");
     expect(obs.error).toBeDefined();
-    expect(obs.error!.type).toBe("runtime");
-    expect(obs.error!.message).toBe("process exited with code 1");
+    expect(obs.error?.type).toBe("runtime");
+    expect(obs.error?.message).toBe("process exited with code 1");
   });
 
   it("runtime tool error — loop enters error recovery (emits at least one recovery:attempt event)", async () => {

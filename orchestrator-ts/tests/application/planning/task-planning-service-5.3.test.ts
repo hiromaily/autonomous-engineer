@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import { TaskPlanningService } from "../../../src/application/planning/task-planning-service";
 import type { AgentLoopOptions, AgentLoopResult, IAgentLoop } from "../../../src/application/ports/agent-loop";
 import type { ITaskPlanStore } from "../../../src/application/ports/task-planning";
@@ -336,7 +336,7 @@ describe("TaskPlanningService — task 5.3: step execution loop", () => {
     it("cascade-fails a dependent step when its dependency fails", async () => {
       // step-1 fails, step-2 depends on step-1; maxStepRetries:0 prevents retries
       const failures = new Map([[0, false]]); // first AL call (step-1) fails
-      const { agentLoop, taskArgs } = makeControllableAgentLoop(failures);
+      const { agentLoop, taskArgs: _taskArgs } = makeControllableAgentLoop(failures);
       const { store } = makeTrackingStore();
       const llm = makeLlm(
         makePlanBody([

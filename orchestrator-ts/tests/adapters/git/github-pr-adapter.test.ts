@@ -75,14 +75,14 @@ describe("GitHubPrAdapter", () => {
 
       // Should have called GET then POST
       expect(calls).toHaveLength(2);
-      expect(calls[0]!.method).toBe("GET");
-      expect(calls[1]!.method).toBe("POST");
+      expect(calls[0]?.method).toBe("GET");
+      expect(calls[1]?.method).toBe("POST");
     });
 
     it("sends correct headers including Authorization", async () => {
       const capturedHeaders: HeadersInit[] = [];
 
-      const mockFetch: MockFetchFn = async (url, init) => {
+      const mockFetch: MockFetchFn = async (_url, init) => {
         if (init?.headers) capturedHeaders.push(init.headers);
         if ((init?.method ?? "GET") === "GET") return makeJsonResponse(200, []);
         return makeJsonResponse(201, {
@@ -102,7 +102,7 @@ describe("GitHubPrAdapter", () => {
         h instanceof Headers ? Object.fromEntries(h.entries()) : h,
       );
       const hasAuth = allHeaderObjs.some(
-        (h) => (h as Record<string, string>)["Authorization"] === `Bearer ${DEFAULT_CONFIG.token}`,
+        (h) => (h as Record<string, string>).Authorization === `Bearer ${DEFAULT_CONFIG.token}`,
       );
       expect(hasAuth).toBe(true);
     });
@@ -110,7 +110,7 @@ describe("GitHubPrAdapter", () => {
     it("includes correct POST body fields (title, body, head, base, draft)", async () => {
       let capturedBody: Record<string, unknown> | undefined;
 
-      const mockFetch: MockFetchFn = async (url, init) => {
+      const mockFetch: MockFetchFn = async (_url, init) => {
         if ((init?.method ?? "GET") === "GET") return makeJsonResponse(200, []);
         if (init?.body) capturedBody = JSON.parse(String(init.body)) as Record<string, unknown>;
         return makeJsonResponse(201, {
@@ -126,11 +126,11 @@ describe("GitHubPrAdapter", () => {
       await adapter.createOrUpdate(DEFAULT_PARAMS);
 
       expect(capturedBody).toBeDefined();
-      expect(capturedBody!["title"]).toBe(DEFAULT_PARAMS.title);
-      expect(capturedBody!["body"]).toBe(DEFAULT_PARAMS.body);
-      expect(capturedBody!["head"]).toBe(DEFAULT_PARAMS.branchName);
-      expect(capturedBody!["base"]).toBe(DEFAULT_PARAMS.targetBranch);
-      expect(capturedBody!["draft"]).toBe(false);
+      expect(capturedBody?.title).toBe(DEFAULT_PARAMS.title);
+      expect(capturedBody?.body).toBe(DEFAULT_PARAMS.body);
+      expect(capturedBody?.head).toBe(DEFAULT_PARAMS.branchName);
+      expect(capturedBody?.base).toBe(DEFAULT_PARAMS.targetBranch);
+      expect(capturedBody?.draft).toBe(false);
     });
   });
 
@@ -225,7 +225,7 @@ describe("GitHubPrAdapter", () => {
       const adapter = new GitHubPrAdapter(DEFAULT_CONFIG, mockFetch);
       const result = await adapter.createOrUpdate(draftParams);
 
-      expect(capturedBody!["draft"]).toBe(true);
+      expect(capturedBody?.draft).toBe(true);
       if (result.ok) {
         expect(result.value.isDraft).toBe(true);
       }
@@ -240,7 +240,7 @@ describe("GitHubPrAdapter", () => {
         if ((init?.method ?? "GET") === "GET") return makeJsonResponse(200, []);
         if (init?.body) {
           const body = JSON.parse(String(init.body)) as Record<string, unknown>;
-          capturedTitle = body["title"] as string;
+          capturedTitle = body.title as string;
         }
         return makeJsonResponse(201, {
           html_url: "https://github.com/test-owner/test-repo/pull/1",
@@ -257,7 +257,7 @@ describe("GitHubPrAdapter", () => {
       await adapter.createOrUpdate(longTitleParams);
 
       expect(capturedTitle).toBeDefined();
-      expect(capturedTitle!.length).toBeLessThanOrEqual(72);
+      expect(capturedTitle?.length).toBeLessThanOrEqual(72);
     });
 
     it("does not truncate titles at or below 72 characters", async () => {
@@ -267,7 +267,7 @@ describe("GitHubPrAdapter", () => {
         if ((init?.method ?? "GET") === "GET") return makeJsonResponse(200, []);
         if (init?.body) {
           const body = JSON.parse(String(init.body)) as Record<string, unknown>;
-          capturedTitle = body["title"] as string;
+          capturedTitle = body.title as string;
         }
         return makeJsonResponse(201, {
           html_url: "https://github.com/test-owner/test-repo/pull/1",
@@ -407,7 +407,7 @@ describe("GitHubPrAdapter", () => {
       expect(getUrl).toContain("/repos/test-owner/test-repo/pulls");
       expect(getUrl).toContain("state=open");
       // Branch name may be URL-encoded (e.g. "/" → "%2F")
-      expect(decodeURIComponent(getUrl!)).toContain(DEFAULT_PARAMS.branchName);
+      expect(decodeURIComponent(getUrl ?? "")).toContain(DEFAULT_PARAMS.branchName);
     });
   });
 });

@@ -392,7 +392,7 @@ describe("GitControllerAdapter.push with real ToolExecutor — non-fast-forward 
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.error.details?.["reason"]).toBe("non-fast-forward");
+      expect(result.error.details?.reason).toBe("non-fast-forward");
     }
   });
 

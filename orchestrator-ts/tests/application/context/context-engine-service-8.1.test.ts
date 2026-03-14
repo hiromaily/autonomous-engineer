@@ -12,8 +12,6 @@ import type {
   ITokenBudgetManager,
   LayerBudgetMap,
   LayerId,
-  PlannerDecision,
-  TokenBudgetConfig,
 } from "../../../src/application/ports/context";
 import type { MemoryPort } from "../../../src/application/ports/memory";
 import type { IToolExecutor } from "../../../src/application/tools/executor";
@@ -60,7 +58,7 @@ function makeBudgetManager(): ITokenBudgetManager {
 
 function makeCompressor(): ILayerCompressor {
   return {
-    compress: (layerId, content, _budget, tokenCounter) => ({
+    compress: (_layerId, content, _budget, tokenCounter) => ({
       compressed: content,
       tokenCount: tokenCounter(content),
       technique: "truncation",

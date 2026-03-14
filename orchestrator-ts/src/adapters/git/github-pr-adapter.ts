@@ -64,7 +64,8 @@ export class GitHubPrAdapter implements IPullRequestProvider {
 
       // Step 2a: Update existing PR via PATCH
       if (existingPrs.length > 0) {
-        const existing = existingPrs[0]!;
+        const existing = existingPrs[0];
+        if (!existing) throw new Error("Unexpected: empty PR list after length check");
         const patchUrl = `${apiBaseUrl}/repos/${owner}/${repo}/pulls/${existing.number}`;
 
         const patchResponse = await this.fetchFn(patchUrl, {

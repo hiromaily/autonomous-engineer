@@ -447,7 +447,7 @@ describe("AgentLoopLogger contract (mock implementation)", () => {
     logger.info("PLAN step started", { iteration: 1, step: "PLAN" });
     expect(infoLogs).toHaveLength(1);
     expect(infoLogs[0]?.message).toBe("PLAN step started");
-    expect(infoLogs[0]?.data?.["iteration"]).toBe(1);
+    expect(infoLogs[0]?.data?.iteration).toBe(1);
   });
 
   it("error() receives a message and optional metadata", () => {
@@ -463,7 +463,7 @@ describe("AgentLoopLogger contract (mock implementation)", () => {
     logger.error("Tool execution failed", { toolName: "write_file", errorType: "permission" });
     expect(errorLogs).toHaveLength(1);
     expect(errorLogs[0]?.message).toBe("Tool execution failed");
-    expect(errorLogs[0]?.data?.["errorType"]).toBe("permission");
+    expect(errorLogs[0]?.data?.errorType).toBe("permission");
   });
 
   it("info() and error() can be called without metadata", () => {

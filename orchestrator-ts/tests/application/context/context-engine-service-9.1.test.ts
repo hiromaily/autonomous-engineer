@@ -199,7 +199,7 @@ function makeMemoryPortWithEntry(title: string, desc: string): MemoryPort {
 
 function makeToolExecutor(readFileContent = "file content"): IToolExecutor {
   return {
-    invoke: async (name, args) => {
+    invoke: async (name, _args) => {
       if (name === "git_status") {
         return { ok: true, value: { branch: "main", staged: [], unstaged: [] } };
       }
@@ -246,7 +246,7 @@ function makeService(opts: {
   );
 }
 
-function makeRequest(overrides: Partial<ContextBuildRequest> = {}): ContextBuildRequest {
+function _makeRequest(overrides: Partial<ContextBuildRequest> = {}): ContextBuildRequest {
   return {
     sessionId: "s1",
     phaseId: "p1",
