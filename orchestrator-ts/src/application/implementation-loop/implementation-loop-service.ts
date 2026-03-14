@@ -8,10 +8,13 @@ import type {
   IPlanStore,
   IReviewEngine,
 } from "@/application/ports/implementation-loop";
+import type { TerminationCondition } from "@/domain/agent/types";
 import type {
   ReviewFeedbackItem,
+  ReviewResult,
   SectionExecutionRecord,
   SectionExecutionStatus,
+  SectionIterationRecord,
 } from "@/domain/implementation-loop/types";
 import type { Task, TaskPlan } from "@/domain/planning/types";
 
@@ -227,11 +230,12 @@ export class ImplementationLoopService implements IImplementationLoop {
   // ---------------------------------------------------------------------------
   // Section execution — implement → review → improve → commit retry loop
   //
-  // Task 4.2: single implement→review→commit cycle.
-  // Task 4.3: wraps the cycle in a retry loop with improve prompts.
-  //   - retryCount increments on every failed implement-review cycle
-  //   - When retryCount reaches maxRetriesPerSection → escalate
-  //   - Each retry uses an improve prompt built from the previous review's feedback
+  // Each section runs a retry loop (bounded by maxRetriesPerSection):
+  //   - First attempt: agent runs with the original task title as prompt
+  //   - On review failure: retryCount++, build improve prompt from feedback
+  //   - Each retry: emit section:improve-start, re-run agent with improve prompt
+  //   - When retryCount reaches maxRetriesPerSection → escalate (section:escalated)
+  //   - On review pass: detect changes, commit, emit section:completed
   // ---------------------------------------------------------------------------
 
   async #executeSection(
@@ -242,7 +246,6 @@ export class ImplementationLoopService implements IImplementationLoop {
     const sectionStartAt = new Date().toISOString();
     const sectionStartMs = Date.now();
     const iterations: SectionIterationRecord[] = [];
-    const allFeedback: ReviewFeedbackItem[] = [];
     let retryCount = 0;
     let improvePrompt: string | undefined;
 
@@ -275,7 +278,6 @@ export class ImplementationLoopService implements IImplementationLoop {
           new Date().toISOString(),
         );
         iterations.push(iterRecord);
-        allFeedback.push(...failureReview.feedback);
         retryCount++;
 
         options.logger?.logIteration({
@@ -294,9 +296,7 @@ export class ImplementationLoopService implements IImplementationLoop {
             plan,
             iterations,
             retryCount,
-            allFeedback,
             sectionStartAt,
-            sectionStartMs,
             options,
           );
         }
@@ -392,7 +392,6 @@ export class ImplementationLoopService implements IImplementationLoop {
       }
 
       // Review failed — increment retry counter, emit event, possibly escalate
-      allFeedback.push(...reviewResult.feedback);
       retryCount++;
 
       options.eventBus?.emit({
@@ -418,9 +417,7 @@ export class ImplementationLoopService implements IImplementationLoop {
           plan,
           iterations,
           retryCount,
-          allFeedback,
           sectionStartAt,
-          sectionStartMs,
           options,
         );
       }
@@ -438,9 +435,7 @@ export class ImplementationLoopService implements IImplementationLoop {
     plan: TaskPlan,
     iterations: ReadonlyArray<SectionIterationRecord>,
     retryCount: number,
-    _allFeedback: ReadonlyArray<ReviewFeedbackItem>,
     sectionStartAt: string,
-    _sectionStartMs: number,
     options: Required<ImplementationLoopOptions>,
   ): Promise<SectionExecutionRecord> {
     const escalationSummary = `Section escalated after ${retryCount} failed attempts`;
@@ -520,9 +515,6 @@ export class ImplementationLoopService implements IImplementationLoop {
 // ---------------------------------------------------------------------------
 // Module-level builder helpers
 // ---------------------------------------------------------------------------
-
-import type { TerminationCondition } from "@/domain/agent/types";
-import type { ReviewResult, SectionIterationRecord } from "@/domain/implementation-loop/types";
 
 function buildImprovePrompt(taskTitle: string, feedback: ReadonlyArray<ReviewFeedbackItem>): string {
   const feedbackLines = feedback

@@ -1093,10 +1093,13 @@ function makeSequencedReviewEngine(
       return {
         outcome,
         checks: [{ checkName: "test-check", outcome, required: true, details: "details" }],
-        feedback:
-          outcome === "failed"
-            ? [{ category: "requirement-alignment" as const, description: feedbackDescription, severity: "blocking" as const }]
-            : [],
+        feedback: outcome === "failed"
+          ? [{
+            category: "requirement-alignment" as const,
+            description: feedbackDescription,
+            severity: "blocking" as const,
+          }]
+          : [],
         durationMs: 5,
       };
     },
