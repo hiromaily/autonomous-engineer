@@ -11,11 +11,8 @@
  *
  * Requirements: 6.1, 6.2, 6.3, 6.4, 6.5
  */
+import { NoopQualityGate, QualityGateRunner } from "@/application/implementation-loop/quality-gate-runner";
 import type { QualityGateConfig } from "@/application/ports/implementation-loop";
-import {
-  NoopQualityGate,
-  QualityGateRunner,
-} from "@/application/implementation-loop/quality-gate-runner";
 import type { IToolExecutor } from "@/application/tools/executor";
 import type { MemoryEntry, ToolContext, ToolResult } from "@/domain/tools/types";
 import { describe, expect, it } from "bun:test";

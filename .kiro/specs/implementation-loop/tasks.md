@@ -81,7 +81,7 @@
 ---
 
 - [ ] 3. Implement Review Engine
-- [ ] 3.1 Implement the LLM Review Engine Service
+- [x] 3.1 Implement the LLM Review Engine Service
   - Implement `LlmReviewEngineService` as a stateless service that satisfies `IReviewEngine`
   - Run three check categories: requirement alignment (LLM call), design consistency (LLM call), and code quality (delegate to `QualityGateRunner`)
   - Run alignment and consistency LLM checks concurrently where possible; await both before aggregating results
@@ -90,7 +90,7 @@
   - On LLM call failure, return a failed `ReviewResult` with an error feedback item rather than throwing
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 6.1, 6.2, 6.5_
 
-- [ ] 3.2* Unit test the Review Engine Service
+- [x] 3.2* Unit test the Review Engine Service
   - Test: all checks pass → `ReviewResult.outcome = "passed"`, feedback array empty
   - Test: one required LLM check fails → `outcome = "failed"`, correct feedback item present
   - Test: advisory check fails → `outcome = "passed"`, advisory feedback item present
