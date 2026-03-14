@@ -407,7 +407,7 @@ describe("GitHubPrAdapter", () => {
       expect(getUrl).toContain("/repos/test-owner/test-repo/pulls");
       expect(getUrl).toContain("state=open");
       // Branch name may be URL-encoded (e.g. "/" → "%2F")
-      expect(decodeURIComponent(getUrl)).toContain(DEFAULT_PARAMS.branchName);
+      expect(decodeURIComponent(getUrl!)).toContain(DEFAULT_PARAMS.branchName);
     });
   });
 });

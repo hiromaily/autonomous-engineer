@@ -117,15 +117,15 @@
   - Ensure no adapter or infra imports appear in domain or application layer modules
   - _Requirements: 5.1, 5.2, 5.3, 5.5_
 
-- [ ] 9. Write unit tests for domain and application logic
-- [ ] 9.1 (P) Unit test GitValidator edge cases
+- [x] 9. Write unit tests for domain and application logic
+- [x] 9.1 (P) Unit test GitValidator edge cases
   - Test `isValidBranchName` against every invalid character class: `~`, `^`, `:`, `?`, `*`, `[`, `\`, names containing `..` or `@{`, control characters, names starting/ending with `.` or `/`, names ending with `.lock`
   - Test `matchesProtectedPattern` with exact matches and glob patterns (`release/*`, `release/**`)
   - Test `isWithinWorkspace` with normal paths, symlink-style relative paths, and path traversal attempts (`../outside`)
   - Test `filterProtectedFiles` correctly partitions `.env`, `secrets.json`, `*.key`, `*.pem` from safe files
   - _Requirements: 1.3, 6.1, 6.6_
 
-- [ ] 9.2 (P) Unit test GitIntegrationService orchestration logic
+- [x] 9.2 (P) Unit test GitIntegrationService orchestration logic
   - Test protected-file detection pre-commit blocks the LLM call and emits `protected-file-detected`
   - Test file-count limit enforcement emits `commit-size-limit-exceeded` before LLM invocation
   - Test consecutive-failure counter: increments on each identical failure; emits `repeated-git-failure` on the third; resets to 0 on next success
@@ -135,7 +135,7 @@
   - Use stub `IGitController` and stub `IPullRequestProvider`
   - _Requirements: 1.3, 2.2, 2.3, 2.4, 2.6, 2.7, 4.2, 6.5_
 
-- [ ] 9.3 (P) Unit test GitHubPrAdapter HTTP mapping
+- [x] 9.3 (P) Unit test GitHubPrAdapter HTTP mapping
   - Test HTTP 401 response maps to `PrResult { ok: false, error: { category: "auth", statusCode: 401 } }`
   - Test existing open PR found via GET → PATCH update path is used instead of POST create
   - Test draft flag is set in POST payload when `params.isDraft` is true
