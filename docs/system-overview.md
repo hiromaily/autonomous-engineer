@@ -97,13 +97,19 @@ Typical workflow:
 ```
 SPEC_INIT
 ↓
+VALIDATE_PREREQUISITES
+↓
 REQUIREMENTS
+↓
+VALIDATE_REQUIREMENTS
 ↓
 DESIGN
 ↓
 VALIDATE_DESIGN
 ↓
 TASK_GENERATION
+↓
+VALIDATE_TASK
 ↓
 IMPLEMENTATION
 ↓
@@ -146,10 +152,13 @@ SpecEngine
 Responsibilities:
 
 - initializing specs
+- validating prerequisites
 - generating requirements
+- validating requirements
 - creating design documents
 - validating designs
 - generating implementation tasks
+- validating tasks
 
 This abstraction allows the system to support different specification workflows.
 

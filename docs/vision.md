@@ -114,13 +114,16 @@ Typical workflow:
 
 ```
 
-spec-init
-requirements
-design
-validate-design
-tasks
-implementation
-
+1. spec-init
+2. validate prerequisites met
+3. requirements
+4. validate-requirements
+5. design
+6. validate-design
+7. tasks
+8. validate-tasks
+9. implementation
+10. create PR
 ```
 
 Each phase produces structured artifacts that guide the next phase.

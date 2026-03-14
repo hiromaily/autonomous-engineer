@@ -28,7 +28,7 @@ features:
     details: Project rules, coding patterns, and review feedback accumulate across sessions, enabling the system to improve over time.
   - icon: 🛠️
     title: Spec-Driven Development
-    details: Built around cc-sdd — every feature begins with structured requirements, design, and tasks before a single line of code is written.
+    details: Built around SDD framework like cc-sdd, OpenSpec, spec-kit — every feature begins with structured requirements, design, and tasks before a single line of code is written.
   - icon: 🔒
     title: Agent Safety
     details: Workspace isolation, permission controls, shell command restrictions, and human approval workflows protect the environment from unintended actions.
