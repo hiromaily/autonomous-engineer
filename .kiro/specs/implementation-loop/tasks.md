@@ -142,7 +142,7 @@
   - Read plan state exclusively from `IPlanStore` at startup; do not depend on any in-memory state surviving across process restarts
   - _Requirements: 9.1, 9.2, 9.3, 9.4_
 
-- [ ] 4.6 Implement structured logging and event emission
+- [x] 4.6 Implement structured logging and event emission
   - Emit a structured `SectionIterationLogEntry` via `IImplementationLoopLogger` for each implement-review-improve cycle, including section ID, iteration number, review outcome, all gate check results, optional commit SHA, duration, and timestamp
   - Measure elapsed time per section (start to terminal state) and include in the log entry
   - Emit `ImplementationLoopEvent` variants via `IImplementationLoopEventBus` at each major transition: `section:start`, `section:review-passed`, `section:review-failed`, `section:improve-start`, `section:completed`, `section:escalated`, `plan:completed`, `plan:halted`

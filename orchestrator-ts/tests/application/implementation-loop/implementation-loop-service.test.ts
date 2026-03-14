@@ -30,7 +30,16 @@
  * - contextProvider not passed when contextEngine is absent
  * - Works normally without contextEngine
  *
- * Requirements: 1.1, 1.2, 1.3, 1.4, 1.6, 2.1, 2.3, 2.4, 3.1, 4.1, 4.4, 4.5, 6.2, 6.5, 8.1, 8.2, 8.3, 8.4
+ * Task 4.6 — structured logging and event emission:
+ * - logIteration called after each iteration with correct planId, sectionId, outcome
+ * - logIteration called for failed review with "failed" outcome
+ * - logSectionComplete called once when a section reaches "completed" status
+ * - logSectionComplete NOT called when a section fails
+ * - logHaltSummary called when the loop halts due to section failure
+ * - logHaltSummary NOT called when the loop completes successfully
+ * - Logger is optional — service runs normally without a logger
+ *
+ * Requirements: 1.1, 1.2, 1.3, 1.4, 1.6, 2.1, 2.3, 2.4, 3.1, 4.1, 4.4, 4.5, 6.2, 6.5, 7.1, 7.2, 7.3, 7.4, 7.5, 8.1, 8.2, 8.3, 8.4
  */
 
 import { ImplementationLoopService } from "@/application/implementation-loop/implementation-loop-service";
@@ -39,13 +48,15 @@ import type { IContextEngine } from "@/application/ports/context";
 import type { IGitController } from "@/application/ports/git-controller";
 import type {
   IImplementationLoopEventBus,
+  IImplementationLoopLogger,
   IPlanStore,
   IReviewEngine,
   QualityGateConfig,
   ReviewResult,
+  SectionIterationLogEntry,
 } from "@/application/ports/implementation-loop";
 import type { AgentState, TerminationCondition } from "@/domain/agent/types";
-import type { ImplementationLoopEvent } from "@/domain/implementation-loop/types";
+import type { ImplementationLoopEvent, SectionExecutionRecord } from "@/domain/implementation-loop/types";
 import type { Task, TaskPlan } from "@/domain/planning/types";
 import { describe, expect, it } from "bun:test";
 
@@ -1677,5 +1688,266 @@ describe("ImplementationLoopService (task 4.5) — context re-initialized for re
 
     // Only the interrupted (in_progress) section is re-executed
     expect(agentLoop.calls).toHaveLength(1);
+  });
+});
+
+// ===========================================================================
+// Task 4.6: Structured Logging and Event Emission
+// ===========================================================================
+
+// ---------------------------------------------------------------------------
+// Task 4.6 spy helpers
+// ---------------------------------------------------------------------------
+
+/** Spy logger that records all calls to logIteration, logSectionComplete, logHaltSummary. */
+function makeSpyLogger(): IImplementationLoopLogger & {
+  iterationEntries: SectionIterationLogEntry[];
+  sectionCompleteRecords: SectionExecutionRecord[];
+  haltSummaryCount: number;
+} {
+  const iterationEntries: SectionIterationLogEntry[] = [];
+  const sectionCompleteRecords: SectionExecutionRecord[] = [];
+  let haltSummaryCount = 0;
+  return {
+    iterationEntries,
+    sectionCompleteRecords,
+    get haltSummaryCount() {
+      return haltSummaryCount;
+    },
+    logIteration(entry: SectionIterationLogEntry) {
+      iterationEntries.push(entry);
+    },
+    logSectionComplete(record: SectionExecutionRecord) {
+      sectionCompleteRecords.push(record);
+    },
+    logHaltSummary(_summary) {
+      haltSummaryCount++;
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// logIteration: called after each agent loop iteration
+// ---------------------------------------------------------------------------
+
+describe("ImplementationLoopService (task 4.6) — logIteration", () => {
+  it("calls logIteration once after a successful section with reviewOutcome: passed", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const logger = makeSpyLogger();
+    const service = makeService(store, {
+      agentLoop: makeSpyAgentLoop(),
+      reviewEngine: makeSpyReviewEngine("passed"),
+      gitController: makeSpyGitController(),
+    });
+
+    await service.run(plan.id, { logger });
+
+    expect(logger.iterationEntries).toHaveLength(1);
+    expect(logger.iterationEntries[0]?.reviewOutcome).toBe("passed");
+  });
+
+  it("includes correct planId and sectionId in logIteration entry", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "section-x", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const logger = makeSpyLogger();
+    const service = makeService(store, {
+      agentLoop: makeSpyAgentLoop(),
+      reviewEngine: makeSpyReviewEngine("passed"),
+      gitController: makeSpyGitController(),
+    });
+
+    await service.run(plan.id, { logger });
+
+    const entry = logger.iterationEntries[0];
+    expect(entry?.planId).toBe(plan.id);
+    expect(entry?.sectionId).toBe("section-x");
+  });
+
+  it("calls logIteration with reviewOutcome: failed when review fails", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const logger = makeSpyLogger();
+    const service = makeService(store, {
+      agentLoop: makeSequencedAgentLoop([{}, {}]),
+      reviewEngine: makeSequencedReviewEngine(["failed", "passed"]),
+      gitController: makeSpyGitController(),
+    });
+
+    await service.run(plan.id, { maxRetriesPerSection: 3, logger });
+
+    const failedEntries = logger.iterationEntries.filter((e) => e.reviewOutcome === "failed");
+    expect(failedEntries).toHaveLength(1);
+  });
+
+  it("records iterationNumber starting at 1 for the first iteration", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const logger = makeSpyLogger();
+    const service = makeService(store, {
+      agentLoop: makeSpyAgentLoop(),
+      reviewEngine: makeSpyReviewEngine("passed"),
+      gitController: makeSpyGitController(),
+    });
+
+    await service.run(plan.id, { logger });
+
+    expect(logger.iterationEntries[0]?.iterationNumber).toBe(1);
+  });
+
+  it("records commitSha in logIteration entry when commit succeeds", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const logger = makeSpyLogger();
+    const service = makeService(store, {
+      agentLoop: makeSpyAgentLoop(),
+      reviewEngine: makeSpyReviewEngine("passed"),
+      gitController: makeSpyGitController(),
+    });
+
+    await service.run(plan.id, { logger });
+
+    expect(logger.iterationEntries[0]?.commitSha).toBeDefined();
+  });
+
+  it("calls logIteration twice when one retry occurs before passing", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const logger = makeSpyLogger();
+    const service = makeService(store, {
+      agentLoop: makeSequencedAgentLoop([{}, {}]),
+      reviewEngine: makeSequencedReviewEngine(["failed", "passed"]),
+      gitController: makeSpyGitController(),
+    });
+
+    await service.run(plan.id, { maxRetriesPerSection: 3, logger });
+
+    expect(logger.iterationEntries).toHaveLength(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// logSectionComplete: called only on successful sections
+// ---------------------------------------------------------------------------
+
+describe("ImplementationLoopService (task 4.6) — logSectionComplete", () => {
+  it("calls logSectionComplete once for a completed section", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const logger = makeSpyLogger();
+    const service = makeService(store, {
+      agentLoop: makeSpyAgentLoop(),
+      reviewEngine: makeSpyReviewEngine("passed"),
+      gitController: makeSpyGitController(),
+    });
+
+    await service.run(plan.id, { logger });
+
+    expect(logger.sectionCompleteRecords).toHaveLength(1);
+  });
+
+  it("logSectionComplete record has status: completed", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const logger = makeSpyLogger();
+    const service = makeService(store, {
+      agentLoop: makeSpyAgentLoop(),
+      reviewEngine: makeSpyReviewEngine("passed"),
+      gitController: makeSpyGitController(),
+    });
+
+    await service.run(plan.id, { logger });
+
+    expect(logger.sectionCompleteRecords[0]?.status).toBe("completed");
+  });
+
+  it("does NOT call logSectionComplete when a section fails", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const logger = makeSpyLogger();
+    const service = makeService(store, {
+      agentLoop: makeSpyAgentLoop(),
+      reviewEngine: makeSpyReviewEngine("failed"),
+      gitController: makeSpyGitController(),
+    });
+
+    await service.run(plan.id, { logger });
+
+    expect(logger.sectionCompleteRecords).toHaveLength(0);
+  });
+
+  it("calls logSectionComplete for each completed section in a multi-section plan", async () => {
+    const plan = makeTaskPlan([
+      makeTask({ id: "t1", status: "pending" }),
+      makeTask({ id: "t2", status: "pending" }),
+    ]);
+    const store = makePlanStore(plan);
+    const logger = makeSpyLogger();
+    const service = makeService(store, {
+      agentLoop: makeSpyAgentLoop(),
+      reviewEngine: makeSpyReviewEngine("passed"),
+      gitController: makeSpyGitController(),
+    });
+
+    await service.run(plan.id, { logger });
+
+    expect(logger.sectionCompleteRecords).toHaveLength(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// logHaltSummary: called only when loop halts
+// ---------------------------------------------------------------------------
+
+describe("ImplementationLoopService (task 4.6) — logHaltSummary", () => {
+  it("calls logHaltSummary when a section fails and loop halts", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const logger = makeSpyLogger();
+    const service = makeService(store, {
+      agentLoop: makeSpyAgentLoop(),
+      reviewEngine: makeSpyReviewEngine("failed"),
+      gitController: makeSpyGitController(),
+    });
+
+    await service.run(plan.id, { logger });
+
+    expect(logger.haltSummaryCount).toBe(1);
+  });
+
+  it("does NOT call logHaltSummary when all sections complete successfully", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const logger = makeSpyLogger();
+    const service = makeService(store, {
+      agentLoop: makeSpyAgentLoop(),
+      reviewEngine: makeSpyReviewEngine("passed"),
+      gitController: makeSpyGitController(),
+    });
+
+    await service.run(plan.id, { logger });
+
+    expect(logger.haltSummaryCount).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Logger is optional — no logger provided
+// ---------------------------------------------------------------------------
+
+describe("ImplementationLoopService (task 4.6) — logger is optional", () => {
+  it("completes successfully without a logger", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const service = makeService(store, {
+      agentLoop: makeSpyAgentLoop(),
+      reviewEngine: makeSpyReviewEngine("passed"),
+      gitController: makeSpyGitController(),
+    });
+
+    // No logger in options — must not throw
+    const result = await service.run(plan.id);
+
+    expect(result.outcome).toBe("completed");
   });
 });
