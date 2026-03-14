@@ -1,4 +1,3 @@
-import { describe, expect, test } from "bun:test";
 import type {
   ImplementationLoopEvent,
   ImplementationLoopState,
@@ -12,6 +11,7 @@ import type {
   SelfHealingOutcome,
   SelfHealingResult,
 } from "@/domain/implementation-loop/types";
+import { describe, expect, test } from "bun:test";
 
 // ---------------------------------------------------------------------------
 // SectionExecutionStatus — discriminated union

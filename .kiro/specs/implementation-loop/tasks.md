@@ -61,7 +61,7 @@
 ---
 
 - [ ] 2. Implement Quality Gate Runner
-- [ ] 2.1 Implement the Quality Gate Runner service
+- [x] 2.1 Implement the Quality Gate Runner service
   - Implement `QualityGateRunner` as a stateless service that accepts `QualityGateConfig` and invokes each check via the tool executor
   - For each `QualityGateCheck`, invoke the configured shell command (e.g., `bun run lint`, `bun test`) using `IToolExecutor`
   - Parse tool exit code to determine pass/fail; treat non-zero exit as `"failed"`; capture stdout/stderr in the `details` field
@@ -70,7 +70,7 @@
   - Include a no-op/stub implementation for use in unit tests
   - _Requirements: 6.1, 6.3, 6.4_
 
-- [ ] 2.2* Unit test the Quality Gate Runner
+- [x] 2.2* Unit test the Quality Gate Runner
   - Test: required check with exit code 0 → `outcome: "passed"`
   - Test: required check with exit code 1 → `outcome: "failed"`, details populated
   - Test: advisory check failure does not flip gate outcome

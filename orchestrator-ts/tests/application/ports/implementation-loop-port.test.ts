@@ -4,19 +4,18 @@ import type {
   IImplementationLoop,
   IImplementationLoopEventBus,
   IImplementationLoopLogger,
+  ImplementationLoopOptions,
+  ImplementationLoopOutcome,
+  ImplementationLoopResult,
   IPlanStore,
   IQualityGate,
   IReviewEngine,
   ISelfHealingLoop,
-  ImplementationLoopOptions,
-  ImplementationLoopOutcome,
-  ImplementationLoopResult,
   QualityGateCheck,
   QualityGateConfig,
   SectionIterationLogEntry,
   SectionPersistenceStatus,
 } from "@/application/ports/implementation-loop";
-import type { Task, TaskPlan } from "@/domain/planning/types";
 import type {
   ImplementationLoopEvent,
   ReviewFeedbackItem,
@@ -25,6 +24,7 @@ import type {
   SectionExecutionRecord,
   SelfHealingResult,
 } from "@/domain/implementation-loop/types";
+import type { Task, TaskPlan } from "@/domain/planning/types";
 import { describe, expect, it } from "bun:test";
 
 // ---------------------------------------------------------------------------
