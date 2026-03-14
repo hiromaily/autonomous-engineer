@@ -53,7 +53,7 @@
 - **Findings**:
   - `IWorkflowEventBus` uses a typed discriminated union (`WorkflowEvent`) and synchronous `emit`.
   - A parallel `IGitEventBus` with a `GitEvent` discriminated union follows the same structural pattern without coupling to the workflow domain.
-- **Implications**: Define `GitEvent` union in `domain/git/types.ts`; define `IGitEventBus` in `application/ports/git-controller.ts`; provide a concrete `GitEventBus` in `infra/events/`.
+- **Implications**: Define `GitEvent` union in `domain/git/types.ts`; define `IGitEventBus` in `application/ports/git-event-bus.ts`; provide a concrete `GitEventBus` in `infra/events/`.
 
 ### LLM Integration for Commit Messages and PR Descriptions
 

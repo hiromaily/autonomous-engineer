@@ -32,7 +32,7 @@ The git-integration spec (spec8) provides all repository operations required for
 3. The Git Integration Service shall validate the commit against safety limits: the number of changed files must not exceed the configured `maxFilesPerCommit` threshold (default: 50).
 4. If the change size exceeds `maxFilesPerCommit`, the Git Integration Service shall reject the commit, emit a `commit-size-limit-exceeded` event, and request human review before proceeding.
 5. When a generated commit message is available and safety limits pass, the Git Integration Service shall stage all changed files excluding those matching protected patterns and execute the commit.
-6. If no changes are detected after a task section completes, the Git Integration Service shall skip the commit step and log a `no-changes-to-commit` warning.
+6. If no changes are detected after a task section completes, the Git Integration Service shall skip the commit step and emit a `no-changes-to-commit` event.
 7. The Git Integration Service shall never commit files matching protected patterns (`.env`, `secrets.json`, `*.key`, `*.pem`) and shall emit a `protected-file-detected` error if such files are staged.
 8. When a commit succeeds, the Git Integration Service shall emit a `commit-created` event containing the commit hash, message, and file count.
 
@@ -75,7 +75,7 @@ The git-integration spec (spec8) provides all repository operations required for
 #### Acceptance Criteria
 
 1. The Git Integration Service shall expose all operations through a `IGitController` port interface defined in the application ports layer (`application/ports/git-controller-port.ts`).
-2. The Git Integration Service shall implement the `IGitController` interface in an adapter (`adapters/git/`) that can be replaced without changing core application logic.
+2. The `IGitController` interface shall be implemented by an adapter in the `adapters/git/` directory that can be replaced without changing core application logic.
 3. Where multiple repository hosting providers are required, the Git Integration Service shall support provider-specific adapters (e.g., `GitHubAdapter`, `GitLabAdapter`) that implement the same `IPullRequestProvider` interface.
 4. The Git Integration Service shall use the tool-system's git tools (`git_status`, `git_diff`, `git_commit`, `git_branch`) for all local Git CLI operations.
 5. The Git Integration Service shall not import directly from Git CLI libraries or repository API SDKs in the application or domain layers; all such dependencies shall reside in the adapter and infra layers.

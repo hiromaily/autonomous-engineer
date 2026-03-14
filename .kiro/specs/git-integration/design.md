@@ -102,12 +102,12 @@ graph TB
         GithubAdapter[adapters/git/github-pr-adapter.ts]
         GitlabAdapter[adapters/git/gitlab-pr-adapter.ts]
         GitTools[adapters/tools/git.ts]
+        AuditLogger[adapters/safety/audit-logger.ts]
     end
 
     subgraph Infra
         ToolExecutor[infra/tools/executor.ts]
         EventBus[infra/events/git-event-bus.ts]
-        AuditLogger[adapters/safety/audit-logger.ts]
     end
 
     GitService --> GitControllerPort
@@ -559,7 +559,7 @@ export interface IGitEventBus {
 
 **Responsibilities & Constraints**
 - Primary responsibility: coordinate `IGitController`, `IPullRequestProvider`, `LlmProviderPort`, `IGitEventBus`, and `IAuditLogger` to implement the four-stage workflow.
-- Tracks consecutive failure counts per operation type (`Map<string, number>`); pauses and emits `repeated-git-failure` after 3 identical consecutive failures.
+- Tracks consecutive failure counts per operation type (`Map<string, number>`); pauses and emits `repeated-git-failure` after 3 consecutive failures of the same operation type (e.g., 3 failed `commit` calls), regardless of the operation's parameters.
 - Does not call `child_process`, `fetch`, or any external SDK directly.
 
 **Dependencies**
@@ -652,7 +652,7 @@ export interface IGitIntegrationService {
 **Implementation Notes**
 - Integration: Implements `IGitController`; constructed with `IToolExecutor`, `IGitValidator`, and `ToolContext`.
 - Validation: Non-fast-forward push rejections cause `git push` to exit non-zero; `ToolExecutor` returns `{ ok: false, error: { type: "runtime", message: "..." } }`. `GitControllerAdapter` inspects `error.message.includes("[rejected]")` in the error branch to classify the failure as non-fast-forward before returning it to `GitIntegrationService`.
-- Risks: `git_branch_list` returns local branches only; base-branch existence in remote is checked by inspecting `git_push` output error message for "src refspec ... does not match any".
+- Risks: `git_branch_list` returns local branches only; base-branch existence in remote is verified using `git ls-remote --heads <remote> <branch>` before branch creation — this avoids relying on locale-sensitive push error messages.
 
 ---
 
@@ -731,7 +731,7 @@ export interface GitPushOutput {
 
 **Implementation Notes**
 - Both tools follow existing `runGit` helper pattern; `GitError` is used for non-zero exit codes.
-- Non-fast-forward push failures cause a non-zero exit code: `runGit` throws `GitError` (which carries the raw stderr), `ToolExecutor` returns `{ ok: false, error: { type: "runtime", message: "..." } }`. `GitControllerAdapter` detects non-fast-forward by checking `error.message.includes("[rejected]")` in the `{ ok: false }` result branch — no `stderr` field in the output is needed.
+- Non-fast-forward push failures cause a non-zero exit code: `runGit` throws `GitError` (which carries the raw stderr), `ToolExecutor` returns `{ ok: false, error: { type: "runtime", message: "..." } }`. `GitControllerAdapter` detects non-fast-forward by checking `error.message.includes("[rejected]")` in the `{ ok: false }` result branch. **Risk**: this string match is locale-sensitive and may break on non-English git installations or future git versions; a more robust alternative (e.g., `git push --porcelain` output parsing) should be evaluated during implementation if locale-sensitivity is a concern.
 
 ---
 
@@ -843,4 +843,4 @@ Errors follow the existing `ToolResult` / `GitResult` discriminated union patter
 - **Token storage**: `GitHubPrAdapterConfig.token` is injected from the composition root (environment variable or config file); it must never appear in logs, audit entries, or events. The `IAuditLogger` `inputSummary` field is sanitized at the `ToolExecutor` level.
 - **Workspace isolation**: `GitValidator.isWithinWorkspace` uses `path.resolve` normalization; all file paths passed to `git_add` are validated before the tool call.
 - **Force push prohibition**: `git_push` tool never adds `--force`; the configuration flag `forcePushEnabled` adds an additional service-level gate (even when `true`, force push is only permitted if explicitly set — default is `false`).
-- **Protected branch list**: Includes `main`, `master`, `production`, `release/*` by default; configurable but not reducible below an empty list (empty list means no protection and is an explicit opt-in).
+- **Protected branch list**: Includes `main`, `master`, `production`, `release/*` by default. The list is configurable; it may be set to an empty array to disable branch protection entirely, but this is an explicit opt-in and the field must not be `null` or `undefined` — the configuration loader validates that the field is always a defined array.
