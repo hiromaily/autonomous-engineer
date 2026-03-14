@@ -9,7 +9,7 @@
 ---
 
 - [ ] 1. Define domain types and port contracts
-- [ ] 1.1 Define domain types for implementation-loop execution state
+- [x] 1.1 Define domain types for implementation-loop execution state
   - Implement `SectionExecutionStatus` discriminated union (`"pending"`, `"in_progress"`, `"completed"`, `"failed"`, `"escalated-to-human"`)
   - Implement `SectionExecutionRecord` as a fully readonly type capturing section ID, plan ID, title, status, retry count, iteration history, timestamps, commit SHA, and escalation summary
   - Implement `SectionIterationRecord` as a readonly log of a single implement-review-improve attempt (iteration number, agent loop result, review result, improve prompt, duration, timestamp)
@@ -20,7 +20,7 @@
   - All types must be `Readonly<>` or `ReadonlyArray<>`; no `any`
   - _Requirements: 5.1, 8.2, 10.1_
 
-- [ ] 1.2 (P) Define the `IImplementationLoop` port and supporting option/result types
+- [x] 1.2 (P) Define the `IImplementationLoop` port and supporting option/result types
   - Define `IImplementationLoop` service interface with `run(planId, options?)`, `resume(planId, options?)`, and `stop()` methods
   - Define `ImplementationLoopOptions` with `maxRetriesPerSection` (default 3), `qualityGateConfig`, optional `selfHealingLoop`, optional `eventBus`, and optional `logger`
   - Define `ImplementationLoopOutcome` discriminated string union (`"completed"`, `"section-failed"`, `"human-intervention-required"`, `"stopped"`, `"plan-not-found"`)
@@ -28,7 +28,7 @@
   - Postcondition: `outcome = "completed"` only when all sections reach `"completed"` status
   - _Requirements: 1.1, 1.4, 1.6, 2.1, 2.2, 2.3, 2.4, 4.1, 4.5, 5.1, 5.2, 5.3, 8.1, 8.4, 9.1, 9.2, 9.3, 9.4_
 
-- [ ] 1.3 (P) Define the `IReviewEngine` and `IQualityGate` port interfaces
+- [x] 1.3 (P) Define the `IReviewEngine` and `IQualityGate` port interfaces
   - Define `IReviewEngine` interface: `review(result, section, config)` returning `Promise<ReviewResult>`
   - Define `ReviewOutcome` (`"passed"` | `"failed"`), `ReviewCheckResult`, `ReviewFeedbackItem` (with `category` and `severity`), and `ReviewResult` types
   - Define `IQualityGate` interface: `run(config)` returning `Promise<ReadonlyArray<ReviewCheckResult>>`
@@ -36,14 +36,14 @@
   - Invariant: `ReviewResult.outcome = "passed"` only when all required checks pass; advisory failures do not affect outcome
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 6.1, 6.2, 6.3_
 
-- [ ] 1.4 (P) Define the `IPlanStore` port interface
+- [x] 1.4 (P) Define the `IPlanStore` port interface
   - Define `IPlanStore` with `loadPlan(planId)` returning `Promise<TaskPlan | null>` and `updateSectionStatus(planId, sectionId, status)` returning `Promise<void>`
   - Define `SectionPersistenceStatus` union covering all five status values including `"escalated-to-human"`
   - Document the write-ownership protocol: `PlanFileStore` is the single physical writer; `TaskPlanningService` writes during `"planning"` phase and `ImplementationLoopService` writes during `"implementation"` phase — never concurrent
   - Add a tolerance note: `PlanFileStore` deserialization must preserve unknown status values rather than coercing them
   - _Requirements: 1.3, 7.3, 9.1, 9.4_
 
-- [ ] 1.5 (P) Define `IImplementationLoopLogger` and `IImplementationLoopEventBus` port interfaces
+- [x] 1.5 (P) Define `IImplementationLoopLogger` and `IImplementationLoopEventBus` port interfaces
   - Define `IImplementationLoopLogger` with `logIteration(entry)`, `logSectionComplete(record)`, and `logHaltSummary(summary)` methods
   - Define `SectionIterationLogEntry` (planId, sectionId, iterationNumber, reviewOutcome, gateCheckResults, optional commitSha, durationMs, timestamp)
   - Define `ExecutionHaltSummary` (planId, completedSections, committedSections, haltingSectionId, reason, timestamp)
@@ -51,7 +51,7 @@
   - Invariant: all logger entry types must be JSON-serializable (no functions, no circular refs)
   - _Requirements: 1.5, 1.6, 5.4, 5.5, 7.5, 10.1, 10.2, 10.3, 10.4_
 
-- [ ] 1.6 (P) Define the `ISelfHealingLoop` port interface
+- [x] 1.6 (P) Define the `ISelfHealingLoop` port interface
   - Define `ISelfHealingLoop` with `escalate(escalation: SectionEscalation)` returning `Promise<SelfHealingResult>`
   - `SectionEscalation` carries sectionId, planId, retryHistory, reviewFeedback, and agentObservations — all readonly
   - `SelfHealingResult` carries outcome, optional updatedRules array, and a human-readable summary string
