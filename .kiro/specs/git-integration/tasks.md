@@ -44,7 +44,7 @@
   - Non-fast-forward push failure causes non-zero exit; `ToolExecutor` returns `{ ok: false, error: { type: "runtime", message: "..." } }` — the raw stderr is carried in the message
   - _Requirements: 2.5, 3.1, 5.4_
 
-- [ ] 4. Implement the GitControllerAdapter
+- [x] 4. Implement the GitControllerAdapter
   - Implement `IGitController` by delegating every local git operation to `IToolExecutor.invoke`; never call `child_process` or git SDKs directly
   - `detectChanges`: invoke `git_status` and `git_diff`; return `GitChangesResult` with staged, unstaged, untracked arrays
   - `listBranches`: invoke `git_branch_list`; return array of branch name strings
