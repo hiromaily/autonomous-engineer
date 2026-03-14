@@ -95,7 +95,7 @@
   - Inject all seven dependencies via constructor: `IGitController`, `IPullRequestProvider`, `LlmProviderPort`, `IGitEventBus`, `IAuditLogger`, `IGitValidator`, `GitIntegrationConfig`
   - _Requirements: 6.5_
 
-- [ ] 6. Implement the GitHubPrAdapter
+- [x] 6. Implement the GitHubPrAdapter
   - Implement `IPullRequestProvider` using native `fetch` (Bun built-in); no third-party GitHub SDK
   - Constructor accepts `GitHubPrAdapterConfig`: `apiBaseUrl`, `owner`, `repo`, `token`; token must never appear in logs, audit entries, or events
   - `createOrUpdate`: first check for an existing open PR via `GET /repos/{owner}/{repo}/pulls?head={owner}:{branch}&state=open`; if found use `PATCH /repos/{owner}/{repo}/pulls/{number}` to update; if not found use `POST /repos/{owner}/{repo}/pulls` to create
