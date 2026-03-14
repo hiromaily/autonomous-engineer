@@ -62,70 +62,70 @@ export const PLAN_REVIEW_REASONS = Object.freeze(
 
 export type PlanEvent =
   | {
-      readonly type: "plan:created";
-      readonly planId: string;
-      readonly goal: string;
-      readonly timestamp: string;
-    }
+    readonly type: "plan:created";
+    readonly planId: string;
+    readonly goal: string;
+    readonly timestamp: string;
+  }
   | {
-      readonly type: "plan:validated";
-      readonly planId: string;
-      readonly timestamp: string;
-    }
+    readonly type: "plan:validated";
+    readonly planId: string;
+    readonly timestamp: string;
+  }
   | {
-      readonly type: "plan:revision";
-      readonly planId: string;
-      readonly stepId: string;
-      readonly originalDescription: string;
-      readonly revisedDescription: string;
-      readonly reason: string;
-      readonly timestamp: string;
-    }
+    readonly type: "plan:revision";
+    readonly planId: string;
+    readonly stepId: string;
+    readonly originalDescription: string;
+    readonly revisedDescription: string;
+    readonly reason: string;
+    readonly timestamp: string;
+  }
   | {
-      readonly type: "step:start";
-      readonly planId: string;
-      readonly stepId: string;
-      readonly attempt: number;
-      readonly timestamp: string;
-    }
+    readonly type: "step:start";
+    readonly planId: string;
+    readonly stepId: string;
+    readonly attempt: number;
+    readonly timestamp: string;
+  }
   | {
-      readonly type: "step:completed";
-      readonly planId: string;
-      readonly stepId: string;
-      readonly durationMs: number;
-      readonly timestamp: string;
-    }
+    readonly type: "step:completed";
+    readonly planId: string;
+    readonly stepId: string;
+    readonly durationMs: number;
+    readonly timestamp: string;
+  }
   | {
-      readonly type: "step:failed";
-      readonly planId: string;
-      readonly stepId: string;
-      readonly attempt: number;
-      readonly errorSummary: string;
-      readonly recoveryAction: string;
-      readonly timestamp: string;
-    }
+    readonly type: "step:failed";
+    readonly planId: string;
+    readonly stepId: string;
+    readonly attempt: number;
+    readonly errorSummary: string;
+    readonly recoveryAction: string;
+    readonly timestamp: string;
+  }
   | {
-      readonly type: "step:escalated";
-      readonly planId: string;
-      readonly stepId: string;
-      readonly timestamp: string;
-    }
+    readonly type: "step:escalated";
+    readonly planId: string;
+    readonly stepId: string;
+    readonly timestamp: string;
+  }
   | {
-      readonly type: "plan:awaiting-review";
-      readonly planId: string;
-      readonly reason: PlanReviewReason;
-      readonly timestamp: string;
-    }
+    readonly type: "plan:awaiting-review";
+    readonly planId: string;
+    readonly reason: PlanReviewReason;
+    readonly timestamp: string;
+  }
   | {
-      readonly type: "plan:completed";
-      readonly planId: string;
-      readonly totalSteps: number;
-      readonly durationMs: number;
-      readonly timestamp: string;
-    }
+    readonly type: "plan:completed";
+    readonly planId: string;
+    readonly totalSteps: number;
+    readonly durationMs: number;
+    readonly timestamp: string;
+  }
   | {
-      readonly type: "plan:escalated";
-      readonly planId: string;
-      readonly failedStepId: string;
-      readonly timestamp: string;
-    };
+    readonly type: "plan:escalated";
+    readonly planId: string;
+    readonly failedStepId: string;
+    readonly timestamp: string;
+  };

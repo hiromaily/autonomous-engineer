@@ -1,5 +1,8 @@
 import { z } from "zod";
+import { PlanValidator } from "../../domain/planning/plan-validator";
+import type { PlanEvent, PlanReviewReason, Step, StepStatus, TaskPlan, TaskStatus } from "../../domain/planning/types";
 import type { AgentLoopResult, IAgentLoop } from "../ports/agent-loop";
+import type { LlmProviderPort } from "../ports/llm";
 import type {
   IHumanReviewGateway,
   IPlanContextBuilder,
@@ -8,16 +11,6 @@ import type {
   TaskPlannerOptions,
   TaskPlanResult,
 } from "../ports/task-planning";
-import type { LlmProviderPort } from "../ports/llm";
-import type {
-  PlanEvent,
-  PlanReviewReason,
-  Step,
-  StepStatus,
-  TaskPlan,
-  TaskStatus,
-} from "../../domain/planning/types";
-import { PlanValidator } from "../../domain/planning/plan-validator";
 
 // ---------------------------------------------------------------------------
 // Internal constants
@@ -296,9 +289,7 @@ export class TaskPlanningService implements ITaskPlanner {
     const isLarge = totalSteps > maxAutoApproveSteps;
 
     const isHighRisk = plan.tasks.some((t) =>
-      t.steps.some((s) =>
-        HIGH_RISK_KEYWORDS.some((kw) => s.description.toLowerCase().includes(kw.toLowerCase())),
-      ),
+      t.steps.some((s) => HIGH_RISK_KEYWORDS.some((kw) => s.description.toLowerCase().includes(kw.toLowerCase())))
     );
 
     if (!isLarge && !isHighRisk) return { type: "proceed", plan };
@@ -583,10 +574,9 @@ export class TaskPlanningService implements ITaskPlanner {
     let lastTerminationCondition = "";
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      const taskDesc =
-        attempt === 0
-          ? step.description
-          : this.#buildRetryTaskDescription(step.description, lastTerminationCondition, attempt);
+      const taskDesc = attempt === 0
+        ? step.description
+        : this.#buildRetryTaskDescription(step.description, lastTerminationCondition, attempt);
 
       const agentResult = await this.#agentLoop.run(taskDesc, agentLoopOptions);
       if (agentResult.taskCompleted) {
@@ -668,9 +658,9 @@ export class TaskPlanningService implements ITaskPlanner {
     const lastObs = obs[obs.length - 1];
     const reflection = lastObs?.reflection;
     if (
-      reflection?.planAdjustment === "revise" &&
-      reflection.revisedPlan &&
-      reflection.revisedPlan.length > 0
+      reflection?.planAdjustment === "revise"
+      && reflection.revisedPlan
+      && reflection.revisedPlan.length > 0
     ) {
       return { revisedPlan: reflection.revisedPlan, reason: reflection.summary };
     }
@@ -814,11 +804,11 @@ export class TaskPlanningService implements ITaskPlanner {
         const updatedSteps = task.steps.map((step) =>
           step.id === stepId
             ? {
-                ...step,
-                status,
-                statusHistory: [...step.statusHistory, { status, at: now }],
-              }
-            : step,
+              ...step,
+              status,
+              statusHistory: [...step.statusHistory, { status, at: now }],
+            }
+            : step
         );
         return {
           ...task,

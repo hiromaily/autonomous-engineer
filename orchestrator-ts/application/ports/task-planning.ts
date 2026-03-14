@@ -1,5 +1,5 @@
-import type { AgentLoopLogger, AgentLoopOptions } from "./agent-loop";
 import type { PlanEvent, PlanReviewReason, TaskPlan } from "../../domain/planning/types";
+import type { AgentLoopLogger, AgentLoopOptions } from "./agent-loop";
 
 // ---------------------------------------------------------------------------
 // TaskPlannerOptions — configuration for a single planner run

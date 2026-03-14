@@ -600,9 +600,9 @@ export class AgentLoopService implements IAgentLoop {
       for (let i = 0; i < state.observations.length - 1; i++) {
         const obs = state.observations[i]!;
         if (
-          !obs.success &&
-          obs.toolName === failingObs.toolName &&
-          this.#normalizeErrorMessage(obs.error?.message) === this.#normalizeErrorMessage(failingObs.error.message)
+          !obs.success
+          && obs.toolName === failingObs.toolName
+          && this.#normalizeErrorMessage(obs.error?.message) === this.#normalizeErrorMessage(failingObs.error.message)
         ) {
           previousSameErrorCount++;
         }

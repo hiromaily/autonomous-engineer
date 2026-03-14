@@ -66,14 +66,57 @@ export interface PullRequestParams {
 // ---------------------------------------------------------------------------
 
 export type GitEvent =
-  | { readonly type: "branch-created"; readonly branchName: string; readonly baseBranch: string; readonly timestamp: string }
-  | { readonly type: "commit-created"; readonly hash: string; readonly message: string; readonly fileCount: number; readonly timestamp: string }
-  | { readonly type: "branch-pushed"; readonly remote: string; readonly branchName: string; readonly commitHash: string; readonly timestamp: string }
-  | { readonly type: "pull-request-created"; readonly url: string; readonly title: string; readonly targetBranch: string; readonly timestamp: string }
-  | { readonly type: "commit-size-limit-exceeded"; readonly fileCount: number; readonly maxAllowed: number; readonly timestamp: string }
+  | {
+    readonly type: "branch-created";
+    readonly branchName: string;
+    readonly baseBranch: string;
+    readonly timestamp: string;
+  }
+  | {
+    readonly type: "commit-created";
+    readonly hash: string;
+    readonly message: string;
+    readonly fileCount: number;
+    readonly timestamp: string;
+  }
+  | {
+    readonly type: "branch-pushed";
+    readonly remote: string;
+    readonly branchName: string;
+    readonly commitHash: string;
+    readonly timestamp: string;
+  }
+  | {
+    readonly type: "pull-request-created";
+    readonly url: string;
+    readonly title: string;
+    readonly targetBranch: string;
+    readonly timestamp: string;
+  }
+  | {
+    readonly type: "commit-size-limit-exceeded";
+    readonly fileCount: number;
+    readonly maxAllowed: number;
+    readonly timestamp: string;
+  }
   | { readonly type: "no-changes-to-commit"; readonly timestamp: string }
   | { readonly type: "protected-file-detected"; readonly files: ReadonlyArray<string>; readonly timestamp: string }
   | { readonly type: "protected-branch-push-rejected"; readonly branchName: string; readonly timestamp: string }
-  | { readonly type: "push-rejected-non-fast-forward"; readonly remote: string; readonly branchName: string; readonly timestamp: string }
-  | { readonly type: "pr-creation-auth-failed"; readonly provider: string; readonly guidance: string; readonly timestamp: string }
-  | { readonly type: "repeated-git-failure"; readonly operation: string; readonly attemptCount: number; readonly timestamp: string };
+  | {
+    readonly type: "push-rejected-non-fast-forward";
+    readonly remote: string;
+    readonly branchName: string;
+    readonly timestamp: string;
+  }
+  | {
+    readonly type: "pr-creation-auth-failed";
+    readonly provider: string;
+    readonly guidance: string;
+    readonly timestamp: string;
+  }
+  | {
+    readonly type: "repeated-git-failure";
+    readonly operation: string;
+    readonly attemptCount: number;
+    readonly timestamp: string;
+  };

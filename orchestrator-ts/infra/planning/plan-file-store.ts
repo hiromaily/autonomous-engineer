@@ -1,8 +1,8 @@
 import { mkdir, open, readdir, readFile, rename } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import type { ITaskPlanStore } from "../../application/ports/task-planning";
 import { PlanValidator } from "../../domain/planning/plan-validator";
 import type { TaskPlan, TaskStatus } from "../../domain/planning/types";
-import type { ITaskPlanStore } from "../../application/ports/task-planning";
 
 // ---------------------------------------------------------------------------
 // PlanStoreError — structured error thrown on invalid plan load

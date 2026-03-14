@@ -183,7 +183,11 @@ describe("TaskPlanResult shape", () => {
 describe("ITaskPlanner contract (mock implementation)", () => {
   it("run() returns a TaskPlanResult without throwing", async () => {
     const plan = makePlan();
-    const planner = makePlanner({ async run() { return { outcome: "completed", plan }; } });
+    const planner = makePlanner({
+      async run() {
+        return { outcome: "completed", plan };
+      },
+    });
 
     const result = await planner.run("Implement the feature");
     expect(result.outcome).toBe("completed");
@@ -192,8 +196,12 @@ describe("ITaskPlanner contract (mock implementation)", () => {
 
   it("resume() returns a TaskPlanResult for the given planId", async () => {
     const planner = makePlanner({
-      async resume(planId) { return { outcome: "completed", plan: makePlan({ id: planId }) }; },
-      async listResumable() { return ["plan-resumed"]; },
+      async resume(planId) {
+        return { outcome: "completed", plan: makePlan({ id: planId }) };
+      },
+      async listResumable() {
+        return ["plan-resumed"];
+      },
     });
 
     const result = await planner.resume("plan-resumed");
@@ -203,7 +211,9 @@ describe("ITaskPlanner contract (mock implementation)", () => {
 
   it("listResumable() returns an array of plan IDs", async () => {
     const planner = makePlanner({
-      async listResumable() { return ["plan-a", "plan-b"]; },
+      async listResumable() {
+        return ["plan-a", "plan-b"];
+      },
     });
 
     const ids = await planner.listResumable();
@@ -214,7 +224,11 @@ describe("ITaskPlanner contract (mock implementation)", () => {
 
   it("stop() can be called without arguments", () => {
     let stopped = false;
-    const planner = makePlanner({ stop() { stopped = true; } });
+    const planner = makePlanner({
+      stop() {
+        stopped = true;
+      },
+    });
 
     planner.stop();
     expect(stopped).toBe(true);
@@ -243,9 +257,15 @@ describe("ITaskPlanStore contract (mock implementation)", () => {
     const stored = new Map<string, TaskPlan>();
 
     const store: ITaskPlanStore = {
-      async save(plan) { stored.set(plan.id, plan); },
-      async load(planId) { return stored.get(planId) ?? null; },
-      async listResumable() { return [...stored.keys()]; },
+      async save(plan) {
+        stored.set(plan.id, plan);
+      },
+      async load(planId) {
+        return stored.get(planId) ?? null;
+      },
+      async listResumable() {
+        return [...stored.keys()];
+      },
     };
 
     const plan = makePlan({ id: "plan-stored" });
@@ -258,8 +278,12 @@ describe("ITaskPlanStore contract (mock implementation)", () => {
   it("load() returns null when the plan does not exist", async () => {
     const store: ITaskPlanStore = {
       async save() {},
-      async load() { return null; },
-      async listResumable() { return []; },
+      async load() {
+        return null;
+      },
+      async listResumable() {
+        return [];
+      },
     };
 
     const result = await store.load("non-existent");
@@ -269,8 +293,12 @@ describe("ITaskPlanStore contract (mock implementation)", () => {
   it("listResumable() returns IDs of plans with incomplete tasks", async () => {
     const store: ITaskPlanStore = {
       async save() {},
-      async load() { return null; },
-      async listResumable() { return ["plan-in-progress"]; },
+      async load() {
+        return null;
+      },
+      async listResumable() {
+        return ["plan-in-progress"];
+      },
     };
 
     const ids = await store.listResumable();
@@ -285,8 +313,12 @@ describe("ITaskPlanStore contract (mock implementation)", () => {
 describe("IPlanContextBuilder contract (mock implementation)", () => {
   it("buildPlanContext() returns a prompt string for the goal", async () => {
     const builder: IPlanContextBuilder = {
-      async buildPlanContext(goal) { return `Generate a task plan for: ${goal}`; },
-      async buildRevisionContext() { return ""; },
+      async buildPlanContext(goal) {
+        return `Generate a task plan for: ${goal}`;
+      },
+      async buildRevisionContext() {
+        return "";
+      },
     };
 
     const prompt = await builder.buildPlanContext("Add authentication system");
@@ -295,8 +327,12 @@ describe("IPlanContextBuilder contract (mock implementation)", () => {
 
   it("buildPlanContext() accepts optional repositoryContext", async () => {
     const builder: IPlanContextBuilder = {
-      async buildPlanContext(goal, repoContext) { return `${goal}\n${repoContext ?? ""}`; },
-      async buildRevisionContext() { return ""; },
+      async buildPlanContext(goal, repoContext) {
+        return `${goal}\n${repoContext ?? ""}`;
+      },
+      async buildRevisionContext() {
+        return "";
+      },
     };
 
     const prompt = await builder.buildPlanContext("goal", "TypeScript monorepo");
@@ -307,7 +343,9 @@ describe("IPlanContextBuilder contract (mock implementation)", () => {
     const plan = makePlan({ id: "plan-revision" });
 
     const builder: IPlanContextBuilder = {
-      async buildPlanContext() { return ""; },
+      async buildPlanContext() {
+        return "";
+      },
       async buildRevisionContext(p, failedStepId, summary) {
         return `Revise plan ${p.id}: step ${failedStepId} failed — ${summary}`;
       },
@@ -327,7 +365,9 @@ describe("IPlanContextBuilder contract (mock implementation)", () => {
 describe("IHumanReviewGateway contract (mock implementation)", () => {
   it("reviewPlan() returns approved: true when the reviewer accepts", async () => {
     const gateway: IHumanReviewGateway = {
-      async reviewPlan(): Promise<PlanReviewDecision> { return { approved: true }; },
+      async reviewPlan(): Promise<PlanReviewDecision> {
+        return { approved: true };
+      },
     };
 
     const decision = await gateway.reviewPlan(makePlan(), "large-plan", 30_000);
@@ -388,14 +428,28 @@ describe("IPlanEventBus contract (mock implementation)", () => {
     const { bus } = makeEventBus();
     const received: PlanEvent[] = [];
 
-    const handler = (e: PlanEvent): void => { received.push(e); };
+    const handler = (e: PlanEvent): void => {
+      received.push(e);
+    };
     bus.on(handler);
 
-    bus.emit({ type: "step:start", planId: "plan-1", stepId: "step-1", attempt: 1, timestamp: "2026-03-13T00:00:00.000Z" });
+    bus.emit({
+      type: "step:start",
+      planId: "plan-1",
+      stepId: "step-1",
+      attempt: 1,
+      timestamp: "2026-03-13T00:00:00.000Z",
+    });
     expect(received).toHaveLength(1);
 
     bus.off(handler);
-    bus.emit({ type: "step:completed", planId: "plan-1", stepId: "step-1", durationMs: 100, timestamp: "2026-03-13T00:00:00.000Z" });
+    bus.emit({
+      type: "step:completed",
+      planId: "plan-1",
+      stepId: "step-1",
+      durationMs: 100,
+      timestamp: "2026-03-13T00:00:00.000Z",
+    });
     expect(received).toHaveLength(1);
   });
 
@@ -403,7 +457,13 @@ describe("IPlanEventBus contract (mock implementation)", () => {
     const { bus } = makeEventBus();
 
     expect(() => {
-      bus.emit({ type: "plan:completed", planId: "plan-1", totalSteps: 5, durationMs: 5000, timestamp: "2026-03-13T00:00:00.000Z" });
+      bus.emit({
+        type: "plan:completed",
+        planId: "plan-1",
+        totalSteps: 5,
+        durationMs: 5000,
+        timestamp: "2026-03-13T00:00:00.000Z",
+      });
     }).not.toThrow();
   });
 });
@@ -417,7 +477,9 @@ describe("TaskPlannerLogger contract (mock implementation)", () => {
     const logs: { message: string; data?: Readonly<Record<string, unknown>> }[] = [];
 
     const logger: TaskPlannerLogger = {
-      info(message, data) { logs.push({ message, data }); },
+      info(message, data) {
+        logs.push({ message, data });
+      },
       error() {},
     };
 
@@ -432,7 +494,9 @@ describe("TaskPlannerLogger contract (mock implementation)", () => {
 
     const logger: TaskPlannerLogger = {
       info() {},
-      error(message, data) { errors.push({ message, data }); },
+      error(message, data) {
+        errors.push({ message, data });
+      },
     };
 
     logger.error("Step failed after retries", { stepId: "step-7", attempt: 3 });
@@ -446,8 +510,12 @@ describe("TaskPlannerLogger contract (mock implementation)", () => {
     const errorLogs: string[] = [];
 
     const logger: TaskPlannerLogger = {
-      info(message) { infoLogs.push(message); },
-      error(message) { errorLogs.push(message); },
+      info(message) {
+        infoLogs.push(message);
+      },
+      error(message) {
+        errorLogs.push(message);
+      },
     };
 
     logger.info("Plan created");

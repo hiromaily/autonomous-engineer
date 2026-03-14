@@ -15,15 +15,15 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { mkdtemp, rm, readFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { TaskPlanningService } from "../../application/planning/task-planning-service";
-import { PlanFileStore } from "../../infra/planning/plan-file-store";
-import type { IAgentLoop, AgentLoopResult } from "../../application/ports/agent-loop";
-import type { IPlanContextBuilder } from "../../application/ports/task-planning";
+import type { AgentLoopResult, IAgentLoop } from "../../application/ports/agent-loop";
 import type { LlmProviderPort, LlmResult } from "../../application/ports/llm";
+import type { IPlanContextBuilder } from "../../application/ports/task-planning";
 import type { AgentState, TaskPlan } from "../../domain/planning/types";
+import { PlanFileStore } from "../../infra/planning/plan-file-store";
 
 // ---------------------------------------------------------------------------
 // Stub factories
@@ -58,8 +58,12 @@ function makeLlm(
 /** Stub context builder — always returns a fixed string. */
 function makeContextBuilder(): IPlanContextBuilder {
   return {
-    async buildPlanContext() { return "plan context"; },
-    async buildRevisionContext() { return "revision context"; },
+    async buildPlanContext() {
+      return "plan context";
+    },
+    async buildRevisionContext() {
+      return "revision context";
+    },
   };
 }
 
@@ -84,7 +88,9 @@ function makeSuccessAgentLoop(): IAgentLoop {
       };
     },
     stop() {},
-    getState() { return null; },
+    getState() {
+      return null;
+    },
   };
 }
 
@@ -122,7 +128,9 @@ function makeSequencedAgentLoop(
         };
       },
       stop() {},
-      getState() { return null; },
+      getState() {
+        return null;
+      },
     },
   };
 }
@@ -647,7 +655,9 @@ describe("TaskPlanning integration — task 7.3: dependency failure cascade", ()
         };
       },
       stop() {},
-      getState() { return null; },
+      getState() {
+        return null;
+      },
     };
   }
 

@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { TaskPlanningService } from "../../../application/planning/task-planning-service";
 import type { IAgentLoop } from "../../../application/ports/agent-loop";
-import type { IPlanContextBuilder, ITaskPlanStore, TaskPlanResult } from "../../../application/ports/task-planning";
 import type { LlmProviderPort } from "../../../application/ports/llm";
+import type { IPlanContextBuilder, ITaskPlanStore, TaskPlanResult } from "../../../application/ports/task-planning";
 import {
   makeAgentLoop,
   makeContextBuilder,
@@ -465,8 +465,12 @@ describe("TaskPlanningService — task 5.1: plan generation pipeline", () => {
     it("listResumable() delegates to the plan store", async () => {
       const store: ITaskPlanStore = {
         async save() {},
-        async load() { return null; },
-        async listResumable() { return ["plan-a", "plan-b"]; },
+        async load() {
+          return null;
+        },
+        async listResumable() {
+          return ["plan-a", "plan-b"];
+        },
       };
       const llm = makeLlmFromResults([]);
       const service = new TaskPlanningService(agentLoop, makeContextBuilder(), llm, store);
