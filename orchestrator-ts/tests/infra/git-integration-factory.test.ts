@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { IAuditLogger } from "../../application/safety/ports";
-import type { LlmProviderPort } from "../../application/ports/llm";
-import type { IToolExecutor } from "../../application/tools/executor";
-import type { ToolContext, ToolResult } from "../../domain/tools/types";
-import { ConfigLoader } from "../../infra/config/config-loader";
-import { createGitIntegrationService } from "../../infra/git/create-git-integration-service";
+import type { IAuditLogger } from "../../src/application/safety/ports";
+import type { LlmProviderPort } from "../../src/application/ports/llm";
+import type { IToolExecutor } from "../../src/application/tools/executor";
+import type { ToolContext, ToolResult } from "../../src/domain/tools/types";
+import { ConfigLoader } from "../../src/infra/config/config-loader";
+import { createGitIntegrationService } from "../../src/infra/git/create-git-integration-service";
 
 // ---------------------------------------------------------------------------
 // Minimal stubs for factory constructor parameters

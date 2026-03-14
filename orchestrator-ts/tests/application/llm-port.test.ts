@@ -6,7 +6,7 @@ import type {
   LlmProviderPort,
   LlmResponse,
   LlmResult,
-} from "../../application/ports/llm";
+} from "../../src/application/ports/llm";
 
 // ---------------------------------------------------------------------------
 // Helper: build a minimal mock that satisfies LlmProviderPort

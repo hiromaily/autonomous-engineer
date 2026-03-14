@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { ContextEngineService } from "../../../application/context/context-engine-service";
-import type { ContextEngineServiceOptions } from "../../../application/context/context-engine-service";
+import { ContextEngineService } from "../../../src/application/context/context-engine-service";
+import type { ContextEngineServiceOptions } from "../../../src/application/context/context-engine-service";
 import type {
   AccumulatedEntry,
   CachedEntry,
@@ -14,9 +14,9 @@ import type {
   ITokenBudgetManager,
   LayerBudgetMap,
   LayerId,
-} from "../../../application/ports/context";
-import type { MemoryPort } from "../../../application/ports/memory";
-import type { IToolExecutor } from "../../../application/tools/executor";
+} from "../../../src/application/ports/context";
+import type { MemoryPort } from "../../../src/application/ports/memory";
+import type { IToolExecutor } from "../../../src/application/tools/executor";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -199,7 +199,7 @@ function makeMemoryPortWithEntry(title: string, desc: string): MemoryPort {
 
 function makeToolExecutor(readFileContent = "file content"): IToolExecutor {
   return {
-    invoke: async (name, args) => {
+    invoke: async (name, _args) => {
       if (name === "git_status") {
         return { ok: true, value: { branch: "main", staged: [], unstaged: [] } };
       }
@@ -246,7 +246,7 @@ function makeService(opts: {
   );
 }
 
-function makeRequest(overrides: Partial<ContextBuildRequest> = {}): ContextBuildRequest {
+function _makeRequest(overrides: Partial<ContextBuildRequest> = {}): ContextBuildRequest {
   return {
     sessionId: "s1",
     phaseId: "p1",

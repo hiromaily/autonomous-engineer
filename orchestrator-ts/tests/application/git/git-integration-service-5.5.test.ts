@@ -4,21 +4,21 @@
 // ---------------------------------------------------------------------------
 
 import { describe, it, expect } from "bun:test";
-import { GitIntegrationService } from "../../../application/git/git-integration-service";
-import type { IGitController } from "../../../application/ports/git-controller";
-import type { IPullRequestProvider, PrResult } from "../../../application/ports/pr-provider";
-import type { IGitEventBus } from "../../../application/ports/git-event-bus";
-import type { IAuditLogger, AuditEntry } from "../../../application/safety/ports";
-import type { LlmProviderPort } from "../../../application/ports/llm";
-import type { IGitValidator } from "../../../domain/git/git-validator";
+import { GitIntegrationService } from "../../../src/application/git/git-integration-service";
+import type { IGitController } from "../../../src/application/ports/git-controller";
+import type { IPullRequestProvider, PrResult } from "../../../src/application/ports/pr-provider";
+import type { IGitEventBus } from "../../../src/application/ports/git-event-bus";
+import type { IAuditLogger, AuditEntry } from "../../../src/application/safety/ports";
+import type { LlmProviderPort } from "../../../src/application/ports/llm";
+import type { IGitValidator } from "../../../src/domain/git/git-validator";
 import type {
   GitIntegrationConfig,
   GitEvent,
   PullRequestResult,
   PullRequestParams,
-} from "../../../domain/git/types";
-import type { GitWorkflowParams } from "../../../application/git/git-integration-service";
-import type { PermissionSet } from "../../../domain/tools/types";
+} from "../../../src/domain/git/types";
+import type { GitWorkflowParams } from "../../../src/application/git/git-integration-service";
+import type { PermissionSet } from "../../../src/domain/tools/types";
 
 // ---------------------------------------------------------------------------
 // Test helpers
@@ -121,7 +121,7 @@ function makeAuditLogger(): IAuditLogger & { entries: AuditEntry[] } {
   return { entries, write: async (e) => { entries.push(e); }, flush: async () => {} };
 }
 
-function makeLlmWithJson(title = "feat: implement", body = "PR body"): LlmProviderPort & { prompts: string[] } {
+function _makeLlmWithJson(title = "feat: implement", body = "PR body"): LlmProviderPort & { prompts: string[] } {
   const prompts: string[] = [];
   return {
     prompts,
@@ -236,7 +236,7 @@ describe("GitIntegrationService.runFullWorkflow — task 5.5", () => {
     it("uses the branchName from createBranch result for the push call", async () => {
       const { service, controller } = makeService({
         controller: makeFullWorkflowController({
-          createAndCheckoutBranch: async (branchName, baseBranch) => ({
+          createAndCheckoutBranch: async (_branchName, baseBranch) => ({
             ok: true,
             value: { branchName: "agent/custom-branch", baseBranch, conflictResolved: false },
           }),
@@ -304,7 +304,7 @@ describe("GitIntegrationService.runFullWorkflow — task 5.5", () => {
 
     it("halts and returns Err from generateAndCommit without calling push", async () => {
       let detectChangesCount = 0;
-      const { service, controller } = makeService({
+      const { service, controller: _controller } = makeService({
         controller: {
           calls: [],
           listBranches: async () => ({ ok: true, value: [] }),
@@ -421,7 +421,7 @@ describe("GitIntegrationService.runFullWorkflow — task 5.5", () => {
             ok: true,
             value: { branchName, baseBranch, conflictResolved: false },
           }),
-          stageAndCommit: async (files: ReadonlyArray<string>, message: string) => ({
+          stageAndCommit: async (_files: ReadonlyArray<string>, message: string) => ({
             ok: true,
             value: { hash: "", message, fileCount: 0 },
           }),

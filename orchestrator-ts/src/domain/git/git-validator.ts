@@ -109,14 +109,13 @@ export class GitValidator implements IGitValidator {
       return false;
     }
 
-    // Reject control characters (0x00-0x1f and 0x7f)
-    // eslint-disable-next-line no-control-regex
-    if (/[\x00-\x1f\x7f]/.test(name)) {
+    // Reject control characters (Unicode category Cc covers 0x00-0x1f and 0x7f-0x9f)
+    if (/\p{Cc}/u.test(name)) {
       return false;
     }
 
     // Reject invalid characters
-    if (/[~^:?*\[\\ ]/.test(name)) {
+    if (/[~^:?*[\\ ]/.test(name)) {
       return false;
     }
 

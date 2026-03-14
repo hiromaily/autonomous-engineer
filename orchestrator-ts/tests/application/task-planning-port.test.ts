@@ -10,8 +10,8 @@ import type {
   TaskPlannerOptions,
   TaskPlanOutcome,
   TaskPlanResult,
-} from "../../application/ports/task-planning";
-import type { PlanEvent, PlanReviewReason, TaskPlan } from "../../domain/planning/types";
+} from "../../src/application/ports/task-planning";
+import type { PlanEvent, PlanReviewReason, TaskPlan } from "../../src/domain/planning/types";
 
 // ---------------------------------------------------------------------------
 // Test helpers
@@ -486,7 +486,7 @@ describe("TaskPlannerLogger contract (mock implementation)", () => {
     logger.info("Step started", { planId: "plan-1", stepId: "step-1" });
     expect(logs).toHaveLength(1);
     expect(logs[0]?.message).toBe("Step started");
-    expect(logs[0]?.data?.["planId"]).toBe("plan-1");
+    expect(logs[0]?.data?.planId).toBe("plan-1");
   });
 
   it("error() receives a message and optional metadata", () => {
@@ -502,7 +502,7 @@ describe("TaskPlannerLogger contract (mock implementation)", () => {
     logger.error("Step failed after retries", { stepId: "step-7", attempt: 3 });
     expect(errors).toHaveLength(1);
     expect(errors[0]?.message).toBe("Step failed after retries");
-    expect(errors[0]?.data?.["attempt"]).toBe(3);
+    expect(errors[0]?.data?.attempt).toBe(3);
   });
 
   it("info() and error() can be called without metadata", () => {

@@ -11,14 +11,14 @@ import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { access, mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { AesConfig } from "../../application/ports/config";
-import type { LlmProviderPort } from "../../application/ports/llm";
-import type { MemoryEntry, MemoryTarget, ShortTermMemoryPort } from "../../application/ports/memory";
-import type { SddFrameworkPort } from "../../application/ports/sdd";
-import type { IWorkflowEventBus, IWorkflowStateStore } from "../../application/ports/workflow";
-import { RunSpecUseCase } from "../../application/usecases/run-spec";
-import type { WorkflowState } from "../../domain/workflow/types";
-import { FileMemoryStore } from "../../infra/memory/file-memory-store";
+import type { AesConfig } from "../../src/application/ports/config";
+import type { LlmProviderPort } from "../../src/application/ports/llm";
+import type { MemoryEntry, MemoryTarget, ShortTermMemoryPort } from "../../src/application/ports/memory";
+import type { SddFrameworkPort } from "../../src/application/ports/sdd";
+import type { IWorkflowEventBus, IWorkflowStateStore } from "../../src/application/ports/workflow";
+import { RunSpecUseCase } from "../../src/application/usecases/run-spec";
+import type { WorkflowState } from "../../src/domain/workflow/types";
+import { FileMemoryStore } from "../../src/infra/memory/file-memory-store";
 
 // ---------------------------------------------------------------------------
 // Shared test helpers

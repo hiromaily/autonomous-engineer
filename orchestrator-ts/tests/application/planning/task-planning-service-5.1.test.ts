@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import { TaskPlanningService } from "../../../application/planning/task-planning-service";
-import type { IAgentLoop } from "../../../application/ports/agent-loop";
-import type { LlmProviderPort } from "../../../application/ports/llm";
-import type { IPlanContextBuilder, ITaskPlanStore, TaskPlanResult } from "../../../application/ports/task-planning";
+import { TaskPlanningService } from "../../../src/application/planning/task-planning-service";
+import type { IAgentLoop } from "../../../src/application/ports/agent-loop";
+import type { LlmProviderPort } from "../../../src/application/ports/llm";
+import type { IPlanContextBuilder, ITaskPlanStore, } from "../../../src/application/ports/task-planning";
 import {
   makeAgentLoop,
   makeContextBuilder,
@@ -101,7 +101,7 @@ describe("TaskPlanningService — task 5.1: plan generation pipeline", () => {
 
   describe("plan parsing and ID assignment", () => {
     it("assigns a new UUID planId to the parsed plan", async () => {
-      const { store, saves } = makeStore();
+      const { store, saves: _saves } = makeStore();
       const llm = makeLlmFromResults([makeSuccessLlmResult(makePlanBody())]);
 
       const service = new TaskPlanningService(agentLoop, makeContextBuilder(), llm, store);

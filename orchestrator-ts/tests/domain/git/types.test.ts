@@ -8,7 +8,7 @@ import type {
   PullRequestParams,
   PullRequestResult,
   PushResult,
-} from "../../../domain/git/types";
+} from "../../../src/domain/git/types";
 
 // ---------------------------------------------------------------------------
 // GitIntegrationConfig shape check

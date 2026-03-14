@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { WorkflowState } from "../../domain/workflow/types";
-import { WorkflowStateStore } from "../../infra/state/workflow-state-store";
+import type { WorkflowState } from "../../src/domain/workflow/types";
+import { WorkflowStateStore } from "../../src/infra/state/workflow-state-store";
 
 describe("WorkflowStateStore", () => {
   let tmpDir: string;

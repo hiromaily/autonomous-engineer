@@ -13,7 +13,7 @@ import {
   type ReflectionOutput,
   TERMINATION_CONDITIONS,
   type TerminationCondition,
-} from "../../../domain/agent/types";
+} from "../../../src/domain/agent/types";
 
 // ---------------------------------------------------------------------------
 // ActionCategory
@@ -75,7 +75,7 @@ describe("ActionPlan shape", () => {
 
     expect(plan.category).toBe("Exploration");
     expect(plan.toolName).toBe("read_file");
-    expect(plan.toolInput["path"]).toBe("/workspace/src/index.ts");
+    expect(plan.toolInput.path).toBe("/workspace/src/index.ts");
     expect(plan.rationale).toBe("Need to understand the current implementation before modifying it.");
   });
 
@@ -88,7 +88,7 @@ describe("ActionPlan shape", () => {
     };
 
     expect(plan.category).toBe("Modification");
-    expect(plan.toolInput["content"]).toBe("export const x = 1;");
+    expect(plan.toolInput.content).toBe("export const x = 1;");
   });
 
   it("ActionPlan is serializable to JSON and round-trips without data loss", () => {
@@ -104,7 +104,7 @@ describe("ActionPlan shape", () => {
 
     expect(parsed.category).toBe(plan.category);
     expect(parsed.toolName).toBe(plan.toolName);
-    expect(parsed.toolInput["pattern"]).toBe(plan.toolInput["pattern"]);
+    expect(parsed.toolInput.pattern).toBe(plan.toolInput.pattern);
     expect(parsed.rationale).toBe(plan.rationale);
   });
 });
@@ -318,7 +318,7 @@ describe("Observation shape", () => {
       recordedAt: "2026-03-11T21:00:03.000Z",
     };
 
-    expect((objectObs.rawOutput as Record<string, number>)["passed"]).toBe(10);
+    expect((objectObs.rawOutput as Record<string, number>).passed).toBe(10);
     expect(Array.isArray(arrayObs.rawOutput)).toBe(true);
   });
 

@@ -1,8 +1,8 @@
 import { describe, expect, it, mock } from "bun:test";
-import type { AuditEntry, IAuditLogger } from "../../../application/safety/ports";
-import type { IToolExecutor } from "../../../application/tools/executor";
-import type { PermissionSet, ToolContext, ToolInvocationLog } from "../../../domain/tools/types";
-import { createSafetyExecutor } from "../../../infra/safety/create-safety-executor";
+import type { AuditEntry, IAuditLogger } from "../../../src/application/safety/ports";
+import type { IToolExecutor } from "../../../src/application/tools/executor";
+import type { PermissionSet, ToolContext, ToolInvocationLog } from "../../../src/domain/tools/types";
+import { createSafetyExecutor } from "../../../src/infra/safety/create-safety-executor";
 
 // ---------------------------------------------------------------------------
 // Test helpers

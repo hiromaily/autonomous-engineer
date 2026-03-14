@@ -18,12 +18,12 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { TaskPlanningService } from "../../application/planning/task-planning-service";
-import type { AgentLoopResult, IAgentLoop } from "../../application/ports/agent-loop";
-import type { LlmProviderPort, LlmResult } from "../../application/ports/llm";
-import type { IPlanContextBuilder } from "../../application/ports/task-planning";
-import type { AgentState, TaskPlan } from "../../domain/planning/types";
-import { PlanFileStore } from "../../infra/planning/plan-file-store";
+import { TaskPlanningService } from "../../src/application/planning/task-planning-service";
+import type { AgentLoopResult, IAgentLoop } from "../../src/application/ports/agent-loop";
+import type { LlmProviderPort, LlmResult } from "../../src/application/ports/llm";
+import type { IPlanContextBuilder } from "../../src/application/ports/task-planning";
+import type { AgentState, TaskPlan } from "../../src/domain/planning/types";
+import { PlanFileStore } from "../../src/infra/planning/plan-file-store";
 
 // ---------------------------------------------------------------------------
 // Stub factories
@@ -278,8 +278,8 @@ describe("TaskPlanning integration — task 7.1: full plan generation and execut
     // Load via store and verify contents match returned plan
     const loaded = await store.load(result.plan.id);
     expect(loaded).not.toBeNull();
-    expect(loaded!.id).toBe(result.plan.id);
-    expect(loaded!.tasks[0]?.steps.every((s) => s.status === "completed")).toBe(true);
+    expect(loaded?.id).toBe(result.plan.id);
+    expect(loaded?.tasks[0]?.steps.every((s) => s.status === "completed")).toBe(true);
   });
 
   it("persisted plan matches the in-memory result plan (Req 8.1, 8.2)", async () => {
@@ -416,7 +416,7 @@ describe("TaskPlanning integration — task 7.2: crash recovery and resumption",
       id,
       description: `Completed step ${id}`,
       status: "completed" as const,
-      dependsOn: i === 0 ? [] : [completedStepIds[i - 1]!],
+      dependsOn: i === 0 ? [] : [completedStepIds[i - 1] ?? ""],
       statusHistory: [{ status: "completed" as const, at: now }],
     }));
     const lastCompletedId = completedStepIds[completedStepIds.length - 1];
@@ -424,7 +424,7 @@ describe("TaskPlanning integration — task 7.2: crash recovery and resumption",
       id,
       description: `Pending step ${id}`,
       status: "pending" as const,
-      dependsOn: i === 0 && lastCompletedId ? [lastCompletedId] : i === 0 ? [] : [pendingStepIds[i - 1]!],
+      dependsOn: i === 0 && lastCompletedId ? [lastCompletedId] : i === 0 ? [] : [pendingStepIds[i - 1] ?? ""],
       statusHistory: [] as { status: "pending"; at: string }[],
     }));
 
@@ -828,7 +828,7 @@ describe("TaskPlanning integration — task 7.3: dependency failure cascade", ()
     const persisted = await store.load(result.plan.id);
     expect(persisted).not.toBeNull();
 
-    const steps = persisted!.tasks[0]?.steps ?? [];
+    const steps = persisted?.tasks[0]?.steps ?? [];
     expect(steps.find((s) => s.id === "step-a")?.status).toBe("failed");
     expect(steps.find((s) => s.id === "step-b")?.status).toBe("failed");
   });

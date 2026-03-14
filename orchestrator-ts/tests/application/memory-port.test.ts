@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { ShortTermMemoryPort, ShortTermState, TaskProgress } from "../../application/ports/memory";
-import type { WorkflowPhase } from "../../domain/workflow/types";
+import type { ShortTermMemoryPort, ShortTermState, TaskProgress } from "../../src/application/ports/memory";
+import type { WorkflowPhase } from "../../src/domain/workflow/types";
 
 // ---------------------------------------------------------------------------
 // ShortTermState shape

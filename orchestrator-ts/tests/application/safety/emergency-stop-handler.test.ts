@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { EmergencyStopHandler } from "../../../application/safety/emergency-stop-handler";
-import type { AuditEntry, IAuditLogger } from "../../../application/safety/ports";
-import type { EmergencyStopSource } from "../../../domain/safety/types";
-import { createSafetySession } from "../../../domain/safety/types";
+import { EmergencyStopHandler } from "../../../src/application/safety/emergency-stop-handler";
+import type { AuditEntry, IAuditLogger } from "../../../src/application/safety/ports";
+import type { EmergencyStopSource } from "../../../src/domain/safety/types";
+import { createSafetySession } from "../../../src/domain/safety/types";
 
 // ---------------------------------------------------------------------------
 // Test helpers

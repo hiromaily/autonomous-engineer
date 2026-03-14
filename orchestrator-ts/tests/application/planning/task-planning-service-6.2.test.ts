@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { TaskPlanningService } from "../../../application/planning/task-planning-service";
-import type { IHumanReviewGateway, PlanReviewDecision } from "../../../application/ports/task-planning";
+import { TaskPlanningService } from "../../../src/application/planning/task-planning-service";
+import type { IHumanReviewGateway, PlanReviewDecision } from "../../../src/application/ports/task-planning";
 import {
   makeAgentLoop,
   makeContextBuilder,
@@ -335,8 +335,8 @@ describe("TaskPlanningService — task 6.2: human review gate behavior", () => {
       const agentLoop = makeAgentLoop();
 
       // Use a store that dynamically tracks saves for listResumable
-      const savedPlans: Array<import("../../../domain/planning/types").TaskPlan> = [];
-      const trackingStore: import("../../../application/ports/task-planning").ITaskPlanStore = {
+      const savedPlans: Array<import("../../../src/domain/planning/types").TaskPlan> = [];
+      const trackingStore: import("../../../src/application/ports/task-planning").ITaskPlanStore = {
         async save(plan) {
           savedPlans.push(JSON.parse(JSON.stringify(plan)) as typeof plan);
         },

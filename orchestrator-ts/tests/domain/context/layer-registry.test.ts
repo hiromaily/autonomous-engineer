@@ -3,13 +3,13 @@
  * TDD: tests written before implementation.
  */
 import { describe, expect, it } from "bun:test";
-import type { LayerId } from "../../../application/ports/context";
+import type { LayerId } from "../../../src/application/ports/context";
 import {
   getLayerByIndex,
   getLayerEntry,
   getLayersInOrder,
   LAYER_REGISTRY,
-} from "../../../domain/context/layer-registry";
+} from "../../../src/domain/context/layer-registry";
 
 describe("LayerRegistry", () => {
   describe("LAYER_REGISTRY constant", () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { GitResult, IGitController } from "../../../application/ports/git-controller";
-import type { BranchCreationResult, CommitResult, GitChangesResult, PushResult } from "../../../domain/git/types";
+import type { GitResult, IGitController } from "../../../src/application/ports/git-controller";
+import type { BranchCreationResult, CommitResult, GitChangesResult, PushResult } from "../../../src/domain/git/types";
 // ---------------------------------------------------------------------------
 // Helper: build a minimal stub that satisfies IGitController
 // ---------------------------------------------------------------------------

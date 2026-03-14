@@ -10,11 +10,11 @@ import { mkdir, mkdtemp, readFile as fsReadFile, rm, writeFile as fsWriteFile } 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { listDirectoryTool, readFileTool, searchFilesTool, writeFileTool } from "../../../adapters/tools/filesystem";
-import { ToolExecutor } from "../../../application/tools/executor";
-import { PermissionSystem } from "../../../domain/tools/permissions";
-import { ToolRegistry } from "../../../domain/tools/registry";
-import type { PermissionSet, ToolContext, ToolInvocationLog } from "../../../domain/tools/types";
+import { listDirectoryTool, readFileTool, searchFilesTool, writeFileTool } from "../../../src/adapters/tools/filesystem";
+import { ToolExecutor } from "../../../src/application/tools/executor";
+import { PermissionSystem } from "../../../src/domain/tools/permissions";
+import { ToolRegistry } from "../../../src/domain/tools/registry";
+import type { PermissionSet, ToolContext, ToolInvocationLog } from "../../../src/domain/tools/types";
 
 // ---------------------------------------------------------------------------
 // Helpers

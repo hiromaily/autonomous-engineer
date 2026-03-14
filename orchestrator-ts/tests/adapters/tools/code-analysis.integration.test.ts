@@ -17,8 +17,8 @@ import {
   findReferencesTool,
   findSymbolDefinitionTool,
   parseTsAstTool,
-} from "../../../adapters/tools/code-analysis";
-import type { PermissionSet, ToolContext, ToolInvocationLog } from "../../../domain/tools/types";
+} from "../../../src/adapters/tools/code-analysis";
+import type { PermissionSet, ToolContext, ToolInvocationLog } from "../../../src/domain/tools/types";
 
 // ---------------------------------------------------------------------------
 // Helpers

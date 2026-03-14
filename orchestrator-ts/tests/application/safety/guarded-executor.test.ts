@@ -1,10 +1,10 @@
 import { describe, expect, it, mock } from "bun:test";
-import { SafetyGuardedToolExecutor } from "../../../application/safety/guarded-executor";
-import type { AuditEntry, IApprovalGateway, IAuditLogger, ISandboxExecutor } from "../../../application/safety/ports";
-import type { IToolExecutor } from "../../../application/tools/executor";
-import { createSafetyConfig, createSafetySession } from "../../../domain/safety/types";
-import type { SafetyConfig, SafetySession } from "../../../domain/safety/types";
-import type { PermissionSet, ToolContext, ToolInvocationLog, ToolResult } from "../../../domain/tools/types";
+import { SafetyGuardedToolExecutor } from "../../../src/application/safety/guarded-executor";
+import type { AuditEntry, IApprovalGateway, IAuditLogger, ISandboxExecutor } from "../../../src/application/safety/ports";
+import type { IToolExecutor } from "../../../src/application/tools/executor";
+import { createSafetyConfig, createSafetySession } from "../../../src/domain/safety/types";
+import type { SafetyConfig, SafetySession } from "../../../src/domain/safety/types";
+import type { PermissionSet, ToolContext, ToolInvocationLog, ToolResult } from "../../../src/domain/tools/types";
 
 // ---------------------------------------------------------------------------
 // Test helpers

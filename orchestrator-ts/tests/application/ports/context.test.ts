@@ -30,7 +30,7 @@ import type {
   StepType,
   TokenBudgetConfig,
   ToolResultEntry,
-} from "../../../application/ports/context";
+} from "../../../src/application/ports/context";
 
 describe("application/ports/context type shapes", () => {
   it("LayerId accepts all seven layer values", () => {

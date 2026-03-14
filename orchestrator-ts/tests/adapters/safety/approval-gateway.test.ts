@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { CliApprovalGateway } from "../../../adapters/safety/approval-gateway";
-import type { ApprovalRequest } from "../../../domain/safety/guards";
+import { CliApprovalGateway } from "../../../src/adapters/safety/approval-gateway";
+import type { ApprovalRequest } from "../../../src/domain/safety/guards";
 
 // ---------------------------------------------------------------------------
 // Helpers

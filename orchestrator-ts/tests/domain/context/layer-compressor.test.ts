@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { CompressionResult } from "../../../application/ports/context";
-import { LayerCompressor } from "../../../domain/context/layer-compressor";
+import type { CompressionResult } from "../../../src/application/ports/context";
+import { LayerCompressor } from "../../../src/domain/context/layer-compressor";
 
 // ---------------------------------------------------------------------------
 // Helpers

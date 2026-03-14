@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { ApprovalGate, type ApprovalPhase } from "../../domain/workflow/approval-gate";
+import { ApprovalGate, type ApprovalPhase } from "../../src/domain/workflow/approval-gate";
 
 // ---------------------------------------------------------------------------
 // Helper: write a minimal spec.json into a temp dir

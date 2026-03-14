@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { access, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { MemoryEntry, MemoryTarget } from "../../../application/ports/memory";
-import { FileMemoryStore } from "../../../infra/memory/file-memory-store";
+import type { MemoryEntry, MemoryTarget } from "../../../src/application/ports/memory";
+import { FileMemoryStore } from "../../../src/infra/memory/file-memory-store";
 
 // ---------------------------------------------------------------------------
 // Task 3.1: Build path resolution, directory initialization, and Markdown
@@ -652,8 +652,8 @@ describe("FileMemoryStore - Task 3.4: writeFailure() and getFailures()", () => {
   let store: FileMemoryStore;
 
   const makeRecord = (
-    override?: Partial<import("../../../application/ports/memory").FailureRecord>,
-  ): import("../../../application/ports/memory").FailureRecord => ({
+    override?: Partial<import("../../../src/application/ports/memory").FailureRecord>,
+  ): import("../../../src/application/ports/memory").FailureRecord => ({
     taskId: "task-1",
     specName: "memory-system",
     phase: "IMPLEMENTATION",

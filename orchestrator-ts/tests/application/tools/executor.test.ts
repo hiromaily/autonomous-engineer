@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
-import { ToolExecutor } from "../../../application/tools/executor";
-import { PermissionSystem } from "../../../domain/tools/permissions";
-import { ToolRegistry } from "../../../domain/tools/registry";
-import type { PermissionSet, Tool, ToolContext, ToolInvocationLog } from "../../../domain/tools/types";
+import { ToolExecutor } from "../../../src/application/tools/executor";
+import { PermissionSystem } from "../../../src/domain/tools/permissions";
+import { ToolRegistry } from "../../../src/domain/tools/registry";
+import type { PermissionSet, Tool, ToolContext, ToolInvocationLog } from "../../../src/domain/tools/types";
 
 // ---------------------------------------------------------------------------
 // Test helpers

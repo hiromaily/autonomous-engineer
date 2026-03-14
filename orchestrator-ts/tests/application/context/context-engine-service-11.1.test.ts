@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { ContextEngineService } from "../../../application/context/context-engine-service";
-import type { ContextEngineServiceOptions } from "../../../application/context/context-engine-service";
+import { ContextEngineService } from "../../../src/application/context/context-engine-service";
+import type { ContextEngineServiceOptions } from "../../../src/application/context/context-engine-service";
 import type {
   CachedEntry,
   ContextBuildRequest,
@@ -11,10 +11,10 @@ import type {
   ITokenBudgetManager,
   LayerBudgetMap,
   LayerId,
-} from "../../../application/ports/context";
-import type { MemoryPort, RankedMemoryEntry } from "../../../application/ports/memory";
-import type { IToolExecutor } from "../../../application/tools/executor";
-import { ContextPlanner } from "../../../domain/context/context-planner";
+} from "../../../src/application/ports/context";
+import type { MemoryPort, RankedMemoryEntry } from "../../../src/application/ports/memory";
+import type { IToolExecutor } from "../../../src/application/tools/executor";
+import { ContextPlanner } from "../../../src/domain/context/context-planner";
 
 // ---------------------------------------------------------------------------
 // Canonical layer order (mirrors LAYER_REGISTRY)
@@ -126,7 +126,7 @@ function makeMemoryPort(
 /**
  * Build a MemoryPort whose `query()` throws to simulate system failure.
  */
-function makeFailingMemoryPort(): MemoryPort {
+function _makeFailingMemoryPort(): MemoryPort {
   return {
     shortTerm: { read: () => ({ recentFiles: [] }), write: () => {}, clear: () => {} },
     query: async () => {
@@ -150,7 +150,7 @@ function makeToolExecutor(opts: {
   searchResult?: string;
 } = {}): IToolExecutor {
   return {
-    invoke: async (name, args) => {
+    invoke: async (name, _args) => {
       if (name === "git_status") {
         return {
           ok: true,
@@ -392,8 +392,9 @@ describe("ContextEngineService — buildContext integration (task 11.1)", () => 
       }));
 
       for (let i = 1; i < positions.length; i++) {
-        const prev = positions[i - 1]!;
-        const curr = positions[i]!;
+        const prev = positions[i - 1];
+        const curr = positions[i];
+        if (!prev || !curr) throw new Error("expected position entries");
         expect(curr.pos).toBeGreaterThan(prev.pos);
       }
     });

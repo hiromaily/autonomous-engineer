@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { GitEvent } from "../../domain/git/types";
-import { GitEventBus } from "../../infra/events/git-event-bus";
+import type { GitEvent } from "../../src/domain/git/types";
+import { GitEventBus } from "../../src/infra/events/git-event-bus";
 
 const makeEvent = (type: GitEvent["type"]): GitEvent => {
   if (type === "branch-created") {

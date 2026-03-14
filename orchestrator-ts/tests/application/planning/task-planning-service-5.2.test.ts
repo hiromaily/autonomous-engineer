@@ -1,14 +1,13 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import { TaskPlanningService } from "../../../application/planning/task-planning-service";
-import type { IAgentLoop } from "../../../application/ports/agent-loop";
-import type { LlmProviderPort, LlmResult } from "../../../application/ports/llm";
+import { TaskPlanningService } from "../../../src/application/planning/task-planning-service";
+import type { IAgentLoop } from "../../../src/application/ports/agent-loop";
+import type { LlmProviderPort, LlmResult } from "../../../src/application/ports/llm";
 import type {
   IHumanReviewGateway,
   IPlanContextBuilder,
-  ITaskPlanStore,
   PlanReviewDecision,
-} from "../../../application/ports/task-planning";
-import type { PlanReviewReason } from "../../../domain/planning/types";
+} from "../../../src/application/ports/task-planning";
+import type { PlanReviewReason } from "../../../src/domain/planning/types";
 import {
   makeAgentLoop,
   makeContextBuilder,

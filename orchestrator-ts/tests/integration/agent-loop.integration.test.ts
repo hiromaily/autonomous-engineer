@@ -17,13 +17,13 @@
  * Requirements: 1.1, 1.2, 1.3, 4.1, 4.2, 5.1, 5.2, 6.1, 10.3
  */
 import { describe, expect, it } from "bun:test";
-import { AgentLoopService } from "../../application/agent/agent-loop-service";
-import type { IAgentEventBus } from "../../application/ports/agent-loop";
-import type { LlmProviderPort } from "../../application/ports/llm";
-import type { IToolExecutor } from "../../application/tools/executor";
-import type { AgentLoopEvent, ReflectionOutput } from "../../domain/agent/types";
-import { ToolRegistry } from "../../domain/tools/registry";
-import type { MemoryEntry, Tool, ToolContext } from "../../domain/tools/types";
+import { AgentLoopService } from "../../src/application/agent/agent-loop-service";
+import type { IAgentEventBus } from "../../src/application/ports/agent-loop";
+import type { LlmProviderPort } from "../../src/application/ports/llm";
+import type { IToolExecutor } from "../../src/application/tools/executor";
+import type { AgentLoopEvent, ReflectionOutput } from "../../src/domain/agent/types";
+import { ToolRegistry } from "../../src/domain/tools/registry";
+import type { MemoryEntry, Tool, ToolContext } from "../../src/domain/tools/types";
 
 // ---------------------------------------------------------------------------
 // Shared test helpers
@@ -319,8 +319,8 @@ describe("AgentLoopService integration — real ToolRegistry (task 11.1)", () =>
 
     const entries = registry.list();
     expect(entries).toHaveLength(1);
-    expect(entries[0]!.name).toBe("mock_tool");
-    expect(entries[0]!.description).toBe("A mock tool for integration testing");
+    expect(entries[0]?.name).toBe("mock_tool");
+    expect(entries[0]?.description).toBe("A mock tool for integration testing");
   });
 
   it("service runs 4 iterations and accumulates 4 observations", async () => {
@@ -418,7 +418,7 @@ describe("AgentLoopService integration — real ToolRegistry (task 11.1)", () =>
 
     for (const obs of result.finalState.observations) {
       expect(obs.reflection).toBeDefined();
-      expect(obs.reflection!.assessment).toBeDefined();
+      expect(obs.reflection?.assessment).toBeDefined();
     }
   });
 
@@ -461,7 +461,7 @@ describe("AgentLoopService integration — real ToolRegistry (task 11.1)", () =>
     await svc.run("my integration task", { maxIterations: 1 });
 
     expect(snapshotDuringExecution).not.toBeNull();
-    expect(snapshotDuringExecution!.task).toBe("my integration task");
+    expect(snapshotDuringExecution?.task).toBe("my integration task");
   });
 
   it("getState() snapshot during execution has a valid iterationCount", async () => {
@@ -481,7 +481,7 @@ describe("AgentLoopService integration — real ToolRegistry (task 11.1)", () =>
     svc = new AgentLoopService(executor, registry, makeFourIterationLlm(), makeToolContext());
     await svc.run("integration task", { maxIterations: 2 });
 
-    expect(typeof snapshotDuringExecution!.iterationCount).toBe("number");
+    expect(typeof snapshotDuringExecution?.iterationCount).toBe("number");
   });
 
   it("multiple tools can be registered and all appear in the registry list", () => {
@@ -602,7 +602,7 @@ describe("AgentLoopService integration — error recovery cycle (task 11.2)", ()
       | undefined;
 
     expect(termEvent).toBeDefined();
-    expect(termEvent!.finalState.recoveryAttempts).toBeGreaterThan(0);
+    expect(termEvent?.finalState.recoveryAttempts).toBeGreaterThan(0);
   });
 
   it("tool always fails — termination event condition is RECOVERY_EXHAUSTED", async () => {
@@ -622,7 +622,7 @@ describe("AgentLoopService integration — error recovery cycle (task 11.2)", ()
       | Extract<AgentLoopEvent, { type: "terminated" }>
       | undefined;
 
-    expect(termEvent!.condition).toBe("RECOVERY_EXHAUSTED");
+    expect(termEvent?.condition).toBe("RECOVERY_EXHAUSTED");
   });
 });
 
@@ -673,10 +673,10 @@ describe("AgentLoopService integration — event ordering and state serializatio
 
       // Verify PLAN→ACT→OBSERVE→REFLECT→UPDATE_STATE order
       for (let i = 0; i < STEP_ORDER.length; i++) {
-        expect(stepEvents[i * 2]!.type).toBe("step:start");
-        expect(stepEvents[i * 2]!.step).toBe(STEP_ORDER[i]);
-        expect(stepEvents[i * 2 + 1]!.type).toBe("step:complete");
-        expect(stepEvents[i * 2 + 1]!.step).toBe(STEP_ORDER[i]);
+        expect(stepEvents[i * 2]?.type).toBe("step:start");
+        expect(stepEvents[i * 2]?.step).toBe(STEP_ORDER[i]);
+        expect(stepEvents[i * 2 + 1]?.type).toBe("step:complete");
+        expect(stepEvents[i * 2 + 1]?.step).toBe(STEP_ORDER[i]);
       }
     }
   });
@@ -693,7 +693,7 @@ describe("AgentLoopService integration — event ordering and state serializatio
       const lastStepIdx = [...events]
         .map((e, i) => ({ e, i }))
         .filter(({ e }) => e.type === "step:complete" && e.iteration === iter)
-        .at(-1)!.i;
+        .at(-1)?.i;
       const iterCompleteIdx = events.findIndex(
         (e) => e.type === "iteration:complete" && e.iteration === iter,
       );
@@ -712,7 +712,8 @@ describe("AgentLoopService integration — event ordering and state serializatio
     const service = new AgentLoopService(makeSucceedingExecutor(), registry, makeTwoIterationLlm(), makeToolContext());
     await service.run("ordering test", { maxIterations: 2, eventBus: bus });
 
-    const lastEvent = events[events.length - 1]!;
+    const lastEvent = events[events.length - 1];
+    if (!lastEvent) throw new Error("expected at least one event");
     expect(lastEvent.type).toBe("terminated");
   });
 
@@ -783,7 +784,8 @@ describe("AgentLoopService integration — event ordering and state serializatio
     const parsed = JSON.parse(json);
 
     for (let i = 0; i < result.finalState.observations.length; i++) {
-      const orig = result.finalState.observations[i]!;
+      const orig = result.finalState.observations[i];
+      if (!orig) continue;
       const rt = parsed.observations[i];
       expect(rt.toolName).toBe(orig.toolName);
       expect(rt.success).toBe(orig.success);

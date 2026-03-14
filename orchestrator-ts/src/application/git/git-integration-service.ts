@@ -433,7 +433,7 @@ export class GitIntegrationService implements IGitIntegrationService {
 
     if (!pushResult.ok) {
       // Detect non-fast-forward rejection via the details field set by the adapter
-      if (pushResult.error.details?.["reason"] === "non-fast-forward") {
+      if (pushResult.error.details?.reason === "non-fast-forward") {
         this.eventBus.emit({
           type: "push-rejected-non-fast-forward",
           remote: this.config.remote,
@@ -502,8 +502,8 @@ export class GitIntegrationService implements IGitIntegrationService {
     let prBody: string;
     try {
       const parsed = JSON.parse(llmResult.value.content.trim()) as Record<string, unknown>;
-      prTitle = typeof parsed["title"] === "string" ? parsed["title"] : "";
-      prBody = typeof parsed["body"] === "string" ? parsed["body"] : "";
+      prTitle = typeof parsed.title === "string" ? parsed.title : "";
+      prBody = typeof parsed.body === "string" ? parsed.body : "";
       if (!prTitle) throw new Error("Missing title in LLM response");
     } catch {
       const failCount = this.incrementFailure("create-pr");

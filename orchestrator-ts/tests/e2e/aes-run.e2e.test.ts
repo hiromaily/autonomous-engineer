@@ -17,17 +17,17 @@ import { afterAll, beforeAll, describe, expect, it, mock } from "bun:test";
 import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { SpawnFn } from "../../adapters/sdd/cc-sdd-adapter";
-import type { AesConfig } from "../../application/ports/config";
-import type { LlmProviderPort } from "../../application/ports/llm";
-import type { MemoryPort, ShortTermMemoryPort } from "../../application/ports/memory";
-import type { SddFrameworkPort } from "../../application/ports/sdd";
-import type { WorkflowEvent } from "../../application/ports/workflow";
-import { RunSpecUseCase } from "../../application/usecases/run-spec";
-import { JsonLogWriter } from "../../cli/json-log-writer";
-import type { WorkflowPhase, WorkflowState } from "../../domain/workflow/types";
-import { WorkflowEventBus } from "../../infra/events/workflow-event-bus";
-import { WorkflowStateStore } from "../../infra/state/workflow-state-store";
+import type { SpawnFn } from "../../src/adapters/sdd/cc-sdd-adapter";
+import type { AesConfig } from "../../src/application/ports/config";
+import type { LlmProviderPort } from "../../src/application/ports/llm";
+import type { MemoryPort, ShortTermMemoryPort } from "../../src/application/ports/memory";
+import type { SddFrameworkPort } from "../../src/application/ports/sdd";
+import type { WorkflowEvent } from "../../src/application/ports/workflow";
+import { RunSpecUseCase } from "../../src/application/usecases/run-spec";
+import { JsonLogWriter } from "../../src/cli/json-log-writer";
+import type { WorkflowPhase, WorkflowState } from "../../src/domain/workflow/types";
+import { WorkflowEventBus } from "../../src/infra/events/workflow-event-bus";
+import { WorkflowStateStore } from "../../src/infra/state/workflow-state-store";
 
 // ---------------------------------------------------------------------------
 // Fake cc-sdd binary (reused across E2E tests)
@@ -704,7 +704,7 @@ describe("E2E: CLI subprocess dry-run exit code", () => {
         }),
       );
 
-      const cliPath = join(import.meta.dir, "../../cli/index.ts");
+      const cliPath = join(import.meta.dir, "../../src/cli/index.ts");
       const proc = Bun.spawn(
         ["bun", cliPath, "run", env.specName, "--dry-run"],
         { cwd: env.tmpDir, stderr: "pipe", stdout: "pipe" },
@@ -729,7 +729,7 @@ describe("E2E: CLI subprocess dry-run exit code", () => {
         }),
       );
 
-      const cliPath = join(import.meta.dir, "../../cli/index.ts");
+      const cliPath = join(import.meta.dir, "../../src/cli/index.ts");
       const proc = Bun.spawn(
         ["bun", cliPath, "run", "nonexistent-spec", "--dry-run"],
         { cwd: env.tmpDir, stderr: "pipe", stdout: "pipe" },

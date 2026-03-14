@@ -15,7 +15,7 @@ import {
   type ToolErrorType,
   type ToolInvocationLog,
   type ToolResult,
-} from "../../../domain/tools/types";
+} from "../../../src/domain/tools/types";
 
 // ---------------------------------------------------------------------------
 // PermissionFlag

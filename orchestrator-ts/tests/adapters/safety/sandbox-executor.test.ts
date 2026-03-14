@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { TempDirSandboxExecutor } from "../../../adapters/safety/sandbox-executor";
-import type { SandboxExecutionRequest } from "../../../application/safety/ports";
+import { TempDirSandboxExecutor } from "../../../src/adapters/safety/sandbox-executor";
+import type { SandboxExecutionRequest } from "../../../src/application/safety/ports";
 
 // ---------------------------------------------------------------------------
 // Helpers

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { ContextEngineService } from "../../../application/context/context-engine-service";
-import type { ContextEngineServiceOptions } from "../../../application/context/context-engine-service";
+import { ContextEngineService } from "../../../src/application/context/context-engine-service";
+import type { ContextEngineServiceOptions } from "../../../src/application/context/context-engine-service";
 import type {
   CachedEntry,
   CompressionResult,
@@ -13,9 +13,9 @@ import type {
   LayerBudgetMap,
   LayerId,
   TokenBudgetConfig,
-} from "../../../application/ports/context";
-import type { MemoryPort } from "../../../application/ports/memory";
-import type { IToolExecutor } from "../../../application/tools/executor";
+} from "../../../src/application/ports/context";
+import type { MemoryPort } from "../../../src/application/ports/memory";
+import type { IToolExecutor } from "../../../src/application/tools/executor";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -142,7 +142,7 @@ function makeCache(): IContextCache {
   };
 }
 
-function makeMemoryPort(content = "(no memory entries)"): MemoryPort {
+function makeMemoryPort(_content = "(no memory entries)"): MemoryPort {
   return {
     shortTerm: { read: () => ({ recentFiles: [] }), write: () => {}, clear: () => {} },
     query: async () => ({ entries: [] }),

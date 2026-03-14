@@ -16,13 +16,13 @@ import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { WorkflowEvent } from "../../application/ports/workflow";
-import { ApprovalGate } from "../../domain/workflow/approval-gate";
-import type { PhaseResult, PhaseRunner } from "../../domain/workflow/phase-runner";
-import type { WorkflowPhase, WorkflowState } from "../../domain/workflow/types";
-import { WorkflowEngine } from "../../domain/workflow/workflow-engine";
-import { WorkflowEventBus } from "../../infra/events/workflow-event-bus";
-import { WorkflowStateStore } from "../../infra/state/workflow-state-store";
+import type { WorkflowEvent } from "../../src/application/ports/workflow";
+import { ApprovalGate } from "../../src/domain/workflow/approval-gate";
+import type { PhaseResult, PhaseRunner } from "../../src/domain/workflow/phase-runner";
+import type { WorkflowPhase, WorkflowState } from "../../src/domain/workflow/types";
+import { WorkflowEngine } from "../../src/domain/workflow/workflow-engine";
+import { WorkflowEventBus } from "../../src/infra/events/workflow-event-bus";
+import { WorkflowStateStore } from "../../src/infra/state/workflow-state-store";
 
 // ---------------------------------------------------------------------------
 // Stub PhaseRunner factory — records which phases were executed
