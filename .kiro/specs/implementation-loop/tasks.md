@@ -101,7 +101,7 @@
 ---
 
 - [ ] 4. Implement the core Implementation Loop Service
-- [ ] 4.1 Implement section loading and dependency-ordered iteration
+- [x] 4.1 Implement section loading and dependency-ordered iteration
   - Load the task plan from `IPlanStore` at startup; return `outcome: "plan-not-found"` immediately if absent
   - Build a topological execution queue: identify all sections with `status !== "completed"` and sort by `dependsOn` constraints
   - For each section, check that all sections listed in its `dependsOn` array are `"completed"` before starting; defer if any dependency is pending
