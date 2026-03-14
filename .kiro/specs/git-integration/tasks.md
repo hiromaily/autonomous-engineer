@@ -1,7 +1,7 @@
 # Implementation Plan
 
-- [ ] 1. Implement domain types and pure validation logic
-- [ ] 1.1 (P) Define all Git domain value types, result types, event union, and configuration
+- [x] 1. Implement domain types and pure validation logic
+- [x] 1.1 (P) Define all Git domain value types, result types, event union, and configuration
   - Define `GitIntegrationConfig` with all configuration fields (baseBranch, remote, maxFilesPerCommit, maxDiffTokens, protectedBranches, protectedFilePatterns, forcePushEnabled, workspaceRoot, isDraft)
   - Define result types: `GitChangesResult`, `BranchCreationResult`, `CommitResult`, `PushResult`, `PullRequestResult`, `PullRequestParams`
   - Define `GitEvent` as an exhaustive 11-variant discriminated union with `type` discriminant and `timestamp: string` on every variant
@@ -9,7 +9,7 @@
   - No I/O or mutable state permitted in this file
   - _Requirements: 1.1, 1.2, 1.3, 1.6, 2.1, 2.3, 2.4, 2.6, 2.7, 2.8, 3.2, 3.4, 3.5, 4.4, 4.6, 6.5_
 
-- [ ] 1.2 (P) Implement pure branch name and file path validation logic
+- [x] 1.2 (P) Implement pure branch name and file path validation logic
   - Implement `IGitValidator` interface with four methods: `isValidBranchName`, `matchesProtectedPattern`, `isWithinWorkspace`, `filterProtectedFiles`
   - `isValidBranchName` must reject names containing `~`, `^`, `:`, `?`, `*`, `[`, `\`, `..`, `@{`, control characters, and names starting/ending with `.` or `/` or ending with `.lock`
   - `matchesProtectedPattern` must support glob-style patterns including `release/*` without external libraries
