@@ -96,23 +96,23 @@ Typical workflow:
 
 ```
 SPEC_INIT
-↓
+    ↓
 VALIDATE_PREREQUISITES
-↓
+    ↓
 REQUIREMENTS
-↓
+    ↓
 VALIDATE_REQUIREMENTS
-↓
+    ↓
 DESIGN
-↓
+    ↓
 VALIDATE_DESIGN
-↓
+    ↓
 TASK_GENERATION
-↓
+    ↓
 VALIDATE_TASK
-↓
+    ↓
 IMPLEMENTATION
-↓
+    ↓
 PULL_REQUEST
 ```
 

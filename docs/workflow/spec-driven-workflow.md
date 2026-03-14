@@ -36,7 +36,11 @@ The example below shows the phases for **cc-sdd**, the initial supported framewo
 ```
 SPEC_INIT
     ↓
+VALIDATE_PREREQUISITES
+    ↓
 REQUIREMENTS
+    ↓
+VALIDATE_REQUIREMENTS
     ↓
 DESIGN
     ↓
@@ -44,10 +48,24 @@ VALIDATE_DESIGN
     ↓
 TASK_GENERATION
     ↓
+VALIDATE_TASK
+    ↓
 IMPLEMENTATION
     ↓
 PULL_REQUEST
 ```
+
+1. spec-init
+2. validate prerequisites met
+3. requirements
+4. validate-requirements
+5. design
+6. validate-design
+7. tasks
+8. validate-tasks
+9. implementation
+10. create PR
+
 
 Each phase produces structured artifacts that guide the next phase.
 
