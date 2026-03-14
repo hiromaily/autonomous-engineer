@@ -143,15 +143,15 @@
   - Use fetch mock / interceptor; no real network calls
   - _Requirements: 4.4, 4.5, 4.7_
 
-- [ ] 10. Write integration tests for adapter and service workflows
-- [ ] 10.1 (P) Integration test GitControllerAdapter with real ToolExecutor
+- [x] 10. Write integration tests for adapter and service workflows
+- [x] 10.1 (P) Integration test GitControllerAdapter with real ToolExecutor
   - Use a temporary in-process git repository for each test
   - Test branch creation collision resolution: create branch, attempt to create same name, verify suffix is appended
   - Test protected-file staging rejection: stage a `.env` file, verify `stageAndCommit` returns `{ ok: false }` without calling `git commit`
   - Test push non-fast-forward error detection: simulate diverged remote branch, verify error is classified as `push-rejected-non-fast-forward`
   - _Requirements: 1.3, 1.5, 2.7, 3.4, 5.2_
 
-- [ ] 10.2 (P) Integration test GitIntegrationService full workflow with stubs
+- [x] 10.2 (P) Integration test GitIntegrationService full workflow with stubs
   - Stub `IGitController` returns success for each operation in sequence
   - Stub `IPullRequestProvider` returns a successful `PullRequestResult`
   - Verify the complete event emission sequence: `branch-created` → `commit-created` → `branch-pushed` → `pull-request-created`
