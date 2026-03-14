@@ -28,6 +28,7 @@
   "devDependencies": {
     "@biomejs/biome": "^2.4.6",
     "@types/bun": "latest",
-    "dprint": "^0.52.0"
+    "dprint": "^0.52.0",
+    "lefthook": "^2.1.4"
   }
 }
