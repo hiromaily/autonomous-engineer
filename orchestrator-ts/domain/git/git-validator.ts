@@ -116,7 +116,7 @@ export class GitValidator implements IGitValidator {
     }
 
     // Reject invalid characters
-    if (/[~^:?*[\\ ]/.test(name)) {
+    if (/[~^:?*\[\\ ]/.test(name)) {
       return false;
     }
 
@@ -157,7 +157,10 @@ export class GitValidator implements IGitValidator {
    * Returns true if `filePath` is within `workspaceRoot`.
    * Uses `path.resolve` normalization to prevent path traversal bypasses.
    *
-   * Precondition: `workspaceRoot` must be an absolute path.
+   * Preconditions:
+   * - `workspaceRoot` must be an absolute path.
+   * - `filePath` should be an absolute path; relative paths are resolved against
+   *   the process CWD, which may not equal `workspaceRoot`.
    */
   isWithinWorkspace(filePath: string, workspaceRoot: string): boolean {
     const resolvedFile = resolve(filePath);

@@ -318,30 +318,38 @@ describe("GitEvent discriminated union", () => {
   });
 });
 
-// Compile-time exhaustive check: all 11 GitEvent variants must be handled
-const _exhaustiveGitEventCheck = (event: GitEvent): string => {
-  switch (event.type) {
-    case "branch-created":
-      return "branch-created";
-    case "commit-created":
-      return "commit-created";
-    case "branch-pushed":
-      return "branch-pushed";
-    case "pull-request-created":
-      return "pull-request-created";
-    case "commit-size-limit-exceeded":
-      return "commit-size-limit-exceeded";
-    case "no-changes-to-commit":
-      return "no-changes-to-commit";
-    case "protected-file-detected":
-      return "protected-file-detected";
-    case "protected-branch-push-rejected":
-      return "protected-branch-push-rejected";
-    case "push-rejected-non-fast-forward":
-      return "push-rejected-non-fast-forward";
-    case "pr-creation-auth-failed":
-      return "pr-creation-auth-failed";
-    case "repeated-git-failure":
-      return "repeated-git-failure";
-  }
-};
+// Compile-time exhaustive check: TypeScript will error here if a GitEvent variant is added
+// to the union but not handled in the switch — caught at build time, not just at runtime.
+describe("GitEvent exhaustiveness", () => {
+  it("handles all 11 variants in an exhaustive switch", () => {
+    const handle = (event: GitEvent): string => {
+      switch (event.type) {
+        case "branch-created":
+          return "branch-created";
+        case "commit-created":
+          return "commit-created";
+        case "branch-pushed":
+          return "branch-pushed";
+        case "pull-request-created":
+          return "pull-request-created";
+        case "commit-size-limit-exceeded":
+          return "commit-size-limit-exceeded";
+        case "no-changes-to-commit":
+          return "no-changes-to-commit";
+        case "protected-file-detected":
+          return "protected-file-detected";
+        case "protected-branch-push-rejected":
+          return "protected-branch-push-rejected";
+        case "push-rejected-non-fast-forward":
+          return "push-rejected-non-fast-forward";
+        case "pr-creation-auth-failed":
+          return "pr-creation-auth-failed";
+        case "repeated-git-failure":
+          return "repeated-git-failure";
+      }
+    };
+
+    const sample: GitEvent = { type: "no-changes-to-commit", timestamp: "2026-03-14T00:00:00Z" };
+    expect(handle(sample)).toBe("no-changes-to-commit");
+  });
+});
