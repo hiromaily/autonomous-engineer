@@ -1,5 +1,5 @@
 /**
- * Unit tests for ImplementationLoopService — Tasks 4.1 & 4.2
+ * Unit tests for ImplementationLoopService — Tasks 4.1, 4.2, 4.3 & 4.4
  *
  * Task 4.1 — section loading and dependency-ordered iteration:
  * - Returns "plan-not-found" when IPlanStore returns null
@@ -22,11 +22,20 @@
  * - When review fails → no git commit, section "failed"
  * - When git commit fails → section "failed", plan halts
  *
- * Requirements: 1.1, 1.3, 1.4, 1.6, 2.1, 2.3, 2.4, 3.1, 4.1, 4.4, 4.5, 6.2, 6.5
+ * Task 4.4 — context isolation and preservation across section boundaries:
+ * - contextEngine.resetTask(task.id) called at section start
+ * - resetTask NOT called during improve steps (only once per section, even on retries)
+ * - resetTask called once per section in a multi-section plan
+ * - contextProvider passed to IAgentLoop.run() when contextEngine is provided
+ * - contextProvider not passed when contextEngine is absent
+ * - Works normally without contextEngine
+ *
+ * Requirements: 1.1, 1.2, 1.3, 1.4, 1.6, 2.1, 2.3, 2.4, 3.1, 4.1, 4.4, 4.5, 6.2, 6.5, 8.1, 8.2, 8.3, 8.4
  */
 
 import { ImplementationLoopService } from "@/application/implementation-loop/implementation-loop-service";
 import type { AgentLoopResult, IAgentLoop } from "@/application/ports/agent-loop";
+import type { IContextEngine } from "@/application/ports/context";
 import type { IGitController } from "@/application/ports/git-controller";
 import type {
   IImplementationLoopEventBus,
@@ -1372,5 +1381,190 @@ describe("ImplementationLoopService (task 4.3) — retry counter and escalation"
 
     // Commit called once (after second review passes)
     expect(git.commitCalls).toHaveLength(1);
+  });
+});
+
+// ===========================================================================
+// Task 4.4: Context Isolation and Preservation Across Section Boundaries
+// ===========================================================================
+
+// ---------------------------------------------------------------------------
+// Task 4.4 spy helpers
+// ---------------------------------------------------------------------------
+
+/** Spy context engine that records resetTask calls. */
+function makeSpyContextEngine(): IContextEngine & { resetTaskCalls: string[] } {
+  const resetTaskCalls: string[] = [];
+  return {
+    resetTaskCalls,
+    async buildContext(_request) {
+      return {
+        content: "context snapshot",
+        layers: [],
+        totalTokens: 50,
+        layerUsage: [],
+        plannerDecision: { layersToRetrieve: [], rationale: "test" },
+        degraded: false,
+        omittedLayers: [],
+      };
+    },
+    async expandContext(_request) {
+      return { ok: false, updatedTokenCount: 0, errorReason: "not supported in spy" };
+    },
+    resetPhase(_phaseId: string) {},
+    resetTask(taskId: string) {
+      resetTaskCalls.push(taskId);
+    },
+  };
+}
+
+/** Agent loop spy that records whether a contextProvider was passed in options. */
+function makeOptionsCapturingAgentLoop(): IAgentLoop & {
+  invocations: Array<{ task: string; hasContextProvider: boolean }>;
+} {
+  const invocations: Array<{ task: string; hasContextProvider: boolean }> = [];
+  return {
+    invocations,
+    async run(task, options?) {
+      invocations.push({ task, hasContextProvider: options?.contextProvider !== undefined });
+      return makeAgentLoopResult();
+    },
+    stop() {},
+    getState() {
+      return null;
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Context isolation: resetTask per section
+// ---------------------------------------------------------------------------
+
+describe("ImplementationLoopService (task 4.4) — context isolation per section", () => {
+  it("calls contextEngine.resetTask with the section ID at section start", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "task-one", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const contextEngine = makeSpyContextEngine();
+    const service = makeService(store, {
+      agentLoop: makeSpyAgentLoop(),
+      reviewEngine: makeSpyReviewEngine("passed"),
+      gitController: makeSpyGitController(),
+    });
+
+    await service.run(plan.id, { contextEngine });
+
+    expect(contextEngine.resetTaskCalls).toContain("task-one");
+  });
+
+  it("calls contextEngine.resetTask exactly once per section even when retries occur", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "task-one", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const contextEngine = makeSpyContextEngine();
+    const service = makeService(store, {
+      agentLoop: makeSequencedAgentLoop([{}, {}]),
+      reviewEngine: makeSequencedReviewEngine(["failed", "passed"]),
+      gitController: makeSpyGitController(),
+    });
+
+    await service.run(plan.id, { maxRetriesPerSection: 3, contextEngine });
+
+    const callsForSection = contextEngine.resetTaskCalls.filter((id) => id === "task-one");
+    expect(callsForSection).toHaveLength(1);
+  });
+
+  it("calls contextEngine.resetTask once per section in a multi-section plan", async () => {
+    const plan = makeTaskPlan([
+      makeTask({ id: "section-a", title: "Section A", status: "pending" }),
+      makeTask({ id: "section-b", title: "Section B", status: "pending" }),
+    ]);
+    const store = makePlanStore(plan);
+    const contextEngine = makeSpyContextEngine();
+    const service = makeService(store, {
+      agentLoop: makeSpyAgentLoop(),
+      reviewEngine: makeSpyReviewEngine("passed"),
+      gitController: makeSpyGitController(),
+    });
+
+    await service.run(plan.id, { contextEngine });
+
+    expect(contextEngine.resetTaskCalls).toHaveLength(2);
+    expect(contextEngine.resetTaskCalls[0]).toBe("section-a");
+    expect(contextEngine.resetTaskCalls[1]).toBe("section-b");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Context provider passed to agent loop
+// ---------------------------------------------------------------------------
+
+describe("ImplementationLoopService (task 4.4) — contextProvider passed to agent loop", () => {
+  it("passes contextProvider to IAgentLoop.run() when contextEngine is provided", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const contextEngine = makeSpyContextEngine();
+    const agentLoop = makeOptionsCapturingAgentLoop();
+    const service = makeService(store, {
+      agentLoop,
+      reviewEngine: makeSpyReviewEngine("passed"),
+      gitController: makeSpyGitController(),
+    });
+
+    await service.run(plan.id, { contextEngine });
+
+    expect(agentLoop.invocations[0]?.hasContextProvider).toBe(true);
+  });
+
+  it("does not pass contextProvider to IAgentLoop.run() when contextEngine is absent", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const agentLoop = makeOptionsCapturingAgentLoop();
+    const service = makeService(store, {
+      agentLoop,
+      reviewEngine: makeSpyReviewEngine("passed"),
+      gitController: makeSpyGitController(),
+    });
+
+    await service.run(plan.id);
+
+    expect(agentLoop.invocations[0]?.hasContextProvider).toBe(false);
+  });
+
+  it("passes contextProvider to both implement and improve agent loop calls", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const contextEngine = makeSpyContextEngine();
+    const agentLoop = makeOptionsCapturingAgentLoop();
+    const reviewEngine = makeSequencedReviewEngine(["failed", "passed"]);
+    const service = makeService(store, {
+      agentLoop,
+      reviewEngine,
+      gitController: makeSpyGitController(),
+    });
+
+    await service.run(plan.id, { maxRetriesPerSection: 3, contextEngine });
+
+    expect(agentLoop.invocations).toHaveLength(2);
+    expect(agentLoop.invocations[0]?.hasContextProvider).toBe(true);
+    expect(agentLoop.invocations[1]?.hasContextProvider).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Graceful degradation without contextEngine
+// ---------------------------------------------------------------------------
+
+describe("ImplementationLoopService (task 4.4) — works without contextEngine", () => {
+  it("completes normally when no contextEngine is provided", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const service = makeService(store, {
+      agentLoop: makeSpyAgentLoop(),
+      reviewEngine: makeSpyReviewEngine("passed"),
+      gitController: makeSpyGitController(),
+    });
+
+    const result = await service.run(plan.id);
+
+    expect(result.outcome).toBe("completed");
   });
 });

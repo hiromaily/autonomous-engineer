@@ -1,4 +1,5 @@
 import type { AgentLoopResult } from "@/application/ports/agent-loop";
+import type { IContextEngine } from "@/application/ports/context";
 import type {
   ImplementationLoopEvent,
   ReviewCheckResult,
@@ -252,6 +253,14 @@ export type ImplementationLoopOptions = Readonly<{
   eventBus?: IImplementationLoopEventBus;
   /** Optional structured logger; when absent, log entries are silently dropped. */
   logger?: IImplementationLoopLogger;
+  /**
+   * Optional spec6 context engine. When provided:
+   * - `resetTask(sectionId)` is called at the start of each section to isolate context.
+   * - A `contextProvider` adapter is passed to `IAgentLoop.run()` so the agent loop
+   *   queries the context engine for PLAN-step context.
+   * When absent, no context isolation is performed and no `contextProvider` is injected.
+   */
+  contextEngine?: IContextEngine;
 }>;
 
 // ---------------------------------------------------------------------------

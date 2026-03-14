@@ -1,4 +1,5 @@
-import type { IAgentLoop } from "@/application/ports/agent-loop";
+import type { IAgentLoop, IContextProvider } from "@/application/ports/agent-loop";
+import type { IContextEngine } from "@/application/ports/context";
 import type { IGitController } from "@/application/ports/git-controller";
 import type {
   IImplementationLoop,
@@ -8,13 +9,14 @@ import type {
   IPlanStore,
   IReviewEngine,
 } from "@/application/ports/implementation-loop";
-import type { TerminationCondition } from "@/domain/agent/types";
+import type { AgentState, TerminationCondition } from "@/domain/agent/types";
 import type {
   ReviewFeedbackItem,
   ReviewResult,
   SectionExecutionRecord,
   SectionExecutionStatus,
   SectionIterationRecord,
+  SectionSummary,
 } from "@/domain/implementation-loop/types";
 import type { Task, TaskPlan } from "@/domain/planning/types";
 
@@ -28,6 +30,7 @@ const DEFAULT_OPTIONS: Required<ImplementationLoopOptions> = {
   selfHealingLoop: undefined as never,
   eventBus: undefined as never,
   logger: undefined as never,
+  contextEngine: undefined as never,
 };
 
 function resolveOptions(
@@ -169,6 +172,12 @@ export class ImplementationLoopService implements IImplementationLoop {
 
     const sectionRecords: SectionExecutionRecord[] = [];
 
+    // Cross-section state: summaries of completed sections (section ID, title, commit SHA).
+    // Used by the contextProvider adapter to include previous-section context.
+    const completedSummaries: SectionSummary[] = plan.tasks
+      .filter((t) => t.status === "completed")
+      .map((t) => ({ sectionId: t.id, title: t.title }));
+
     // Iterate sections in plan order (sequential dependency)
     for (const task of plan.tasks) {
       // Skip already-completed sections
@@ -198,11 +207,17 @@ export class ImplementationLoopService implements IImplementationLoop {
       });
 
       // Execute the implement→review→commit cycle for this section
-      const record = await this.#executeSection(task, plan, resolved);
+      const record = await this.#executeSection(task, plan, resolved, completedSummaries);
       sectionRecords.push(record);
 
       if (record.status === "completed") {
         completedSectionIds.add(task.id);
+        // Update cross-section summaries so subsequent sections have context
+        completedSummaries.push({
+          sectionId: task.id,
+          title: task.title,
+          ...(record.commitSha !== undefined ? { commitSha: record.commitSha } : {}),
+        });
       } else {
         // Section failed or escalated — halt immediately
         return this.#buildHaltResult(plan, record, sectionRecords, resolved, startedAt);
@@ -242,12 +257,22 @@ export class ImplementationLoopService implements IImplementationLoop {
     task: Task,
     plan: TaskPlan,
     options: Required<ImplementationLoopOptions>,
+    completedSummaries: ReadonlyArray<SectionSummary>,
   ): Promise<SectionExecutionRecord> {
     const sectionStartAt = new Date().toISOString();
     const sectionStartMs = Date.now();
     const iterations: SectionIterationRecord[] = [];
     let retryCount = 0;
     let improvePrompt: string | undefined;
+
+    // Context isolation: reset the context engine at section start so accumulated
+    // context from the previous section is discarded. The contextProvider built here
+    // is reused for ALL iterations (implement + improve) of this section so that
+    // context accumulates within the section rather than being reset on each retry.
+    options.contextEngine?.resetTask(task.id);
+    const contextProvider: IContextProvider | undefined = options.contextEngine
+      ? buildContextProvider(options.contextEngine, plan.id, task.id, completedSummaries)
+      : undefined;
 
     while (true) {
       const iterationNumber = iterations.length + 1;
@@ -262,9 +287,13 @@ export class ImplementationLoopService implements IImplementationLoop {
         });
       }
 
-      // Invoke agent loop with improve prompt (or original task title on first attempt)
+      // Invoke agent loop with improve prompt (or original task title on first attempt).
+      // Pass the pre-built contextProvider so the agent loop queries the context engine.
       const agentInput = improvePrompt ?? task.title;
-      const agentResult = await this.#agentLoop.run(agentInput);
+      const agentResult = await this.#agentLoop.run(
+        agentInput,
+        contextProvider !== undefined ? { contextProvider } : undefined,
+      );
       const iterationDurationMs = Date.now() - iterationStartMs;
 
       // Non-TASK_COMPLETED termination → increment retry, possibly escalate
@@ -515,6 +544,51 @@ export class ImplementationLoopService implements IImplementationLoop {
 // ---------------------------------------------------------------------------
 // Module-level builder helpers
 // ---------------------------------------------------------------------------
+
+/**
+ * Build an `IContextProvider` adapter that delegates to `IContextEngine`.
+ *
+ * The adapter is created once per section (before the retry loop) and reused
+ * for all iterations — implement and improve. This allows the context engine
+ * to accumulate observations across iterations of the same section, while
+ * `resetTask()` at section start ensures isolation from the previous section.
+ *
+ * Completed section summaries are embedded in the task description so the
+ * agent loop has cross-section context about what has already been committed.
+ */
+function buildContextProvider(
+  contextEngine: IContextEngine,
+  planId: string,
+  taskId: string,
+  completedSummaries: ReadonlyArray<SectionSummary>,
+): IContextProvider {
+  return {
+    async buildContext(state: AgentState) {
+      const summaryLines = completedSummaries.map(
+        (s) => `- ${s.title}${s.commitSha !== undefined ? ` (${s.commitSha.slice(0, 7)})` : ""}`,
+      );
+      const taskDescription = summaryLines.length > 0
+        ? `${state.task}\n\nCompleted sections:\n${summaryLines.join("\n")}`
+        : state.task;
+
+      const previousToolResults = state.observations.map((o) => ({
+        toolName: o.toolName,
+        content: typeof o.rawOutput === "string" ? o.rawOutput : JSON.stringify(o.rawOutput),
+      }));
+
+      const result = await contextEngine.buildContext({
+        sessionId: planId,
+        phaseId: "implementation",
+        taskId,
+        stepType: "Modification",
+        taskDescription,
+        previousToolResults,
+      });
+
+      return result.content;
+    },
+  };
+}
 
 function buildImprovePrompt(taskTitle: string, feedback: ReadonlyArray<ReviewFeedbackItem>): string {
   const feedbackLines = feedback
