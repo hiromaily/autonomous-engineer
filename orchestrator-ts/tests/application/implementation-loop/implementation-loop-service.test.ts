@@ -658,7 +658,11 @@ describe("ImplementationLoopService (task 4.2) — agent loop invocation", () =>
     const plan = makeTaskPlan([makeTask({ id: "t1", title: "Build the auth module", status: "pending" })]);
     const store = makePlanStore(plan);
     const agentLoop = makeSpyAgentLoop();
-    const service = makeService(store, { agentLoop, reviewEngine: makeSpyReviewEngine(), gitController: makeSpyGitController() });
+    const service = makeService(store, {
+      agentLoop,
+      reviewEngine: makeSpyReviewEngine(),
+      gitController: makeSpyGitController(),
+    });
 
     await service.run(plan.id);
 
@@ -673,7 +677,11 @@ describe("ImplementationLoopService (task 4.2) — agent loop invocation", () =>
     ]);
     const store = makePlanStore(plan);
     const agentLoop = makeSpyAgentLoop();
-    const service = makeService(store, { agentLoop, reviewEngine: makeSpyReviewEngine(), gitController: makeSpyGitController() });
+    const service = makeService(store, {
+      agentLoop,
+      reviewEngine: makeSpyReviewEngine(),
+      gitController: makeSpyGitController(),
+    });
 
     await service.run(plan.id);
 
@@ -687,7 +695,11 @@ describe("ImplementationLoopService (task 4.2) — agent loop invocation", () =>
     ]);
     const store = makePlanStore(plan);
     const agentLoop = makeSpyAgentLoop();
-    const service = makeService(store, { agentLoop, reviewEngine: makeSpyReviewEngine(), gitController: makeSpyGitController() });
+    const service = makeService(store, {
+      agentLoop,
+      reviewEngine: makeSpyReviewEngine(),
+      gitController: makeSpyGitController(),
+    });
 
     await service.run(plan.id);
 
@@ -705,7 +717,11 @@ describe("ImplementationLoopService (task 4.2) — review engine invocation", ()
     const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
     const store = makePlanStore(plan);
     const reviewEngine = makeSpyReviewEngine();
-    const service = makeService(store, { agentLoop: makeSpyAgentLoop(), reviewEngine, gitController: makeSpyGitController() });
+    const service = makeService(store, {
+      agentLoop: makeSpyAgentLoop(),
+      reviewEngine,
+      gitController: makeSpyGitController(),
+    });
 
     await service.run(plan.id);
 
@@ -734,7 +750,11 @@ describe("ImplementationLoopService (task 4.2) — git commit when review passes
     const plan = makeTaskPlan([makeTask({ id: "t1", title: "Add caching layer", status: "pending" })]);
     const store = makePlanStore(plan);
     const git = makeSpyGitController();
-    const service = makeService(store, { agentLoop: makeSpyAgentLoop(), reviewEngine: makeSpyReviewEngine("passed"), gitController: git });
+    const service = makeService(store, {
+      agentLoop: makeSpyAgentLoop(),
+      reviewEngine: makeSpyReviewEngine("passed"),
+      gitController: git,
+    });
 
     await service.run(plan.id);
 
@@ -745,7 +765,11 @@ describe("ImplementationLoopService (task 4.2) — git commit when review passes
     const plan = makeTaskPlan([makeTask({ id: "t1", title: "Add caching layer", status: "pending" })]);
     const store = makePlanStore(plan);
     const git = makeSpyGitController();
-    const service = makeService(store, { agentLoop: makeSpyAgentLoop(), reviewEngine: makeSpyReviewEngine("passed"), gitController: git });
+    const service = makeService(store, {
+      agentLoop: makeSpyAgentLoop(),
+      reviewEngine: makeSpyReviewEngine("passed"),
+      gitController: git,
+    });
 
     await service.run(plan.id);
 
@@ -757,7 +781,11 @@ describe("ImplementationLoopService (task 4.2) — git commit when review passes
     const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
     const store = makePlanStore(plan);
     const git = makeSpyGitController();
-    const service = makeService(store, { agentLoop: makeSpyAgentLoop(), reviewEngine: makeSpyReviewEngine("failed"), gitController: git });
+    const service = makeService(store, {
+      agentLoop: makeSpyAgentLoop(),
+      reviewEngine: makeSpyReviewEngine("failed"),
+      gitController: git,
+    });
 
     await service.run(plan.id);
 
@@ -1004,9 +1032,342 @@ describe("ImplementationLoopService (task 4.2) — overall outcome on section fa
       gitController: makeSpyGitController(),
     });
 
-    await service.run(plan.id);
+    // maxRetriesPerSection: 1 — single failure immediately escalates; t2 is never started
+    await service.run(plan.id, { maxRetriesPerSection: 1 });
 
     // Agent loop called once (only for t1), t2 never starts
     expect(agentLoop.calls).toHaveLength(1);
+  });
+});
+
+// ===========================================================================
+// Task 4.3: Improve Step and Per-Section Retry Control Tests
+// ===========================================================================
+
+// ---------------------------------------------------------------------------
+// Task 4.3 sequenced-stub helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Agent loop that returns results in sequence (cycles on last if exhausted).
+ * Useful for testing: "fail first attempt, pass second".
+ */
+function makeSequencedAgentLoop(
+  results: Array<Partial<AgentLoopResult>>,
+): IAgentLoop & { calls: string[] } {
+  const calls: string[] = [];
+  let index = 0;
+  return {
+    calls,
+    async run(task: string) {
+      calls.push(task);
+      const override = results[Math.min(index, results.length - 1)] ?? {};
+      index++;
+      return { ...makeAgentLoopResult(), ...override };
+    },
+    stop() {},
+    getState() {
+      return null;
+    },
+  };
+}
+
+/**
+ * Review engine that returns outcomes in sequence.
+ * Useful for testing: "fail twice, then pass".
+ */
+function makeSequencedReviewEngine(
+  outcomes: Array<"passed" | "failed">,
+  feedbackDescription = "Missing error handling",
+): IReviewEngine & { callCount: number } {
+  let callCount = 0;
+  let index = 0;
+  return {
+    get callCount() {
+      return callCount;
+    },
+    async review() {
+      callCount++;
+      const outcome = outcomes[Math.min(index, outcomes.length - 1)] ?? "passed";
+      index++;
+      return {
+        outcome,
+        checks: [{ checkName: "test-check", outcome, required: true, details: "details" }],
+        feedback:
+          outcome === "failed"
+            ? [{ category: "requirement-alignment" as const, description: feedbackDescription, severity: "blocking" as const }]
+            : [],
+        durationMs: 5,
+      };
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Improve step invocation
+// ---------------------------------------------------------------------------
+
+describe("ImplementationLoopService (task 4.3) — improve step invocation", () => {
+  it("calls agent loop a second time (improve) when review fails once then passes", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", title: "Add auth", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const agentLoop = makeSequencedAgentLoop([{}, {}]); // both pass TASK_COMPLETED
+    const reviewEngine = makeSequencedReviewEngine(["failed", "passed"]);
+    const service = makeService(store, {
+      agentLoop,
+      reviewEngine,
+      gitController: makeSpyGitController(),
+    });
+
+    await service.run(plan.id, { maxRetriesPerSection: 3 });
+
+    expect(agentLoop.calls).toHaveLength(2);
+  });
+
+  it("overall outcome is 'completed' when review passes on the second attempt", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const service = makeService(store, {
+      agentLoop: makeSequencedAgentLoop([{}, {}]),
+      reviewEngine: makeSequencedReviewEngine(["failed", "passed"]),
+      gitController: makeSpyGitController(),
+    });
+
+    const result = await service.run(plan.id, { maxRetriesPerSection: 3 });
+
+    expect(result.outcome).toBe("completed");
+  });
+
+  it("improve prompt sent to agent loop contains feedback from the failed review", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", title: "Add rate limiting", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const agentLoop = makeSequencedAgentLoop([{}, {}]);
+    const reviewEngine = makeSequencedReviewEngine(["failed", "passed"], "Missing rate limiter logic");
+    const service = makeService(store, {
+      agentLoop,
+      reviewEngine,
+      gitController: makeSpyGitController(),
+    });
+
+    await service.run(plan.id, { maxRetriesPerSection: 3 });
+
+    // Second call should be the improve prompt (contains feedback)
+    const improvePrompt = agentLoop.calls[1] ?? "";
+    expect(improvePrompt).toContain("Missing rate limiter logic");
+  });
+
+  it("improve prompt also references the original task title", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", title: "Implement payment flow", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const agentLoop = makeSequencedAgentLoop([{}, {}]);
+    const reviewEngine = makeSequencedReviewEngine(["failed", "passed"]);
+    const service = makeService(store, {
+      agentLoop,
+      reviewEngine,
+      gitController: makeSpyGitController(),
+    });
+
+    await service.run(plan.id, { maxRetriesPerSection: 3 });
+
+    const improvePrompt = agentLoop.calls[1] ?? "";
+    expect(improvePrompt).toContain("Implement payment flow");
+  });
+
+  it("emits section:improve-start event before each retry (not before the first attempt)", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const eventBus = makeEventBus();
+    const service = makeService(store, {
+      agentLoop: makeSequencedAgentLoop([{}, {}]),
+      reviewEngine: makeSequencedReviewEngine(["failed", "passed"]),
+      gitController: makeSpyGitController(),
+    });
+
+    await service.run(plan.id, { maxRetriesPerSection: 3, eventBus });
+
+    const improveStartEvents = eventBus.events.filter((e) => e.type === "section:improve-start");
+    expect(improveStartEvents).toHaveLength(1);
+  });
+
+  it("does not emit section:improve-start on the first (non-improve) attempt", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const eventBus = makeEventBus();
+    const service = makeService(store, {
+      agentLoop: makeSpyAgentLoop(),
+      reviewEngine: makeSpyReviewEngine("passed"),
+      gitController: makeSpyGitController(),
+    });
+
+    await service.run(plan.id, { eventBus });
+
+    const improveStartEvents = eventBus.events.filter((e) => e.type === "section:improve-start");
+    expect(improveStartEvents).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Retry counter and escalation
+// ---------------------------------------------------------------------------
+
+describe("ImplementationLoopService (task 4.3) — retry counter and escalation", () => {
+  it("emits section:escalated when retryCount reaches maxRetriesPerSection", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const eventBus = makeEventBus();
+    // All reviews fail → retries exhausted
+    const service = makeService(store, {
+      agentLoop: makeSpyAgentLoop(),
+      reviewEngine: makeSpyReviewEngine("failed"),
+      gitController: makeSpyGitController(),
+    });
+
+    await service.run(plan.id, { maxRetriesPerSection: 2, eventBus });
+
+    const escalatedEvent = eventBus.events.find((e) => e.type === "section:escalated");
+    expect(escalatedEvent).toBeDefined();
+  });
+
+  it("section:escalated event contains the section ID", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const eventBus = makeEventBus();
+    const service = makeService(store, {
+      agentLoop: makeSpyAgentLoop(),
+      reviewEngine: makeSpyReviewEngine("failed"),
+      gitController: makeSpyGitController(),
+    });
+
+    await service.run(plan.id, { maxRetriesPerSection: 2, eventBus });
+
+    const escalatedEvent = eventBus.events.find((e) => e.type === "section:escalated");
+    expect(escalatedEvent?.type === "section:escalated" && escalatedEvent.sectionId).toBe("t1");
+  });
+
+  it("section:escalated event contains the retryCount", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const eventBus = makeEventBus();
+    const service = makeService(store, {
+      agentLoop: makeSpyAgentLoop(),
+      reviewEngine: makeSpyReviewEngine("failed"),
+      gitController: makeSpyGitController(),
+    });
+
+    await service.run(plan.id, { maxRetriesPerSection: 2, eventBus });
+
+    const escalatedEvent = eventBus.events.find((e) => e.type === "section:escalated");
+    expect(escalatedEvent?.type === "section:escalated" && escalatedEvent.retryCount).toBe(2);
+  });
+
+  it("returns outcome: section-failed after maxRetriesPerSection exhausted", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const service = makeService(store, {
+      agentLoop: makeSpyAgentLoop(),
+      reviewEngine: makeSpyReviewEngine("failed"),
+      gitController: makeSpyGitController(),
+    });
+
+    const result = await service.run(plan.id, { maxRetriesPerSection: 2 });
+
+    expect(result.outcome).toBe("section-failed");
+  });
+
+  it("agent loop is called maxRetriesPerSection times when all attempts fail via review", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const agentLoop = makeSpyAgentLoop();
+    const service = makeService(store, {
+      agentLoop,
+      reviewEngine: makeSpyReviewEngine("failed"),
+      gitController: makeSpyGitController(),
+    });
+
+    await service.run(plan.id, { maxRetriesPerSection: 2 });
+
+    // 2 total attempts: 1 initial + 1 improve (retryCount goes 0→1 on fail, 1→2 on fail = escalate)
+    expect(agentLoop.calls).toHaveLength(2);
+  });
+
+  it("does not call stageAndCommit after maxRetriesPerSection exhausted", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const git = makeSpyGitController();
+    const service = makeService(store, {
+      agentLoop: makeSpyAgentLoop(),
+      reviewEngine: makeSpyReviewEngine("failed"),
+      gitController: git,
+    });
+
+    await service.run(plan.id, { maxRetriesPerSection: 2 });
+
+    expect(git.commitCalls).toHaveLength(0);
+  });
+
+  it("section:review-failed is emitted for each failed review", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const eventBus = makeEventBus();
+    const service = makeService(store, {
+      agentLoop: makeSpyAgentLoop(),
+      reviewEngine: makeSpyReviewEngine("failed"),
+      gitController: makeSpyGitController(),
+    });
+
+    await service.run(plan.id, { maxRetriesPerSection: 2, eventBus });
+
+    const reviewFailedEvents = eventBus.events.filter((e) => e.type === "section:review-failed");
+    expect(reviewFailedEvents).toHaveLength(2);
+  });
+
+  it("agent loop failure counts toward retryCount and triggers escalation", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const eventBus = makeEventBus();
+    const service = makeService(store, {
+      agentLoop: makeFailingAgentLoop("SAFETY_STOP"),
+      reviewEngine: makeSpyReviewEngine("passed"),
+      gitController: makeSpyGitController(),
+    });
+
+    // All agent attempts fail → retryCount hits max
+    await service.run(plan.id, { maxRetriesPerSection: 2, eventBus });
+
+    const escalatedEvent = eventBus.events.find((e) => e.type === "section:escalated");
+    expect(escalatedEvent).toBeDefined();
+  });
+
+  it("records all iterations in the SectionExecutionRecord when retries occur", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const service = makeService(store, {
+      agentLoop: makeSequencedAgentLoop([{}, {}, {}]),
+      reviewEngine: makeSequencedReviewEngine(["failed", "failed", "passed"]),
+      gitController: makeSpyGitController(),
+    });
+
+    const result = await service.run(plan.id, { maxRetriesPerSection: 3 });
+
+    const section = result.sections[0];
+    expect(section).toBeDefined();
+    // 3 iterations: 2 failed + 1 passed
+    expect(section?.iterations).toHaveLength(3);
+  });
+
+  it("commit is made only after a successful review (on retry)", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const git = makeSpyGitController();
+    const service = makeService(store, {
+      agentLoop: makeSequencedAgentLoop([{}, {}]),
+      reviewEngine: makeSequencedReviewEngine(["failed", "passed"]),
+      gitController: git,
+    });
+
+    await service.run(plan.id, { maxRetriesPerSection: 3 });
+
+    // Commit called once (after second review passes)
+    expect(git.commitCalls).toHaveLength(1);
   });
 });

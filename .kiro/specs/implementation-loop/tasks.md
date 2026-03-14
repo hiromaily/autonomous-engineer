@@ -120,7 +120,7 @@
   - Record the gate check results in the structured log entry for the section
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 3.1, 4.1, 4.4, 4.5, 6.2, 6.5_
 
-- [ ] 4.3 Implement the improve step and per-section retry control
+- [x] 4.3 Implement the improve step and per-section retry control
   - If `ReviewResult.outcome = "failed"`, construct an improvement directive from the review feedback items and invoke `IAgentLoop.run(improvePrompt, options)` with the same context (observations from the implement step preserved)
   - After the improve step, invoke the review engine again — loop back until review passes or the retry counter reaches `maxRetriesPerSection`
   - Maintain a per-section retry counter that increments each time the implement-review cycle fails; the counter is monotonically increasing and resets only on self-healing resolution
