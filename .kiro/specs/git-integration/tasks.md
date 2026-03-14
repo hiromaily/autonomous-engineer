@@ -54,8 +54,8 @@
   - Respect `PermissionSet.gitWrite`: return `ToolError { type: "permission" }` for any write operation when `gitWrite` is `false`
   - _Requirements: 1.4, 1.5, 2.5, 2.7, 3.1, 3.4, 5.2, 5.4, 5.5, 6.3, 6.4_
 
-- [ ] 5. Implement the GitIntegrationService
-- [ ] 5.1 Implement feature branch creation with collision resolution
+- [x] 5. Implement the GitIntegrationService
+- [x] 5.1 Implement feature branch creation with collision resolution
   - Derive candidate branch name as `agent/<specName>` or `agent/<taskSlug>`
   - Call `IGitValidator.isValidBranchName` on the candidate; reject with error if invalid
   - Call `IGitController.detectChanges`; return `Err(dirty-working-directory)` if staged, unstaged, or untracked files are found
@@ -64,7 +64,7 @@
   - Track consecutive failure count for `"create-branch"` operation; reset to 0 on success
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 6.2, 6.5_
 
-- [ ] 5.2 Implement commit automation with LLM message generation
+- [x] 5.2 Implement commit automation with LLM message generation
   - Call `IGitController.detectChanges`; if no changes emit `no-changes-to-commit` and return `Ok(skipped)`
   - Call `IGitValidator.filterProtectedFiles` on all changed files; if any blocked files exist emit `protected-file-detected` and return `Err`
   - Validate file count against `config.maxFilesPerCommit`; if exceeded emit `commit-size-limit-exceeded` and return `Err` — this check must occur before the LLM call
@@ -73,14 +73,14 @@
   - On success emit `commit-created` event and write audit entry; track consecutive failure count for `"commit"`
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 6.2, 6.5_
 
-- [ ] 5.3 Implement push with protected-branch and force-push enforcement
+- [x] 5.3 Implement push with protected-branch and force-push enforcement
   - Before calling the adapter, call `IGitValidator.matchesProtectedPattern(branchName, config.protectedBranches)`; if matched emit `protected-branch-push-rejected` and return `Err`
   - Check `config.forcePushEnabled`; force push is prohibited by default — the `git_push` tool never adds `--force`
   - Call `IGitController.push(branchName, remote)`; if adapter returns non-fast-forward error emit `push-rejected-non-fast-forward` and return `Err`
   - On success emit `branch-pushed` event and write audit entry; track consecutive failure count for `"push"`
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 6.2, 6.5_
 
-- [ ] 5.4 Implement PR creation/update with LLM content generation
+- [x] 5.4 Implement PR creation/update with LLM content generation
   - Verify `permissions.networkAccess` is `true`; return `ToolError { type: "permission" }` if false
   - Invoke `LlmProviderPort.complete` with the PR body prompt template (specName, completedTasks, specArtifactPath, commitMessages); parse JSON response for `{ title, body }`; cap title at 72 characters
   - Populate `PullRequestParams` including spec name, artifact link, completed task summary, and implementation overview
@@ -89,7 +89,7 @@
   - Track consecutive failure count for `"create-pr"`; reset to 0 on success
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 6.2, 6.5_
 
-- [ ] 5.5 Implement consecutive-failure escalation and the full-workflow orchestration method
+- [x] 5.5 Implement consecutive-failure escalation and the full-workflow orchestration method
   - After each operation's failure path: increment `consecutiveFailureCounts.get(operationType)`; when count reaches 3 emit `repeated-git-failure` event with operation name and attempt count, then return `Err` — do not reset count until next success
   - Implement `runFullWorkflow(params)`: execute `createBranch → generateAndCommit → push → createOrUpdatePullRequest` in sequence; halt and return the first `Err` encountered; on all four stages completing successfully return `Ok(PullRequestResult)`
   - Inject all seven dependencies via constructor: `IGitController`, `IPullRequestProvider`, `LlmProviderPort`, `IGitEventBus`, `IAuditLogger`, `IGitValidator`, `GitIntegrationConfig`
