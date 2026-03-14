@@ -110,7 +110,7 @@
   - The implementation resides at `infra/events/git-event-bus.ts` and mirrors the `IWorkflowEventBus` pattern established in `infra/events/workflow-event-bus.ts`
   - _Requirements: 1.6, 2.4, 2.6, 2.7, 2.8, 3.2, 3.4, 3.5, 4.4, 4.6, 6.5_
 
-- [ ] 8. Wire up composition root and configuration loading
+- [x] 8. Wire up composition root and configuration loading
   - Load `GitIntegrationConfig` from `infra/config/config-loader.ts`; validate all required fields; provide defaults (baseBranch: `"main"`, remote: `"origin"`, maxFilesPerCommit: `50`, forcePushEnabled: `false`)
   - Construct `GitValidator`, `GitControllerAdapter` (injecting `IToolExecutor` and `GitValidator`), `GitHubPrAdapter` (injecting config with token from environment), `GitEventBus`, and `GitIntegrationService` at the composition root
   - Register `GitIntegrationService` in the dependency injection container so the implementation engine can resolve `IGitIntegrationService`
