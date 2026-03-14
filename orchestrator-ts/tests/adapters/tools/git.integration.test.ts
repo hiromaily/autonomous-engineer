@@ -11,11 +11,13 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 
 import {
+  gitAddTool,
   gitBranchCreateTool,
   gitBranchListTool,
   gitBranchSwitchTool,
   gitCommitTool,
   gitDiffTool,
+  gitPushTool,
   gitStatusTool,
 } from "../../../adapters/tools/git";
 import { ToolExecutor } from "../../../application/tools/executor";
@@ -88,6 +90,8 @@ function makeExecutor() {
       gitBranchListTool,
       gitBranchCreateTool,
       gitBranchSwitchTool,
+      gitAddTool,
+      gitPushTool,
     ]
   ) {
     registry.register(tool as Parameters<typeof registry.register>[0]);
@@ -101,6 +105,7 @@ function makeExecutor() {
 
 let tmpDir: string;
 let executor: ReturnType<typeof makeExecutor>;
+const remoteDirs: string[] = [];
 
 beforeEach(async () => {
   tmpDir = await mkdtemp(join(tmpdir(), "aes-git-integ-"));
@@ -110,6 +115,10 @@ beforeEach(async () => {
 
 afterEach(async () => {
   await rm(tmpDir, { recursive: true, force: true });
+  for (const remoteDir of remoteDirs) {
+    await rm(remoteDir, { recursive: true, force: true });
+  }
+  remoteDirs.length = 0;
 });
 
 // ---------------------------------------------------------------------------
@@ -387,6 +396,191 @@ describe("git_branch_list via ToolExecutor", () => {
       const names = out.branches.map((b) => b.name);
       expect(names).toContain("side-branch");
       expect(out.branches.some((b) => b.current)).toBe(true);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// git_add
+// ---------------------------------------------------------------------------
+
+describe("git_add", () => {
+  it("stages specified files and returns them in the staged list", async () => {
+    await makeInitialCommit(tmpDir);
+    await fsWriteFile(join(tmpDir, "a.ts"), "export const a = 1;", "utf-8");
+    await fsWriteFile(join(tmpDir, "b.ts"), "export const b = 2;", "utf-8");
+
+    const ctx = makeContext(tmpDir);
+    const result = await gitAddTool.execute({ files: ["a.ts", "b.ts"] }, ctx);
+
+    expect(result.staged).toContain("a.ts");
+    expect(result.staged).toContain("b.ts");
+  });
+
+  it("staged files appear in git status after git_add", async () => {
+    await makeInitialCommit(tmpDir);
+    await fsWriteFile(join(tmpDir, "new.ts"), "x", "utf-8");
+
+    const ctx = makeContext(tmpDir);
+    await gitAddTool.execute({ files: ["new.ts"] }, ctx);
+    const status = await gitStatusTool.execute({}, ctx);
+
+    expect(status.staged).toContain("new.ts");
+    expect(status.untracked).not.toContain("new.ts");
+  });
+
+  it("only stages the files specified, leaving others untracked", async () => {
+    await makeInitialCommit(tmpDir);
+    await fsWriteFile(join(tmpDir, "staged.ts"), "x", "utf-8");
+    await fsWriteFile(join(tmpDir, "untracked.ts"), "y", "utf-8");
+
+    const ctx = makeContext(tmpDir);
+    await gitAddTool.execute({ files: ["staged.ts"] }, ctx);
+    const status = await gitStatusTool.execute({}, ctx);
+
+    expect(status.staged).toContain("staged.ts");
+    expect(status.untracked).toContain("untracked.ts");
+  });
+
+  it("returns gitWrite in requiredPermissions", () => {
+    expect(gitAddTool.requiredPermissions).toContain("gitWrite");
+  });
+});
+
+describe("git_add via ToolExecutor", () => {
+  it("stages files through full pipeline and returns staged list", async () => {
+    await makeInitialCommit(tmpDir);
+    await fsWriteFile(join(tmpDir, "pipeline.ts"), "x", "utf-8");
+
+    const ctx = makeContext(tmpDir);
+    const result = await executor.invoke("git_add", { files: ["pipeline.ts"] }, ctx);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      const out = result.value as { staged: string[] };
+      expect(out.staged).toContain("pipeline.ts");
+    }
+  });
+
+  it("returns permission error when gitWrite is absent", async () => {
+    await makeInitialCommit(tmpDir);
+    await fsWriteFile(join(tmpDir, "denied.ts"), "x", "utf-8");
+    const ctx = makeContext(tmpDir, makePermissions({ gitWrite: false }));
+    const result = await executor.invoke("git_add", { files: ["denied.ts"] }, ctx);
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.type).toBe("permission");
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// git_push
+// ---------------------------------------------------------------------------
+
+async function initBareRepo(dir: string): Promise<void> {
+  await execFile("git", ["init", "--bare", dir]);
+}
+
+async function setupRepoWithRemote(): Promise<string> {
+  const remoteDir = await mkdtemp(join(tmpdir(), "aes-git-remote-"));
+  remoteDirs.push(remoteDir);
+  await initBareRepo(remoteDir);
+  await git(tmpDir, "remote", "add", "origin", remoteDir);
+  return remoteDir;
+}
+
+describe("git_push", () => {
+  it("pushes a branch to the remote and returns remote and branch", async () => {
+    await makeInitialCommit(tmpDir);
+    const remoteDir = await setupRepoWithRemote();
+
+    const ctx = makeContext(tmpDir);
+    const currentBranch = await git(tmpDir, "rev-parse", "--abbrev-ref", "HEAD");
+    const result = await gitPushTool.execute({ remote: "origin", branch: currentBranch }, ctx);
+
+    expect(result.remote).toBe("origin");
+    expect(result.branch).toBe(currentBranch);
+
+    // Verify the remote actually received the commit
+    const remoteHead = await git(remoteDir, "rev-parse", "HEAD");
+    const localHead = await git(tmpDir, "rev-parse", "HEAD");
+    expect(remoteHead).toBe(localHead);
+  });
+
+  it("returns gitWrite in requiredPermissions", () => {
+    expect(gitPushTool.requiredPermissions).toContain("gitWrite");
+  });
+
+  it("never accepts a --force flag (tool definition has no force option)", () => {
+    // The schema input properties must not include 'force'
+    const inputProps = gitPushTool.schema.input.properties as Record<string, unknown>;
+    expect(inputProps).not.toHaveProperty("force");
+  });
+
+  it("returns a runtime error on non-fast-forward rejection", async () => {
+    await makeInitialCommit(tmpDir);
+    const remoteDir = await setupRepoWithRemote();
+    const currentBranch = await git(tmpDir, "rev-parse", "--abbrev-ref", "HEAD");
+
+    // Push initial commit to remote
+    const ctx = makeContext(tmpDir);
+    await gitPushTool.execute({ remote: "origin", branch: currentBranch }, ctx);
+
+    // Create a second clone, add a commit, and push to advance the remote
+    const clone2 = await mkdtemp(join(tmpdir(), "aes-git-clone2-"));
+    try {
+      await execFile("git", ["clone", remoteDir, clone2]);
+      await execFile("git", ["config", "user.email", "test@example.com"], { cwd: clone2 });
+      await execFile("git", ["config", "user.name", "Test User"], { cwd: clone2 });
+      await fsWriteFile(join(clone2, "clone2.ts"), "x", "utf-8");
+      await execFile("git", ["add", "clone2.ts"], { cwd: clone2 });
+      await execFile("git", ["commit", "-m", "clone2 commit"], { cwd: clone2 });
+      await execFile("git", ["push", "origin", currentBranch], { cwd: clone2 });
+    } finally {
+      await rm(clone2, { recursive: true, force: true });
+    }
+
+    // Now attempt to push from original dir — should fail (non-fast-forward)
+    await fsWriteFile(join(tmpDir, "extra.ts"), "y", "utf-8");
+    await git(tmpDir, "add", "extra.ts");
+    await git(tmpDir, "commit", "-m", "extra commit");
+
+    const result = await executor.invoke("git_push", { remote: "origin", branch: currentBranch }, ctx);
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.type).toBe("runtime");
+    }
+  });
+});
+
+describe("git_push via ToolExecutor", () => {
+  it("pushes branch through full pipeline and returns remote and branch", async () => {
+    await makeInitialCommit(tmpDir);
+    await setupRepoWithRemote();
+    const currentBranch = await git(tmpDir, "rev-parse", "--abbrev-ref", "HEAD");
+
+    const ctx = makeContext(tmpDir);
+    const result = await executor.invoke("git_push", { remote: "origin", branch: currentBranch }, ctx);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      const out = result.value as { remote: string; branch: string };
+      expect(out.remote).toBe("origin");
+      expect(out.branch).toBe(currentBranch);
+    }
+  });
+
+  it("returns permission error when gitWrite is absent", async () => {
+    await makeInitialCommit(tmpDir);
+    const ctx = makeContext(tmpDir, makePermissions({ gitWrite: false }));
+    const result = await executor.invoke("git_push", { remote: "origin", branch: "main" }, ctx);
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.type).toBe("permission");
     }
   });
 });

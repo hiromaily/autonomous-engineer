@@ -311,3 +311,85 @@ export const gitBranchSwitchTool: Tool<GitBranchSwitchInput, GitBranchSwitchOutp
     return { name: input.name };
   },
 };
+
+// ---------------------------------------------------------------------------
+// git_add
+// ---------------------------------------------------------------------------
+
+export interface GitAddInput {
+  readonly files: ReadonlyArray<string>;
+}
+export interface GitAddOutput {
+  readonly staged: ReadonlyArray<string>;
+}
+
+export const gitAddTool: Tool<GitAddInput, GitAddOutput> = {
+  name: "git_add",
+  description: "Stage specified files (relative paths from workingDirectory) for the next commit.",
+  requiredPermissions: ["gitWrite"],
+  schema: {
+    input: {
+      type: "object",
+      properties: {
+        files: { type: "array", items: { type: "string" } },
+      },
+      required: ["files"],
+      additionalProperties: false,
+    },
+    output: {
+      type: "object",
+      properties: {
+        staged: { type: "array", items: { type: "string" } },
+      },
+      required: ["staged"],
+      additionalProperties: false,
+    },
+  },
+  async execute(input: GitAddInput, context: ToolContext): Promise<GitAddOutput> {
+    await runGit(["add", "--", ...input.files], context.workingDirectory);
+    return { staged: input.files };
+  },
+};
+
+// ---------------------------------------------------------------------------
+// git_push
+// ---------------------------------------------------------------------------
+
+export interface GitPushInput {
+  readonly remote: string;
+  readonly branch: string;
+}
+export interface GitPushOutput {
+  readonly remote: string;
+  readonly branch: string;
+}
+
+export const gitPushTool: Tool<GitPushInput, GitPushOutput> = {
+  name: "git_push",
+  description: "Push a branch to the specified remote. Force push is never performed.",
+  requiredPermissions: ["gitWrite"],
+  schema: {
+    input: {
+      type: "object",
+      properties: {
+        remote: { type: "string" },
+        branch: { type: "string" },
+      },
+      required: ["remote", "branch"],
+      additionalProperties: false,
+    },
+    output: {
+      type: "object",
+      properties: {
+        remote: { type: "string" },
+        branch: { type: "string" },
+      },
+      required: ["remote", "branch"],
+      additionalProperties: false,
+    },
+  },
+  async execute(input: GitPushInput, context: ToolContext): Promise<GitPushOutput> {
+    await runGit(["push", input.remote, input.branch], context.workingDirectory);
+    return { remote: input.remote, branch: input.branch };
+  },
+};

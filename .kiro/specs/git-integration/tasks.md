@@ -36,7 +36,7 @@
   - No implementation code — interface definitions only
   - _Requirements: 4.1, 4.4, 4.5, 4.7, 5.3_
 
-- [ ] 3. Extend git tool definitions with git_add and git_push
+- [x] 3. Extend git tool definitions with git_add and git_push
   - Add `git_add` tool definition to existing `adapters/tools/git.ts` following the established `Tool<Input, Output>` pattern
   - `git_add` input: `{ files: ReadonlyArray<string> }` (relative paths from workingDirectory); output: `{ staged: ReadonlyArray<string> }`;  requiredPermissions: `["gitWrite"]`; executes `git add -- <files...>`
   - Add `git_push` tool definition: input `{ remote: string; branch: string }`; output `{ remote: string; branch: string }`; requiredPermissions: `["gitWrite"]`; executes `git push <remote> <branch>` — never adds `--force` flag
