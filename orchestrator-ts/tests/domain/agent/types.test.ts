@@ -13,7 +13,7 @@ import {
   type ReflectionOutput,
   TERMINATION_CONDITIONS,
   type TerminationCondition,
-} from "../../../domain/agent/types";
+} from "../../../src/domain/agent/types";
 
 // ---------------------------------------------------------------------------
 // ActionCategory

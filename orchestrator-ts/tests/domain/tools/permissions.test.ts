@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { type IPermissionSystem, PermissionSystem } from "../../../domain/tools/permissions";
-import type { ExecutionMode, PermissionFlag, PermissionSet } from "../../../domain/tools/types";
+import { type IPermissionSystem, PermissionSystem } from "../../../src/domain/tools/permissions";
+import type { ExecutionMode, PermissionFlag, PermissionSet } from "../../../src/domain/tools/types";
 
 // ---------------------------------------------------------------------------
 // Helpers

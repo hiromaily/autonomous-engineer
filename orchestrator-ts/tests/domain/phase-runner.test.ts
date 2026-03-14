@@ -1,8 +1,8 @@
 import { describe, expect, it, mock } from "bun:test";
-import type { LlmProviderPort } from "../../application/ports/llm";
-import type { SddFrameworkPort, SddOperationResult, SpecContext } from "../../application/ports/sdd";
-import { PhaseRunner } from "../../domain/workflow/phase-runner";
-import type { WorkflowPhase } from "../../domain/workflow/types";
+import type { LlmProviderPort } from "../../src/application/ports/llm";
+import type { SddFrameworkPort, SddOperationResult, SpecContext } from "../../src/application/ports/sdd";
+import { PhaseRunner } from "../../src/domain/workflow/phase-runner";
+import type { WorkflowPhase } from "../../src/domain/workflow/types";
 
 const ctx: SpecContext = {
   specName: "my-spec",

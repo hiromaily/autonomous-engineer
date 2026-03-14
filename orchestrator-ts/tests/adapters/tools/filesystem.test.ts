@@ -8,8 +8,8 @@ import {
   resolveWorkspacePath,
   searchFilesTool,
   writeFileTool,
-} from "../../../adapters/tools/filesystem";
-import type { PermissionSet, ToolContext } from "../../../domain/tools/types";
+} from "../../../src/adapters/tools/filesystem";
+import type { PermissionSet, ToolContext } from "../../../src/domain/tools/types";
 
 // ---------------------------------------------------------------------------
 // Test helpers

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { ContextEngineService } from "../../../application/context/context-engine-service";
+import { ContextEngineService } from "../../../src/application/context/context-engine-service";
 import type {
   CachedEntry,
   ContextBuildRequest,
@@ -11,10 +11,10 @@ import type {
   LayerBudgetMap,
   LayerId,
   PlannerDecision,
-} from "../../../application/ports/context";
-import type { MemoryPort, RankedMemoryEntry } from "../../../application/ports/memory";
-import type { IToolExecutor } from "../../../application/tools/executor";
-import type { ToolResult } from "../../../domain/tools/types";
+} from "../../../src/application/ports/context";
+import type { MemoryPort, RankedMemoryEntry } from "../../../src/application/ports/memory";
+import type { IToolExecutor } from "../../../src/application/tools/executor";
+import type { ToolResult } from "../../../src/domain/tools/types";
 
 // ---------------------------------------------------------------------------
 // Helpers — minimal mocks

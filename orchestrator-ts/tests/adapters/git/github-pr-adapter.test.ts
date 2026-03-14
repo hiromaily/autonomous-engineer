@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { GitHubPrAdapter } from "../../../adapters/git/github-pr-adapter";
-import type { PullRequestParams } from "../../../domain/git/types";
+import { GitHubPrAdapter } from "../../../src/adapters/git/github-pr-adapter";
+import type { PullRequestParams } from "../../../src/domain/git/types";
 
 // ---------------------------------------------------------------------------
 // Fetch mock helpers

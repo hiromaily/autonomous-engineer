@@ -16,7 +16,7 @@ import type {
   RankedMemoryEntry,
   ShortTermMemoryPort,
   ShortTermState,
-} from "../../application/ports/memory";
+} from "../../src/application/ports/memory";
 
 // ---------------------------------------------------------------------------
 // MemoryTarget discriminated union

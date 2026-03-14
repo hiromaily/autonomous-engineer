@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { LayerBudgetConfig, TokenBudgetConfig } from "../../../application/ports/context";
-import { TokenBudgetManager } from "../../../domain/context/token-budget-manager";
+import type { LayerBudgetConfig, TokenBudgetConfig } from "../../../src/application/ports/context";
+import { TokenBudgetManager } from "../../../src/domain/context/token-budget-manager";
 
 // ---------------------------------------------------------------------------
 // Helpers

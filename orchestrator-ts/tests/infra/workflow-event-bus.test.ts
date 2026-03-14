@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { WorkflowEvent } from "../../application/ports/workflow";
-import { WorkflowEventBus } from "../../infra/events/workflow-event-bus";
+import type { WorkflowEvent } from "../../src/application/ports/workflow";
+import { WorkflowEventBus } from "../../src/infra/events/workflow-event-bus";
 
 describe("WorkflowEventBus", () => {
   describe("emit() and on()", () => {

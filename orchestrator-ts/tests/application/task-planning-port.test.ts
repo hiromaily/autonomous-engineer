@@ -10,8 +10,8 @@ import type {
   TaskPlannerOptions,
   TaskPlanOutcome,
   TaskPlanResult,
-} from "../../application/ports/task-planning";
-import type { PlanEvent, PlanReviewReason, TaskPlan } from "../../domain/planning/types";
+} from "../../src/application/ports/task-planning";
+import type { PlanEvent, PlanReviewReason, TaskPlan } from "../../src/domain/planning/types";
 
 // ---------------------------------------------------------------------------
 // Test helpers

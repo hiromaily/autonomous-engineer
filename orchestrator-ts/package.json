@@ -4,18 +4,18 @@
   "private": true,
   "type": "module",
   "bin": {
-    "aes": "./cli/index.ts"
+    "aes": "./src/cli/index.ts"
   },
   "scripts": {
-    "aes": "bun run ./cli/index.ts",
-    "aes:dev": "bun --watch ./cli/index.ts",
+    "aes": "bun run ./src/cli/index.ts",
+    "aes:dev": "bun --watch ./src/cli/index.ts",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
     "fmt": "dprint fmt",
     "fmt:check": "dprint check",
     "lint": "biome lint .",
     "lint:fix": "biome lint . --write",
-    "build": "bun build ./cli/index.ts --outdir dist --target bun"
+    "build": "bun build ./src/cli/index.ts --outdir dist --target bun"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",

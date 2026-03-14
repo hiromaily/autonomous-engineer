@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { createSafetyConfig, createSafetySession, DEFAULT_SAFETY_CONFIG } from "../../../domain/safety/types";
+import { createSafetyConfig, createSafetySession, DEFAULT_SAFETY_CONFIG } from "../../../src/domain/safety/types";
 
 // ---------------------------------------------------------------------------
 // SafetyConfig tests

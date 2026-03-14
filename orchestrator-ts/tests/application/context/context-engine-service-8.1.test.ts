@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { ContextEngineServiceOptions } from "../../../application/context/context-engine-service";
-import { ContextEngineService } from "../../../application/context/context-engine-service";
+import type { ContextEngineServiceOptions } from "../../../src/application/context/context-engine-service";
+import { ContextEngineService } from "../../../src/application/context/context-engine-service";
 import type {
   CachedEntry,
   ContextBuildRequest,
@@ -14,9 +14,9 @@ import type {
   LayerId,
   PlannerDecision,
   TokenBudgetConfig,
-} from "../../../application/ports/context";
-import type { MemoryPort } from "../../../application/ports/memory";
-import type { IToolExecutor } from "../../../application/tools/executor";
+} from "../../../src/application/ports/context";
+import type { MemoryPort } from "../../../src/application/ports/memory";
+import type { IToolExecutor } from "../../../src/application/tools/executor";
 
 // ---------------------------------------------------------------------------
 // Test helpers — minimal mocks satisfying each injected interface

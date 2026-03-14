@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { access, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { AuditLogger } from "../../../adapters/safety/audit-logger";
-import type { AuditEntry } from "../../../application/safety/ports";
+import { AuditLogger } from "../../../src/adapters/safety/audit-logger";
+import type { AuditEntry } from "../../../src/application/safety/ports";
 
 // ---------------------------------------------------------------------------
 // Helpers

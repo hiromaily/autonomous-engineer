@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { IGitEventBus } from "../../../application/ports/git-event-bus";
-import type { GitEvent } from "../../../domain/git/types";
+import type { IGitEventBus } from "../../../src/application/ports/git-event-bus";
+import type { GitEvent } from "../../../src/domain/git/types";
 
 // ---------------------------------------------------------------------------
 // Helper: build a minimal stub that satisfies IGitEventBus

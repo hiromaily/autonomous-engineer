@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import type { ApprovalRequest, ISafetyGuard, SafetyCheckResult, SafetyContext } from "../../../domain/safety/guards";
-import { allowedResult, blockedResult, requiresApprovalResult } from "../../../domain/safety/guards";
-import { createSafetyConfig, createSafetySession } from "../../../domain/safety/types";
-import type { MemoryEntry, ToolContext } from "../../../domain/tools/types";
+import type { ApprovalRequest, ISafetyGuard, SafetyCheckResult, SafetyContext } from "../../../src/domain/safety/guards";
+import { allowedResult, blockedResult, requiresApprovalResult } from "../../../src/domain/safety/guards";
+import { createSafetyConfig, createSafetySession } from "../../../src/domain/safety/types";
+import type { MemoryEntry, ToolContext } from "../../../src/domain/tools/types";
 
 // ---------------------------------------------------------------------------
 // Test helpers

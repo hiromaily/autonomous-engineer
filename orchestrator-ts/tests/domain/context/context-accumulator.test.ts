@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { AccumulatedEntry, ExpansionEvent } from "../../../application/ports/context";
-import { ContextAccumulator } from "../../../domain/context/context-accumulator";
+import type { AccumulatedEntry, ExpansionEvent } from "../../../src/application/ports/context";
+import { ContextAccumulator } from "../../../src/domain/context/context-accumulator";
 
 // ---------------------------------------------------------------------------
 // Helpers

@@ -8,17 +8,17 @@ import { mkdir, mkdtemp, rm, writeFile as fsWriteFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { retrieveDesignDocTool, retrieveSpecTool, searchMemoryTool } from "../../../adapters/tools/knowledge";
-import { ToolExecutor } from "../../../application/tools/executor";
-import { PermissionSystem } from "../../../domain/tools/permissions";
-import { ToolRegistry } from "../../../domain/tools/registry";
+import { retrieveDesignDocTool, retrieveSpecTool, searchMemoryTool } from "../../../src/adapters/tools/knowledge";
+import { ToolExecutor } from "../../../src/application/tools/executor";
+import { PermissionSystem } from "../../../src/domain/tools/permissions";
+import { ToolRegistry } from "../../../src/domain/tools/registry";
 import type {
   MemoryClient,
   MemoryEntry,
   PermissionSet,
   ToolContext,
   ToolInvocationLog,
-} from "../../../domain/tools/types";
+} from "../../../src/domain/tools/types";
 
 // ---------------------------------------------------------------------------
 // Helpers

@@ -14,13 +14,13 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { AuditLogger } from "../../../adapters/safety/audit-logger";
-import { EmergencyStopHandler } from "../../../application/safety/emergency-stop-handler";
-import { SafetyGuardedToolExecutor } from "../../../application/safety/guarded-executor";
-import type { AuditEntry, IApprovalGateway, ISandboxExecutor } from "../../../application/safety/ports";
-import type { IToolExecutor } from "../../../application/tools/executor";
-import { createSafetyConfig, createSafetySession } from "../../../domain/safety/types";
-import type { PermissionSet, ToolContext, ToolInvocationLog } from "../../../domain/tools/types";
+import { AuditLogger } from "../../../src/adapters/safety/audit-logger";
+import { EmergencyStopHandler } from "../../../src/application/safety/emergency-stop-handler";
+import { SafetyGuardedToolExecutor } from "../../../src/application/safety/guarded-executor";
+import type { AuditEntry, IApprovalGateway, ISandboxExecutor } from "../../../src/application/safety/ports";
+import type { IToolExecutor } from "../../../src/application/tools/executor";
+import { createSafetyConfig, createSafetySession } from "../../../src/domain/safety/types";
+import type { PermissionSet, ToolContext, ToolInvocationLog } from "../../../src/domain/tools/types";
 
 // ---------------------------------------------------------------------------
 // Helpers

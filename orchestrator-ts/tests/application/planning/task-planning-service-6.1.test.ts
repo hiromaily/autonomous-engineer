@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { TaskPlanningService } from "../../../application/planning/task-planning-service";
+import { TaskPlanningService } from "../../../src/application/planning/task-planning-service";
 import {
   makeAgentLoop,
   makeBooleanAgentLoop,

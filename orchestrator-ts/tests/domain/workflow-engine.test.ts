@@ -2,12 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { IWorkflowEventBus, IWorkflowStateStore, WorkflowEvent } from "../../application/ports/workflow";
-import type { ApprovalGate } from "../../domain/workflow/approval-gate";
-import type { PhaseResult, PhaseRunner } from "../../domain/workflow/phase-runner";
-import { WORKFLOW_PHASES } from "../../domain/workflow/types";
-import type { WorkflowPhase, WorkflowState } from "../../domain/workflow/types";
-import { WorkflowEngine } from "../../domain/workflow/workflow-engine";
+import type { IWorkflowEventBus, IWorkflowStateStore, WorkflowEvent } from "../../src/application/ports/workflow";
+import type { ApprovalGate } from "../../src/domain/workflow/approval-gate";
+import type { PhaseResult, PhaseRunner } from "../../src/domain/workflow/phase-runner";
+import { WORKFLOW_PHASES } from "../../src/domain/workflow/types";
+import type { WorkflowPhase, WorkflowState } from "../../src/domain/workflow/types";
+import { WorkflowEngine } from "../../src/domain/workflow/workflow-engine";
 
 // ---- Stub factories --------------------------------------------------------
 

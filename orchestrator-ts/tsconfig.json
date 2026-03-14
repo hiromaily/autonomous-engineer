@@ -14,11 +14,11 @@
     "outDir": "dist"
   },
   "include": [
-    "cli/**/*",
-    "application/**/*",
-    "domain/**/*",
-    "adapters/**/*",
-    "infra/**/*",
+    "src/cli/**/*",
+    "src/application/**/*",
+    "src/domain/**/*",
+    "src/adapters/**/*",
+    "src/infra/**/*",
     "tests/**/*"
   ],
   "exclude": [

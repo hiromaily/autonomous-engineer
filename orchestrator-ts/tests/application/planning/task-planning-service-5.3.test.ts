@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import { TaskPlanningService } from "../../../application/planning/task-planning-service";
-import type { AgentLoopOptions, AgentLoopResult, IAgentLoop } from "../../../application/ports/agent-loop";
-import type { ITaskPlanStore } from "../../../application/ports/task-planning";
-import type { AgentState } from "../../../domain/agent/types";
-import type { TaskPlan } from "../../../domain/planning/types";
+import { TaskPlanningService } from "../../../src/application/planning/task-planning-service";
+import type { AgentLoopOptions, AgentLoopResult, IAgentLoop } from "../../../src/application/ports/agent-loop";
+import type { ITaskPlanStore } from "../../../src/application/ports/task-planning";
+import type { AgentState } from "../../../src/domain/agent/types";
+import type { TaskPlan } from "../../../src/domain/planning/types";
 import { makeContextBuilder, makeLlm, makePlanBody, makeTrackingStore } from "./fixtures";
 
 // ---------------------------------------------------------------------------

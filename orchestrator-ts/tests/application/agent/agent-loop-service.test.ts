@@ -1,17 +1,17 @@
 import { describe, expect, it } from "bun:test";
-import { AgentLoopService } from "../../../application/agent/agent-loop-service";
+import { AgentLoopService } from "../../../src/application/agent/agent-loop-service";
 import type {
   AgentLoopLogger,
   AgentLoopOptions,
   IAgentEventBus,
   IAgentLoop,
   IContextProvider,
-} from "../../../application/ports/agent-loop";
-import type { LlmProviderPort } from "../../../application/ports/llm";
-import type { IToolExecutor } from "../../../application/tools/executor";
-import type { AgentLoopEvent, AgentState, ReflectionOutput } from "../../../domain/agent/types";
-import type { IToolRegistry, ToolListEntry } from "../../../domain/tools/registry";
-import type { MemoryEntry, ToolContext } from "../../../domain/tools/types";
+} from "../../../src/application/ports/agent-loop";
+import type { LlmProviderPort } from "../../../src/application/ports/llm";
+import type { IToolExecutor } from "../../../src/application/tools/executor";
+import type { AgentLoopEvent, AgentState, ReflectionOutput } from "../../../src/domain/agent/types";
+import type { IToolRegistry, ToolListEntry } from "../../../src/domain/tools/registry";
+import type { MemoryEntry, ToolContext } from "../../../src/domain/tools/types";
 
 // ---------------------------------------------------------------------------
 // Test helpers — minimal mocks satisfying each injected interface

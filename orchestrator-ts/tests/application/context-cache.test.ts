@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { ContextCache } from "../../application/context/context-cache";
-import type { CachedEntry } from "../../application/ports/context";
+import { ContextCache } from "../../src/application/context/context-cache";
+import type { CachedEntry } from "../../src/application/ports/context";
 
 // ---------------------------------------------------------------------------
 // Helpers

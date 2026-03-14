@@ -17,13 +17,13 @@
  * Requirements: 1.1, 1.2, 1.3, 4.1, 4.2, 5.1, 5.2, 6.1, 10.3
  */
 import { describe, expect, it } from "bun:test";
-import { AgentLoopService } from "../../application/agent/agent-loop-service";
-import type { IAgentEventBus } from "../../application/ports/agent-loop";
-import type { LlmProviderPort } from "../../application/ports/llm";
-import type { IToolExecutor } from "../../application/tools/executor";
-import type { AgentLoopEvent, ReflectionOutput } from "../../domain/agent/types";
-import { ToolRegistry } from "../../domain/tools/registry";
-import type { MemoryEntry, Tool, ToolContext } from "../../domain/tools/types";
+import { AgentLoopService } from "../../src/application/agent/agent-loop-service";
+import type { IAgentEventBus } from "../../src/application/ports/agent-loop";
+import type { LlmProviderPort } from "../../src/application/ports/llm";
+import type { IToolExecutor } from "../../src/application/tools/executor";
+import type { AgentLoopEvent, ReflectionOutput } from "../../src/domain/agent/types";
+import { ToolRegistry } from "../../src/domain/tools/registry";
+import type { MemoryEntry, Tool, ToolContext } from "../../src/domain/tools/types";
 
 // ---------------------------------------------------------------------------
 // Shared test helpers

@@ -18,12 +18,12 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { TaskPlanningService } from "../../application/planning/task-planning-service";
-import type { AgentLoopResult, IAgentLoop } from "../../application/ports/agent-loop";
-import type { LlmProviderPort, LlmResult } from "../../application/ports/llm";
-import type { IPlanContextBuilder } from "../../application/ports/task-planning";
-import type { AgentState, TaskPlan } from "../../domain/planning/types";
-import { PlanFileStore } from "../../infra/planning/plan-file-store";
+import { TaskPlanningService } from "../../src/application/planning/task-planning-service";
+import type { AgentLoopResult, IAgentLoop } from "../../src/application/ports/agent-loop";
+import type { LlmProviderPort, LlmResult } from "../../src/application/ports/llm";
+import type { IPlanContextBuilder } from "../../src/application/ports/task-planning";
+import type { AgentState, TaskPlan } from "../../src/domain/planning/types";
+import { PlanFileStore } from "../../src/infra/planning/plan-file-store";
 
 // ---------------------------------------------------------------------------
 // Stub factories

@@ -6,8 +6,8 @@ import type {
   IAgentEventBus,
   IAgentLoop,
   IContextProvider,
-} from "../../application/ports/agent-loop";
-import type { AgentLoopEvent, AgentState } from "../../domain/agent/types";
+} from "../../src/application/ports/agent-loop";
+import type { AgentLoopEvent, AgentState } from "../../src/domain/agent/types";
 
 // ---------------------------------------------------------------------------
 // Helper: build a minimal AgentState for testing

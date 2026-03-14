@@ -4,19 +4,19 @@
 // ---------------------------------------------------------------------------
 
 import { describe, it, expect, beforeEach } from "bun:test";
-import { GitIntegrationService } from "../../../application/git/git-integration-service";
-import type { IGitController, GitResult } from "../../../application/ports/git-controller";
-import type { IPullRequestProvider } from "../../../application/ports/pr-provider";
-import type { IGitEventBus } from "../../../application/ports/git-event-bus";
-import type { IAuditLogger, AuditEntry } from "../../../application/safety/ports";
-import type { LlmProviderPort } from "../../../application/ports/llm";
-import type { IGitValidator } from "../../../domain/git/git-validator";
+import { GitIntegrationService } from "../../../src/application/git/git-integration-service";
+import type { IGitController, GitResult } from "../../../src/application/ports/git-controller";
+import type { IPullRequestProvider } from "../../../src/application/ports/pr-provider";
+import type { IGitEventBus } from "../../../src/application/ports/git-event-bus";
+import type { IAuditLogger, AuditEntry } from "../../../src/application/safety/ports";
+import type { LlmProviderPort } from "../../../src/application/ports/llm";
+import type { IGitValidator } from "../../../src/domain/git/git-validator";
 import type {
   GitIntegrationConfig,
   GitEvent,
   BranchCreationResult,
   GitChangesResult,
-} from "../../../domain/git/types";
+} from "../../../src/domain/git/types";
 
 // ---------------------------------------------------------------------------
 // Test helpers

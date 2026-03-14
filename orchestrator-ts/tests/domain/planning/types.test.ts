@@ -10,7 +10,7 @@ import {
   TASK_STATUSES,
   type TaskPlan,
   type TaskStatus,
-} from "../../../domain/planning/types";
+} from "../../../src/domain/planning/types";
 
 // ---------------------------------------------------------------------------
 // StepStatus

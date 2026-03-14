@@ -3,8 +3,8 @@
  * TDD: tests written before implementation.
  */
 import { describe, expect, it } from "bun:test";
-import type { LayerId, ToolResultEntry } from "../../../application/ports/context";
-import { ContextPlanner } from "../../../domain/context/context-planner";
+import type { LayerId, ToolResultEntry } from "../../../src/application/ports/context";
+import { ContextPlanner } from "../../../src/domain/context/context-planner";
 
 const noTools: ReadonlyArray<ToolResultEntry> = [];
 

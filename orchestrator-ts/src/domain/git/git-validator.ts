@@ -116,7 +116,7 @@ export class GitValidator implements IGitValidator {
     }
 
     // Reject invalid characters
-    if (/[~^:?*\[\\ ]/.test(name)) {
+    if (/[~^:?*[\\ ]/.test(name)) {
       return false;
     }
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { TaskPlanningService } from "../../../application/planning/task-planning-service";
-import type { AgentLoopResult } from "../../../application/ports/agent-loop";
+import { TaskPlanningService } from "../../../src/application/planning/task-planning-service";
+import type { AgentLoopResult } from "../../../src/application/ports/agent-loop";
 import {
   makeContextBuilder,
   makeEventBus,
@@ -386,7 +386,7 @@ describe("TaskPlanningService — task 6.4: dynamic plan adjustment and observab
         makeSuccessResult(),
       ]);
 
-      const gateway: import("../../../application/ports/task-planning").IHumanReviewGateway = {
+      const gateway: import("../../../src/application/ports/task-planning").IHumanReviewGateway = {
         async reviewPlan() {
           throw new Error("review timed out");
         },

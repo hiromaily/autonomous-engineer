@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it } from "bun:test";
 import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { WorkflowEvent } from "../../application/ports/workflow";
-import { JsonLogWriter } from "../../cli/json-log-writer";
+import type { WorkflowEvent } from "../../src/application/ports/workflow";
+import { JsonLogWriter } from "../../src/cli/json-log-writer";
 
 describe("JsonLogWriter", () => {
   let tmpDir: string;

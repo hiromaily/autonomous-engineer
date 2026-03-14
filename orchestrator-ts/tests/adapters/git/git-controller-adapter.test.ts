@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { GitControllerAdapter } from "../../../adapters/git/git-controller-adapter";
-import type { IToolExecutor } from "../../../application/tools/executor";
-import type { IGitValidator } from "../../../domain/git/git-validator";
-import type { ToolContext, ToolResult } from "../../../domain/tools/types";
+import { GitControllerAdapter } from "../../../src/adapters/git/git-controller-adapter";
+import type { IToolExecutor } from "../../../src/application/tools/executor";
+import type { IGitValidator } from "../../../src/domain/git/git-validator";
+import type { ToolContext, ToolResult } from "../../../src/domain/tools/types";
 
 // ---------------------------------------------------------------------------
 // Test helpers
