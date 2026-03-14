@@ -1,4 +1,3 @@
-import { describe, expect, it } from "bun:test";
 import type {
   BranchCreationResult,
   CommitResult,
@@ -8,7 +7,8 @@ import type {
   PullRequestParams,
   PullRequestResult,
   PushResult,
-} from "../../../src/domain/git/types";
+} from "@/domain/git/types";
+import { describe, expect, it } from "bun:test";
 
 // ---------------------------------------------------------------------------
 // GitIntegrationConfig shape check

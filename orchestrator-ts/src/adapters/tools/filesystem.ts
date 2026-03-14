@@ -1,6 +1,6 @@
+import type { Tool, ToolContext } from "@/domain/tools/types";
 import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
-import type { Tool, ToolContext } from "../../domain/tools/types";
 
 // ---------------------------------------------------------------------------
 // I/O types

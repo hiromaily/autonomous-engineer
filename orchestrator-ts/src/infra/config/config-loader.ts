@@ -1,7 +1,7 @@
+import { type AesConfig, ConfigValidationError, type IConfigLoader } from "@/application/ports/config";
+import type { GitIntegrationConfig } from "@/domain/git/types";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { type AesConfig, ConfigValidationError, type IConfigLoader } from "../../application/ports/config";
-import type { GitIntegrationConfig } from "../../domain/git/types";
 
 const VALID_SDD_FRAMEWORKS = ["cc-sdd", "openspec", "speckit"] as const;
 

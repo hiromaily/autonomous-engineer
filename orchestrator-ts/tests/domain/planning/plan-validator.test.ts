@@ -1,6 +1,6 @@
+import { PlanValidator } from "@/domain/planning/plan-validator";
+import type { Step, Task, TaskPlan } from "@/domain/planning/types";
 import { describe, expect, it } from "bun:test";
-import { PlanValidator } from "../../../src/domain/planning/plan-validator";
-import type { Step, Task, TaskPlan } from "../../../src/domain/planning/types";
 
 // ---------------------------------------------------------------------------
 // Helpers

@@ -1,6 +1,6 @@
+import type { Tool, ToolContext } from "@/domain/tools/types";
 import { execFile as execFileCb } from "node:child_process";
 import { promisify } from "node:util";
-import type { Tool, ToolContext } from "../../domain/tools/types";
 
 const execFile = promisify(execFileCb);
 

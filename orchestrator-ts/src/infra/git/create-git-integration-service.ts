@@ -5,20 +5,17 @@
 // Constructs all components and wires them together.
 // ---------------------------------------------------------------------------
 
-import { GitControllerAdapter } from "../../adapters/git/git-controller-adapter";
-import { GitHubPrAdapter } from "../../adapters/git/github-pr-adapter";
-import type { IPullRequestProvider } from "../../application/ports/pr-provider";
-import type { IAuditLogger } from "../../application/safety/ports";
-import type { LlmProviderPort } from "../../application/ports/llm";
-import type { IToolExecutor } from "../../application/tools/executor";
-import {
-  GitIntegrationService,
-  type IGitIntegrationService,
-} from "../../application/git/git-integration-service";
-import { GitValidator } from "../../domain/git/git-validator";
-import type { GitIntegrationConfig } from "../../domain/git/types";
-import type { ToolContext } from "../../domain/tools/types";
-import { GitEventBus } from "../events/git-event-bus";
+import { GitControllerAdapter } from "@/adapters/git/git-controller-adapter";
+import { GitHubPrAdapter } from "@/adapters/git/github-pr-adapter";
+import { GitIntegrationService, type IGitIntegrationService } from "@/application/git/git-integration-service";
+import type { LlmProviderPort } from "@/application/ports/llm";
+import type { IPullRequestProvider } from "@/application/ports/pr-provider";
+import type { IAuditLogger } from "@/application/safety/ports";
+import type { IToolExecutor } from "@/application/tools/executor";
+import { GitValidator } from "@/domain/git/git-validator";
+import type { GitIntegrationConfig } from "@/domain/git/types";
+import type { ToolContext } from "@/domain/tools/types";
+import { GitEventBus } from "@/infra/events/git-event-bus";
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -100,11 +97,11 @@ export function createGitIntegrationService(
   // 3. Adapter: PR creation via GitHub REST API (optional)
   const prProvider: IPullRequestProvider = githubToken && githubOwner && githubRepo
     ? new GitHubPrAdapter({
-        apiBaseUrl: "https://api.github.com",
-        owner: githubOwner,
-        repo: githubRepo,
-        token: githubToken,
-      })
+      apiBaseUrl: "https://api.github.com",
+      owner: githubOwner,
+      repo: githubRepo,
+      token: githubToken,
+    })
     : makeNoOpPrProvider();
 
   // 4. Infra: in-process synchronous event bus

@@ -1,5 +1,5 @@
+import type { ITokenBudgetManager, LayerBudgetMap, LayerId, TokenBudgetConfig } from "@/application/ports/context";
 import { getEncoding, type Tiktoken } from "js-tiktoken";
-import type { ITokenBudgetManager, LayerBudgetMap, LayerId, TokenBudgetConfig } from "../../application/ports/context";
 import { LAYER_REGISTRY } from "./layer-registry";
 
 // Initialized once at module load; reused across all TokenBudgetManager instances.

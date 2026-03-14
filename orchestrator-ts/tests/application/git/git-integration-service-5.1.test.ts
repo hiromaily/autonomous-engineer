@@ -3,19 +3,15 @@
 // tests/application/git/git-integration-service-5.1.test.ts
 // ---------------------------------------------------------------------------
 
-import { describe, it, expect, } from "bun:test";
-import { GitIntegrationService } from "../../../src/application/git/git-integration-service";
-import type { IGitController, } from "../../../src/application/ports/git-controller";
-import type { IPullRequestProvider } from "../../../src/application/ports/pr-provider";
-import type { IGitEventBus } from "../../../src/application/ports/git-event-bus";
-import type { IAuditLogger, AuditEntry } from "../../../src/application/safety/ports";
-import type { LlmProviderPort } from "../../../src/application/ports/llm";
-import type { IGitValidator } from "../../../src/domain/git/git-validator";
-import type {
-  GitIntegrationConfig,
-  GitEvent,
-  GitChangesResult,
-} from "../../../src/domain/git/types";
+import { GitIntegrationService } from "@/application/git/git-integration-service";
+import type { IGitController } from "@/application/ports/git-controller";
+import type { IGitEventBus } from "@/application/ports/git-event-bus";
+import type { LlmProviderPort } from "@/application/ports/llm";
+import type { IPullRequestProvider } from "@/application/ports/pr-provider";
+import type { AuditEntry, IAuditLogger } from "@/application/safety/ports";
+import type { IGitValidator } from "@/domain/git/git-validator";
+import type { GitChangesResult, GitEvent, GitIntegrationConfig } from "@/domain/git/types";
+import { describe, expect, it } from "bun:test";
 
 // ---------------------------------------------------------------------------
 // Test helpers
@@ -102,7 +98,9 @@ function makeAuditLogger(): IAuditLogger & { entries: AuditEntry[] } {
   const entries: AuditEntry[] = [];
   return {
     entries,
-    write: async (entry) => { entries.push(entry); },
+    write: async (entry) => {
+      entries.push(entry);
+    },
     flush: async () => {},
   };
 }

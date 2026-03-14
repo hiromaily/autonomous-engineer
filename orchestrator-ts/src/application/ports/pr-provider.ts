@@ -5,7 +5,7 @@
 // No implementation code — interface definitions only.
 // ---------------------------------------------------------------------------
 
-import type { PullRequestParams, PullRequestResult } from "../../domain/git/types";
+import type { PullRequestParams, PullRequestResult } from "@/domain/git/types";
 
 /**
  * Category of pull request operation failure.

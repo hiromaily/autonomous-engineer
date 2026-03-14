@@ -1,8 +1,8 @@
+import type { AuditEntry, IAuditLogger } from "@/application/safety/ports";
+import type { IToolExecutor } from "@/application/tools/executor";
+import type { PermissionSet, ToolContext, ToolInvocationLog } from "@/domain/tools/types";
+import { createSafetyExecutor } from "@/infra/safety/create-safety-executor";
 import { describe, expect, it, mock } from "bun:test";
-import type { AuditEntry, IAuditLogger } from "../../../src/application/safety/ports";
-import type { IToolExecutor } from "../../../src/application/tools/executor";
-import type { PermissionSet, ToolContext, ToolInvocationLog } from "../../../src/domain/tools/types";
-import { createSafetyExecutor } from "../../../src/infra/safety/create-safety-executor";
 
 // ---------------------------------------------------------------------------
 // Test helpers
@@ -36,7 +36,10 @@ function makeContext(): ToolContext {
 }
 
 function makeInnerExecutor(
-  result: { ok: true; value: unknown } | { ok: false; error: { type: string; message: string } } = {
+  result: { ok: true; value: unknown } | {
+    ok: false;
+    error: { type: "validation" | "runtime" | "permission"; message: string };
+  } = {
     ok: true,
     value: { data: "test-result" },
   },
@@ -180,7 +183,7 @@ describe("createSafetyExecutor", () => {
     await bundle.executor.invoke("read_file", { path: "/workspace/foo.ts" }, ctx);
 
     expect(auditLogger.entries.length).toBeGreaterThanOrEqual(1);
-    const entry = auditLogger.entries[0];
+    const entry = auditLogger.entries[0]!;
     expect(entry.sessionId).toBe(bundle.session.sessionId);
     expect(entry.toolName).toBe("read_file");
 

@@ -1,9 +1,9 @@
+import { TaskPlanningService } from "@/application/planning/task-planning-service";
+import type { AgentLoopOptions, AgentLoopResult, IAgentLoop } from "@/application/ports/agent-loop";
+import type { ITaskPlanStore } from "@/application/ports/task-planning";
+import type { AgentState } from "@/domain/agent/types";
+import type { TaskPlan } from "@/domain/planning/types";
 import { describe, expect, it } from "bun:test";
-import { TaskPlanningService } from "../../../src/application/planning/task-planning-service";
-import type { AgentLoopOptions, AgentLoopResult, IAgentLoop } from "../../../src/application/ports/agent-loop";
-import type { ITaskPlanStore } from "../../../src/application/ports/task-planning";
-import type { AgentState } from "../../../src/domain/agent/types";
-import type { TaskPlan } from "../../../src/domain/planning/types";
 import { makeContextBuilder, makeLlm, makePlanBody, makeTrackingStore } from "./fixtures";
 
 // ---------------------------------------------------------------------------
@@ -30,7 +30,7 @@ function makeControllableAgentLoop(
         : defaultResult;
       callIndex++;
       return {
-        terminationCondition: taskCompleted ? "TASK_COMPLETED" : "MAX_ITERATIONS",
+        terminationCondition: taskCompleted ? "TASK_COMPLETED" : "MAX_ITERATIONS_REACHED",
         finalState: {} as AgentState,
         totalIterations: 1,
         taskCompleted,
@@ -222,7 +222,7 @@ describe("TaskPlanningService — task 5.3: step execution loop", () => {
 
       expect(agentLoopCallCount).toBe(1);
       // The snapshot saved before agent loop must show step-1 as in_progress
-      const step = savedBeforeAgentLoop?.tasks[0]?.steps[0];
+      const step = (savedBeforeAgentLoop as TaskPlan | null)?.tasks[0]?.steps[0];
       expect(step?.status).toBe("in_progress");
     });
 

@@ -6,13 +6,12 @@
 // child_process, fetch, or git SDKs directly.
 // ---------------------------------------------------------------------------
 
-import type { IAuditLogger } from "../safety/ports";
-import type { LlmProviderPort } from "../ports/llm";
-import type { IGitController, GitResult } from "../ports/git-controller";
-import type { IGitEventBus } from "../ports/git-event-bus";
-import type { IPullRequestProvider } from "../ports/pr-provider";
-import type { IGitValidator } from "../../domain/git/git-validator";
-import type { PermissionSet } from "../../domain/tools/types";
+import type { GitResult, IGitController } from "@/application/ports/git-controller";
+import type { IGitEventBus } from "@/application/ports/git-event-bus";
+import type { LlmProviderPort } from "@/application/ports/llm";
+import type { IPullRequestProvider } from "@/application/ports/pr-provider";
+import type { IAuditLogger } from "@/application/safety/ports";
+import type { IGitValidator } from "@/domain/git/git-validator";
 import type {
   BranchCreationResult,
   CommitResult,
@@ -20,7 +19,8 @@ import type {
   PullRequestParams,
   PullRequestResult,
   PushResult,
-} from "../../domain/git/types";
+} from "@/domain/git/types";
+import type { PermissionSet } from "@/domain/tools/types";
 
 // ---------------------------------------------------------------------------
 // Public service contract types
@@ -194,7 +194,8 @@ export class GitIntegrationService implements IGitIntegrationService {
           ok: false,
           error: {
             type: "runtime",
-            message: `Could not resolve branch name collision for ${candidateName}: all suffixes -2 through -99 are taken`,
+            message:
+              `Could not resolve branch name collision for ${candidateName}: all suffixes -2 through -99 are taken`,
           },
         };
       }
@@ -292,7 +293,8 @@ export class GitIntegrationService implements IGitIntegrationService {
         ok: false,
         error: {
           type: "validation",
-          message: `commit-size-limit-exceeded: ${safe.length} files exceeds maximum of ${this.config.maxFilesPerCommit}`,
+          message:
+            `commit-size-limit-exceeded: ${safe.length} files exceeds maximum of ${this.config.maxFilesPerCommit}`,
         },
       };
     }
@@ -591,7 +593,7 @@ export class GitIntegrationService implements IGitIntegrationService {
       `Completed tasks:\n- ${tasksSummary}`,
       `Spec artifact path: ${params.specArtifactPath}`,
       "",
-      'Output JSON only: {"title": "...", "body": "..."}',
+      "Output JSON only: {\"title\": \"...\", \"body\": \"...\"}",
     ].join("\n");
   }
 

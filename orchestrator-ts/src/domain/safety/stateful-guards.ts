@@ -1,5 +1,5 @@
+import type { ToolResult } from "@/domain/tools/types";
 import { basename } from "node:path";
-import type { ToolResult } from "../tools/types";
 import { API_REQUEST_TOOLS, REPO_WRITE_TOOLS } from "./constants";
 import type { ApprovalRequest, ISafetyGuard, SafetyCheckResult, SafetyContext } from "./guards";
 import { allowedResult, blockedResult, requiresApprovalResult } from "./guards";

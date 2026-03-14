@@ -1,6 +1,6 @@
+import type { WorkflowEvent } from "@/application/ports/workflow";
+import { CliRenderer } from "@/cli/renderer";
 import { describe, expect, it } from "bun:test";
-import type { WorkflowEvent } from "../../src/application/ports/workflow";
-import { CliRenderer } from "../../src/cli/renderer";
 
 function makeWriter() {
   const lines: string[] = [];

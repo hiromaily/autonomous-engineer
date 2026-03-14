@@ -1,4 +1,4 @@
-import type { PlanEvent, PlanReviewReason, TaskPlan } from "../../domain/planning/types";
+import type { PlanEvent, PlanReviewReason, TaskPlan } from "@/domain/planning/types";
 import type { AgentLoopLogger, AgentLoopOptions } from "./agent-loop";
 
 // ---------------------------------------------------------------------------

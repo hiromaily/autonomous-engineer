@@ -1,6 +1,6 @@
+import type { IGitEventBus } from "@/application/ports/git-event-bus";
+import type { GitEvent } from "@/domain/git/types";
 import { EventEmitter } from "node:events";
-import type { IGitEventBus } from "../../application/ports/git-event-bus";
-import type { GitEvent } from "../../domain/git/types";
 
 const EVENT_NAME = "git";
 

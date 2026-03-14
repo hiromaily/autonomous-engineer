@@ -1,6 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
-import { ContextEngineService } from "../../../src/application/context/context-engine-service";
-import type { ContextEngineServiceOptions } from "../../../src/application/context/context-engine-service";
+import { ContextEngineService } from "@/application/context/context-engine-service";
+import type { ContextEngineServiceOptions } from "@/application/context/context-engine-service";
 import type {
   CachedEntry,
   ContextAssemblyResult,
@@ -12,10 +11,11 @@ import type {
   ITokenBudgetManager,
   LayerBudgetMap,
   LayerId,
-} from "../../../src/application/ports/context";
-import type { MemoryPort, RankedMemoryEntry } from "../../../src/application/ports/memory";
-import type { IToolExecutor } from "../../../src/application/tools/executor";
-import { ContextPlanner } from "../../../src/domain/context/context-planner";
+} from "@/application/ports/context";
+import type { MemoryPort, RankedMemoryEntry } from "@/application/ports/memory";
+import type { IToolExecutor } from "@/application/tools/executor";
+import { ContextPlanner } from "@/domain/context/context-planner";
+import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 
 // ---------------------------------------------------------------------------
 // Shared mock factories
@@ -126,7 +126,7 @@ function makeToolExecutor(opts: {
     invoke: async (name) => {
       if (name === "git_status") {
         if (opts.failGitStatus) {
-          return { ok: false, error: "git command failed" };
+          return { ok: false, error: { type: "runtime" as const, message: "git command failed" } };
         }
         return {
           ok: true,
@@ -135,7 +135,7 @@ function makeToolExecutor(opts: {
       }
       if (name === "read_file") {
         if (opts.failReadFile) {
-          return { ok: false, error: "file not found" };
+          return { ok: false, error: { type: "runtime" as const, message: "file not found" } };
         }
         return { ok: true, value: opts.readFileContent ?? "// file content" };
       }

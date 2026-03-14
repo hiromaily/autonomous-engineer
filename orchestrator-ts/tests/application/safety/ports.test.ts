@@ -1,4 +1,3 @@
-import { describe, expect, it } from "bun:test";
 import type {
   ApprovalDecision,
   AuditEntry,
@@ -8,11 +7,12 @@ import type {
   ISandboxExecutor,
   SandboxExecutionRequest,
   SandboxExecutionResult,
-} from "../../../src/application/safety/ports";
-import { APPROVAL_DECISIONS, AUDIT_OUTCOMES } from "../../../src/application/safety/ports";
-import type { ApprovalRequest } from "../../../src/domain/safety/guards";
-import type { EmergencyStopSource, SafetySession } from "../../../src/domain/safety/types";
-import { createSafetySession } from "../../../src/domain/safety/types";
+} from "@/application/safety/ports";
+import { APPROVAL_DECISIONS, AUDIT_OUTCOMES } from "@/application/safety/ports";
+import type { ApprovalRequest } from "@/domain/safety/guards";
+import type { EmergencyStopSource, SafetySession } from "@/domain/safety/types";
+import { createSafetySession } from "@/domain/safety/types";
+import { describe, expect, it } from "bun:test";
 
 // ---------------------------------------------------------------------------
 // AuditEntry value object shape

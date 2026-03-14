@@ -1,5 +1,5 @@
-import type { LlmProviderPort } from "../../application/ports/llm";
-import type { SddFrameworkPort, SpecContext } from "../../application/ports/sdd";
+import type { LlmProviderPort } from "@/application/ports/llm";
+import type { SddFrameworkPort, SpecContext } from "@/application/ports/sdd";
 import type { WorkflowPhase } from "./types";
 
 export type PhaseResult =

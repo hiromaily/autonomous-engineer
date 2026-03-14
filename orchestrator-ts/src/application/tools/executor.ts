@@ -1,14 +1,14 @@
-import Ajv, { type ValidateFunction as AjvValidateFunction } from "ajv";
-import type { IPermissionSystem } from "../../domain/tools/permissions";
-import type { IToolRegistry } from "../../domain/tools/registry";
-import type { Tool } from "../../domain/tools/types";
+import type { IPermissionSystem } from "@/domain/tools/permissions";
+import type { IToolRegistry } from "@/domain/tools/registry";
+import type { Tool } from "@/domain/tools/types";
 import {
   isTypedToolError,
   type JSONSchema,
   type ToolContext,
   type ToolInvocationLog,
   type ToolResult,
-} from "../../domain/tools/types";
+} from "@/domain/tools/types";
+import Ajv, { type ValidateFunction as AjvValidateFunction } from "ajv";
 
 // ---------------------------------------------------------------------------
 // IToolExecutor port interface

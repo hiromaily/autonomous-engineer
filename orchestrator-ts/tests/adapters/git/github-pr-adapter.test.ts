@@ -1,6 +1,6 @@
+import { GitHubPrAdapter } from "@/adapters/git/github-pr-adapter";
+import type { PullRequestParams } from "@/domain/git/types";
 import { describe, expect, it } from "bun:test";
-import { GitHubPrAdapter } from "../../../src/adapters/git/github-pr-adapter";
-import type { PullRequestParams } from "../../../src/domain/git/types";
 
 // ---------------------------------------------------------------------------
 // Fetch mock helpers
@@ -98,9 +98,7 @@ describe("GitHubPrAdapter", () => {
       await adapter.createOrUpdate(DEFAULT_PARAMS);
 
       // Check that at least one request had the Authorization header
-      const allHeaderObjs = capturedHeaders.map((h) =>
-        h instanceof Headers ? Object.fromEntries(h.entries()) : h,
-      );
+      const allHeaderObjs = capturedHeaders.map((h) => h instanceof Headers ? Object.fromEntries(h.entries()) : h);
       const hasAuth = allHeaderObjs.some(
         (h) => (h as Record<string, string>).Authorization === `Bearer ${DEFAULT_CONFIG.token}`,
       );
@@ -183,7 +181,13 @@ describe("GitHubPrAdapter", () => {
       const mockFetch: MockFetchFn = async (url, init) => {
         const method = init?.method ?? "GET";
         if (method === "GET") {
-          return makeJsonResponse(200, [{ number: 77, html_url: "...", title: "old", base: { ref: "main" }, draft: false }]);
+          return makeJsonResponse(200, [{
+            number: 77,
+            html_url: "...",
+            title: "old",
+            base: { ref: "main" },
+            draft: false,
+          }]);
         }
         if (method === "PATCH") {
           patchUrl = String(url);

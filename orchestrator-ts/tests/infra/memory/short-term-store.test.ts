@@ -1,6 +1,6 @@
+import type { ShortTermState } from "@/application/ports/memory";
+import { InProcessShortTermStore } from "@/infra/memory/short-term-store";
 import { beforeEach, describe, expect, it } from "bun:test";
-import type { ShortTermState } from "../../../src/application/ports/memory";
-import { InProcessShortTermStore } from "../../../src/infra/memory/short-term-store";
 
 // ---------------------------------------------------------------------------
 // Task 5.1: Unit tests for the in-process short-term store

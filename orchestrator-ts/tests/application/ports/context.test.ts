@@ -2,7 +2,6 @@
  * Type-shape tests for application/ports/context.ts
  * Verifies all exports exist with the correct signatures.
  */
-import { describe, expect, it } from "bun:test";
 import type {
   AccumulatedEntry,
   CachedEntry,
@@ -30,7 +29,8 @@ import type {
   StepType,
   TokenBudgetConfig,
   ToolResultEntry,
-} from "../../../src/application/ports/context";
+} from "@/application/ports/context";
+import { describe, expect, it } from "bun:test";
 
 describe("application/ports/context type shapes", () => {
   it("LayerId accepts all seven layer values", () => {
@@ -206,6 +206,7 @@ describe("application/ports/context type shapes", () => {
       content: "some memory",
       phaseId: "phase-1",
       taskId: "task-1",
+      resourceId: undefined,
     };
     expect(entry.phaseId).toBe("phase-1");
   });

@@ -1,6 +1,6 @@
+import { TaskPlanningService } from "@/application/planning/task-planning-service";
+import type { IHumanReviewGateway, PlanReviewDecision } from "@/application/ports/task-planning";
 import { describe, expect, it } from "bun:test";
-import { TaskPlanningService } from "../../../src/application/planning/task-planning-service";
-import type { IHumanReviewGateway, PlanReviewDecision } from "../../../src/application/ports/task-planning";
 import {
   makeAgentLoop,
   makeContextBuilder,

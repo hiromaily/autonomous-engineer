@@ -1,4 +1,4 @@
-import type { CachedEntry, CacheStats, IContextCache } from "../ports/context";
+import type { CachedEntry, CacheStats, IContextCache } from "@/application/ports/context";
 
 interface ContextCacheOptions {
   /** Maximum number of entries before LRU eviction. Default: 50. */

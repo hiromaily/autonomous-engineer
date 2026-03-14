@@ -1,4 +1,3 @@
-import { describe, expect, it } from "bun:test";
 import {
   PLAN_REVIEW_REASONS,
   type PlanEvent,
@@ -10,7 +9,8 @@ import {
   TASK_STATUSES,
   type TaskPlan,
   type TaskStatus,
-} from "../../../src/domain/planning/types";
+} from "@/domain/planning/types";
+import { describe, expect, it } from "bun:test";
 
 // ---------------------------------------------------------------------------
 // StepStatus

@@ -1,11 +1,6 @@
+import type { IWorkflowEventBus, IWorkflowStateStore, WorkflowEvent } from "@/application/ports/workflow";
+import { WORKFLOW_PHASES, type WorkflowPhase, type WorkflowState, type WorkflowStatus } from "@/domain/workflow/types";
 import { describe, expect, it } from "bun:test";
-import type { IWorkflowEventBus, IWorkflowStateStore, WorkflowEvent } from "../../src/application/ports/workflow";
-import {
-  WORKFLOW_PHASES,
-  type WorkflowPhase,
-  type WorkflowState,
-  type WorkflowStatus,
-} from "../../src/domain/workflow/types";
 
 describe("WORKFLOW_PHASES", () => {
   it("contains exactly 7 phases in the correct order", () => {

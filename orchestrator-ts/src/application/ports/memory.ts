@@ -1,4 +1,4 @@
-import type { WorkflowPhase } from "../../domain/workflow/types";
+import type { WorkflowPhase } from "@/domain/workflow/types";
 
 // ---------------------------------------------------------------------------
 // Error types

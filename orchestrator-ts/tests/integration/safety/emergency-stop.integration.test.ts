@@ -14,13 +14,13 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { AuditLogger } from "../../../src/adapters/safety/audit-logger";
-import { EmergencyStopHandler } from "../../../src/application/safety/emergency-stop-handler";
-import { SafetyGuardedToolExecutor } from "../../../src/application/safety/guarded-executor";
-import type { AuditEntry, IApprovalGateway, ISandboxExecutor } from "../../../src/application/safety/ports";
-import type { IToolExecutor } from "../../../src/application/tools/executor";
-import { createSafetyConfig, createSafetySession } from "../../../src/domain/safety/types";
-import type { PermissionSet, ToolContext, ToolInvocationLog } from "../../../src/domain/tools/types";
+import { AuditLogger } from "@/adapters/safety/audit-logger";
+import { EmergencyStopHandler } from "@/application/safety/emergency-stop-handler";
+import { SafetyGuardedToolExecutor } from "@/application/safety/guarded-executor";
+import type { AuditEntry, IApprovalGateway, ISandboxExecutor } from "@/application/safety/ports";
+import type { IToolExecutor } from "@/application/tools/executor";
+import { createSafetyConfig, createSafetySession } from "@/domain/safety/types";
+import type { PermissionSet, ToolContext, ToolInvocationLog } from "@/domain/tools/types";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -203,7 +203,7 @@ describe("EmergencyStopHandler + AuditLogger — integration", () => {
       // Audit entry on disk
       const entries = await readAuditLog(logPath);
       expect(entries.length).toBe(1);
-      const entry = entries[0];
+      const entry = entries[0]!;
       expect(entry.outcome).toBe("emergency-stop");
       expect(entry.sessionId).toBe(session.sessionId);
       // Source kind encoded in inputSummary
@@ -228,8 +228,8 @@ describe("EmergencyStopHandler + AuditLogger — integration", () => {
 
       const entries = await readAuditLog(logPath);
       expect(entries.length).toBe(1);
-      expect(entries[0].outcome).toBe("emergency-stop");
-      expect(entries[0].inputSummary).toContain("resource-exhaustion");
+      expect(entries[0]!.outcome).toBe("emergency-stop");
+      expect(entries[0]!.inputSummary).toContain("resource-exhaustion");
 
       handler.deregister();
     });
@@ -269,11 +269,11 @@ describe("EmergencyStopHandler + AuditLogger — integration", () => {
       for (const line of lines) {
         let parsed: AuditEntry | null = null;
         expect(() => {
-          parsed = JSON.parse(line) as AuditEntry;
+          parsed = JSON.parse(line) as unknown as AuditEntry;
         }).not.toThrow();
         expect(parsed).not.toBeNull();
-        expect((parsed as AuditEntry).sessionId).toBe(session.sessionId);
-        expect((parsed as AuditEntry).outcome).toBe("success");
+        expect((parsed as unknown as AuditEntry).sessionId).toBe(session.sessionId);
+        expect((parsed as unknown as AuditEntry).outcome).toBe("success");
       }
     });
 
@@ -368,7 +368,7 @@ describe("EmergencyStopHandler + AuditLogger — integration", () => {
       // Verify entry written
       const beforeEntries = await readAuditLog(logPath);
       expect(beforeEntries.length).toBe(1);
-      expect(beforeEntries[0].toolName).toBe("original_tool");
+      expect(beforeEntries[0]!.toolName).toBe("original_tool");
 
       // Second logger appends (does not overwrite)
       const logger2 = new AuditLogger(logPath);
@@ -385,8 +385,8 @@ describe("EmergencyStopHandler + AuditLogger — integration", () => {
       const afterEntries = await readAuditLog(logPath);
       expect(afterEntries.length).toBe(2);
       // Original entry must still be intact
-      expect(afterEntries[0].toolName).toBe("original_tool");
-      expect(afterEntries[1].toolName).toBe("subsequent_tool");
+      expect(afterEntries[0]!.toolName).toBe("original_tool");
+      expect(afterEntries[1]!.toolName).toBe("subsequent_tool");
     });
   });
 });

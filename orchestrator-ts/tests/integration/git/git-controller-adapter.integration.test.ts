@@ -20,18 +20,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 
-import { GitControllerAdapter } from "../../../src/adapters/git/git-controller-adapter";
-import { GitIntegrationService } from "../../../src/application/git/git-integration-service";
-import type { IAuditLogger } from "../../../src/application/safety/ports";
-import type { LlmProviderPort } from "../../../src/application/ports/llm";
-import type { IPullRequestProvider } from "../../../src/application/ports/pr-provider";
-import { ToolExecutor } from "../../../src/application/tools/executor";
-import { GitValidator } from "../../../src/domain/git/git-validator";
-import type { GitIntegrationConfig } from "../../../src/domain/git/types";
-import { PermissionSystem } from "../../../src/domain/tools/permissions";
-import { ToolRegistry } from "../../../src/domain/tools/registry";
-import type { PermissionSet, ToolContext, ToolInvocationLog } from "../../../src/domain/tools/types";
-import { GitEventBus } from "../../../src/infra/events/git-event-bus";
+import { GitControllerAdapter } from "@/adapters/git/git-controller-adapter";
 import {
   gitAddTool,
   gitBranchCreateTool,
@@ -40,7 +29,18 @@ import {
   gitCommitTool,
   gitPushTool,
   gitStatusTool,
-} from "../../../src/adapters/tools/git";
+} from "@/adapters/tools/git";
+import { GitIntegrationService } from "@/application/git/git-integration-service";
+import type { LlmProviderPort } from "@/application/ports/llm";
+import type { IPullRequestProvider } from "@/application/ports/pr-provider";
+import type { IAuditLogger } from "@/application/safety/ports";
+import { ToolExecutor } from "@/application/tools/executor";
+import { GitValidator } from "@/domain/git/git-validator";
+import type { GitIntegrationConfig } from "@/domain/git/types";
+import { PermissionSystem } from "@/domain/tools/permissions";
+import { ToolRegistry } from "@/domain/tools/registry";
+import type { PermissionSet, ToolContext, ToolInvocationLog } from "@/domain/tools/types";
+import { GitEventBus } from "@/infra/events/git-event-bus";
 
 const execFile = promisify(execFileCb);
 
@@ -98,15 +98,17 @@ async function makeInitialCommit(dir: string): Promise<void> {
 function makeExecutor() {
   const registry = new ToolRegistry();
   const permSystem = new PermissionSystem();
-  for (const tool of [
-    gitStatusTool,
-    gitCommitTool,
-    gitBranchListTool,
-    gitBranchCreateTool,
-    gitBranchSwitchTool,
-    gitAddTool,
-    gitPushTool,
-  ]) {
+  for (
+    const tool of [
+      gitStatusTool,
+      gitCommitTool,
+      gitBranchListTool,
+      gitBranchCreateTool,
+      gitBranchSwitchTool,
+      gitAddTool,
+      gitPushTool,
+    ]
+  ) {
     registry.register(tool as Parameters<typeof registry.register>[0]);
   }
   return new ToolExecutor(registry, permSystem, { defaultTimeoutMs: 5000, logMaxInputBytes: 256 });

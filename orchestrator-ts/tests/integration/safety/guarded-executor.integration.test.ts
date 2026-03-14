@@ -14,13 +14,13 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { AuditLogger } from "../../../src/adapters/safety/audit-logger";
-import { SafetyGuardedToolExecutor } from "../../../src/application/safety/guarded-executor";
-import type { AuditEntry, IApprovalGateway, ISandboxExecutor } from "../../../src/application/safety/ports";
-import type { IToolExecutor } from "../../../src/application/tools/executor";
-import { createSafetyConfig, createSafetySession } from "../../../src/domain/safety/types";
-import type { SafetyConfig, SafetySession } from "../../../src/domain/safety/types";
-import type { PermissionSet, ToolContext, ToolInvocationLog } from "../../../src/domain/tools/types";
+import { AuditLogger } from "@/adapters/safety/audit-logger";
+import { SafetyGuardedToolExecutor } from "@/application/safety/guarded-executor";
+import type { AuditEntry, IApprovalGateway, ISandboxExecutor } from "@/application/safety/ports";
+import type { IToolExecutor } from "@/application/tools/executor";
+import { createSafetyConfig, createSafetySession } from "@/domain/safety/types";
+import type { SafetyConfig, SafetySession } from "@/domain/safety/types";
+import type { PermissionSet, ToolContext, ToolInvocationLog } from "@/domain/tools/types";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -49,7 +49,12 @@ function makeContext(workspaceRoot: string): ToolContext {
   };
 }
 
-function makeInnerExecutor(result = { ok: true as const, value: { result: "ok" } }): IToolExecutor {
+function makeInnerExecutor(
+  result: { ok: true; value: unknown } | {
+    ok: false;
+    error: { type: "validation" | "runtime" | "permission"; message: string };
+  } = { ok: true, value: { result: "ok" } },
+): IToolExecutor {
   return { invoke: mock(async () => result) };
 }
 
@@ -131,7 +136,7 @@ describe("SafetyGuardedToolExecutor — end-to-end integration", () => {
       const entries = await readAuditLog(logPath);
       expect(entries.length).toBe(1);
 
-      const entry = entries[0];
+      const entry = entries[0]!;
       // All required fields must be present
       expect(entry.timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/); // ISO 8601
       expect(typeof entry.sessionId).toBe("string");
@@ -197,9 +202,9 @@ describe("SafetyGuardedToolExecutor — end-to-end integration", () => {
       await auditLogger.flush();
       const entries = await readAuditLog(logPath);
       expect(entries.length).toBe(1);
-      expect(entries[0].outcome).toBe("blocked");
-      expect(typeof entries[0].blockReason).toBe("string");
-      expect(entries[0].blockReason?.length).toBeGreaterThan(0);
+      expect(entries[0]!.outcome).toBe("blocked");
+      expect(typeof entries[0]!.blockReason).toBe("string");
+      expect(entries[0]!.blockReason?.length).toBeGreaterThan(0);
 
       // The error is returned after the audit entry is written
       expect(result.ok).toBe(false);
@@ -235,8 +240,8 @@ describe("SafetyGuardedToolExecutor — end-to-end integration", () => {
       await auditLogger.flush();
       const entries = await readAuditLog(logPath);
       expect(entries.length).toBe(1);
-      expect(entries[0].outcome).toBe("success");
-      expect(entries[0].approvalDecision).toBe("approved");
+      expect(entries[0]!.outcome).toBe("success");
+      expect(entries[0]!.approvalDecision).toBe("approved");
     });
   });
 
@@ -270,8 +275,8 @@ describe("SafetyGuardedToolExecutor — end-to-end integration", () => {
       await auditLogger.flush();
       const entries = await readAuditLog(logPath);
       expect(entries.length).toBe(1);
-      expect(entries[0].outcome).toBe("blocked");
-      expect(entries[0].approvalDecision).toBe("denied");
+      expect(entries[0]!.outcome).toBe("blocked");
+      expect(entries[0]!.approvalDecision).toBe("denied");
     });
   });
 
@@ -304,8 +309,8 @@ describe("SafetyGuardedToolExecutor — end-to-end integration", () => {
       await auditLogger.flush();
       const entries = await readAuditLog(logPath);
       expect(entries.length).toBe(1);
-      expect(entries[0].outcome).toBe("blocked");
-      expect(entries[0].approvalDecision).toBe("timeout");
+      expect(entries[0]!.outcome).toBe("blocked");
+      expect(entries[0]!.approvalDecision).toBe("timeout");
     });
   });
 
@@ -339,8 +344,8 @@ describe("SafetyGuardedToolExecutor — end-to-end integration", () => {
       await auditLogger.flush();
       const entries = await readAuditLog(logPath);
       expect(entries.length).toBe(1);
-      expect(entries[0].toolName).toBe("run_test_suite");
-      expect(entries[0].outcome).toBe("success");
+      expect(entries[0]!.toolName).toBe("run_test_suite");
+      expect(entries[0]!.outcome).toBe("success");
     });
   });
 
@@ -388,7 +393,7 @@ describe("SafetyGuardedToolExecutor — end-to-end integration", () => {
       const entries = await readAuditLog(logPath);
       // maxIterations success entries + 1 blocked entry
       expect(entries.length).toBe(maxIterations + 1);
-      const lastEntry = entries[entries.length - 1];
+      const lastEntry = entries[entries.length - 1]!;
       expect(lastEntry.outcome).toBe("blocked");
       expect(typeof lastEntry.blockReason).toBe("string");
       expect(lastEntry.blockReason as string).toContain("iterations");

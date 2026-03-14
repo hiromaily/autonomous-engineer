@@ -1,7 +1,7 @@
+import type { Tool, ToolContext } from "@/domain/tools/types";
 import { readdir } from "node:fs/promises";
 import { join, resolve as resolvePath } from "node:path";
 import * as ts from "typescript";
-import type { Tool, ToolContext } from "../../domain/tools/types";
 import { resolveWorkspacePath } from "./filesystem";
 
 // ---------------------------------------------------------------------------

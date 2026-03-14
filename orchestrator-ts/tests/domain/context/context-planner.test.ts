@@ -2,9 +2,9 @@
  * Unit tests for domain/context/context-planner.ts (Task 3, Task 10.1)
  * TDD: tests written before implementation.
  */
+import type { LayerId, ToolResultEntry } from "@/application/ports/context";
+import { ContextPlanner } from "@/domain/context/context-planner";
 import { describe, expect, it } from "bun:test";
-import type { LayerId, ToolResultEntry } from "../../../src/application/ports/context";
-import { ContextPlanner } from "../../../src/domain/context/context-planner";
 
 const noTools: ReadonlyArray<ToolResultEntry> = [];
 

@@ -5,11 +5,11 @@
  * track interactions return an object with both the mock and the capture array.
  */
 
-import type { AgentLoopResult, IAgentLoop } from "../../../src/application/ports/agent-loop";
-import type { LlmProviderPort, LlmResult } from "../../../src/application/ports/llm";
-import type { IPlanContextBuilder, IPlanEventBus, ITaskPlanStore } from "../../../src/application/ports/task-planning";
-import type { AgentState } from "../../../src/domain/agent/types";
-import type { PlanEvent, TaskPlan } from "../../../src/domain/planning/types";
+import type { AgentLoopResult, IAgentLoop } from "@/application/ports/agent-loop";
+import type { LlmProviderPort, LlmResult } from "@/application/ports/llm";
+import type { IPlanContextBuilder, IPlanEventBus, ITaskPlanStore } from "@/application/ports/task-planning";
+import type { AgentState } from "@/domain/agent/types";
+import type { PlanEvent, TaskPlan } from "@/domain/planning/types";
 
 // ---------------------------------------------------------------------------
 // LLM plan body builders
@@ -249,7 +249,7 @@ export function makeBooleanAgentLoop(
         taskArgs.push(task);
         const taskCompleted = results[idx++] ?? defaultResult;
         return {
-          terminationCondition: taskCompleted ? "TASK_COMPLETED" : "MAX_ITERATIONS",
+          terminationCondition: taskCompleted ? "TASK_COMPLETED" : "MAX_ITERATIONS_REACHED",
           finalState: {} as AgentState,
           totalIterations: 1,
           taskCompleted,

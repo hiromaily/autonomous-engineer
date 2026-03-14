@@ -3,22 +3,17 @@
 // tests/application/git/git-integration-service-5.4.test.ts
 // ---------------------------------------------------------------------------
 
-import { describe, it, expect } from "bun:test";
-import { GitIntegrationService } from "../../../src/application/git/git-integration-service";
-import type { IGitController } from "../../../src/application/ports/git-controller";
-import type { IPullRequestProvider, PrResult } from "../../../src/application/ports/pr-provider";
-import type { IGitEventBus } from "../../../src/application/ports/git-event-bus";
-import type { IAuditLogger, AuditEntry } from "../../../src/application/safety/ports";
-import type { LlmProviderPort } from "../../../src/application/ports/llm";
-import type { IGitValidator } from "../../../src/domain/git/git-validator";
-import type {
-  GitIntegrationConfig,
-  GitEvent,
-  PullRequestResult,
-  PullRequestParams,
-} from "../../../src/domain/git/types";
-import type { GitWorkflowParams } from "../../../src/application/git/git-integration-service";
-import type { PermissionSet } from "../../../src/domain/tools/types";
+import { GitIntegrationService } from "@/application/git/git-integration-service";
+import type { GitWorkflowParams } from "@/application/git/git-integration-service";
+import type { IGitController } from "@/application/ports/git-controller";
+import type { IGitEventBus } from "@/application/ports/git-event-bus";
+import type { LlmProviderPort } from "@/application/ports/llm";
+import type { IPullRequestProvider, PrResult } from "@/application/ports/pr-provider";
+import type { AuditEntry, IAuditLogger } from "@/application/safety/ports";
+import type { IGitValidator } from "@/domain/git/git-validator";
+import type { GitEvent, GitIntegrationConfig, PullRequestParams, PullRequestResult } from "@/domain/git/types";
+import type { PermissionSet } from "@/domain/tools/types";
+import { describe, expect, it } from "bun:test";
 
 // ---------------------------------------------------------------------------
 // Test helpers
@@ -106,7 +101,10 @@ function makeGitController(): IGitController {
   return {
     listBranches: async () => ({ ok: true, value: [] }),
     detectChanges: async () => ({ ok: true, value: { staged: [], unstaged: [], untracked: [] } }),
-    createAndCheckoutBranch: async (b, base) => ({ ok: true, value: { branchName: b, baseBranch: base, conflictResolved: false } }),
+    createAndCheckoutBranch: async (b, base) => ({
+      ok: true,
+      value: { branchName: b, baseBranch: base, conflictResolved: false },
+    }),
     stageAndCommit: async () => ({ ok: false, error: { type: "runtime", message: "n/a" } }),
     push: async () => ({ ok: false, error: { type: "runtime", message: "n/a" } }),
   };
@@ -128,7 +126,13 @@ function makeEventBus(): IGitEventBus & { emitted: GitEvent[] } {
 
 function makeAuditLogger(): IAuditLogger & { entries: AuditEntry[] } {
   const entries: AuditEntry[] = [];
-  return { entries, write: async (e) => { entries.push(e); }, flush: async () => {} };
+  return {
+    entries,
+    write: async (e) => {
+      entries.push(e);
+    },
+    flush: async () => {},
+  };
 }
 
 function makeService(overrides?: {
@@ -348,7 +352,10 @@ describe("GitIntegrationService.createOrUpdatePullRequest — task 5.4", () => {
   describe("auth failure handling", () => {
     it("emits pr-creation-auth-failed when PrProvider returns auth error", async () => {
       const { service, eventBus } = makeService({
-        prProvider: makePrProvider({ ok: false, error: { category: "auth", message: "401 Unauthorized", statusCode: 401 } }),
+        prProvider: makePrProvider({
+          ok: false,
+          error: { category: "auth", message: "401 Unauthorized", statusCode: 401 },
+        }),
       });
       await service.createOrUpdatePullRequest(makeWorkflowParams());
       const event = eventBus.emitted.find((e) => e.type === "pr-creation-auth-failed");

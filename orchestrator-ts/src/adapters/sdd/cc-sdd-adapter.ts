@@ -1,5 +1,5 @@
+import type { SddFrameworkPort, SddOperationResult, SpecContext } from "@/application/ports/sdd";
 import { join } from "node:path";
-import type { SddFrameworkPort, SddOperationResult, SpecContext } from "../../application/ports/sdd";
 
 export type SpawnFn = (argv: readonly string[]) => {
   readonly exited: Promise<number>;

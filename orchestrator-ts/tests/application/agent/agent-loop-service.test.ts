@@ -1,16 +1,11 @@
+import { AgentLoopService } from "@/application/agent/agent-loop-service";
+import type { AgentLoopLogger, IAgentEventBus, IAgentLoop, IContextProvider } from "@/application/ports/agent-loop";
+import type { LlmProviderPort } from "@/application/ports/llm";
+import type { IToolExecutor } from "@/application/tools/executor";
+import type { AgentLoopEvent, AgentState, ReflectionOutput } from "@/domain/agent/types";
+import type { IToolRegistry } from "@/domain/tools/registry";
+import type { MemoryEntry, ToolContext } from "@/domain/tools/types";
 import { describe, expect, it } from "bun:test";
-import { AgentLoopService } from "../../../src/application/agent/agent-loop-service";
-import type {
-  AgentLoopLogger,
-  IAgentEventBus,
-  IAgentLoop,
-  IContextProvider,
-} from "../../../src/application/ports/agent-loop";
-import type { LlmProviderPort } from "../../../src/application/ports/llm";
-import type { IToolExecutor } from "../../../src/application/tools/executor";
-import type { AgentLoopEvent, AgentState, ReflectionOutput } from "../../../src/domain/agent/types";
-import type { IToolRegistry, } from "../../../src/domain/tools/registry";
-import type { MemoryEntry, ToolContext } from "../../../src/domain/tools/types";
 
 // ---------------------------------------------------------------------------
 // Test helpers — minimal mocks satisfying each injected interface
@@ -924,7 +919,10 @@ describe("AgentLoopService REFLECT step", () => {
             },
           };
         }
-        return { ok: false, error: { code: "api_error", message: "LLM unavailable" } };
+        return {
+          ok: false,
+          error: { category: "api_error" as const, message: "LLM unavailable", originalError: undefined },
+        };
       },
       clearContext() {},
     };
@@ -2440,7 +2438,7 @@ describe("AgentLoopService task 8.2 — error path logging", () => {
     const logger = {
       info(_msg: string, _data?: Readonly<Record<string, unknown>>) {},
       error(msg: string, data?: Readonly<Record<string, unknown>>) {
-        errors.push({ msg, data });
+        errors.push({ msg, ...(data !== undefined ? { data } : {}) });
       },
     };
 
@@ -2455,7 +2453,7 @@ describe("AgentLoopService task 8.2 — error path logging", () => {
     const logger = {
       info(_msg: string, _data?: Readonly<Record<string, unknown>>) {},
       error(msg: string, data?: Readonly<Record<string, unknown>>) {
-        errors.push({ msg, data });
+        errors.push({ msg, ...(data !== undefined ? { data } : {}) });
       },
     };
 
@@ -2471,7 +2469,7 @@ describe("AgentLoopService task 8.2 — error path logging", () => {
     const logger = {
       info(_msg: string, _data?: Readonly<Record<string, unknown>>) {},
       error(msg: string, data?: Readonly<Record<string, unknown>>) {
-        errors.push({ msg, data });
+        errors.push({ msg, ...(data !== undefined ? { data } : {}) });
       },
     };
 
@@ -2519,7 +2517,7 @@ describe("AgentLoopService task 8.2 — state query during execution", () => {
     svc = new AgentLoopService(executor, makeRegistry(), makeCycledLlm(), makeToolContext());
     await svc.run("my-special-task", { maxIterations: 1 });
 
-    expect(snapshotDuringExecution?.task).toBe("my-special-task");
+    expect((snapshotDuringExecution as Readonly<AgentState> | null)?.task).toBe("my-special-task");
   });
 
   it("getState() snapshot during execution includes iterationCount and completedSteps", async () => {
@@ -2536,8 +2534,8 @@ describe("AgentLoopService task 8.2 — state query during execution", () => {
     svc = new AgentLoopService(executor, makeRegistry(), makeCycledLlm(), makeToolContext());
     await svc.run("test", { maxIterations: 1 });
 
-    expect(typeof snapshotDuringExecution?.iterationCount).toBe("number");
-    expect(Array.isArray(snapshotDuringExecution?.completedSteps)).toBe(true);
+    expect(typeof (snapshotDuringExecution as Readonly<AgentState> | null)?.iterationCount).toBe("number");
+    expect(Array.isArray((snapshotDuringExecution as Readonly<AgentState> | null)?.completedSteps)).toBe(true);
   });
 });
 

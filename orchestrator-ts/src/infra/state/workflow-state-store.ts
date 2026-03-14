@@ -1,7 +1,7 @@
+import type { IWorkflowStateStore } from "@/application/ports/workflow";
+import type { WorkflowState } from "@/domain/workflow/types";
 import { mkdir, open, readFile, rename } from "node:fs/promises";
 import { join } from "node:path";
-import type { IWorkflowStateStore } from "../../application/ports/workflow";
-import type { WorkflowState } from "../../domain/workflow/types";
 
 export class WorkflowStateStore implements IWorkflowStateStore {
   constructor(private readonly cwd: string = process.cwd()) {}

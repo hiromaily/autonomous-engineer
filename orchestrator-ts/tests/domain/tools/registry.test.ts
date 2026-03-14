@@ -1,6 +1,6 @@
+import { ToolRegistry } from "@/domain/tools/registry";
+import type { MemoryEntry, Tool, ToolContext } from "@/domain/tools/types";
 import { describe, expect, it } from "bun:test";
-import { ToolRegistry } from "../../../src/domain/tools/registry";
-import type { MemoryEntry, Tool, ToolContext } from "../../../src/domain/tools/types";
 
 // ---------------------------------------------------------------------------
 // Test helpers

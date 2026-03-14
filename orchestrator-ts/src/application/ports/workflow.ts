@@ -1,4 +1,4 @@
-import type { WorkflowPhase, WorkflowState } from "../../domain/workflow/types";
+import type { WorkflowPhase, WorkflowState } from "@/domain/workflow/types";
 
 export type WorkflowEvent =
   | { readonly type: "phase:start"; readonly phase: WorkflowPhase; readonly timestamp: string }

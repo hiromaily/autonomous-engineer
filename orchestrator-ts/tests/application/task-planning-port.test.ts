@@ -1,4 +1,3 @@
-import { describe, expect, it } from "bun:test";
 import type {
   IHumanReviewGateway,
   IPlanContextBuilder,
@@ -10,8 +9,9 @@ import type {
   TaskPlannerOptions,
   TaskPlanOutcome,
   TaskPlanResult,
-} from "../../src/application/ports/task-planning";
-import type { PlanEvent, PlanReviewReason, TaskPlan } from "../../src/domain/planning/types";
+} from "@/application/ports/task-planning";
+import type { PlanEvent, PlanReviewReason, TaskPlan } from "@/domain/planning/types";
+import { describe, expect, it } from "bun:test";
 
 // ---------------------------------------------------------------------------
 // Test helpers
@@ -478,7 +478,7 @@ describe("TaskPlannerLogger contract (mock implementation)", () => {
 
     const logger: TaskPlannerLogger = {
       info(message, data) {
-        logs.push({ message, data });
+        logs.push({ message, ...(data !== undefined ? { data } : {}) });
       },
       error() {},
     };
@@ -495,7 +495,7 @@ describe("TaskPlannerLogger contract (mock implementation)", () => {
     const logger: TaskPlannerLogger = {
       info() {},
       error(message, data) {
-        errors.push({ message, data });
+        errors.push({ message, ...(data !== undefined ? { data } : {}) });
       },
     };
 

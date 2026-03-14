@@ -1,4 +1,4 @@
-import type { WorkflowEvent } from "../application/ports/workflow";
+import type { WorkflowEvent } from "@/application/ports/workflow";
 
 /**
  * Renders workflow events as human-readable terminal output.

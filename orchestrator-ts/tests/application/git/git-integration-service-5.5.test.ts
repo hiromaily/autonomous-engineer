@@ -3,22 +3,17 @@
 // tests/application/git/git-integration-service-5.5.test.ts
 // ---------------------------------------------------------------------------
 
-import { describe, it, expect } from "bun:test";
-import { GitIntegrationService } from "../../../src/application/git/git-integration-service";
-import type { IGitController } from "../../../src/application/ports/git-controller";
-import type { IPullRequestProvider, PrResult } from "../../../src/application/ports/pr-provider";
-import type { IGitEventBus } from "../../../src/application/ports/git-event-bus";
-import type { IAuditLogger, AuditEntry } from "../../../src/application/safety/ports";
-import type { LlmProviderPort } from "../../../src/application/ports/llm";
-import type { IGitValidator } from "../../../src/domain/git/git-validator";
-import type {
-  GitIntegrationConfig,
-  GitEvent,
-  PullRequestResult,
-  PullRequestParams,
-} from "../../../src/domain/git/types";
-import type { GitWorkflowParams } from "../../../src/application/git/git-integration-service";
-import type { PermissionSet } from "../../../src/domain/tools/types";
+import { GitIntegrationService } from "@/application/git/git-integration-service";
+import type { GitWorkflowParams } from "@/application/git/git-integration-service";
+import type { IGitController } from "@/application/ports/git-controller";
+import type { IGitEventBus } from "@/application/ports/git-event-bus";
+import type { LlmProviderPort } from "@/application/ports/llm";
+import type { IPullRequestProvider, PrResult } from "@/application/ports/pr-provider";
+import type { AuditEntry, IAuditLogger } from "@/application/safety/ports";
+import type { IGitValidator } from "@/domain/git/git-validator";
+import type { GitEvent, GitIntegrationConfig, PullRequestParams, PullRequestResult } from "@/domain/git/types";
+import type { PermissionSet } from "@/domain/tools/types";
+import { describe, expect, it } from "bun:test";
 
 // ---------------------------------------------------------------------------
 // Test helpers
@@ -118,7 +113,13 @@ function makeEventBus(): IGitEventBus & { emitted: GitEvent[] } {
 
 function makeAuditLogger(): IAuditLogger & { entries: AuditEntry[] } {
   const entries: AuditEntry[] = [];
-  return { entries, write: async (e) => { entries.push(e); }, flush: async () => {} };
+  return {
+    entries,
+    write: async (e) => {
+      entries.push(e);
+    },
+    flush: async () => {},
+  };
 }
 
 function _makeLlmWithJson(title = "feat: implement", body = "PR body"): LlmProviderPort & { prompts: string[] } {
@@ -151,7 +152,10 @@ function makeLlmWithCommitAndPr(): LlmProviderPort & { prompts: string[] } {
       // Second call: PR title and body
       return {
         ok: true,
-        value: { content: JSON.stringify({ title: "feat: implement", body: "PR description" }), usage: { inputTokens: 20, outputTokens: 10 } },
+        value: {
+          content: JSON.stringify({ title: "feat: implement", body: "PR description" }),
+          usage: { inputTokens: 20, outputTokens: 10 },
+        },
       };
     },
     clearContext: () => {},
@@ -192,7 +196,11 @@ function makeService(overrides?: {
   const auditLogger = overrides?.auditLogger ?? makeAuditLogger();
   const llm = overrides?.llm ?? makeLlmWithCommitAndPr();
   const permissions: PermissionSet = overrides?.permissions ?? {
-    filesystemRead: true, filesystemWrite: true, shellExecution: false, gitWrite: true, networkAccess: true,
+    filesystemRead: true,
+    filesystemWrite: true,
+    shellExecution: false,
+    gitWrite: true,
+    networkAccess: true,
   };
 
   const service = new GitIntegrationService(
@@ -378,7 +386,13 @@ describe("GitIntegrationService.runFullWorkflow — task 5.5", () => {
             if (capturedPrompts.length === 1) {
               return { ok: true, value: { content: "feat: commit", usage: { inputTokens: 5, outputTokens: 2 } } };
             }
-            return { ok: true, value: { content: JSON.stringify({ title: "PR", body: "body" }), usage: { inputTokens: 5, outputTokens: 2 } } };
+            return {
+              ok: true,
+              value: {
+                content: JSON.stringify({ title: "PR", body: "body" }),
+                usage: { inputTokens: 5, outputTokens: 2 },
+              },
+            };
           },
           clearContext: () => {},
         },

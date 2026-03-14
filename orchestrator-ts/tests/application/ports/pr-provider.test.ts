@@ -1,6 +1,6 @@
+import type { IPullRequestProvider, PrError, PrErrorCategory, PrResult } from "@/application/ports/pr-provider";
+import type { PullRequestParams, PullRequestResult } from "@/domain/git/types";
 import { describe, expect, it } from "bun:test";
-import type { IPullRequestProvider, PrError, PrErrorCategory, PrResult } from "../../../src/application/ports/pr-provider";
-import type { PullRequestParams, PullRequestResult } from "../../../src/domain/git/types";
 
 // ---------------------------------------------------------------------------
 // Helper: build a minimal stub that satisfies IPullRequestProvider

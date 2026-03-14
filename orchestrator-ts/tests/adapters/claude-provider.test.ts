@@ -1,6 +1,6 @@
+import { ClaudeProvider } from "@/adapters/llm/claude-provider";
 import Anthropic from "@anthropic-ai/sdk";
 import { describe, expect, it, mock } from "bun:test";
-import { ClaudeProvider } from "../../src/adapters/llm/claude-provider";
 
 // ---------------------------------------------------------------------------
 // Minimal Anthropic API response shape

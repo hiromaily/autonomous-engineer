@@ -1,3 +1,6 @@
+import type { AgentLoopOptions, AgentLoopResult, IAgentLoop, IContextProvider } from "@/application/ports/agent-loop";
+import type { LlmProviderPort } from "@/application/ports/llm";
+import type { IToolExecutor } from "@/application/tools/executor";
 import type {
   ActionCategory,
   ActionPlan,
@@ -8,13 +11,10 @@ import type {
   ReflectionAssessment,
   ReflectionOutput,
   TerminationCondition,
-} from "../../domain/agent/types";
-import { ACTION_CATEGORIES } from "../../domain/agent/types";
-import type { IToolRegistry, ToolListEntry } from "../../domain/tools/registry";
-import type { ToolContext } from "../../domain/tools/types";
-import type { AgentLoopOptions, AgentLoopResult, IAgentLoop, IContextProvider } from "../ports/agent-loop";
-import type { LlmProviderPort } from "../ports/llm";
-import type { IToolExecutor } from "../tools/executor";
+} from "@/domain/agent/types";
+import { ACTION_CATEGORIES } from "@/domain/agent/types";
+import type { IToolRegistry, ToolListEntry } from "@/domain/tools/registry";
+import type { ToolContext } from "@/domain/tools/types";
 
 // ---------------------------------------------------------------------------
 // Constants

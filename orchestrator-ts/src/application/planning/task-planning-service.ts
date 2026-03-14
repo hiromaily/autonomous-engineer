@@ -1,8 +1,5 @@
-import { z } from "zod";
-import { PlanValidator } from "../../domain/planning/plan-validator";
-import type { PlanEvent, PlanReviewReason, Step, StepStatus, TaskPlan, TaskStatus } from "../../domain/planning/types";
-import type { AgentLoopResult, IAgentLoop } from "../ports/agent-loop";
-import type { LlmProviderPort } from "../ports/llm";
+import type { AgentLoopResult, IAgentLoop } from "@/application/ports/agent-loop";
+import type { LlmProviderPort } from "@/application/ports/llm";
 import type {
   IHumanReviewGateway,
   IPlanContextBuilder,
@@ -10,7 +7,10 @@ import type {
   ITaskPlanStore,
   TaskPlannerOptions,
   TaskPlanResult,
-} from "../ports/task-planning";
+} from "@/application/ports/task-planning";
+import { PlanValidator } from "@/domain/planning/plan-validator";
+import type { PlanEvent, PlanReviewReason, Step, StepStatus, TaskPlan, TaskStatus } from "@/domain/planning/types";
+import { z } from "zod";
 
 // ---------------------------------------------------------------------------
 // Internal constants
@@ -581,7 +581,12 @@ export class TaskPlanningService implements ITaskPlanner {
       const agentResult = await this.#agentLoop.run(taskDesc, agentLoopOptions);
       if (agentResult.taskCompleted) {
         const sig = this.#extractRevisionSignal(agentResult);
-        return { success: true, failureSummary: "", revisedPlan: sig?.revisedPlan, revisionReason: sig?.reason };
+        return {
+          success: true,
+          failureSummary: "",
+          ...(sig?.revisedPlan !== undefined ? { revisedPlan: sig.revisedPlan } : {}),
+          ...(sig?.reason !== undefined ? { revisionReason: sig.reason } : {}),
+        };
       }
 
       lastTerminationCondition = String(agentResult.terminationCondition ?? "step failed");
@@ -610,7 +615,12 @@ export class TaskPlanningService implements ITaskPlanner {
       const revisionResult = await this.#agentLoop.run(revisedDescription, agentLoopOptions);
       if (revisionResult.taskCompleted) {
         const sig = this.#extractRevisionSignal(revisionResult);
-        return { success: true, failureSummary: "", revisedPlan: sig?.revisedPlan, revisionReason: sig?.reason };
+        return {
+          success: true,
+          failureSummary: "",
+          ...(sig?.revisedPlan !== undefined ? { revisedPlan: sig.revisedPlan } : {}),
+          ...(sig?.reason !== undefined ? { revisionReason: sig.reason } : {}),
+        };
       }
     }
 

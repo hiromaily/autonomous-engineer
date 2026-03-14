@@ -1,4 +1,3 @@
-import { describe, expect, it } from "bun:test";
 import {
   EXECUTION_MODES,
   type ExecutionMode,
@@ -15,7 +14,8 @@ import {
   type ToolErrorType,
   type ToolInvocationLog,
   type ToolResult,
-} from "../../../src/domain/tools/types";
+} from "@/domain/tools/types";
+import { describe, expect, it } from "bun:test";
 
 // ---------------------------------------------------------------------------
 // PermissionFlag

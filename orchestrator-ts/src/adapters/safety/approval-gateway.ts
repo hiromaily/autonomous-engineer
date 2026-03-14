@@ -1,6 +1,6 @@
+import type { ApprovalDecision, IApprovalGateway } from "@/application/safety/ports";
+import type { ApprovalRequest } from "@/domain/safety/guards";
 import { createInterface } from "node:readline";
-import type { ApprovalDecision, IApprovalGateway } from "../../application/safety/ports";
-import type { ApprovalRequest } from "../../domain/safety/guards";
 
 /**
  * Factory function that presents a question to the user and awaits input.

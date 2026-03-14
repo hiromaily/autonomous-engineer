@@ -14,16 +14,17 @@
  * Requirements: 2.1, 4.1, 4.2, 5.1, 5.2, 5.4, 6.1, 7.4, 8.1, 8.2, 8.3, 8.5
  */
 
+import { TaskPlanningService } from "@/application/planning/task-planning-service";
+import type { AgentLoopResult, IAgentLoop } from "@/application/ports/agent-loop";
+import type { LlmProviderPort, LlmResult } from "@/application/ports/llm";
+import type { IPlanContextBuilder } from "@/application/ports/task-planning";
+import type { AgentState } from "@/domain/agent/types";
+import type { TaskPlan } from "@/domain/planning/types";
+import { PlanFileStore } from "@/infra/planning/plan-file-store";
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { TaskPlanningService } from "../../src/application/planning/task-planning-service";
-import type { AgentLoopResult, IAgentLoop } from "../../src/application/ports/agent-loop";
-import type { LlmProviderPort, LlmResult } from "../../src/application/ports/llm";
-import type { IPlanContextBuilder } from "../../src/application/ports/task-planning";
-import type { AgentState, TaskPlan } from "../../src/domain/planning/types";
-import { PlanFileStore } from "../../src/infra/planning/plan-file-store";
 
 // ---------------------------------------------------------------------------
 // Stub factories
@@ -112,7 +113,7 @@ function makeSequencedAgentLoop(
         calls++;
         const taskCompleted = results[idx++] ?? defaultSuccess;
         return {
-          terminationCondition: taskCompleted ? "TASK_COMPLETED" : "MAX_ITERATIONS",
+          terminationCondition: taskCompleted ? "TASK_COMPLETED" : "MAX_ITERATIONS_REACHED",
           totalIterations: 1,
           taskCompleted,
           finalState: {
@@ -639,7 +640,7 @@ describe("TaskPlanning integration — task 7.3: dependency failure cascade", ()
     return {
       async run(): Promise<AgentLoopResult> {
         return {
-          terminationCondition: "MAX_ITERATIONS",
+          terminationCondition: "MAX_ITERATIONS_REACHED",
           totalIterations: 1,
           taskCompleted: false,
           finalState: {

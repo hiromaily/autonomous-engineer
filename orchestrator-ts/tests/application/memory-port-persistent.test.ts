@@ -1,4 +1,3 @@
-import { describe, expect, it } from "bun:test";
 import type {
   FailureFilter,
   FailureRecord,
@@ -16,7 +15,8 @@ import type {
   RankedMemoryEntry,
   ShortTermMemoryPort,
   ShortTermState,
-} from "../../src/application/ports/memory";
+} from "@/application/ports/memory";
+import { describe, expect, it } from "bun:test";
 
 // ---------------------------------------------------------------------------
 // MemoryTarget discriminated union

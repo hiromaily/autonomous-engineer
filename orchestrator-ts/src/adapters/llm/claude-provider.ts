@@ -1,5 +1,5 @@
+import type { LlmCompleteOptions, LlmErrorCategory, LlmProviderPort, LlmResult } from "@/application/ports/llm";
 import Anthropic from "@anthropic-ai/sdk";
-import type { LlmCompleteOptions, LlmErrorCategory, LlmProviderPort, LlmResult } from "../../application/ports/llm";
 
 export interface ClaudeProviderConfig {
   readonly apiKey: string;

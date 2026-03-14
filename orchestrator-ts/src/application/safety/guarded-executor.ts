@@ -1,20 +1,20 @@
-import { API_REQUEST_TOOLS, REPO_WRITE_TOOLS } from "../../domain/safety/constants";
-import type { ISafetyGuard, SafetyContext } from "../../domain/safety/guards";
+import type { IToolExecutor } from "@/application/tools/executor";
+import { API_REQUEST_TOOLS, REPO_WRITE_TOOLS } from "@/domain/safety/constants";
+import type { ISafetyGuard, SafetyContext } from "@/domain/safety/guards";
 import {
   DestructiveActionGuard,
   FailureDetectionGuard,
   IterationLimitGuard,
   RateLimitGuard,
-} from "../../domain/safety/stateful-guards";
+} from "@/domain/safety/stateful-guards";
 import {
   FilesystemGuard,
   GitSafetyGuard,
   ShellRestrictionGuard,
   WorkspaceIsolationGuard,
-} from "../../domain/safety/stateless-guards";
-import type { SafetyConfig, SafetySession } from "../../domain/safety/types";
-import type { ToolContext, ToolResult } from "../../domain/tools/types";
-import type { IToolExecutor } from "../tools/executor";
+} from "@/domain/safety/stateless-guards";
+import type { SafetyConfig, SafetySession } from "@/domain/safety/types";
+import type { ToolContext, ToolResult } from "@/domain/tools/types";
 import type { AuditEntry, IApprovalGateway, IAuditLogger, ISandboxExecutor } from "./ports";
 
 // ---------------------------------------------------------------------------
@@ -124,8 +124,9 @@ export class SafetyGuardedToolExecutor implements IToolExecutor {
     for (const guard of sessionGuards) {
       const result = await guard.check(name, rawInput, safetyCtx);
       if (!result.allowed) {
+        const msg = result.error?.message;
         await this.#writeAudit(name, rawInput, iterationNumber, "blocked", {
-          blockReason: result.error?.message,
+          ...(msg !== undefined ? { blockReason: msg } : {}),
         });
         return { ok: false, error: result.error ?? { type: "permission", message: "blocked by guard" } };
       }
@@ -143,8 +144,9 @@ export class SafetyGuardedToolExecutor implements IToolExecutor {
     for (const guard of toolGuards) {
       const result = await guard.check(name, rawInput, safetyCtx);
       if (!result.allowed) {
+        const msg = result.error?.message;
         await this.#writeAudit(name, rawInput, iterationNumber, "blocked", {
-          blockReason: result.error?.message,
+          ...(msg !== undefined ? { blockReason: msg } : {}),
         });
         return { ok: false, error: result.error ?? { type: "permission", message: "blocked by guard" } };
       }
@@ -176,8 +178,9 @@ export class SafetyGuardedToolExecutor implements IToolExecutor {
         };
       }
     } else if (!destructiveResult.allowed) {
+      const msg = destructiveResult.error?.message;
       await this.#writeAudit(name, rawInput, iterationNumber, "blocked", {
-        blockReason: destructiveResult.error?.message,
+        ...(msg !== undefined ? { blockReason: msg } : {}),
       });
       return { ok: false, error: destructiveResult.error ?? { type: "permission", message: "blocked by guard" } };
     }
@@ -187,8 +190,9 @@ export class SafetyGuardedToolExecutor implements IToolExecutor {
     // -----------------------------------------------------------------------
     const rateLimitResult = await this.#rateLimitGuard.check(name, rawInput, safetyCtx);
     if (!rateLimitResult.allowed) {
+      const msg = rateLimitResult.error?.message;
       await this.#writeAudit(name, rawInput, iterationNumber, "blocked", {
-        blockReason: rateLimitResult.error?.message,
+        ...(msg !== undefined ? { blockReason: msg } : {}),
       });
       return { ok: false, error: rateLimitResult.error ?? { type: "permission", message: "blocked by guard" } };
     }
@@ -223,9 +227,10 @@ export class SafetyGuardedToolExecutor implements IToolExecutor {
     // 11. Post-execution: write audit, update session state
     // -----------------------------------------------------------------------
     const outcome = toolResult.ok ? "success" : "error";
+    const errorDetails = !toolResult.ok ? toolResult.error.message : undefined;
     await this.#writeAudit(name, rawInput, iterationNumber, outcome, {
-      approvalDecision,
-      errorDetails: !toolResult.ok ? toolResult.error.message : undefined,
+      ...(approvalDecision !== undefined ? { approvalDecision } : {}),
+      ...(errorDetails !== undefined ? { errorDetails } : {}),
     });
 
     // Update session counters

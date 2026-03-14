@@ -1,4 +1,3 @@
-import { describe, expect, it } from "bun:test";
 import type {
   LlmCompleteOptions,
   LlmError,
@@ -6,7 +5,8 @@ import type {
   LlmProviderPort,
   LlmResponse,
   LlmResult,
-} from "../../src/application/ports/llm";
+} from "@/application/ports/llm";
+import { describe, expect, it } from "bun:test";
 
 // ---------------------------------------------------------------------------
 // Helper: build a minimal mock that satisfies LlmProviderPort

@@ -2,14 +2,9 @@
  * Unit tests for domain/context/layer-registry.ts (Task 2)
  * TDD: tests written before implementation.
  */
+import type { LayerId } from "@/application/ports/context";
+import { getLayerByIndex, getLayerEntry, getLayersInOrder, LAYER_REGISTRY } from "@/domain/context/layer-registry";
 import { describe, expect, it } from "bun:test";
-import type { LayerId } from "../../../src/application/ports/context";
-import {
-  getLayerByIndex,
-  getLayerEntry,
-  getLayersInOrder,
-  LAYER_REGISTRY,
-} from "../../../src/domain/context/layer-registry";
 
 describe("LayerRegistry", () => {
   describe("LAYER_REGISTRY constant", () => {
@@ -93,8 +88,8 @@ describe("LayerRegistry", () => {
     it("returns all seven layers in canonical order", () => {
       const layers = getLayersInOrder();
       expect(layers.length).toBe(7);
-      expect(layers[0].id).toBe("systemInstructions");
-      expect(layers[6].id).toBe("toolResults");
+      expect(layers[0]!.id).toBe("systemInstructions");
+      expect(layers[6]!.id).toBe("toolResults");
     });
 
     it("returns a new array (not the original frozen constant)", () => {

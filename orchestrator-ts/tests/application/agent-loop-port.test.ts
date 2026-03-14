@@ -1,4 +1,3 @@
-import { describe, expect, it } from "bun:test";
 import type {
   AgentLoopLogger,
   AgentLoopOptions,
@@ -6,8 +5,9 @@ import type {
   IAgentEventBus,
   IAgentLoop,
   IContextProvider,
-} from "../../src/application/ports/agent-loop";
-import type { AgentLoopEvent, AgentState } from "../../src/domain/agent/types";
+} from "@/application/ports/agent-loop";
+import type { AgentLoopEvent, AgentState } from "@/domain/agent/types";
+import { describe, expect, it } from "bun:test";
 
 // ---------------------------------------------------------------------------
 // Helper: build a minimal AgentState for testing
@@ -439,7 +439,7 @@ describe("AgentLoopLogger contract (mock implementation)", () => {
 
     const logger: AgentLoopLogger = {
       info(message, data): void {
-        infoLogs.push({ message, data });
+        infoLogs.push({ message, ...(data !== undefined ? { data } : {}) });
       },
       error(_message, _data): void {},
     };
@@ -456,7 +456,7 @@ describe("AgentLoopLogger contract (mock implementation)", () => {
     const logger: AgentLoopLogger = {
       info(_message, _data): void {},
       error(message, data): void {
-        errorLogs.push({ message, data });
+        errorLogs.push({ message, ...(data !== undefined ? { data } : {}) });
       },
     };
 

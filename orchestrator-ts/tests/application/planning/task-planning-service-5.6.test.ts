@@ -1,9 +1,9 @@
+import { TaskPlanningService } from "@/application/planning/task-planning-service";
+import type { IAgentLoop } from "@/application/ports/agent-loop";
+import type { LlmProviderPort } from "@/application/ports/llm";
+import type { IPlanContextBuilder } from "@/application/ports/task-planning";
+import type { TaskPlan } from "@/domain/planning/types";
 import { describe, expect, it } from "bun:test";
-import { TaskPlanningService } from "../../../src/application/planning/task-planning-service";
-import type { IAgentLoop } from "../../../src/application/ports/agent-loop";
-import type { LlmProviderPort } from "../../../src/application/ports/llm";
-import type { IPlanContextBuilder, } from "../../../src/application/ports/task-planning";
-import type { TaskPlan } from "../../../src/domain/planning/types";
 import { makeContextBuilder, makeLlm, makeSequencedAgentLoop as makeAgentLoop, makeStore } from "./fixtures";
 
 /** Builds a persisted in-progress plan: step-1 completed, step-2 pending. */

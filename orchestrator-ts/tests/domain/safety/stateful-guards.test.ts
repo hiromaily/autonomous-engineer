@@ -1,13 +1,13 @@
-import { describe, expect, it } from "bun:test";
-import type { SafetyContext } from "../../../src/domain/safety/guards";
+import type { SafetyContext } from "@/domain/safety/guards";
 import {
   DestructiveActionGuard,
   FailureDetectionGuard,
   IterationLimitGuard,
   RateLimitGuard,
-} from "../../../src/domain/safety/stateful-guards";
-import { createSafetyConfig, createSafetySession } from "../../../src/domain/safety/types";
-import type { MemoryEntry } from "../../../src/domain/tools/types";
+} from "@/domain/safety/stateful-guards";
+import { createSafetyConfig, createSafetySession } from "@/domain/safety/types";
+import type { MemoryEntry } from "@/domain/tools/types";
+import { describe, expect, it } from "bun:test";
 
 // ---------------------------------------------------------------------------
 // Test helpers

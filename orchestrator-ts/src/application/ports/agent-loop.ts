@@ -1,5 +1,5 @@
-import type { AgentLoopEvent, AgentState, TerminationCondition } from "../../domain/agent/types";
-import type { ToolListEntry } from "../../domain/tools/registry";
+import type { AgentLoopEvent, AgentState, TerminationCondition } from "@/domain/agent/types";
+import type { ToolListEntry } from "@/domain/tools/registry";
 
 // ---------------------------------------------------------------------------
 // AgentLoopOptions — configuration for a single loop run

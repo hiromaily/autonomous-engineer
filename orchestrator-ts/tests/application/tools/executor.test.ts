@@ -1,8 +1,8 @@
+import { ToolExecutor } from "@/application/tools/executor";
+import { PermissionSystem } from "@/domain/tools/permissions";
+import { ToolRegistry } from "@/domain/tools/registry";
+import type { PermissionSet, Tool, ToolContext, ToolInvocationLog } from "@/domain/tools/types";
 import { beforeEach, describe, expect, it, mock } from "bun:test";
-import { ToolExecutor } from "../../../src/application/tools/executor";
-import { PermissionSystem } from "../../../src/domain/tools/permissions";
-import { ToolRegistry } from "../../../src/domain/tools/registry";
-import type { PermissionSet, Tool, ToolContext, ToolInvocationLog } from "../../../src/domain/tools/types";
 
 // ---------------------------------------------------------------------------
 // Test helpers
@@ -70,7 +70,7 @@ function makeTool(overrides: Partial<Tool<unknown, unknown>> = {}): Tool<{ value
         additionalProperties: false,
       },
     },
-    execute: async (input) => ({ doubled: (input as { value: number }).value * 2 }),
+    execute: async (input: unknown) => ({ doubled: (input as { value: number }).value * 2 }),
     ...overrides,
   } as unknown as Tool<{ value: number }, { doubled: number }>;
 }

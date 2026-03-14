@@ -5,8 +5,8 @@
 // No implementation code — interface definitions only.
 // ---------------------------------------------------------------------------
 
-import type { BranchCreationResult, CommitResult, GitChangesResult, PushResult } from "../../domain/git/types";
-import type { ToolError } from "../../domain/tools/types";
+import type { BranchCreationResult, CommitResult, GitChangesResult, PushResult } from "@/domain/git/types";
+import type { ToolError } from "@/domain/tools/types";
 
 /**
  * Discriminated union result type for git controller operations.

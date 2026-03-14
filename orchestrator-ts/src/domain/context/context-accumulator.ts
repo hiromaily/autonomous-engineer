@@ -3,7 +3,7 @@ import type {
   ContextAccumulatorConfig,
   ExpansionEvent,
   IContextAccumulator,
-} from "../../application/ports/context";
+} from "@/application/ports/context";
 
 export class ContextAccumulator implements IContextAccumulator {
   private readonly entries = new Map<string, AccumulatedEntry[]>();

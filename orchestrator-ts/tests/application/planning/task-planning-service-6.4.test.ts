@@ -1,6 +1,6 @@
+import { TaskPlanningService } from "@/application/planning/task-planning-service";
+import type { AgentLoopResult } from "@/application/ports/agent-loop";
 import { describe, expect, it } from "bun:test";
-import { TaskPlanningService } from "../../../src/application/planning/task-planning-service";
-import type { AgentLoopResult } from "../../../src/application/ports/agent-loop";
 import {
   makeContextBuilder,
   makeEventBus,

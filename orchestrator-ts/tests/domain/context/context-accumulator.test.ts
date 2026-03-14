@@ -1,6 +1,6 @@
+import type { AccumulatedEntry, ExpansionEvent } from "@/application/ports/context";
+import { ContextAccumulator } from "@/domain/context/context-accumulator";
 import { describe, expect, it } from "bun:test";
-import type { AccumulatedEntry, ExpansionEvent } from "../../../src/application/ports/context";
-import { ContextAccumulator } from "../../../src/domain/context/context-accumulator";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -16,6 +16,7 @@ function makeEntry(
     content: "some content",
     phaseId,
     taskId,
+    resourceId: undefined,
     ...overrides,
   };
 }
@@ -88,7 +89,7 @@ describe("ContextAccumulator.getEntries — phase isolation", () => {
 
     const phase2Entries = acc.getEntries("phase2", "task1");
     expect(phase2Entries).toHaveLength(1);
-    expect(phase2Entries[0].content).toBe("phase2-entry");
+    expect(phase2Entries[0]!.content).toBe("phase2-entry");
   });
 
   it("returns empty array for an unknown scope", () => {
@@ -154,8 +155,8 @@ describe("ContextAccumulator.getExpansionEvents", () => {
     acc.recordExpansion(makeExpansionEvent("r2"));
     const events = acc.getExpansionEvents();
     expect(events).toHaveLength(2);
-    expect(events[0].resourceId).toBe("r1");
-    expect(events[1].resourceId).toBe("r2");
+    expect(events[0]!.resourceId).toBe("r1");
+    expect(events[1]!.resourceId).toBe("r2");
   });
 
   it("returns an empty array before any expansion events", () => {

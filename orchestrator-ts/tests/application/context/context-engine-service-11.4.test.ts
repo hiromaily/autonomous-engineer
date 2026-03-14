@@ -1,6 +1,5 @@
-import { describe, expect, it } from "bun:test";
-import { ContextEngineService } from "../../../src/application/context/context-engine-service";
-import type { ContextEngineServiceOptions } from "../../../src/application/context/context-engine-service";
+import { ContextEngineService } from "@/application/context/context-engine-service";
+import type { ContextEngineServiceOptions } from "@/application/context/context-engine-service";
 import type {
   AccumulatedEntry,
   CachedEntry,
@@ -15,9 +14,10 @@ import type {
   ITokenBudgetManager,
   LayerBudgetMap,
   LayerId,
-} from "../../../src/application/ports/context";
-import type { MemoryPort, RankedMemoryEntry } from "../../../src/application/ports/memory";
-import type { IToolExecutor } from "../../../src/application/tools/executor";
+} from "@/application/ports/context";
+import type { MemoryPort, RankedMemoryEntry } from "@/application/ports/memory";
+import type { IToolExecutor } from "@/application/tools/executor";
+import { describe, expect, it } from "bun:test";
 
 // ---------------------------------------------------------------------------
 // Mock factories
@@ -144,7 +144,7 @@ function makeFailingToolExecutor(): IToolExecutor {
         return { ok: true, value: { branch: "main", staged: [], unstaged: [] } };
       }
       // All other tool calls fail
-      return { ok: false, error: "tool failure" };
+      return { ok: false, error: { type: "runtime" as const, message: "tool failure" } };
     },
   };
 }

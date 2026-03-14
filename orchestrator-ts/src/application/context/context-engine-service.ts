@@ -1,6 +1,3 @@
-import { readFile, stat } from "node:fs/promises";
-import { LAYER_REGISTRY } from "../../domain/context/layer-registry";
-import type { ToolContext } from "../../domain/tools/types";
 import type {
   CompressionTechnique,
   ContextAssemblyLog,
@@ -19,9 +16,12 @@ import type {
   LayerTokenUsage,
   PlannerDecision,
   TokenBudgetConfig,
-} from "../ports/context";
-import type { MemoryPort, RankedMemoryEntry } from "../ports/memory";
-import type { IToolExecutor } from "../tools/executor";
+} from "@/application/ports/context";
+import type { MemoryPort, RankedMemoryEntry } from "@/application/ports/memory";
+import type { IToolExecutor } from "@/application/tools/executor";
+import { LAYER_REGISTRY } from "@/domain/context/layer-registry";
+import type { ToolContext } from "@/domain/tools/types";
+import { readFile, stat } from "node:fs/promises";
 
 // ---------------------------------------------------------------------------
 // Service configuration
@@ -296,7 +296,7 @@ export class ContextEngineService implements IContextEngine {
       return {
         ok: false,
         updatedTokenCount: newCumulativeTokenCount,
-        errorReason: expansionResult.errorReason,
+        ...(expansionResult.errorReason !== undefined ? { errorReason: expansionResult.errorReason } : {}),
       };
     }
 

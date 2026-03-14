@@ -1,5 +1,5 @@
-import type { ApprovalRequest } from "../../domain/safety/guards";
-import type { EmergencyStopSource, SafetySession } from "../../domain/safety/types";
+import type { ApprovalRequest } from "@/domain/safety/guards";
+import type { EmergencyStopSource, SafetySession } from "@/domain/safety/types";
 
 // ---------------------------------------------------------------------------
 // Audit Logger port

@@ -1,12 +1,12 @@
+import type { LlmProviderPort } from "@/application/ports/llm";
+import type { IAuditLogger } from "@/application/safety/ports";
+import type { IToolExecutor } from "@/application/tools/executor";
+import type { ToolContext, ToolResult } from "@/domain/tools/types";
+import { ConfigLoader } from "@/infra/config/config-loader";
+import { createGitIntegrationService } from "@/infra/git/create-git-integration-service";
 import { beforeEach, describe, expect, it } from "bun:test";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { IAuditLogger } from "../../src/application/safety/ports";
-import type { LlmProviderPort } from "../../src/application/ports/llm";
-import type { IToolExecutor } from "../../src/application/tools/executor";
-import type { ToolContext, ToolResult } from "../../src/domain/tools/types";
-import { ConfigLoader } from "../../src/infra/config/config-loader";
-import { createGitIntegrationService } from "../../src/infra/git/create-git-integration-service";
 
 // ---------------------------------------------------------------------------
 // Minimal stubs for factory constructor parameters
@@ -14,20 +14,21 @@ import { createGitIntegrationService } from "../../src/infra/git/create-git-inte
 
 function makeStubExecutor(): IToolExecutor {
   return {
-    invoke: async (_name, _input, _context): Promise<ToolResult<unknown>> =>
-      ({ ok: true, value: {} }),
+    invoke: async (_name, _input, _context): Promise<ToolResult<unknown>> => ({ ok: true, value: {} }),
   };
 }
 
 function makeStubLlm(): LlmProviderPort {
   return {
-    complete: async (_prompt) => ({ ok: true, value: { content: "" } }),
+    complete: async (_prompt) => ({ ok: true, value: { content: "", usage: { inputTokens: 0, outputTokens: 0 } } }),
+    clearContext: () => {},
   };
 }
 
 function makeStubAuditLogger(): IAuditLogger {
   return {
     write: async (_entry) => {},
+    flush: async () => {},
   };
 }
 
@@ -43,15 +44,11 @@ function makeToolContext(workspaceRoot: string): ToolContext {
       networkAccess: true,
     },
     memory: {
-      get: async (_key) => null,
-      set: async (_key, _value) => {},
-      delete: async (_key) => {},
-      list: async () => [],
+      search: async (_query) => [],
     },
     logger: {
-      log: () => {},
-      warn: () => {},
-      error: () => {},
+      info: (_entry) => {},
+      error: (_entry) => {},
     },
   };
 }

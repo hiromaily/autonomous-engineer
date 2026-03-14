@@ -17,15 +17,15 @@
 
 import { describe, expect, it } from "bun:test";
 
-import { GitIntegrationService } from "../../../src/application/git/git-integration-service";
-import type { GitWorkflowParams } from "../../../src/application/git/git-integration-service";
-import type { IGitController } from "../../../src/application/ports/git-controller";
-import type { IPullRequestProvider } from "../../../src/application/ports/pr-provider";
-import type { IAuditLogger, AuditEntry } from "../../../src/application/safety/ports";
-import type { LlmProviderPort } from "../../../src/application/ports/llm";
-import { GitValidator } from "../../../src/domain/git/git-validator";
-import type { GitEvent, GitIntegrationConfig, PullRequestResult } from "../../../src/domain/git/types";
-import { GitEventBus } from "../../../src/infra/events/git-event-bus";
+import { GitIntegrationService } from "@/application/git/git-integration-service";
+import type { GitWorkflowParams } from "@/application/git/git-integration-service";
+import type { IGitController } from "@/application/ports/git-controller";
+import type { LlmProviderPort } from "@/application/ports/llm";
+import type { IPullRequestProvider } from "@/application/ports/pr-provider";
+import type { AuditEntry, IAuditLogger } from "@/application/safety/ports";
+import { GitValidator } from "@/domain/git/git-validator";
+import type { GitEvent, GitIntegrationConfig, PullRequestResult } from "@/domain/git/types";
+import { GitEventBus } from "@/infra/events/git-event-bus";
 
 // ---------------------------------------------------------------------------
 // Shared helpers
@@ -111,10 +111,9 @@ function makeSuccessLlm(): LlmProviderPort {
     complete: async () => {
       callCount++;
       // First LLM call is from generateAndCommit (commit message), second from createOrUpdatePullRequest (PR content)
-      const content =
-        callCount === 1
-          ? "feat: implement my-spec feature"
-          : JSON.stringify({ title: "feat: implement my-spec", body: "## Summary\nPR body content." });
+      const content = callCount === 1
+        ? "feat: implement my-spec feature"
+        : JSON.stringify({ title: "feat: implement my-spec", body: "## Summary\nPR body content." });
       return {
         ok: true as const,
         value: { content, usage: { inputTokens: 10, outputTokens: 5 } },
@@ -184,7 +183,7 @@ describe("GitIntegrationService.runFullWorkflow — event emission sequence", ()
     expect(eventTypes).toContain("pull-request-created");
 
     // Verify strict ordering
-    const idx = (t: string) => eventTypes.indexOf(t);
+    const idx = (t: GitEvent["type"]) => eventTypes.indexOf(t);
     expect(idx("branch-created")).toBeLessThan(idx("commit-created"));
     expect(idx("commit-created")).toBeLessThan(idx("branch-pushed"));
     expect(idx("branch-pushed")).toBeLessThan(idx("pull-request-created"));

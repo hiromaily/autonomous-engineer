@@ -19,11 +19,11 @@ import {
   gitDiffTool,
   gitPushTool,
   gitStatusTool,
-} from "../../../src/adapters/tools/git";
-import { ToolExecutor } from "../../../src/application/tools/executor";
-import { PermissionSystem } from "../../../src/domain/tools/permissions";
-import { ToolRegistry } from "../../../src/domain/tools/registry";
-import type { PermissionSet, ToolContext, ToolInvocationLog } from "../../../src/domain/tools/types";
+} from "@/adapters/tools/git";
+import { ToolExecutor } from "@/application/tools/executor";
+import { PermissionSystem } from "@/domain/tools/permissions";
+import { ToolRegistry } from "@/domain/tools/registry";
+import type { PermissionSet, ToolContext, ToolInvocationLog } from "@/domain/tools/types";
 
 const execFile = promisify(execFileCb);
 

@@ -1,7 +1,7 @@
+import type { ISandboxExecutor, SandboxExecutionRequest, SandboxExecutionResult } from "@/application/safety/ports";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { ISandboxExecutor, SandboxExecutionRequest, SandboxExecutionResult } from "../../application/safety/ports";
 
 /**
  * Sandbox executor using an isolated temporary directory.

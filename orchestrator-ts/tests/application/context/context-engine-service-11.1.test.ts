@@ -1,6 +1,5 @@
-import { describe, expect, it } from "bun:test";
-import { ContextEngineService } from "../../../src/application/context/context-engine-service";
-import type { ContextEngineServiceOptions } from "../../../src/application/context/context-engine-service";
+import { ContextEngineService } from "@/application/context/context-engine-service";
+import type { ContextEngineServiceOptions } from "@/application/context/context-engine-service";
 import type {
   CachedEntry,
   ContextBuildRequest,
@@ -11,10 +10,11 @@ import type {
   ITokenBudgetManager,
   LayerBudgetMap,
   LayerId,
-} from "../../../src/application/ports/context";
-import type { MemoryPort, RankedMemoryEntry } from "../../../src/application/ports/memory";
-import type { IToolExecutor } from "../../../src/application/tools/executor";
-import { ContextPlanner } from "../../../src/domain/context/context-planner";
+} from "@/application/ports/context";
+import type { MemoryPort, RankedMemoryEntry } from "@/application/ports/memory";
+import type { IToolExecutor } from "@/application/tools/executor";
+import { ContextPlanner } from "@/domain/context/context-planner";
+import { describe, expect, it } from "bun:test";
 
 // ---------------------------------------------------------------------------
 // Canonical layer order (mirrors LAYER_REGISTRY)

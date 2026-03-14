@@ -1,9 +1,9 @@
+import type { TaskPlan } from "@/domain/planning/types";
+import { PlanFileStore } from "@/infra/planning/plan-file-store";
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { TaskPlan } from "../../../src/domain/planning/types";
-import { PlanFileStore } from "../../../src/infra/planning/plan-file-store";
 
 // ---------------------------------------------------------------------------
 // Helpers

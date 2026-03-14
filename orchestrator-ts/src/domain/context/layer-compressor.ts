@@ -1,9 +1,4 @@
-import type {
-  CompressionResult,
-  CompressionTechnique,
-  ILayerCompressor,
-  LayerId,
-} from "../../application/ports/context";
+import type { CompressionResult, CompressionTechnique, ILayerCompressor, LayerId } from "@/application/ports/context";
 
 // Compiled once at module load; reused across all compress() calls.
 const HEADING_OR_LISTITEM = /^#{1,4}\s|^\s*[-*]\s/;

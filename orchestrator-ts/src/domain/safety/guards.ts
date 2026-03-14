@@ -1,4 +1,4 @@
-import type { ToolContext, ToolError } from "../tools/types";
+import type { ToolContext, ToolError } from "@/domain/tools/types";
 import type { SafetyConfig, SafetySession } from "./types";
 
 // ---------------------------------------------------------------------------

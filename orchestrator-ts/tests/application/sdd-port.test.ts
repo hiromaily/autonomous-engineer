@@ -1,5 +1,5 @@
+import type { SddFrameworkPort, SddOperationResult, SpecContext } from "@/application/ports/sdd";
 import { describe, expect, it } from "bun:test";
-import type { SddFrameworkPort, SddOperationResult, SpecContext } from "../../src/application/ports/sdd";
 
 // ---------------------------------------------------------------------------
 // SddOperationResult discriminated union

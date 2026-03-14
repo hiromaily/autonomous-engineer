@@ -16,14 +16,14 @@
  *
  * Requirements: 1.1, 1.2, 1.3, 4.1, 4.2, 5.1, 5.2, 6.1, 10.3
  */
+import { AgentLoopService } from "@/application/agent/agent-loop-service";
+import type { IAgentEventBus } from "@/application/ports/agent-loop";
+import type { LlmProviderPort } from "@/application/ports/llm";
+import type { IToolExecutor } from "@/application/tools/executor";
+import type { AgentLoopEvent, ReflectionOutput } from "@/domain/agent/types";
+import { ToolRegistry } from "@/domain/tools/registry";
+import type { MemoryEntry, Tool, ToolContext } from "@/domain/tools/types";
 import { describe, expect, it } from "bun:test";
-import { AgentLoopService } from "../../src/application/agent/agent-loop-service";
-import type { IAgentEventBus } from "../../src/application/ports/agent-loop";
-import type { LlmProviderPort } from "../../src/application/ports/llm";
-import type { IToolExecutor } from "../../src/application/tools/executor";
-import type { AgentLoopEvent, ReflectionOutput } from "../../src/domain/agent/types";
-import { ToolRegistry } from "../../src/domain/tools/registry";
-import type { MemoryEntry, Tool, ToolContext } from "../../src/domain/tools/types";
 
 // ---------------------------------------------------------------------------
 // Shared test helpers
@@ -461,7 +461,7 @@ describe("AgentLoopService integration — real ToolRegistry (task 11.1)", () =>
     await svc.run("my integration task", { maxIterations: 1 });
 
     expect(snapshotDuringExecution).not.toBeNull();
-    expect(snapshotDuringExecution?.task).toBe("my integration task");
+    expect((snapshotDuringExecution as ReturnType<AgentLoopService["getState"]>)?.task).toBe("my integration task");
   });
 
   it("getState() snapshot during execution has a valid iterationCount", async () => {
@@ -481,7 +481,7 @@ describe("AgentLoopService integration — real ToolRegistry (task 11.1)", () =>
     svc = new AgentLoopService(executor, registry, makeFourIterationLlm(), makeToolContext());
     await svc.run("integration task", { maxIterations: 2 });
 
-    expect(typeof snapshotDuringExecution?.iterationCount).toBe("number");
+    expect(typeof (snapshotDuringExecution as ReturnType<AgentLoopService["getState"]>)?.iterationCount).toBe("number");
   });
 
   it("multiple tools can be registered and all appear in the registry list", () => {

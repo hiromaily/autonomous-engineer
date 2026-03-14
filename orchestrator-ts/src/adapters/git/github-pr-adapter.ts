@@ -5,8 +5,8 @@
 // No third-party GitHub SDK. Token is never exposed in results or logs.
 // ---------------------------------------------------------------------------
 
-import type { IPullRequestProvider, PrResult } from "../../application/ports/pr-provider";
-import type { PullRequestParams, PullRequestResult } from "../../domain/git/types";
+import type { IPullRequestProvider, PrResult } from "@/application/ports/pr-provider";
+import type { PullRequestParams, PullRequestResult } from "@/domain/git/types";
 
 export interface GitHubPrAdapterConfig {
   /** Default: "https://api.github.com" */

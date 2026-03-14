@@ -1,4 +1,3 @@
-import { describe, expect, it } from "bun:test";
 import {
   ACTION_CATEGORIES,
   type ActionCategory,
@@ -13,7 +12,8 @@ import {
   type ReflectionOutput,
   TERMINATION_CONDITIONS,
   type TerminationCondition,
-} from "../../../src/domain/agent/types";
+} from "@/domain/agent/types";
+import { describe, expect, it } from "bun:test";
 
 // ---------------------------------------------------------------------------
 // ActionCategory

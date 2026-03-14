@@ -5,27 +5,27 @@
 // IToolExecutor. Never calls child_process or git SDKs directly.
 // ---------------------------------------------------------------------------
 
-import type { IToolExecutor } from "../../application/tools/executor";
-import type { GitResult, IGitController } from "../../application/ports/git-controller";
-import type { IGitValidator } from "../../domain/git/git-validator";
-import type { BranchCreationResult, CommitResult, GitChangesResult, PushResult } from "../../domain/git/types";
-import type { ToolError, ToolContext, ToolResult } from "../../domain/tools/types";
 import {
-  gitAddTool,
-  gitBranchCreateTool,
-  gitBranchListTool,
-  gitBranchSwitchTool,
-  gitCommitTool,
-  gitPushTool,
-  gitStatusTool,
   type GitAddOutput,
+  gitAddTool,
   type GitBranchCreateOutput,
+  gitBranchCreateTool,
   type GitBranchListOutput,
+  gitBranchListTool,
   type GitBranchSwitchOutput,
+  gitBranchSwitchTool,
   type GitCommitOutput,
+  gitCommitTool,
   type GitPushOutput,
+  gitPushTool,
   type GitStatusOutput,
-} from "../tools/git";
+  gitStatusTool,
+} from "@/adapters/tools/git";
+import type { GitResult, IGitController } from "@/application/ports/git-controller";
+import type { IToolExecutor } from "@/application/tools/executor";
+import type { IGitValidator } from "@/domain/git/git-validator";
+import type { BranchCreationResult, CommitResult, GitChangesResult, PushResult } from "@/domain/git/types";
+import type { ToolContext, ToolError, ToolResult } from "@/domain/tools/types";
 
 export class GitControllerAdapter implements IGitController {
   constructor(

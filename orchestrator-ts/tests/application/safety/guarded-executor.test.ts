@@ -1,10 +1,10 @@
+import { SafetyGuardedToolExecutor } from "@/application/safety/guarded-executor";
+import type { AuditEntry, IApprovalGateway, IAuditLogger, ISandboxExecutor } from "@/application/safety/ports";
+import type { IToolExecutor } from "@/application/tools/executor";
+import { createSafetyConfig, createSafetySession } from "@/domain/safety/types";
+import type { SafetyConfig, SafetySession } from "@/domain/safety/types";
+import type { PermissionSet, ToolContext, ToolInvocationLog, ToolResult } from "@/domain/tools/types";
 import { describe, expect, it, mock } from "bun:test";
-import { SafetyGuardedToolExecutor } from "../../../src/application/safety/guarded-executor";
-import type { AuditEntry, IApprovalGateway, IAuditLogger, ISandboxExecutor } from "../../../src/application/safety/ports";
-import type { IToolExecutor } from "../../../src/application/tools/executor";
-import { createSafetyConfig, createSafetySession } from "../../../src/domain/safety/types";
-import type { SafetyConfig, SafetySession } from "../../../src/domain/safety/types";
-import type { PermissionSet, ToolContext, ToolInvocationLog, ToolResult } from "../../../src/domain/tools/types";
 
 // ---------------------------------------------------------------------------
 // Test helpers
@@ -121,8 +121,8 @@ describe("SafetyGuardedToolExecutor", () => {
       );
       await executor.invoke("read_file", { path: "/workspace/foo.txt" }, makeContext());
       expect(auditLogger.entries.length).toBe(1);
-      expect(auditLogger.entries[0].outcome).toBe("success");
-      expect(auditLogger.entries[0].toolName).toBe("read_file");
+      expect(auditLogger.entries[0]!.outcome).toBe("success");
+      expect(auditLogger.entries[0]!.toolName).toBe("read_file");
     });
 
     it("increments session.iterationCount after execution", async () => {
@@ -211,7 +211,7 @@ describe("SafetyGuardedToolExecutor", () => {
       );
       await executor.invoke("read_file", { path: "/workspace/foo.txt" }, makeContext());
       expect(auditLogger.entries.length).toBe(1);
-      expect(auditLogger.entries[0].outcome).toBe("emergency-stop");
+      expect(auditLogger.entries[0]!.outcome).toBe("emergency-stop");
     });
   });
 
@@ -248,8 +248,8 @@ describe("SafetyGuardedToolExecutor", () => {
       );
       await executor.invoke("read_file", { path: "/etc/passwd" }, makeContext());
       expect(auditLogger.entries.length).toBe(1);
-      expect(auditLogger.entries[0].outcome).toBe("blocked");
-      expect(auditLogger.entries[0].blockReason).toBeDefined();
+      expect(auditLogger.entries[0]!.outcome).toBe("blocked");
+      expect(auditLogger.entries[0]!.blockReason).toBeDefined();
     });
 
     it("blocks when iteration limit is reached", async () => {
@@ -311,8 +311,8 @@ describe("SafetyGuardedToolExecutor", () => {
       );
       const result = await executor.invoke("git_push", forcePushInput, makeContext());
       expect(result.ok).toBe(true);
-      expect(auditLogger.entries[0].approvalDecision).toBe("approved");
-      expect(auditLogger.entries[0].outcome).toBe("success");
+      expect(auditLogger.entries[0]!.approvalDecision).toBe("approved");
+      expect(auditLogger.entries[0]!.outcome).toBe("success");
     });
 
     it("denied: does not execute the tool and writes blocked audit entry", async () => {
@@ -331,8 +331,8 @@ describe("SafetyGuardedToolExecutor", () => {
       expect(result.ok).toBe(false);
       if (!result.ok) expect(result.error.type).toBe("permission");
       expect((inner.invoke as ReturnType<typeof mock>).mock.calls.length).toBe(0);
-      expect(auditLogger.entries[0].outcome).toBe("blocked");
-      expect(auditLogger.entries[0].approvalDecision).toBe("denied");
+      expect(auditLogger.entries[0]!.outcome).toBe("blocked");
+      expect(auditLogger.entries[0]!.approvalDecision).toBe("denied");
     });
 
     it("timeout: does not execute the tool and writes blocked audit entry", async () => {
@@ -349,7 +349,7 @@ describe("SafetyGuardedToolExecutor", () => {
       );
       const result = await executor.invoke("git_push", forcePushInput, makeContext());
       expect(result.ok).toBe(false);
-      expect(auditLogger.entries[0].approvalDecision).toBe("timeout");
+      expect(auditLogger.entries[0]!.approvalDecision).toBe("timeout");
     });
   });
 
@@ -378,7 +378,7 @@ describe("SafetyGuardedToolExecutor", () => {
       expect(result.ok).toBe(true);
       expect(sandbox.called).toBe(true);
       expect((inner.invoke as ReturnType<typeof mock>).mock.calls.length).toBe(0);
-      expect(auditLogger.entries[0].outcome).toBe("success");
+      expect(auditLogger.entries[0]!.outcome).toBe("success");
     });
 
     it("delegates install_dependencies to sandbox executor", async () => {
@@ -420,7 +420,7 @@ describe("SafetyGuardedToolExecutor", () => {
         makeSandboxExecutor(),
       );
       await executor.invoke("read_file", { path: "/workspace/foo.txt" }, makeContext());
-      const entry = auditLogger.entries[0];
+      const entry = auditLogger.entries[0]!;
       expect(entry.sessionId).toBe(session.sessionId);
       expect(typeof entry.iterationNumber).toBe("number");
       expect(entry.toolName).toBe("read_file");
@@ -441,8 +441,8 @@ describe("SafetyGuardedToolExecutor", () => {
       await executor.invoke("read_file", largeInput, makeContext());
       // The executor serializes input to JSON and passes it to the logger unchanged.
       // Byte-safe truncation to 512 bytes is the AuditLogger adapter's responsibility.
-      expect(typeof auditLogger.entries[0].inputSummary).toBe("string");
-      expect(auditLogger.entries[0].inputSummary).toContain("/workspace/foo.txt");
+      expect(typeof auditLogger.entries[0]!.inputSummary).toBe("string");
+      expect(auditLogger.entries[0]!.inputSummary).toContain("/workspace/foo.txt");
     });
   });
 

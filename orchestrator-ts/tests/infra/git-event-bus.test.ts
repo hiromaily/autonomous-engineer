@@ -1,6 +1,6 @@
+import type { GitEvent } from "@/domain/git/types";
+import { GitEventBus } from "@/infra/events/git-event-bus";
 import { describe, expect, it } from "bun:test";
-import type { GitEvent } from "../../src/domain/git/types";
-import { GitEventBus } from "../../src/infra/events/git-event-bus";
 
 const makeEvent = (type: GitEvent["type"]): GitEvent => {
   if (type === "branch-created") {
@@ -10,13 +10,25 @@ const makeEvent = (type: GitEvent["type"]): GitEvent => {
     return { type, hash: "abc123", message: "feat: test", fileCount: 1, timestamp: "2026-01-01T00:00:00Z" };
   }
   if (type === "branch-pushed") {
-    return { type, branchName: "agent/test", remote: "origin", commitHash: "abc123", timestamp: "2026-01-01T00:00:00Z" };
+    return {
+      type,
+      branchName: "agent/test",
+      remote: "origin",
+      commitHash: "abc123",
+      timestamp: "2026-01-01T00:00:00Z",
+    };
   }
   if (type === "pull-request-created") {
-    return { type, url: "https://github.com/owner/repo/pull/1", title: "Test PR", targetBranch: "main", timestamp: "2026-01-01T00:00:00Z" };
+    return {
+      type,
+      url: "https://github.com/owner/repo/pull/1",
+      title: "Test PR",
+      targetBranch: "main",
+      timestamp: "2026-01-01T00:00:00Z",
+    };
   }
   if (type === "commit-size-limit-exceeded") {
-    return { type, fileCount: 51, limit: 50, timestamp: "2026-01-01T00:00:00Z" };
+    return { type, fileCount: 51, maxAllowed: 50, timestamp: "2026-01-01T00:00:00Z" };
   }
   if (type === "no-changes-to-commit") {
     return { type, timestamp: "2026-01-01T00:00:00Z" };
@@ -31,7 +43,7 @@ const makeEvent = (type: GitEvent["type"]): GitEvent => {
     return { type, branchName: "agent/test", remote: "origin", timestamp: "2026-01-01T00:00:00Z" };
   }
   if (type === "pr-creation-auth-failed") {
-    return { type, message: "Auth failed", timestamp: "2026-01-01T00:00:00Z" };
+    return { type, provider: "github", guidance: "Auth failed", timestamp: "2026-01-01T00:00:00Z" };
   }
   if (type === "repeated-git-failure") {
     return { type, operation: "commit", attemptCount: 3, timestamp: "2026-01-01T00:00:00Z" };

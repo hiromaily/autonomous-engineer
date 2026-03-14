@@ -3,15 +3,15 @@
 // tests/application/git/git-integration-service-5.3.test.ts
 // ---------------------------------------------------------------------------
 
-import { describe, it, expect } from "bun:test";
-import { GitIntegrationService } from "../../../src/application/git/git-integration-service";
-import type { IGitController } from "../../../src/application/ports/git-controller";
-import type { IPullRequestProvider } from "../../../src/application/ports/pr-provider";
-import type { IGitEventBus } from "../../../src/application/ports/git-event-bus";
-import type { IAuditLogger, AuditEntry } from "../../../src/application/safety/ports";
-import type { LlmProviderPort } from "../../../src/application/ports/llm";
-import type { IGitValidator } from "../../../src/domain/git/git-validator";
-import type { GitIntegrationConfig, GitEvent, } from "../../../src/domain/git/types";
+import { GitIntegrationService } from "@/application/git/git-integration-service";
+import type { IGitController } from "@/application/ports/git-controller";
+import type { IGitEventBus } from "@/application/ports/git-event-bus";
+import type { LlmProviderPort } from "@/application/ports/llm";
+import type { IPullRequestProvider } from "@/application/ports/pr-provider";
+import type { AuditEntry, IAuditLogger } from "@/application/safety/ports";
+import type { IGitValidator } from "@/domain/git/git-validator";
+import type { GitEvent, GitIntegrationConfig } from "@/domain/git/types";
+import { describe, expect, it } from "bun:test";
 
 // ---------------------------------------------------------------------------
 // Test helpers
@@ -73,7 +73,13 @@ function makeEventBus(): IGitEventBus & { emitted: GitEvent[] } {
 
 function makeAuditLogger(): IAuditLogger & { entries: AuditEntry[] } {
   const entries: AuditEntry[] = [];
-  return { entries, write: async (e) => { entries.push(e); }, flush: async () => {} };
+  return {
+    entries,
+    write: async (e) => {
+      entries.push(e);
+    },
+    flush: async () => {},
+  };
 }
 
 function makeLlm(): LlmProviderPort {

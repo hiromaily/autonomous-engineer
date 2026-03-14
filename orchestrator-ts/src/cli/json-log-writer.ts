@@ -1,5 +1,5 @@
+import type { WorkflowEvent } from "@/application/ports/workflow";
 import { open } from "node:fs/promises";
-import type { WorkflowEvent } from "../application/ports/workflow";
 
 /**
  * Writes workflow events as newline-delimited JSON (NDJSON) to a file.

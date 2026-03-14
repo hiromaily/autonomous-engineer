@@ -1,8 +1,8 @@
+import { GitControllerAdapter } from "@/adapters/git/git-controller-adapter";
+import type { IToolExecutor } from "@/application/tools/executor";
+import type { IGitValidator } from "@/domain/git/git-validator";
+import type { ToolContext, ToolResult } from "@/domain/tools/types";
 import { describe, expect, it } from "bun:test";
-import { GitControllerAdapter } from "../../../src/adapters/git/git-controller-adapter";
-import type { IToolExecutor } from "../../../src/application/tools/executor";
-import type { IGitValidator } from "../../../src/domain/git/git-validator";
-import type { ToolContext, ToolResult } from "../../../src/domain/tools/types";
 
 // ---------------------------------------------------------------------------
 // Test helpers
@@ -18,7 +18,9 @@ function makeExecutor(
     calls,
     invoke: async (name: string, input: unknown, _ctx: ToolContext) => {
       calls.push({ name, input });
-      if (name in results) return results[name] ?? { ok: false, error: { type: "runtime" as const, message: `No result for: ${name}` } };
+      if (name in results) {
+        return results[name] ?? { ok: false, error: { type: "runtime" as const, message: `No result for: ${name}` } };
+      }
       return { ok: false, error: { type: "runtime" as const, message: `Unexpected tool: ${name}` } };
     },
   };

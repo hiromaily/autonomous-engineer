@@ -1,5 +1,5 @@
+import { GitValidator } from "@/domain/git/git-validator";
 import { describe, expect, it } from "bun:test";
-import { GitValidator } from "../../../src/domain/git/git-validator";
 
 const validator = new GitValidator();
 

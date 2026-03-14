@@ -5,7 +5,7 @@
 // No implementation code — interface definition only.
 // ---------------------------------------------------------------------------
 
-import type { GitEvent } from "../../domain/git/types";
+import type { GitEvent } from "@/domain/git/types";
 
 /**
  * Port contract for the synchronous in-process git event bus.

@@ -1,6 +1,5 @@
-import { describe, expect, it } from "bun:test";
-import { ContextEngineService } from "../../../src/application/context/context-engine-service";
-import type { ContextEngineServiceOptions } from "../../../src/application/context/context-engine-service";
+import { ContextEngineService } from "@/application/context/context-engine-service";
+import type { ContextEngineServiceOptions } from "@/application/context/context-engine-service";
 import type {
   AccumulatedEntry,
   CachedEntry,
@@ -14,9 +13,10 @@ import type {
   ITokenBudgetManager,
   LayerBudgetMap,
   LayerId,
-} from "../../../src/application/ports/context";
-import type { MemoryPort } from "../../../src/application/ports/memory";
-import type { IToolExecutor } from "../../../src/application/tools/executor";
+} from "@/application/ports/context";
+import type { MemoryPort } from "@/application/ports/memory";
+import type { IToolExecutor } from "@/application/tools/executor";
+import { describe, expect, it } from "bun:test";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -186,7 +186,8 @@ function makeMemoryPortWithEntry(title: string, desc: string): MemoryPort {
       entries: [
         {
           relevanceScore: 0.9,
-          entry: { id: "mem-1", title, description: desc, tags: [], createdAt: "", updatedAt: "" },
+          sourceFile: "memory/project_rules.md",
+          entry: { title, description: desc, context: "", date: "" },
         },
       ],
     }),
@@ -217,7 +218,7 @@ function makeFailingToolExecutor(): IToolExecutor {
       if (name === "git_status") {
         return { ok: true, value: { branch: "main", staged: [], unstaged: [] } };
       }
-      return { ok: false, error: "tool failure" };
+      return { ok: false, error: { type: "runtime" as const, message: "tool failure" } };
     },
   };
 }

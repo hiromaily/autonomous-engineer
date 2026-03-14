@@ -1,5 +1,3 @@
-import { mkdir, open, readdir, readFile, rename } from "node:fs/promises";
-import { dirname, join } from "node:path";
 import type {
   FailureFilter,
   FailureRecord,
@@ -14,7 +12,9 @@ import type {
   ProjectMemoryFile,
   RankedMemoryEntry,
   ShortTermMemoryPort,
-} from "../../application/ports/memory";
+} from "@/application/ports/memory";
+import { mkdir, open, readdir, readFile, rename } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import { InProcessShortTermStore } from "./short-term-store";
 
 // ---------------------------------------------------------------------------

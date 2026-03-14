@@ -1,4 +1,4 @@
-import type { ToolError } from "../tools/types";
+import type { ToolError } from "@/domain/tools/types";
 
 // ---------------------------------------------------------------------------
 // Action category

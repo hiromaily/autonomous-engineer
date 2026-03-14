@@ -1,6 +1,6 @@
+import type { AuditEntry, IAuditLogger } from "@/application/safety/ports";
 import { mkdir, open } from "node:fs/promises";
 import { dirname } from "node:path";
-import type { AuditEntry, IAuditLogger } from "../../application/safety/ports";
 
 const MAX_INPUT_SUMMARY_BYTES = 512;
 

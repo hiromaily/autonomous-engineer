@@ -1,5 +1,4 @@
-import { describe, expect, it } from "bun:test";
-import { ContextEngineService } from "../../../src/application/context/context-engine-service";
+import { ContextEngineService } from "@/application/context/context-engine-service";
 import type {
   CachedEntry,
   ContextBuildRequest,
@@ -11,10 +10,11 @@ import type {
   LayerBudgetMap,
   LayerId,
   PlannerDecision,
-} from "../../../src/application/ports/context";
-import type { MemoryPort, RankedMemoryEntry } from "../../../src/application/ports/memory";
-import type { IToolExecutor } from "../../../src/application/tools/executor";
-import type { ToolResult } from "../../../src/domain/tools/types";
+} from "@/application/ports/context";
+import type { MemoryPort, RankedMemoryEntry } from "@/application/ports/memory";
+import type { IToolExecutor } from "@/application/tools/executor";
+import type { ToolResult } from "@/domain/tools/types";
+import { describe, expect, it } from "bun:test";
 
 // ---------------------------------------------------------------------------
 // Helpers — minimal mocks
@@ -298,9 +298,9 @@ describe("ContextEngineService (task 8.2)", () => {
 
       expect(layer).toBeDefined();
       const lines = layer?.content.split("\n");
-      expect(lines.length).toBe(2);
+      expect(lines!.length).toBe(2);
 
-      const first = JSON.parse(lines[0] ?? "{}") as { title: string; description: string; relevanceScore: number };
+      const first = JSON.parse(lines![0] ?? "{}") as { title: string; description: string; relevanceScore: number };
       expect(first.title).toBe("Pattern A");
       expect(first.relevanceScore).toBe(0.9);
     });
@@ -321,8 +321,8 @@ describe("ContextEngineService (task 8.2)", () => {
       await svc.buildContext(makeRequest({ taskDescription: "my specific task" }));
 
       expect(capturedQuery).not.toBeNull();
-      expect(capturedQuery?.text).toBe("my specific task");
-      expect(capturedQuery?.topN).toBe(5);
+      expect((capturedQuery as { text: string; topN?: number } | null)?.text).toBe("my specific task");
+      expect((capturedQuery as { text: string; topN?: number } | null)?.topN).toBe(5);
     });
 
     it("returns '(no memory entries)' content when entries array is empty", async () => {

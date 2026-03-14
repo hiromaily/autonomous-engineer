@@ -1,8 +1,8 @@
+import type { ITaskPlanStore } from "@/application/ports/task-planning";
+import { PlanValidator } from "@/domain/planning/plan-validator";
+import type { TaskPlan, TaskStatus } from "@/domain/planning/types";
 import { mkdir, open, readdir, readFile, rename } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import type { ITaskPlanStore } from "../../application/ports/task-planning";
-import { PlanValidator } from "../../domain/planning/plan-validator";
-import type { TaskPlan, TaskStatus } from "../../domain/planning/types";
 
 // ---------------------------------------------------------------------------
 // PlanStoreError — structured error thrown on invalid plan load
@@ -23,7 +23,9 @@ export class PlanStoreError extends Error {
     this.name = "PlanStoreError";
     this.code = code;
     this.planId = planId;
-    this.validationErrors = validationErrors;
+    if (validationErrors !== undefined) {
+      this.validationErrors = validationErrors;
+    }
   }
 }
 

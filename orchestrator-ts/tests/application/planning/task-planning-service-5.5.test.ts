@@ -1,6 +1,7 @@
+import { TaskPlanningService } from "@/application/planning/task-planning-service";
+import type { AgentLoopResult } from "@/application/ports/agent-loop";
+import type { IHumanReviewGateway } from "@/application/ports/task-planning";
 import { describe, expect, it } from "bun:test";
-import { TaskPlanningService } from "../../../src/application/planning/task-planning-service";
-import type { IHumanReviewGateway, } from "../../../src/application/ports/task-planning";
 import {
   makeContextBuilder,
   makeEventBus,
@@ -517,10 +518,10 @@ describe("TaskPlanningService — task 5.5: dynamic plan adjustment and observab
       const logEntries: Array<{ message: string; data?: Readonly<Record<string, unknown>> }> = [];
       const logger = {
         info(message: string, data?: Readonly<Record<string, unknown>>) {
-          logEntries.push({ message, data });
+          logEntries.push({ message, ...(data !== undefined ? { data } : {}) });
         },
         error(message: string, data?: Readonly<Record<string, unknown>>) {
-          logEntries.push({ message, data });
+          logEntries.push({ message, ...(data !== undefined ? { data } : {}) });
         },
       };
 
@@ -542,10 +543,10 @@ describe("TaskPlanningService — task 5.5: dynamic plan adjustment and observab
       const logEntries: Array<{ message: string; data?: Readonly<Record<string, unknown>> }> = [];
       const logger = {
         info(message: string, data?: Readonly<Record<string, unknown>>) {
-          logEntries.push({ message, data });
+          logEntries.push({ message, ...(data !== undefined ? { data } : {}) });
         },
         error(message: string, data?: Readonly<Record<string, unknown>>) {
-          logEntries.push({ message, data });
+          logEntries.push({ message, ...(data !== undefined ? { data } : {}) });
         },
       };
 

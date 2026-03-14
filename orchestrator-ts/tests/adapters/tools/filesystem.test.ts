@@ -1,15 +1,15 @@
-import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { mkdir, mkdtemp, rm, writeFile as fsWriteFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import {
   listDirectoryTool,
   readFileTool,
   resolveWorkspacePath,
   searchFilesTool,
   writeFileTool,
-} from "../../../src/adapters/tools/filesystem";
-import type { PermissionSet, ToolContext } from "../../../src/domain/tools/types";
+} from "@/adapters/tools/filesystem";
+import type { PermissionSet, ToolContext } from "@/domain/tools/types";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { mkdir, mkdtemp, rm, writeFile as fsWriteFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 // ---------------------------------------------------------------------------
 // Test helpers
