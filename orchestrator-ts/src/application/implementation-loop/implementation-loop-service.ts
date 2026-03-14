@@ -81,8 +81,9 @@ export class ImplementationLoopService implements IImplementationLoop {
   }
 
   /**
-   * Execute the implementation loop for the given plan from the beginning.
-   * Sections already in "completed" status are skipped.
+   * Execute the implementation loop for the given plan.
+   * Sections in "completed" status are skipped. Sections in "in_progress" status
+   * (left over from a crashed previous run) are reset to "pending" and re-executed.
    */
   async run(
     planId: string,
@@ -102,12 +103,13 @@ export class ImplementationLoopService implements IImplementationLoop {
         haltReason: "Stop signal received",
       };
     }
-    return this.#execute(planId, options ?? {}, false);
+    return this.#execute(planId, options ?? {});
   }
 
   /**
    * Resume an interrupted implementation loop.
-   * Sections in "in_progress" state at startup are reset to "pending" before re-execution.
+   * Equivalent to run() — both reset "in_progress" sections and skip "completed" ones.
+   * Provided as a semantic alternative so callers can express intent explicitly.
    */
   async resume(
     planId: string,
@@ -124,7 +126,7 @@ export class ImplementationLoopService implements IImplementationLoop {
         haltReason: "Stop signal received",
       };
     }
-    return this.#execute(planId, options ?? {}, true);
+    return this.#execute(planId, options ?? {});
   }
 
   /** Signal graceful stop; the loop halts at the next section boundary. */
@@ -139,7 +141,6 @@ export class ImplementationLoopService implements IImplementationLoop {
   async #execute(
     planId: string,
     options: Partial<ImplementationLoopOptions>,
-    isResume: boolean,
   ): Promise<ImplementationLoopResult> {
     const startedAt = Date.now();
     const resolved = resolveOptions(options);
@@ -156,12 +157,14 @@ export class ImplementationLoopService implements IImplementationLoop {
       };
     }
 
-    // On resume: reset any in_progress sections to pending
-    if (isResume) {
-      for (const task of plan.tasks) {
-        if (task.status === "in_progress") {
-          await this.#planStore.updateSectionStatus(planId, task.id, "pending");
-        }
+    // Reset any in_progress sections to pending — applies to both run() and resume().
+    // If a process was killed mid-section, the section remains "in_progress" in the
+    // store. Resetting it to "pending" before re-executing ensures the section is
+    // treated as incomplete and re-run cleanly rather than being skipped. This is
+    // the sole startup read from IPlanStore; no in-memory state survives across runs.
+    for (const task of plan.tasks) {
+      if (task.status === "in_progress") {
+        await this.#planStore.updateSectionStatus(planId, task.id, "pending");
       }
     }
 

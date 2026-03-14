@@ -135,7 +135,7 @@
   - During the improve step within the same section, allow context to accumulate — preserve all observations and tool results from the implement step so the agent loop has full context of what was already attempted
   - _Requirements: 1.2, 8.1, 8.2, 8.3, 8.4_
 
-- [ ] 4.5 Implement plan resumption after interruption
+- [x] 4.5 Implement plan resumption after interruption
   - When `run()` or `resume()` is called with a plan that has sections in `"in_progress"` or `"pending"` state, resume from the first non-`"completed"` section rather than restarting
   - Treat any section found in `"in_progress"` state at startup as incomplete — reset it to `"pending"` in `IPlanStore` before re-executing
   - Re-initialize context for the resumed section as if starting fresh; discard any transient in-memory state

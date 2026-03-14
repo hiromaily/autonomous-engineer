@@ -1568,3 +1568,114 @@ describe("ImplementationLoopService (task 4.4) — works without contextEngine",
     expect(result.outcome).toBe("completed");
   });
 });
+
+// ===========================================================================
+// Task 4.5: Plan Resumption After Interruption
+// ===========================================================================
+
+describe("ImplementationLoopService (task 4.5) — run() resets in_progress sections", () => {
+  it("run() resets in_progress sections to pending before re-executing", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "in_progress" })]);
+    const store = makePlanStore(plan);
+    const service = makeService(store, {
+      agentLoop: makeSpyAgentLoop(),
+      reviewEngine: makeSpyReviewEngine("passed"),
+      gitController: makeSpyGitController(),
+    });
+
+    await service.run(plan.id);
+
+    const pendingReset = store.statusUpdates.find(
+      (u) => u.sectionId === "t1" && u.status === "pending",
+    );
+    expect(pendingReset).toBeDefined();
+  });
+
+  it("run() executes a section that was in_progress (after resetting it)", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "in_progress" })]);
+    const store = makePlanStore(plan);
+    const agentLoop = makeSpyAgentLoop();
+    const service = makeService(store, {
+      agentLoop,
+      reviewEngine: makeSpyReviewEngine("passed"),
+      gitController: makeSpyGitController(),
+    });
+
+    await service.run(plan.id);
+
+    expect(agentLoop.calls).toHaveLength(1);
+  });
+
+  it("run() does not reset sections already in completed status", async () => {
+    const plan = makeTaskPlan([
+      makeTask({ id: "t1", status: "completed" }),
+      makeTask({ id: "t2", status: "in_progress" }),
+    ]);
+    const store = makePlanStore(plan);
+    const service = makeService(store, {
+      agentLoop: makeSpyAgentLoop(),
+      reviewEngine: makeSpyReviewEngine("passed"),
+      gitController: makeSpyGitController(),
+    });
+
+    await service.run(plan.id);
+
+    const t1PendingReset = store.statusUpdates.find(
+      (u) => u.sectionId === "t1" && u.status === "pending",
+    );
+    expect(t1PendingReset).toBeUndefined();
+  });
+
+  it("run() returns completed when resuming from an in_progress section that succeeds", async () => {
+    const plan = makeTaskPlan([
+      makeTask({ id: "t1", status: "completed" }),
+      makeTask({ id: "t2", status: "in_progress" }),
+    ]);
+    const store = makePlanStore(plan);
+    const service = makeService(store, {
+      agentLoop: makeSpyAgentLoop(),
+      reviewEngine: makeSpyReviewEngine("passed"),
+      gitController: makeSpyGitController(),
+    });
+
+    const result = await service.run(plan.id);
+
+    expect(result.outcome).toBe("completed");
+  });
+});
+
+describe("ImplementationLoopService (task 4.5) — context re-initialized for resumed section", () => {
+  it("calls contextEngine.resetTask for a section that was in_progress (fresh context on resume)", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "task-resume", status: "in_progress" })]);
+    const store = makePlanStore(plan);
+    const contextEngine = makeSpyContextEngine();
+    const service = makeService(store, {
+      agentLoop: makeSpyAgentLoop(),
+      reviewEngine: makeSpyReviewEngine("passed"),
+      gitController: makeSpyGitController(),
+    });
+
+    await service.run(plan.id, { contextEngine });
+
+    expect(contextEngine.resetTaskCalls).toContain("task-resume");
+  });
+
+  it("does not re-execute completed sections — only the interrupted section runs", async () => {
+    const plan = makeTaskPlan([
+      makeTask({ id: "completed-section", status: "completed" }),
+      makeTask({ id: "interrupted-section", status: "in_progress" }),
+    ]);
+    const store = makePlanStore(plan);
+    const agentLoop = makeSpyAgentLoop();
+    const service = makeService(store, {
+      agentLoop,
+      reviewEngine: makeSpyReviewEngine("passed"),
+      gitController: makeSpyGitController(),
+    });
+
+    await service.run(plan.id);
+
+    // Only the interrupted (in_progress) section is re-executed
+    expect(agentLoop.calls).toHaveLength(1);
+  });
+});
