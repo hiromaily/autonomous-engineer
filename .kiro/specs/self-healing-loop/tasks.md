@@ -9,13 +9,13 @@
   - _Requirements: 2.2, 3.2, 5.1, 8.1, 8.2_
 
 - [ ] 2. Logger port and NDJSON adapter
-- [ ] 2.1 (P) Declare the `ISelfHealingLoopLogger` application port
+- [x] 2.1 (P) Declare the `ISelfHealingLoopLogger` application port
   - Define the `log(entry: SelfHealingLogEntry): void` interface in `orchestrator-ts/src/application/ports/`
   - The interface must be safe to call when undefined; `SelfHealingLoopService` treats the logger as optional
   - Document that concrete adapters must never throw and must use async fire-and-forget writes
   - _Requirements: 8.1, 8.3_
 
-- [ ] 2.2 Implement `NdjsonSelfHealingLoopLogger` concrete adapter
+- [x] 2.2 Implement `NdjsonSelfHealingLoopLogger` concrete adapter
   - Write NDJSON entries to `.aes/logs/self-healing-<planId>.ndjson` using async `appendFile` (never `appendFileSync`)
   - Capture write errors to an internal `writeErrorCount` counter rather than re-throwing or emitting to callers
   - Never include LLM API keys, credentials, or workspace-external paths in serialized entries
