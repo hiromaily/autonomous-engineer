@@ -2,7 +2,7 @@
 
 <!-- cspell:ignore openspec speckit citty -->
 
-- [ ] 1. Add application port interfaces for the configure feature
+- [x] 1. Add application port interfaces for the configure feature
   - Add `WritableConfig` interface covering `llm.provider`, `llm.modelName`, `specDir`, and `sddFramework` — API key field intentionally excluded
   - Add `FrameworkCheckResult` discriminated union: `{ installed: true }` or `{ installed: false; hint: string }`
   - Add `IConfigWriter` interface with a `write(config, cwd?)` method
