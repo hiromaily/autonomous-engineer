@@ -169,20 +169,20 @@
   - Execute two `escalate()` calls with different outcomes and verify that two distinct failure records are appended and no prior entry is modified in the in-memory stub
   - _Requirements: 4.5, 5.2_
 
-- [ ] 11. E2E tests
-- [ ] 11.1 End-to-end resolved path: self-healing unblocks a failed section
+- [x] 11. E2E tests
+- [x] 11.1 End-to-end resolved path: self-healing unblocks a failed section
   - Connect `SelfHealingLoopService` to `ImplementationLoopService` via `ImplementationLoopOptions.selfHealingLoop`
   - Drive the implementation loop to exhaust its retry budget; assert that self-healing is invoked, returns `outcome: "resolved"`, and the section's retry counter resets to zero
   - Verify that the section is restarted with `updatedRules` paths injected as additional context sources for the PLAN step
   - _Requirements: 6.1, 6.2, 6.3_
 
-- [ ] 11.2 End-to-end unresolved path: escalation halts the loop
+- [x] 11.2 End-to-end unresolved path: escalation halts the loop
   - Configure the mock LLM to return no actionable gap so that self-healing returns `outcome: "unresolved"`
   - Assert that the implementation loop marks the section `"escalated-to-human"`, emits a `section:escalated` event with the `SelfHealingResult.summary` as `reason`, and halts
   - Assert that after a resolved self-healing outcome the section is retried once; if that retry also fails, the implementation loop does not call `ISelfHealingLoop.escalate()` again but instead marks the section `"escalated-to-human"` directly
   - _Requirements: 6.4, 7.3_
 
-- [ ] 11.3 End-to-end unexpected-throw regression: spec9 catch path
+- [x] 11.3 End-to-end unexpected-throw regression: spec9 catch path
   - Configure `SelfHealingLoopService` to throw an unhandled exception from `escalate()`
   - Assert that `ImplementationLoopService` catches the exception, marks the section `"failed"`, and does not propagate the throw to the caller
   - _Requirements: 1.1_
