@@ -66,25 +66,25 @@
   - _Requirements: 1.1, 1.2, 1.3_
 
 - [ ] 6. Unit tests
-- [ ] 6.1 (P) Unit-test the config writer
+- [x] 6.1 (P) Unit-test the config writer
   - Mock `node:fs/promises`; verify the written JSON matches the `WritableConfig` shape
   - Verify `apiKey` is absent from the output regardless of input
   - Verify write errors are propagated to the caller
   - _Requirements: 5.1, 5.3, 5.4_
 
-- [ ] 6.2 (P) Unit-test the SDD framework checker
+- [x] 6.2 (P) Unit-test the SDD framework checker
   - Mock `fs.access`; verify `cc-sdd` returns `installed: true` when `.kiro/` exists and `installed: false` with a hint when it does not
   - Verify `openspec` and `speckit` always return `installed: true`
   - _Requirements: 4.1, 4.2, 4.3, 4.4_
 
-- [ ] 6.3 (P) Unit-test the configuration wizard
+- [x] 6.3 (P) Unit-test the configuration wizard
   - Mock `@clack/prompts`; verify each prompt is displayed with the correct default value
   - Verify cancellation at any step returns `"cancelled"` without further interaction
   - Verify empty required text input triggers re-prompting
   - Verify the post-wizard API key guidance message is shown on completion
   - _Requirements: 2.2, 2.3, 2.4, 3.1, 3.2, 3.3, 3.4, 3.5, 3.6_
 
-- [ ] 6.4 (P) Unit-test the `ConfigureCommand` orchestrator
+- [x] 6.4 (P) Unit-test the `ConfigureCommand` orchestrator
   - Mock all dependencies; verify the non-TTY guard exits before the wizard starts
   - Verify that a `"cancelled"` wizard result exits without calling the config writer
   - Verify that a failed framework check exits without calling the config writer
