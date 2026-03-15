@@ -999,8 +999,7 @@ describe("SelfHealingLoopService — gap identification (task 5.1)", () => {
 
     const result = await svc.escalate(makeEscalation());
 
-    // Gap identification succeeds; next task (5.2 / 6) stubs return unresolved
-    expect(result.outcome).toBe("unresolved");
+    // Gap identification succeeds; full workflow proceeds to resolved outcome (task 8.1 complete)
     // Should NOT indicate a gap identification failure
     expect(result.summary).not.toMatch(/gap identification failed/i);
     expect(result.summary).not.toMatch(/unsupported rule file/i);
@@ -1048,7 +1047,7 @@ describe("SelfHealingLoopService — duplicate gap detection (task 5.2)", () => 
 
     const result = await svc.escalate(makeEscalation());
 
-    expect(result.outcome).toBe("unresolved");
+    // No duplicates → workflow proceeds through to resolved outcome (task 8.1 complete)
     // Should NOT say "duplicate gap detected"
     expect(result.summary.toLowerCase()).not.toContain("duplicate");
   });
@@ -1181,9 +1180,8 @@ describe("SelfHealingLoopService — duplicate gap detection (task 5.2)", () => 
       defaultConfig,
     );
 
-    // Should not throw and should not report duplicate
+    // Should not throw and should not report duplicate — workflow proceeds through to resolved
     const result = await svc.escalate(makeEscalation());
-    expect(result.outcome).toBe("unresolved");
     expect(result.summary.toLowerCase()).not.toContain("duplicate");
   });
 
@@ -1755,7 +1753,13 @@ describe("SelfHealingLoopService — task 7.1: agentObservations truncation (req
     const { memory, capturedRecords } = makeCapturingMemory();
 
     const smallObservations = [
-      { toolName: "read_file", toolInput: { path: "/workspace/src/a.ts" }, rawOutput: "content", success: true, recordedAt: new Date().toISOString() },
+      {
+        toolName: "read_file",
+        toolInput: { path: "/workspace/src/a.ts" },
+        rawOutput: "content",
+        success: true,
+        recordedAt: new Date().toISOString(),
+      },
     ];
 
     const svc = new SelfHealingLoopService(makeHangingLlm(), memory, {
@@ -1951,5 +1955,203 @@ describe("SelfHealingLoopService — task 7.2: writeFailure in finally block", (
     await svc.escalate(makeEscalation());
 
     expect(writeCount).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 8.1: Resolved result assembly and observability — requirements 6.1, 6.5, 8.2, 8.4
+// ---------------------------------------------------------------------------
+
+describe("SelfHealingLoopService — task 8.1: resolved result assembly", () => {
+  it("returns outcome: 'resolved' when all steps succeed", async () => {
+    const memory = makeMockMemory();
+    memory.append = async () => ({ ok: true as const, action: "appended" as const });
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      memory,
+      defaultConfig,
+    );
+
+    const result = await svc.escalate(makeEscalation());
+
+    expect(result.outcome).toBe("resolved");
+  });
+
+  it("returns updatedRules with workspace-relative path of updated rule file", async () => {
+    const memory = makeMockMemory();
+    memory.append = async () => ({ ok: true as const, action: "appended" as const });
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      memory,
+      defaultConfig,
+    );
+
+    const result = await svc.escalate(makeEscalation());
+
+    expect(result.updatedRules).toBeDefined();
+    expect(result.updatedRules!.length).toBe(1);
+    // validGapJson targets "coding_rules"
+    expect(result.updatedRules![0]).toMatch(/coding_rules\.md$/);
+  });
+
+  it("updatedRules path is workspace-relative (does not start with '/')", async () => {
+    const memory = makeMockMemory();
+    memory.append = async () => ({ ok: true as const, action: "appended" as const });
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      memory,
+      defaultConfig,
+    );
+
+    const result = await svc.escalate(makeEscalation());
+
+    expect(result.updatedRules![0]).not.toMatch(/^\//);
+  });
+
+  it("emits a retry-initiated log entry after rule update succeeds", async () => {
+    const logSpy = mock((_entry: SelfHealingLogEntry) => {});
+    const logger: ISelfHealingLoopLogger = { log: logSpy };
+    const memory = makeMockMemory();
+    memory.append = async () => ({ ok: true as const, action: "appended" as const });
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      memory,
+      defaultConfig,
+      logger,
+    );
+
+    await svc.escalate(makeEscalation());
+
+    const retryEntry = logSpy.mock.calls
+      .map((args) => args[0])
+      .find((e) => e?.type === "retry-initiated");
+    expect(retryEntry).toBeDefined();
+  });
+
+  it("retry-initiated entry carries correct sectionId and planId", async () => {
+    const logSpy = mock((_entry: SelfHealingLogEntry) => {});
+    const logger: ISelfHealingLoopLogger = { log: logSpy };
+    const memory = makeMockMemory();
+    memory.append = async () => ({ ok: true as const, action: "appended" as const });
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      memory,
+      defaultConfig,
+      logger,
+    );
+
+    await svc.escalate(makeEscalation({ sectionId: "sec-retry", planId: "plan-retry" }));
+
+    const retryEntry = logSpy.mock.calls
+      .map((args) => args[0])
+      .find((e) => e?.type === "retry-initiated");
+    // biome-ignore lint/suspicious/noExplicitAny: narrowing discriminated union in test
+    expect((retryEntry as any)?.sectionId).toBe("sec-retry");
+    // biome-ignore lint/suspicious/noExplicitAny: narrowing discriminated union in test
+    expect((retryEntry as any)?.planId).toBe("plan-retry");
+  });
+
+  it("emits a self-healing-resolved log entry with updatedRules and positive totalDurationMs", async () => {
+    const logSpy = mock((_entry: SelfHealingLogEntry) => {});
+    const logger: ISelfHealingLoopLogger = { log: logSpy };
+    const memory = makeMockMemory();
+    memory.append = async () => ({ ok: true as const, action: "appended" as const });
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      memory,
+      defaultConfig,
+      logger,
+    );
+
+    await svc.escalate(makeEscalation({ sectionId: "sec-resolved", planId: "plan-resolved" }));
+
+    const resolvedEntry = logSpy.mock.calls
+      .map((args) => args[0])
+      .find((e) => e?.type === "self-healing-resolved");
+    expect(resolvedEntry).toBeDefined();
+    // biome-ignore lint/suspicious/noExplicitAny: narrowing discriminated union in test
+    expect((resolvedEntry as any)?.sectionId).toBe("sec-resolved");
+    // biome-ignore lint/suspicious/noExplicitAny: narrowing discriminated union in test
+    expect((resolvedEntry as any)?.planId).toBe("plan-resolved");
+    // biome-ignore lint/suspicious/noExplicitAny: narrowing discriminated union in test
+    expect(Array.isArray((resolvedEntry as any)?.updatedRules)).toBe(true);
+    // biome-ignore lint/suspicious/noExplicitAny: narrowing discriminated union in test
+    expect((resolvedEntry as any)?.updatedRules.length).toBe(1);
+    // biome-ignore lint/suspicious/noExplicitAny: narrowing discriminated union in test
+    expect((resolvedEntry as any)?.totalDurationMs).toBeGreaterThan(0);
+  });
+
+  it("retry-initiated log entry is emitted before self-healing-resolved", async () => {
+    const logSpy = mock((_entry: SelfHealingLogEntry) => {});
+    const logger: ISelfHealingLoopLogger = { log: logSpy };
+    const memory = makeMockMemory();
+    memory.append = async () => ({ ok: true as const, action: "appended" as const });
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      memory,
+      defaultConfig,
+      logger,
+    );
+
+    await svc.escalate(makeEscalation());
+
+    const allTypes = logSpy.mock.calls.map((args) => args[0]?.type);
+    const retryIdx = allTypes.indexOf("retry-initiated");
+    const resolvedIdx = allTypes.indexOf("self-healing-resolved");
+    expect(retryIdx).toBeGreaterThanOrEqual(0);
+    expect(resolvedIdx).toBeGreaterThanOrEqual(0);
+    expect(retryIdx).toBeLessThan(resolvedIdx);
+  });
+
+  it("resolved result includes a non-empty summary", async () => {
+    const memory = makeMockMemory();
+    memory.append = async () => ({ ok: true as const, action: "appended" as const });
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      memory,
+      defaultConfig,
+    );
+
+    const result = await svc.escalate(makeEscalation());
+
+    expect(result.outcome).toBe("resolved");
+    expect(typeof result.summary).toBe("string");
+    expect(result.summary.length).toBeGreaterThan(0);
+  });
+
+  it("does not throw when logger is absent on resolved path", async () => {
+    const memory = makeMockMemory();
+    memory.append = async () => ({ ok: true as const, action: "appended" as const });
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      memory,
+      defaultConfig,
+      // no logger
+    );
+
+    await expect(svc.escalate(makeEscalation())).resolves.toMatchObject({ outcome: "resolved" });
+  });
+
+  it("self-healing-resolved updatedRules matches the path from ruleFileRelativePath", async () => {
+    const logSpy = mock((_entry: SelfHealingLogEntry) => {});
+    const logger: ISelfHealingLoopLogger = { log: logSpy };
+    const memory = makeMockMemory();
+    memory.append = async () => ({ ok: true as const, action: "appended" as const });
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      memory,
+      defaultConfig,
+      logger,
+    );
+
+    await svc.escalate(makeEscalation());
+
+    const resolvedEntry = logSpy.mock.calls
+      .map((args) => args[0])
+      .find((e) => e?.type === "self-healing-resolved");
+    // biome-ignore lint/suspicious/noExplicitAny: narrowing discriminated union in test
+    const loggedPaths = (resolvedEntry as any)?.updatedRules as string[];
+    const expectedPath = SelfHealingLoopService.ruleFileRelativePath("coding_rules");
+    expect(loggedPaths).toContain(expectedPath);
   });
 });

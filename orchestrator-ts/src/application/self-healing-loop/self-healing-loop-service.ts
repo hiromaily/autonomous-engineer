@@ -10,8 +10,10 @@ import type {
   GapReport,
   KnowledgeMemoryFile,
   MemoryWriteAction,
+  RetryInitiatedLogEntry,
   RootCauseAnalysis,
   RuleUpdatedLogEntry,
+  SelfHealingResolvedLogEntry,
 } from "@/domain/self-healing/types";
 import { join as joinPath, resolve as resolvePath, sep as pathSep } from "node:path";
 
@@ -617,11 +619,37 @@ Rules:
       return { result: { outcome: "unresolved", summary: writeResult.summary }, gap };
     }
 
-    // Task 8 will assemble the resolved result. Stub: return unresolved pending task 8.
+    // Task 8.1: Assemble the resolved result and emit final resolved log entries.
+    const updatedRules = [writeResult.relativePath];
+    // Clamp to 1ms minimum so totalDurationMs is always a positive integer (requirement 8.4).
+    const totalDurationMs = Math.max(1, Date.now() - startTime);
+
+    // Emit retry-initiated log entry (requirement 6.5) — signals the implementation loop will restart.
+    const retryInitiatedEntry: RetryInitiatedLogEntry = {
+      type: "retry-initiated",
+      sectionId: escalation.sectionId,
+      planId: escalation.planId,
+      timestamp: new Date().toISOString(),
+    };
+    this.#logger?.log(retryInitiatedEntry);
+
+    // Emit self-healing-resolved log entry (requirements 8.2, 8.4).
+    const resolvedLogEntry: SelfHealingResolvedLogEntry = {
+      type: "self-healing-resolved",
+      sectionId: escalation.sectionId,
+      planId: escalation.planId,
+      timestamp: new Date().toISOString(),
+      updatedRules,
+      totalDurationMs,
+    };
+    this.#logger?.log(resolvedLogEntry);
+
+    // Return resolved outcome with workspace-relative paths (requirement 6.1).
     return {
       result: {
-        outcome: "unresolved",
-        summary: `Result assembly not yet implemented (task 8 pending): rule updated in ${writeResult.relativePath}`,
+        outcome: "resolved",
+        updatedRules,
+        summary: `Self-healing resolved: updated rule file(s): ${updatedRules.join(", ")}`,
       },
       gap,
     };

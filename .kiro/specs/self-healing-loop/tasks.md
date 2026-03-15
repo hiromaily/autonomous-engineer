@@ -96,7 +96,7 @@
   - _Requirements: 5.2, 5.3, 5.4_
 
 - [ ] 8. Result assembly and full observability
-- [ ] 8.1 Assemble the resolved result and emit final resolved log entries
+- [x] 8.1 Assemble the resolved result and emit final resolved log entries
   - When all steps succeed, emit a `retry-initiated` log entry to mark that the implementation loop will restart the failed section
   - Emit a `self-healing-resolved` log entry including `sectionId`, `planId`, `updatedRules`, and `totalDurationMs` (elapsed since `escalate()` was called)
   - Return `SelfHealingResult { outcome: "resolved", updatedRules }` with workspace-relative paths of all updated rule files
