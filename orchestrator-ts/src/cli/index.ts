@@ -10,10 +10,14 @@ import type { LlmProviderPort } from "@/application/ports/llm";
 import { RunSpecUseCase } from "@/application/usecases/run-spec";
 import { DebugApprovalGate } from "@/application/workflow/debug-approval-gate";
 import { ConfigLoader } from "@/infra/config/config-loader";
+import { ConfigWriter } from "@/infra/config/config-writer";
+import { SddFrameworkChecker } from "@/infra/config/sdd-framework-checker";
 import { WorkflowEventBus } from "@/infra/events/workflow-event-bus";
 import { FileMemoryStore } from "@/infra/memory/file-memory-store";
 import { WorkflowStateStore } from "@/infra/state/workflow-state-store";
 import { defineCommand, runMain } from "citty";
+import { ConfigWizard } from "./config-wizard";
+import { ConfigureCommand } from "./configure-command";
 import { DebugLogWriter } from "./debug-log-writer";
 import { JsonLogWriter } from "./json-log-writer";
 import { CliRenderer } from "./renderer";
@@ -92,7 +96,11 @@ const runCommand = defineCommand({
           AES_LLM_MODEL_NAME: "__debug__",
         }).load();
       } else if (err instanceof ConfigValidationError) {
+        if (err.missingFields.includes("llm.apiKey")) {
+          process.stderr.write("Warning: AES_LLM_API_KEY environment variable is not set.\n");
+        }
         process.stderr.write(`Error: configuration missing required fields: ${err.missingFields.join(", ")}\n`);
+        process.stderr.write("Run 'aes configure' to set up your configuration.\n");
         process.exit(1);
       } else {
         process.stderr.write(
@@ -177,6 +185,21 @@ const runCommand = defineCommand({
   },
 });
 
+const configureCommand = defineCommand({
+  meta: {
+    name: "configure",
+    description: "Interactively configure aes settings",
+  },
+  async run() {
+    const cmd = new ConfigureCommand({
+      wizard: new ConfigWizard(),
+      configWriter: new ConfigWriter(),
+      frameworkChecker: new SddFrameworkChecker(),
+    });
+    await cmd.run();
+  },
+});
+
 const mainCommand = defineCommand({
   meta: {
     name: "aes",
@@ -185,6 +208,7 @@ const mainCommand = defineCommand({
   },
   subCommands: {
     run: runCommand,
+    configure: configureCommand,
   },
 });
 

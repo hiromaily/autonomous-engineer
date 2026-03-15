@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
+    "@clack/prompts": "^1.1.0",
     "ajv": "^8.17",
     "citty": "^0.2.1",
     "js-tiktoken": "^1.0.16",

@@ -77,6 +77,44 @@ aes run tool-system --provider claude --log-json ./logs/tool-system.ndjson
 
 ---
 
+### `aes configure`
+
+Interactively configure `aes` for the current project.
+
+```sh
+aes configure
+```
+
+Launches an interactive wizard that prompts for each configuration field and writes the result to `aes.config.json` in the current working directory. Requires an interactive terminal (TTY).
+
+**Wizard prompts:**
+
+| Prompt | Type | Default | Description |
+|---|---|---|---|
+| LLM provider | select | `claude` | LLM provider to use |
+| Model name | text | `claude-opus-4-6` | Model identifier |
+| SDD framework | select | `cc-sdd` | SDD framework adapter (`cc-sdd`, `openspec`, `speckit`) |
+| Spec directory | text | `.kiro/specs` | Directory containing spec subdirectories |
+
+**Notes:**
+
+- If `aes.config.json` already exists, existing values are pre-populated as defaults.
+- The API key is **never written** to `aes.config.json`. Set it via `AES_LLM_API_KEY` instead.
+- The wizard verifies that the selected SDD framework is installed in the project before saving. If it is not found, the command exits with an error and a setup hint.
+- Pressing `Ctrl+C` at any prompt cancels the wizard without saving changes.
+
+**Examples:**
+
+```sh
+# First-time setup
+aes configure
+
+# Reconfigure an existing project (pre-populates current values)
+aes configure
+```
+
+---
+
 ## Workflow Phases
 
 When `aes run <spec>` is executed, the following phases run automatically in sequence:
