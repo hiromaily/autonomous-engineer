@@ -178,7 +178,7 @@
 ---
 
 - [ ] 6. Write integration tests
-- [ ] 6.1 Integration test: full implement → review → commit cycle
+- [x] 6.1 Integration test: full implement → review → commit cycle
   - Stub `IAgentLoop` to return a successful result, stub `IReviewEngine` to return `outcome: "passed"` on first attempt
   - Assert that `IPlanStore.updateSectionStatus` is called with `"completed"` for each section
   - Assert that git integration commits once per section with a message referencing the section title
@@ -187,7 +187,7 @@
   - Assert that `SectionIterationLogEntry` records are written for each completed section
   - _Requirements: 1.1, 1.3, 1.5, 1.6, 2.1, 2.3, 4.1, 4.4, 4.5_
 
-- [ ] 6.2 (P) Integration test: retry flow
+- [x] 6.2 (P) Integration test: retry flow
   - Stub `IReviewEngine` to return `"failed"` for the first two iterations and `"passed"` on the third
   - Assert retry counter increments correctly after each failure
   - Assert the improve prompt carries review feedback from the previous failed attempt
@@ -195,21 +195,21 @@
   - Assert the final commit occurs only after the third iteration passes
   - _Requirements: 4.2, 4.3, 5.1, 5.2, 5.5_
 
-- [ ] 6.3 (P) Integration test: escalation and halt
+- [x] 6.3 (P) Integration test: escalation and halt
   - Stub `IReviewEngine` to always return `"failed"` so `maxRetriesPerSection` is reached
   - When `ISelfHealingLoop` returns `"unresolved"`, assert section is marked `"escalated-to-human"`, `plan:halted` event is emitted, and result outcome is `"human-intervention-required"`
   - When `ISelfHealingLoop` is absent, assert section is marked `"failed"`, `plan:halted` is emitted, and result outcome is `"section-failed"`
   - Assert `section:escalated` event contains section ID, retry count, and review feedback
   - _Requirements: 5.3, 5.4, 7.1, 7.3, 7.4, 7.5_
 
-- [ ] 6.4 (P) Integration test: plan resumption after interruption
+- [x] 6.4 (P) Integration test: plan resumption after interruption
   - Seed `IPlanStore` with a plan that has one `"in_progress"` section and one `"completed"` section
   - Call `resume(planId)` and assert the `"completed"` section is not re-executed
   - Assert the `"in_progress"` section is reset to `"pending"` before execution begins
   - Assert context is re-initialized fresh for the resumed section
   - _Requirements: 9.1, 9.2, 9.3, 9.4_
 
-- [ ] 6.5 (P) Integration test: quality gate checks and commit blocking
+- [x] 6.5 (P) Integration test: quality gate checks and commit blocking
   - Configure `QualityGateConfig` with one required lint check (stub exit code 1) and one advisory test check (stub exit code 1)
   - Assert that a required check failure blocks the commit step and routes back to the improve step
   - Assert that an advisory check failure does not block the commit (review passes with advisory feedback)

@@ -396,7 +396,10 @@ describe("RunSpecUseCase", () => {
         implementationLoop,
       });
 
-      const result = await useCase.run("test-spec", { ...baseConfig, specDir: tmpDir }, { resume: false, dryRun: false });
+      const result = await useCase.run("test-spec", { ...baseConfig, specDir: tmpDir }, {
+        resume: false,
+        dryRun: false,
+      });
 
       expect(result.status).toBe("completed");
     });
@@ -413,7 +416,10 @@ describe("RunSpecUseCase", () => {
         implementationLoop,
       });
 
-      const result = await useCase.run("test-spec", { ...baseConfig, specDir: tmpDir }, { resume: false, dryRun: false });
+      const result = await useCase.run("test-spec", { ...baseConfig, specDir: tmpDir }, {
+        resume: false,
+        dryRun: false,
+      });
 
       expect(result.status).toBe("failed");
     });
@@ -422,7 +428,9 @@ describe("RunSpecUseCase", () => {
       await setupFullSpecDir(tmpDir);
       const events: WorkflowEvent[] = [];
       const eventBus: IWorkflowEventBus = {
-        emit: mock((e: WorkflowEvent) => { events.push(e); }),
+        emit: mock((e: WorkflowEvent) => {
+          events.push(e);
+        }),
         on: mock(() => {}),
         off: mock(() => {}),
       };
@@ -448,7 +456,9 @@ describe("RunSpecUseCase", () => {
       await setupFullSpecDir(tmpDir);
       const events: WorkflowEvent[] = [];
       const eventBus: IWorkflowEventBus = {
-        emit: mock((e: WorkflowEvent) => { events.push(e); }),
+        emit: mock((e: WorkflowEvent) => {
+          events.push(e);
+        }),
         on: mock(() => {}),
         off: mock(() => {}),
       };
@@ -479,7 +489,10 @@ describe("RunSpecUseCase", () => {
         // no implementationLoop
       });
 
-      const result = await useCase.run("test-spec", { ...baseConfig, specDir: tmpDir }, { resume: false, dryRun: false });
+      const result = await useCase.run("test-spec", { ...baseConfig, specDir: tmpDir }, {
+        resume: false,
+        dryRun: false,
+      });
 
       expect(result.status).toBe("completed");
     });
