@@ -101,11 +101,17 @@ VALIDATE_PREREQUISITES
     ↓
 REQUIREMENTS
     ↓
-VALIDATE_REQUIREMENTS
+VALIDATE_REQUIREMENTS (llm)
+    ↓
+VALIDATE_EXISTING_INFORMATION (llm)
+    ↓
+VALIDATE_GAP (optional)
     ↓
 DESIGN
     ↓
-VALIDATE_DESIGN
+VALIDATE_DESIGN (optional)
+    ↓
+VALIDATE_EXISTING_INFORMATION (llm)
     ↓
 TASK_GENERATION
     ↓
@@ -115,6 +121,8 @@ IMPLEMENTATION
     ↓
 PULL_REQUEST
 ```
+
+Phases marked `(llm)` are LLM-assisted validation steps that run automatically within the orchestrator, without requiring human approval gates.
 
 The workflow engine is responsible for:
 

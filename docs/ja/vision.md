@@ -113,12 +113,19 @@ AIが受動的なアシスタントとして機能するのではなく、シス
 典型的なワークフロー：
 
 ```
-spec-init
-requirements
-design
-validate-design
-tasks
-implementation
+1.  spec-init
+2.  前提条件の検証
+3.  requirements
+4.  validate-requirements (llm)
+5.  validate existing information (llm)
+6.  validate-gap (optional)
+7.  design
+8.  validate-design (optional)
+9.  validate existing information (llm)
+10. tasks
+11. validate-tasks
+12. implementation
+13. create PR
 ```
 
 各フェーズは次のフェーズを導く構造化されたアーティファクトを生成します。

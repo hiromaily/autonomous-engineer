@@ -31,7 +31,7 @@ SDD solves these problems by creating a structured, reviewable record of intent 
 
 The workflow phases depend on the SDD framework being integrated. Each framework defines its own phase structure, commands, and artifact conventions, which must be carefully documented before integration.
 
-The example below shows the phases for **cc-sdd**, the initial supported framework.
+The example below shows the phases for the **orchestrator-ts** implementation using **cc-sdd** as the underlying SDD framework. The orchestrator extends the base cc-sdd phase structure with LLM-assisted validation steps that run automatically without human approval gates.
 
 ```
 SPEC_INIT
@@ -40,11 +40,17 @@ VALIDATE_PREREQUISITES
     ↓
 REQUIREMENTS
     ↓
-VALIDATE_REQUIREMENTS
+VALIDATE_REQUIREMENTS (llm)
+    ↓
+VALIDATE_EXISTING_INFORMATION (llm)
+    ↓
+VALIDATE_GAP (optional)
     ↓
 DESIGN
     ↓
-VALIDATE_DESIGN
+VALIDATE_DESIGN (optional)
+    ↓
+VALIDATE_EXISTING_INFORMATION (llm)
     ↓
 TASK_GENERATION
     ↓
@@ -58,16 +64,18 @@ PULL_REQUEST
 1. spec-init
 2. validate prerequisites met
 3. requirements
-4. validate-requirements
-5. design
-6. validate-design
-7. tasks
-8. validate-tasks
-9. implementation
-10. create PR
+4. validate-requirements *(llm)*
+5. validate existing information *(llm)* — check existing codebase against requirements
+6. validate-gap *(optional)*
+7. design
+8. validate-design *(optional)*
+9. validate existing information *(llm)* — re-check existing context against design
+10. tasks
+11. validate-tasks
+12. implementation
+13. create PR
 
-
-Each phase produces structured artifacts that guide the next phase.
+Each phase produces structured artifacts that guide the next phase. LLM-assisted phases (`llm`) run automatically within the orchestrator. Additional LLM analysis steps may be introduced at other points in the flow as the system evolves.
 
 > **Note**: When integrating a new SDD framework (e.g., OpenSpec, SpecKit), its phase structure, commands, and artifact formats must be fully documented before implementation begins.
 

@@ -113,17 +113,19 @@ Instead of starting with code, development begins with structured specifications
 Typical workflow:
 
 ```
-
-1. spec-init
-2. validate prerequisites met
-3. requirements
-4. validate-requirements
-5. design
-6. validate-design
-7. tasks
-8. validate-tasks
-9. implementation
-10. create PR
+1.  spec-init
+2.  validate prerequisites met
+3.  requirements
+4.  validate-requirements (llm)
+5.  validate existing information (llm)
+6.  validate-gap (optional)
+7.  design
+8.  validate-design (optional)
+9.  validate existing information (llm)
+10. tasks
+11. validate-tasks
+12. implementation
+13. create PR
 ```
 
 Each phase produces structured artifacts that guide the next phase.

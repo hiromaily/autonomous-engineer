@@ -43,14 +43,20 @@ Typical execution flow:
 ```
 spec-init
 requirements
+validate-requirements (llm)
+validate-existing-information (llm)
+validate-gap (optional)
 design
-validate-design
+validate-design (optional)
+validate-existing-information (llm)
 tasks
 implementation
 pull-request
 ```
 
 Each stage produces structured artifacts that guide the next stage.
+
+Phases marked `(llm)` are LLM-assisted validation steps that run automatically within the orchestrator, without requiring human approval gates. These steps validate artifact quality and surface gaps before the workflow proceeds.
 
 This structure improves AI reasoning and reduces ambiguity.
 
