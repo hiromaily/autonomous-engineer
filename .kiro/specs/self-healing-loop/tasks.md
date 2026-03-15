@@ -23,14 +23,14 @@
   - _Requirements: 8.1, 8.3, 8.5_
 
 - [ ] 3. Service skeleton and escalation intake guards
-- [ ] 3.1 (P) Create `SelfHealingLoopService` with constructor injection and config
+- [x] 3.1 (P) Create `SelfHealingLoopService` with constructor injection and config
   - Accept `LlmProviderPort`, `MemoryPort`, `SelfHealingLoopConfig`, and optional `ISelfHealingLoopLogger` as constructor arguments
   - Define `SelfHealingLoopConfig` with `workspaceRoot`, `selfHealingTimeoutMs` (default 120 000), `analysisTimeoutMs` (default 60 000), `maxAnalysisRetries` (default 2), and `maxRecordSizeBytes` (default 65 536)
   - Implement `ISelfHealingLoop.escalate()` as the sole public method; it must never throw on any code path
   - Wrap the internal `#runHealingWorkflow()` call with `Promise.race` using `selfHealingTimeoutMs`; ensure the failure record is written before returning on a timeout
   - _Requirements: 1.1, 1.5_
 
-- [ ] 3.2 Implement escalation intake validation and concurrency guard
+- [x] 3.2 Implement escalation intake validation and concurrency guard
   - On entry, emit an `escalation-intake` log entry with `retryHistoryCount`
   - If `escalation.retryHistory` is empty, return `outcome: "unresolved"` with a descriptive summary immediately, before entering the workflow
   - Maintain `#inFlightSections: Set<string>`; if `sectionId` is already present, return `outcome: "unresolved"` with "concurrent escalation in progress"

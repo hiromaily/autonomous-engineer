@@ -39,7 +39,10 @@ function flush(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 50));
 }
 
-function makeEntry(type: SelfHealingLogEntry["type"], overrides: Partial<SelfHealingLogEntry> = {}): SelfHealingLogEntry {
+function makeEntry(
+  type: SelfHealingLogEntry["type"],
+  overrides: Partial<SelfHealingLogEntry> = {},
+): SelfHealingLogEntry {
   const base = {
     sectionId: "sec-1",
     planId: "plan-abc",
@@ -53,11 +56,23 @@ function makeEntry(type: SelfHealingLogEntry["type"], overrides: Partial<SelfHea
     case "gap-identified":
       return { ...base, type, targetFile: "coding_rules", ...overrides } as SelfHealingLogEntry;
     case "rule-updated":
-      return { ...base, type, targetFile: "coding_rules", memoryWriteAction: "appended", ...overrides } as SelfHealingLogEntry;
+      return {
+        ...base,
+        type,
+        targetFile: "coding_rules",
+        memoryWriteAction: "appended",
+        ...overrides,
+      } as SelfHealingLogEntry;
     case "retry-initiated":
       return { ...base, type, ...overrides } as SelfHealingLogEntry;
     case "self-healing-resolved":
-      return { ...base, type, updatedRules: ["coding_rules"], totalDurationMs: 4000, ...overrides } as SelfHealingLogEntry;
+      return {
+        ...base,
+        type,
+        updatedRules: ["coding_rules"],
+        totalDurationMs: 4000,
+        ...overrides,
+      } as SelfHealingLogEntry;
     case "unresolved":
       return { ...base, type, stopStep: "analysis", totalDurationMs: 1000, ...overrides } as SelfHealingLogEntry;
   }
