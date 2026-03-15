@@ -31,51 +31,58 @@ SDD solves these problems by creating a structured, reviewable record of intent 
 
 The workflow phases depend on the SDD framework being integrated. Each framework defines its own phase structure, commands, and artifact conventions, which must be carefully documented before integration.
 
-The example below shows the phases for the **orchestrator-ts** implementation using **cc-sdd** as the underlying SDD framework. The orchestrator extends the base cc-sdd phase structure with LLM-assisted validation steps that run automatically without human approval gates.
+The example below shows the phases for the **orchestrator-ts** implementation using **cc-sdd** as the underlying SDD framework. The orchestrator extends the base cc-sdd phase structure with LLM-assisted steps that run automatically without human approval gates.
 
 ```
 SPEC_INIT
     ↓
 VALIDATE_PREREQUISITES
-    ↓
-REQUIREMENTS
+    ── /clear ──
+SPEC_REQUIREMENTS
     ↓
 VALIDATE_REQUIREMENTS (llm)
     ↓
-VALIDATE_EXISTING_INFORMATION (llm)
+REFLECT_ON_EXISTING_INFORMATION (llm)
     ↓
 VALIDATE_GAP (optional)
-    ↓
-DESIGN
+    ── /clear ──
+SPEC_DESIGN
     ↓
 VALIDATE_DESIGN (optional)
     ↓
-VALIDATE_EXISTING_INFORMATION (llm)
+REFLECT_ON_EXISTING_INFORMATION (llm)
+    ── /clear ──
+SPEC_TASKS (TASK_GENERATION)
     ↓
-TASK_GENERATION
-    ↓
-VALIDATE_TASK
-    ↓
-IMPLEMENTATION
-    ↓
+VALIDATE_TASKS
+    ── /clear ──
+SPEC_IMPL (IMPLEMENTATION)
+    ── /clear ──
 PULL_REQUEST
 ```
 
 1. spec-init
 2. validate prerequisites met
-3. requirements
-4. validate-requirements *(llm)*
-5. validate existing information *(llm)* — check existing codebase against requirements
-6. validate-gap *(optional)*
-7. design
-8. validate-design *(optional)*
-9. validate existing information *(llm)* — re-check existing context against design
-10. tasks
-11. validate-tasks
-12. implementation
-13. create PR
+3. **`/clear`** — reset context before requirements
+4. requirements
+5. validate-requirements *(llm)*
+6. reflect on existing information *(llm)*
+7. validate-gap *(optional)*
+8. **`/clear`** — reset context before design
+9. design
+10. validate-design *(optional)*
+11. reflect on existing information *(llm)*
+12. **`/clear`** — reset context before task generation
+13. tasks
+14. validate-tasks
+15. **`/clear`** — reset context before implementation
+16. implementation
+17. **`/clear`** — reset context before pull request
+18. create PR
 
 Each phase produces structured artifacts that guide the next phase. LLM-assisted phases (`llm`) run automatically within the orchestrator. Additional LLM analysis steps may be introduced at other points in the flow as the system evolves.
+
+> **`/clear` is required between phases.** Each phase accumulates significant context. Without clearing, token usage grows across phases and degrades reasoning quality. Running `/clear` at each phase boundary keeps the context focused on only what is needed for the current phase.
 
 > **Note**: When integrating a new SDD framework (e.g., OpenSpec, SpecKit), its phase structure, commands, and artifact formats must be fully documented before implementation begins.
 
@@ -122,6 +129,25 @@ Requirements use checkboxes to track acceptance:
 ```
 
 Human review is required before proceeding to design.
+
+---
+
+## Reflect on Existing Information (llm)
+
+An LLM-assisted reflection step that runs automatically after requirements and again after design. It is implemented as a follow-up prompt to the same LLM that just completed the phase.
+
+The prompt pattern is:
+
+> "Did you experience any difficulty completing the previous task? What information would have made it easier to complete? Please update the relevant documentation based on this feedback."
+
+The LLM reflects on its own experience of the just-completed phase and directly updates any agent resources it identifies as insufficient or missing:
+
+- steering documents (`.kiro/steering/`)
+- rules (`.kiro/settings/rules/`, `.claude/rules/`)
+- custom slash commands (`.claude/commands/`)
+- skills and templates
+
+This step does not block the workflow and requires no human approval gate. It is an incremental improvement mechanism — the agent's documentation evolves based on real task experience rather than manual curation.
 
 ---
 

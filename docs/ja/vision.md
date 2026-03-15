@@ -117,11 +117,11 @@ AIが受動的なアシスタントとして機能するのではなく、シス
 2.  前提条件の検証
 3.  requirements
 4.  validate-requirements (llm)
-5.  validate existing information (llm)
+5.  reflect on existing information (llm)
 6.  validate-gap (optional)
 7.  design
 8.  validate-design (optional)
-9.  validate existing information (llm)
+9.  reflect on existing information (llm)
 10. tasks
 11. validate-tasks
 12. implementation

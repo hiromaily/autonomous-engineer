@@ -103,7 +103,7 @@ REQUIREMENTS
     ↓
 VALIDATE_REQUIREMENTS (llm)
     ↓
-VALIDATE_EXISTING_INFORMATION (llm)
+REFLECT_ON_EXISTING_INFORMATION (llm)
     ↓
 VALIDATE_GAP (optional)
     ↓
@@ -111,7 +111,7 @@ DESIGN
     ↓
 VALIDATE_DESIGN (optional)
     ↓
-VALIDATE_EXISTING_INFORMATION (llm)
+REFLECT_ON_EXISTING_INFORMATION (llm)
     ↓
 TASK_GENERATION
     ↓
@@ -122,7 +122,7 @@ IMPLEMENTATION
 PULL_REQUEST
 ```
 
-Phases marked `(llm)` are LLM-assisted validation steps that run automatically within the orchestrator, without requiring human approval gates.
+Phases marked `(llm)` run automatically within the orchestrator without human approval gates. The `REFLECT_ON_EXISTING_INFORMATION` steps are post-phase reflections where the LLM reviews the completed phase and surfaces improvement hints for agent resources such as steering documents, rules, and commands.
 
 The workflow engine is responsible for:
 

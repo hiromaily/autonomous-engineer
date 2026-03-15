@@ -103,7 +103,7 @@ REQUIREMENTS
     ↓
 VALIDATE_REQUIREMENTS (llm)
     ↓
-VALIDATE_EXISTING_INFORMATION (llm)
+REFLECT_ON_EXISTING_INFORMATION (llm)
     ↓
 VALIDATE_GAP (optional)
     ↓
@@ -111,7 +111,7 @@ DESIGN
     ↓
 VALIDATE_DESIGN (optional)
     ↓
-VALIDATE_EXISTING_INFORMATION (llm)
+REFLECT_ON_EXISTING_INFORMATION (llm)
     ↓
 TASK_GENERATION
     ↓
@@ -122,7 +122,7 @@ IMPLEMENTATION
 PULL_REQUEST
 ```
 
-`(llm)` マークのフェーズはオーケストレーター内で自動実行されるLLM支援検証ステップで、人間の承認ゲートを必要としません。
+`(llm)` マークのフェーズは人間の承認ゲートなしにオーケストレーター内で自動実行されます。`REFLECT_ON_EXISTING_INFORMATION` ステップは完了したフェーズを振り返り、ステアリングドキュメント、ルール、コマンドなどのエージェントリソースの改善ヒントを洗い出すポストフェーズ振り返りです。
 
 ワークフローエンジンの責務：
 
