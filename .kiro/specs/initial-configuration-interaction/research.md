@@ -29,7 +29,7 @@
 
 ### SDD Framework Check Logic
 
-- **Context**: Req 3 requires checking whether the chosen SDD framework is "installed". The user defined cc-sdd as: `.kiro/` directory exists in project root.
+- **Context**: Req 4 requires checking whether the chosen SDD framework is "installed". The user defined cc-sdd as: `.kiro/` directory exists in project root.
 - **Findings**:
   - `CcSddAdapter` invokes the `cc-sdd` binary via `Bun.spawn`. Being in PATH is assumed.
   - The "installation check" is explicitly about project-level setup (`.kiro/` directory), not binary availability.

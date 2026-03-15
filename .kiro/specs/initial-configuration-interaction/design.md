@@ -158,16 +158,16 @@ sequenceDiagram
 | 2.3 | Defaults on first run | `ConfigWizard` | `WizardInput` | Happy path flow |
 | 2.4 | Ctrl+C discards changes | `ConfigWizard`, `ConfigureCommand` | `isCancel` | — |
 | 2.5 | Non-TTY exits with error | `ConfigureCommand` | `process.stdin.isTTY` | — |
-| 3.1 | Framework check on selection | `ConfigureCommand`, `SddFrameworkChecker` | `IFrameworkChecker` | Both flows |
-| 3.2 | cc-sdd check = `.kiro/` exists | `SddFrameworkChecker` | `FrameworkCheckResult` | Framework not installed flow |
-| 3.3 | Display hint and exit if not installed | `ConfigureCommand` | `FrameworkCheckResult.hint` | Framework not installed flow |
-| 3.4 | No auto-install | `ConfigureCommand` | — | — |
-| 3.5 | Continue if installed | `ConfigureCommand` | — | Happy path flow |
-| 4.1 | Write `aes.config.json` after wizard | `ConfigWriter` | `IConfigWriter` | Happy path flow |
-| 4.2 | Confirmation message | `ConfigureCommand` | — | Happy path flow |
-| 4.3 | Write failure exits with error | `ConfigWriter`, `ConfigureCommand` | `IConfigWriter` | — |
-| 4.4 | API key never written to file | `ConfigWriter` | `WritableConfig` | All flows |
-| 5.6 | API key guidance post-wizard | `ConfigureCommand` | — | Happy path flow |
+| 4.1 | Framework check on selection | `ConfigureCommand`, `SddFrameworkChecker` | `IFrameworkChecker` | Both flows |
+| 4.2 | cc-sdd check = `.kiro/` exists | `SddFrameworkChecker` | `FrameworkCheckResult` | Framework not installed flow |
+| 4.3 | Display hint and exit if not installed | `ConfigureCommand` | `FrameworkCheckResult.hint` | Framework not installed flow |
+| 4.5 | No auto-install | `ConfigureCommand` | — | — |
+| 4.4 | Continue if installed | `ConfigureCommand` | — | Happy path flow |
+| 5.1 | Write `aes.config.json` after wizard | `ConfigWriter` | `IConfigWriter` | Happy path flow |
+| 5.2 | Confirmation message | `ConfigureCommand` | — | Happy path flow |
+| 5.3 | Write failure exits with error | `ConfigWriter`, `ConfigureCommand` | `IConfigWriter` | — |
+| 5.4 | API key never written to file | `ConfigWriter` | `WritableConfig` | All flows |
+| 3.6 | API key guidance post-wizard | `ConfigureCommand` | — | Happy path flow |
 
 ---
 
@@ -177,10 +177,10 @@ sequenceDiagram
 
 | Component | Layer | Intent | Req Coverage | Key Dependencies | Contracts |
 |-----------|-------|--------|--------------|------------------|-----------|
-| `ConfigureCommand` | CLI | Orchestrates configure wizard end-to-end | 2.1–2.5, 3.1, 3.3–3.5, 4.2–4.4 | `ConfigWizard` (P0), `IConfigWriter` (P0), `IFrameworkChecker` (P0), `ConfigLoader` (P1) | Service |
-| `ConfigWizard` | CLI | Interactive prompt session | 2.1–2.4, 3.1, 5.6 | `@clack/prompts` (P0) | Service |
-| `ConfigWriter` | Infra | Writes `aes.config.json` without API key | 4.1–4.4 | `node:fs/promises` (P0) | Service |
-| `SddFrameworkChecker` | Infra | Checks SDD framework installation per strategy | 3.1–3.3 | `node:fs/promises` (P0) | Service |
+| `ConfigureCommand` | CLI | Orchestrates configure wizard end-to-end | 2.1–2.5, 4.1, 4.3–4.5, 5.2–5.4 | `ConfigWizard` (P0), `IConfigWriter` (P0), `IFrameworkChecker` (P0), `ConfigLoader` (P1) | Service |
+| `ConfigWizard` | CLI | Interactive prompt session | 2.1–2.4, 3.1, 3.6 | `@clack/prompts` (P0) | Service |
+| `ConfigWriter` | Infra | Writes `aes.config.json` without API key | 5.1–5.4 | `node:fs/promises` (P0) | Service |
+| `SddFrameworkChecker` | Infra | Checks SDD framework installation per strategy | 4.1–4.3 | `node:fs/promises` (P0) | Service |
 | `index.ts` (modified) | CLI | Registers `configure`; improves `run` error | 1.1–1.3 | `ConfigureCommand` (P0), `ConfigValidationError` (P0) | — |
 | Application ports (modified) | App | `WritableConfig`, `IConfigWriter`, `IFrameworkChecker` types | All | — | — |
 
@@ -193,7 +193,7 @@ sequenceDiagram
 | Field | Detail |
 |-------|--------|
 | Intent | Orchestrates the configure wizard: load defaults, run prompts, check framework, write config |
-| Requirements | 2.1, 2.2, 2.3, 2.4, 2.5, 3.1, 3.3, 3.4, 3.5, 4.2, 4.3, 4.4 |
+| Requirements | 2.1, 2.2, 2.3, 2.4, 2.5, 4.1, 4.3, 4.5, 4.4, 5.2, 5.3, 5.4 |
 
 **Responsibilities & Constraints**
 - Entry point for `aes configure` subcommand (registered via `citty`)
@@ -249,7 +249,7 @@ interface IConfigureCommand {
 - Accepts `defaults` to pre-populate answers from existing config (2.2)
 - Re-prompts on empty required fields (2.4 validation)
 - Returns `"cancelled"` if user hits Ctrl+C at any step
-- Does NOT prompt for API key (per Req 4.4 and user decision)
+- Does NOT prompt for API key (per Req 3.6 and user decision)
 
 **Dependencies**
 - External: `@clack/prompts` ^0.7.x — select, text, isCancel (P0)
@@ -294,7 +294,7 @@ interface IConfigWizard {
 | Field | Detail |
 |-------|--------|
 | Intent | Writes `aes.config.json` from `WritableConfig` (no API key) |
-| Requirements | 4.1, 4.2, 4.3, 4.4 |
+| Requirements | 5.1, 5.2, 5.3, 5.4 |
 
 **Responsibilities & Constraints**
 - Serializes `WritableConfig` to JSON and writes `aes.config.json` in `cwd`
@@ -323,7 +323,7 @@ interface IConfigWriter {
 | Field | Detail |
 |-------|--------|
 | Intent | Checks whether a given SDD framework is set up in the current project |
-| Requirements | 3.1, 3.2, 3.3, 3.5 |
+| Requirements | 4.1, 4.2, 4.3, 4.4 |
 
 **Responsibilities & Constraints**
 - Dispatches to a per-framework check strategy
