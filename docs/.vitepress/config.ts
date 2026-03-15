@@ -90,18 +90,13 @@ export default withMermaid(
               text: "Development",
               items: [
                 { text: "Spec Plan", link: "/agent/dev-agent-v1-specs" },
-                {
-                  text: "Development Environment",
-                  link: "/development/development-environment",
-                },
-                {
-                  text: "AI Agent Framework Policy",
-                  link: "/development/ai-agent-framework-policy",
-                },
-                {
-                  text: "Agent Configuration",
-                  link: "/development/agent-configuration",
-                },
+                { text: "CLI Reference", link: "/development/cli-reference" },
+                { text: "Debugging and Logging", link: "/development/debugging" },
+                { text: "Workflow Customization", link: "/development/workflow-customization" },
+                { text: "Development Environment", link: "/development/development-environment" },
+                { text: "AI Agent Framework Policy", link: "/development/ai-agent-framework-policy" },
+                { text: "Agent Configuration", link: "/development/agent-configuration" },
+                { text: "Developer Docs Research", link: "/development/developer-docs-research" },
               ],
             },
           ],
@@ -189,18 +184,13 @@ export default withMermaid(
               text: "開発",
               items: [
                 { text: "仕様計画", link: "/ja/agent/dev-agent-v1-specs" },
-                {
-                  text: "開発環境",
-                  link: "/ja/development/development-environment",
-                },
-                {
-                  text: "AIエージェントフレームワークポリシー",
-                  link: "/ja/development/ai-agent-framework-policy",
-                },
-                {
-                  text: "エージェント設定",
-                  link: "/ja/development/agent-configuration",
-                },
+                { text: "CLIリファレンス", link: "/ja/development/cli-reference" },
+                { text: "デバッグとログ", link: "/ja/development/debugging" },
+                { text: "ワークフローのカスタマイズ", link: "/ja/development/workflow-customization" },
+                { text: "開発環境", link: "/ja/development/development-environment" },
+                { text: "AIエージェントフレームワークポリシー", link: "/ja/development/ai-agent-framework-policy" },
+                { text: "エージェント設定", link: "/ja/development/agent-configuration" },
+                { text: "開発者ドキュメント調査レポート", link: "/ja/development/developer-docs-research" },
               ],
             },
           ],
