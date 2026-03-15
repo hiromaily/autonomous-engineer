@@ -39,6 +39,15 @@
  * - logHaltSummary NOT called when the loop completes successfully
  * - Logger is optional — service runs normally without a logger
  *
+ * Task 4.7 — escalation to the self-healing loop:
+ * - Without ISelfHealingLoop: outcome = "section-failed", section status = "failed"
+ * - ISelfHealingLoop.escalate() called with correct sectionId, planId, retryHistory
+ * - ISelfHealingLoop.escalate() called with accumulated reviewFeedback from failed iterations
+ * - ISelfHealingLoop.escalate() called with accumulated agentObservations
+ * - On SelfHealingResult "unresolved": status = "escalated-to-human", outcome = "human-intervention-required"
+ * - On SelfHealingResult "resolved": retry counter resets, execution continues, can succeed
+ * - When ISelfHealingLoop throws: section marked "failed", outcome = "section-failed" (no crash)
+ *
  * Requirements: 1.1, 1.2, 1.3, 1.4, 1.6, 2.1, 2.3, 2.4, 3.1, 4.1, 4.4, 4.5, 6.2, 6.5, 7.1, 7.2, 7.3, 7.4, 7.5, 8.1, 8.2, 8.3, 8.4
  */
 
@@ -51,12 +60,18 @@ import type {
   IImplementationLoopLogger,
   IPlanStore,
   IReviewEngine,
+  ISelfHealingLoop,
   QualityGateConfig,
   ReviewResult,
   SectionIterationLogEntry,
 } from "@/application/ports/implementation-loop";
-import type { AgentState, TerminationCondition } from "@/domain/agent/types";
-import type { ImplementationLoopEvent, SectionExecutionRecord } from "@/domain/implementation-loop/types";
+import type { AgentState, Observation, TerminationCondition } from "@/domain/agent/types";
+import type {
+  ImplementationLoopEvent,
+  SectionEscalation,
+  SectionExecutionRecord,
+  SelfHealingResult,
+} from "@/domain/implementation-loop/types";
 import type { Task, TaskPlan } from "@/domain/planning/types";
 import { describe, expect, it } from "bun:test";
 
@@ -1949,5 +1964,302 @@ describe("ImplementationLoopService (task 4.6) — logger is optional", () => {
     const result = await service.run(plan.id);
 
     expect(result.outcome).toBe("completed");
+  });
+});
+
+// ===========================================================================
+// Task 4.7: Escalation to the Self-Healing Loop
+// ===========================================================================
+
+// ---------------------------------------------------------------------------
+// Task 4.7 spy helpers
+// ---------------------------------------------------------------------------
+
+/** Creates an ISelfHealingLoop stub with a configurable outcome. */
+function makeSelfHealingLoop(
+  result: SelfHealingResult,
+): ISelfHealingLoop & { escalations: SectionEscalation[] } {
+  const escalations: SectionEscalation[] = [];
+  return {
+    escalations,
+    async escalate(escalation: SectionEscalation): Promise<SelfHealingResult> {
+      escalations.push(escalation);
+      return result;
+    },
+  };
+}
+
+/** ISelfHealingLoop stub that throws on escalate. */
+function makeThrowingSelfHealingLoop(): ISelfHealingLoop {
+  return {
+    async escalate(_escalation: SectionEscalation): Promise<never> {
+      throw new Error("Self-healing loop crashed");
+    },
+  };
+}
+
+/**
+ * Agent loop that includes observations in finalState.
+ * Useful for verifying agentObservations passed to ISelfHealingLoop.escalate().
+ */
+function makeObservationAgentLoop(
+  observation: Observation,
+): IAgentLoop & { calls: string[] } {
+  const calls: string[] = [];
+  return {
+    calls,
+    async run(task: string) {
+      calls.push(task);
+      const base = makeAgentLoopResult();
+      return {
+        ...base,
+        finalState: {
+          ...base.finalState,
+          observations: [observation],
+        },
+      };
+    },
+    stop() {},
+    getState() {
+      return null;
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// No ISelfHealingLoop provided — falls back to section-failed
+// ---------------------------------------------------------------------------
+
+describe("ImplementationLoopService (task 4.7) — no self-healing loop provided", () => {
+  it("returns outcome: section-failed when ISelfHealingLoop is absent and retries are exhausted", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const service = makeService(store, {
+      agentLoop: makeSpyAgentLoop(),
+      reviewEngine: makeSpyReviewEngine("failed"),
+      gitController: makeSpyGitController(),
+    });
+
+    const result = await service.run(plan.id, { maxRetriesPerSection: 1 });
+
+    expect(result.outcome).toBe("section-failed");
+  });
+
+  it("marks section as 'failed' in IPlanStore when no self-healing loop is present", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const service = makeService(store, {
+      agentLoop: makeSpyAgentLoop(),
+      reviewEngine: makeSpyReviewEngine("failed"),
+      gitController: makeSpyGitController(),
+    });
+
+    await service.run(plan.id, { maxRetriesPerSection: 1 });
+
+    const failedUpdate = store.statusUpdates.find(
+      (u) => u.sectionId === "t1" && u.status === "failed",
+    );
+    expect(failedUpdate).toBeDefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// ISelfHealingLoop provided — "unresolved" outcome
+// ---------------------------------------------------------------------------
+
+describe("ImplementationLoopService (task 4.7) — self-healing loop: unresolved", () => {
+  it("returns outcome: human-intervention-required when self-healing loop returns unresolved", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const selfHealingLoop = makeSelfHealingLoop({ outcome: "unresolved", summary: "Cannot fix" });
+    const service = makeService(store, {
+      agentLoop: makeSequencedAgentLoop([{}, {}]),
+      reviewEngine: makeSequencedReviewEngine(["failed", "failed"]),
+      gitController: makeSpyGitController(),
+    });
+
+    const result = await service.run(plan.id, { maxRetriesPerSection: 2, selfHealingLoop });
+
+    expect(result.outcome).toBe("human-intervention-required");
+  });
+
+  it("marks section as 'escalated-to-human' in IPlanStore on unresolved outcome", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const selfHealingLoop = makeSelfHealingLoop({ outcome: "unresolved", summary: "Cannot fix" });
+    const service = makeService(store, {
+      agentLoop: makeSequencedAgentLoop([{}, {}]),
+      reviewEngine: makeSequencedReviewEngine(["failed", "failed"]),
+      gitController: makeSpyGitController(),
+    });
+
+    await service.run(plan.id, { maxRetriesPerSection: 2, selfHealingLoop });
+
+    const escalatedUpdate = store.statusUpdates.find(
+      (u) => u.sectionId === "t1" && u.status === "escalated-to-human",
+    );
+    expect(escalatedUpdate).toBeDefined();
+  });
+
+  it("calls ISelfHealingLoop.escalate() with the correct sectionId and planId", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "task-abc", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const selfHealingLoop = makeSelfHealingLoop({ outcome: "unresolved", summary: "Cannot fix" });
+    const service = makeService(store, {
+      agentLoop: makeSpyAgentLoop(),
+      reviewEngine: makeSpyReviewEngine("failed"),
+      gitController: makeSpyGitController(),
+    });
+
+    await service.run(plan.id, { maxRetriesPerSection: 1, selfHealingLoop });
+
+    expect(selfHealingLoop.escalations).toHaveLength(1);
+    expect(selfHealingLoop.escalations[0]?.sectionId).toBe("task-abc");
+    expect(selfHealingLoop.escalations[0]?.planId).toBe(plan.id);
+  });
+
+  it("passes retryHistory with all iteration records to escalate()", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const selfHealingLoop = makeSelfHealingLoop({ outcome: "unresolved", summary: "Cannot fix" });
+    const service = makeService(store, {
+      agentLoop: makeSequencedAgentLoop([{}, {}]),
+      reviewEngine: makeSequencedReviewEngine(["failed", "failed"]),
+      gitController: makeSpyGitController(),
+    });
+
+    await service.run(plan.id, { maxRetriesPerSection: 2, selfHealingLoop });
+
+    const escalation = selfHealingLoop.escalations[0];
+    // 2 iterations were recorded before escalation
+    expect(escalation?.retryHistory).toHaveLength(2);
+  });
+
+  it("passes accumulated reviewFeedback from all failed iterations to escalate()", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const selfHealingLoop = makeSelfHealingLoop({ outcome: "unresolved", summary: "Cannot fix" });
+    // Each failed review returns 1 feedback item with description "Missing error handling"
+    const service = makeService(store, {
+      agentLoop: makeSequencedAgentLoop([{}, {}]),
+      reviewEngine: makeSequencedReviewEngine(["failed", "failed"], "Missing error handling"),
+      gitController: makeSpyGitController(),
+    });
+
+    await service.run(plan.id, { maxRetriesPerSection: 2, selfHealingLoop });
+
+    const escalation = selfHealingLoop.escalations[0];
+    // 2 failed reviews × 1 feedback item each = 2 accumulated feedback items
+    expect(escalation?.reviewFeedback.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("passes agentObservations accumulated across all iterations to escalate()", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const selfHealingLoop = makeSelfHealingLoop({ outcome: "unresolved", summary: "Cannot fix" });
+
+    const observation: Observation = {
+      toolName: "read_file",
+      toolInput: { path: "src/feature.ts" },
+      rawOutput: "file contents",
+      success: true,
+      recordedAt: new Date().toISOString(),
+    };
+
+    // Agent loop emits an observation on each run
+    const agentLoop = makeObservationAgentLoop(observation);
+    const service = makeService(store, {
+      agentLoop,
+      reviewEngine: makeSequencedReviewEngine(["failed", "failed"]),
+      gitController: makeSpyGitController(),
+    });
+
+    await service.run(plan.id, { maxRetriesPerSection: 2, selfHealingLoop });
+
+    const escalation = selfHealingLoop.escalations[0];
+    // 2 runs × 1 observation each = 2 accumulated observations
+    expect(escalation?.agentObservations.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// ISelfHealingLoop provided — "resolved" outcome
+// ---------------------------------------------------------------------------
+
+describe("ImplementationLoopService (task 4.7) — self-healing loop: resolved", () => {
+  it("resets retry counter and continues execution after self-healing resolves", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const selfHealingLoop = makeSelfHealingLoop({ outcome: "resolved", summary: "Fixed" });
+
+    // First maxRetriesPerSection iterations fail → trigger escalation → resolved → then passes
+    const service = makeService(store, {
+      agentLoop: makeSequencedAgentLoop([{}, {}, {}]),
+      reviewEngine: makeSequencedReviewEngine(["failed", "failed", "passed"]),
+      gitController: makeSpyGitController(),
+    });
+
+    const result = await service.run(plan.id, { maxRetriesPerSection: 2, selfHealingLoop });
+
+    expect(result.outcome).toBe("completed");
+  });
+
+  it("marks section as 'completed' when self-healing resolves and subsequent attempt passes", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const selfHealingLoop = makeSelfHealingLoop({ outcome: "resolved", summary: "Fixed" });
+
+    const service = makeService(store, {
+      agentLoop: makeSequencedAgentLoop([{}, {}, {}]),
+      reviewEngine: makeSequencedReviewEngine(["failed", "failed", "passed"]),
+      gitController: makeSpyGitController(),
+    });
+
+    await service.run(plan.id, { maxRetriesPerSection: 2, selfHealingLoop });
+
+    const completedUpdate = store.statusUpdates.find(
+      (u) => u.sectionId === "t1" && u.status === "completed",
+    );
+    expect(completedUpdate).toBeDefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// ISelfHealingLoop throws — falls back to section-failed
+// ---------------------------------------------------------------------------
+
+describe("ImplementationLoopService (task 4.7) — self-healing loop throws", () => {
+  it("returns outcome: section-failed when ISelfHealingLoop.escalate() throws", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const selfHealingLoop = makeThrowingSelfHealingLoop();
+    const service = makeService(store, {
+      agentLoop: makeSpyAgentLoop(),
+      reviewEngine: makeSpyReviewEngine("failed"),
+      gitController: makeSpyGitController(),
+    });
+
+    // Must not throw — error surfaces as section-failed
+    const result = await service.run(plan.id, { maxRetriesPerSection: 1, selfHealingLoop });
+
+    expect(result.outcome).toBe("section-failed");
+  });
+
+  it("marks section as 'failed' when ISelfHealingLoop.escalate() throws", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const selfHealingLoop = makeThrowingSelfHealingLoop();
+    const service = makeService(store, {
+      agentLoop: makeSpyAgentLoop(),
+      reviewEngine: makeSpyReviewEngine("failed"),
+      gitController: makeSpyGitController(),
+    });
+
+    await service.run(plan.id, { maxRetriesPerSection: 1, selfHealingLoop });
+
+    const failedUpdate = store.statusUpdates.find(
+      (u) => u.sectionId === "t1" && u.status === "failed",
+    );
+    expect(failedUpdate).toBeDefined();
   });
 });

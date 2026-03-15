@@ -9,16 +9,31 @@ import type {
   IPlanStore,
   IReviewEngine,
 } from "@/application/ports/implementation-loop";
-import type { AgentState, TerminationCondition } from "@/domain/agent/types";
+import type { AgentState, Observation, TerminationCondition } from "@/domain/agent/types";
 import type {
   ReviewFeedbackItem,
   ReviewResult,
+  SectionEscalation,
   SectionExecutionRecord,
   SectionExecutionStatus,
   SectionIterationRecord,
   SectionSummary,
+  SelfHealingResult,
 } from "@/domain/implementation-loop/types";
 import type { Task, TaskPlan } from "@/domain/planning/types";
+
+// ---------------------------------------------------------------------------
+// Internal discriminated union for escalation results
+// ---------------------------------------------------------------------------
+
+/**
+ * Returned by `#escalateSection` to indicate what the retry loop should do next.
+ * - `"halt"`: stop executing this section and propagate the record upward.
+ * - `"retry"`: the self-healing loop resolved the issue; reset retryCount and continue.
+ */
+type EscalationDecision =
+  | { action: "halt"; record: SectionExecutionRecord }
+  | { action: "retry"; improvePrompt: string };
 
 // ---------------------------------------------------------------------------
 // Default option values
@@ -268,6 +283,10 @@ export class ImplementationLoopService implements IImplementationLoop {
     let retryCount = 0;
     let improvePrompt: string | undefined;
 
+    // Accumulated across all iterations for escalation payloads (task 4.7).
+    const allObservations: Observation[] = [];
+    const allFeedback: ReviewFeedbackItem[] = [];
+
     // Context isolation: reset the context engine at section start so accumulated
     // context from the previous section is discarded. The contextProvider built here
     // is reused for ALL iterations (implement + improve) of this section so that
@@ -299,6 +318,9 @@ export class ImplementationLoopService implements IImplementationLoop {
       );
       const iterationDurationMs = Date.now() - iterationStartMs;
 
+      // Accumulate agent observations across all attempts for escalation payloads.
+      allObservations.push(...agentResult.finalState.observations);
+
       // Non-TASK_COMPLETED termination → increment retry, possibly escalate
       if (!agentResult.taskCompleted) {
         const failureReview = buildAgentFailureReview(agentResult.terminationCondition);
@@ -310,6 +332,7 @@ export class ImplementationLoopService implements IImplementationLoop {
           new Date().toISOString(),
         );
         iterations.push(iterRecord);
+        allFeedback.push(...failureReview.feedback);
         retryCount++;
 
         options.logger?.logIteration({
@@ -323,14 +346,23 @@ export class ImplementationLoopService implements IImplementationLoop {
         });
 
         if (retryCount >= options.maxRetriesPerSection) {
-          return this.#escalateSection(
+          const decision = await this.#escalateSection(
             task,
             plan,
             iterations,
             retryCount,
             sectionStartAt,
             options,
+            allObservations,
+            allFeedback,
           );
+          if (decision.action === "halt") {
+            return decision.record;
+          }
+          // Self-healing resolved: reset retry counter and apply the new improve prompt.
+          retryCount = 0;
+          improvePrompt = decision.improvePrompt;
+          continue;
         }
 
         improvePrompt = buildImprovePrompt(task.title, failureReview.feedback);
@@ -425,6 +457,7 @@ export class ImplementationLoopService implements IImplementationLoop {
 
       // Review failed — increment retry counter, emit event, possibly escalate
       retryCount++;
+      allFeedback.push(...reviewResult.feedback);
 
       options.eventBus?.emit({
         type: "section:review-failed",
@@ -444,14 +477,23 @@ export class ImplementationLoopService implements IImplementationLoop {
       });
 
       if (retryCount >= options.maxRetriesPerSection) {
-        return this.#escalateSection(
+        const decision = await this.#escalateSection(
           task,
           plan,
           iterations,
           retryCount,
           sectionStartAt,
           options,
+          allObservations,
+          allFeedback,
         );
+        if (decision.action === "halt") {
+          return decision.record;
+        }
+        // Self-healing resolved: reset retry counter and apply the new improve prompt.
+        retryCount = 0;
+        improvePrompt = decision.improvePrompt;
+        continue;
       }
 
       improvePrompt = buildImprovePrompt(task.title, reviewResult.feedback);
@@ -460,6 +502,10 @@ export class ImplementationLoopService implements IImplementationLoop {
 
   // ---------------------------------------------------------------------------
   // Escalation when maxRetriesPerSection is exhausted
+  //
+  // Returns an EscalationDecision:
+  //   - { action: "halt", record } — section is permanently failed/escalated-to-human.
+  //   - { action: "retry", improvePrompt } — self-healing resolved; caller resets retryCount.
   // ---------------------------------------------------------------------------
 
   async #escalateSection(
@@ -469,7 +515,9 @@ export class ImplementationLoopService implements IImplementationLoop {
     retryCount: number,
     sectionStartAt: string,
     options: Required<ImplementationLoopOptions>,
-  ): Promise<SectionExecutionRecord> {
+    agentObservations: ReadonlyArray<Observation>,
+    reviewFeedback: ReadonlyArray<ReviewFeedbackItem>,
+  ): Promise<EscalationDecision> {
     const escalationSummary = `Section escalated after ${retryCount} failed attempts`;
 
     options.eventBus?.emit({
@@ -479,18 +527,81 @@ export class ImplementationLoopService implements IImplementationLoop {
       reason: escalationSummary,
     });
 
+    // Attempt self-healing when the port is provided.
+    if (options.selfHealingLoop !== undefined) {
+      const escalation: SectionEscalation = {
+        sectionId: task.id,
+        planId: plan.id,
+        retryHistory: iterations,
+        reviewFeedback,
+        agentObservations,
+      };
+
+      let healingResult: SelfHealingResult;
+      try {
+        healingResult = await options.selfHealingLoop.escalate(escalation);
+      } catch {
+        // Self-healing loop threw — treat as unresolvable failure.
+        await this.#planStore.updateSectionStatus(plan.id, task.id, "failed");
+        return {
+          action: "halt",
+          record: buildSectionRecord(
+            task,
+            plan.id,
+            "failed",
+            retryCount,
+            iterations,
+            sectionStartAt,
+            undefined,
+            `Self-healing loop threw unexpectedly: ${escalationSummary}`,
+          ),
+        };
+      }
+
+      if (healingResult.outcome === "resolved") {
+        // Self-healing resolved: build a new improve prompt incorporating the updated rules.
+        const improvePrompt = buildHealedImprovePrompt(
+          task.title,
+          healingResult.summary,
+          healingResult.updatedRules ?? [],
+        );
+        return { action: "retry", improvePrompt };
+      }
+
+      // Self-healing unresolved → escalated-to-human.
+      const humanSummary = `${escalationSummary}. Self-healing was unable to resolve: ${healingResult.summary}`;
+      await this.#planStore.updateSectionStatus(plan.id, task.id, "escalated-to-human");
+      return {
+        action: "halt",
+        record: buildSectionRecord(
+          task,
+          plan.id,
+          "escalated-to-human",
+          retryCount,
+          iterations,
+          sectionStartAt,
+          undefined,
+          humanSummary,
+        ),
+      };
+    }
+
+    // No self-healing loop configured — permanent failure.
     await this.#planStore.updateSectionStatus(plan.id, task.id, "failed");
 
-    return buildSectionRecord(
-      task,
-      plan.id,
-      "failed",
-      retryCount,
-      iterations,
-      sectionStartAt,
-      undefined,
-      escalationSummary,
-    );
+    return {
+      action: "halt",
+      record: buildSectionRecord(
+        task,
+        plan.id,
+        "failed",
+        retryCount,
+        iterations,
+        sectionStartAt,
+        undefined,
+        escalationSummary,
+      ),
+    };
   }
 
   // ---------------------------------------------------------------------------
@@ -602,6 +713,29 @@ function buildImprovePrompt(taskTitle: string, feedback: ReadonlyArray<ReviewFee
     ``,
     `The previous attempt did not pass review. Address the following feedback:`,
     feedbackLines || "- No specific feedback provided; review the implementation holistically.",
+    ``,
+    `Ensure all blocking issues are resolved before completing.`,
+  ].join("\n");
+}
+
+/**
+ * Build an improve prompt for a section that was resolved by the self-healing loop.
+ * Incorporates the self-healing analysis summary and any updated rules.
+ */
+function buildHealedImprovePrompt(
+  taskTitle: string,
+  healingSummary: string,
+  updatedRules: ReadonlyArray<string>,
+): string {
+  const rulesSection = updatedRules.length > 0
+    ? `\nUpdated rules from self-healing analysis:\n${updatedRules.map((r) => `- ${r}`).join("\n")}`
+    : "";
+  return [
+    `Retry the implementation of: ${taskTitle}`,
+    ``,
+    `The self-healing loop has analyzed the previous failures and produced the following guidance:`,
+    healingSummary,
+    rulesSection,
     ``,
     `Ensure all blocking issues are resolved before completing.`,
   ].join("\n");

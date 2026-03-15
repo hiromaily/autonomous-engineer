@@ -150,7 +150,7 @@
   - Write log entries to a path accessible by the memory system (`.aes/logs/implementation-loop-<planId>.ndjson`) in machine-parseable NDJSON format
   - _Requirements: 1.5, 1.6, 5.4, 5.5, 6.5, 7.5, 10.1, 10.2, 10.3, 10.4_
 
-- [ ] 4.7 Implement escalation to the self-healing loop
+- [x] 4.7 Implement escalation to the self-healing loop
   - When a section escalation event is emitted, check whether `ISelfHealingLoop` was provided at construction time
   - If available, call `escalate(sectionEscalation)` passing section ID, plan ID, full retry history, accumulated review feedback, and all agent loop observations
   - On `SelfHealingResult.outcome = "resolved"`, reset the section's retry counter to zero, inject the returned updated rules into the context snapshot, and resume execution of that section
