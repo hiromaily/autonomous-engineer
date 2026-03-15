@@ -10,14 +10,14 @@
   - _Requirements: 4.1, 5.1, 5.4_
 
 - [ ] 2. Implement infrastructure adapters
-- [ ] 2.1 (P) Implement the config file writer adapter
+- [x] 2.1 (P) Implement the config file writer adapter
   - Write `aes.config.json` in the target directory by serializing only the `WritableConfig` fields
   - Ensure `llm.apiKey` is structurally absent from the output (enforced by the type, not a runtime filter)
   - Propagate filesystem write errors to the caller without leaving a partial file on disk
   - Depends on Task 1 for port type definitions
   - _Requirements: 5.1, 5.3, 5.4_
 
-- [ ] 2.2 (P) Implement the SDD framework installation checker adapter
+- [x] 2.2 (P) Implement the SDD framework installation checker adapter
   - Dispatch to a per-framework check strategy based on the selected framework name
   - For `cc-sdd`: check whether a `.kiro/` directory exists in the project root; return `installed: false` with an installation hint if absent
   - For `openspec` and `speckit`: return `installed: true` (checks undefined pending future specification)
