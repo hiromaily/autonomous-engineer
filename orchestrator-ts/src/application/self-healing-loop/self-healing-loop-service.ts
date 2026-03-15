@@ -1,6 +1,6 @@
 import type { ISelfHealingLoop } from "@/application/ports/implementation-loop";
 import type { LlmProviderPort } from "@/application/ports/llm";
-import type { FailureRecord, MemoryPort } from "@/application/ports/memory";
+import type { FailureRecord, MemoryEntry, MemoryPort, MemoryTarget } from "@/application/ports/memory";
 import type { ISelfHealingLoopLogger } from "@/application/ports/self-healing-loop-logger";
 import type { SectionEscalation, SelfHealingResult } from "@/domain/implementation-loop/types";
 import type {
@@ -9,8 +9,11 @@ import type {
   GapIdentifiedLogEntry,
   GapReport,
   KnowledgeMemoryFile,
+  MemoryWriteAction,
   RootCauseAnalysis,
+  RuleUpdatedLogEntry,
 } from "@/domain/self-healing/types";
+import { join as joinPath, resolve as resolvePath, sep as pathSep } from "node:path";
 
 // ---------------------------------------------------------------------------
 // SelfHealingLoopConfig — tunable parameters (requirement 1.5)
@@ -546,12 +549,156 @@ Rules:
       };
     }
 
-    // Task 6 will add the rule file write and result assembly.
-    // Stub: return unresolved until those tasks are implemented.
+    // Task 6.1: Validate resolved rule file path against workspace boundary (requirements 4.5, 8.5)
+    const pathValidation = this.#validateRulePath(gap.targetFile);
+    if (!pathValidation.ok) {
+      return { outcome: "unresolved", summary: pathValidation.summary };
+    }
+
+    // Task 6.2: Write the proposed change to the target rule file (requirements 4.1–4.4)
+    const writeResult = await this.#updateRuleFile(escalation, gap);
+    if (!writeResult.ok) {
+      return { outcome: "unresolved", summary: writeResult.summary };
+    }
+
+    // Tasks 7–8 will add failure record persistence and result assembly.
+    // Stub: return unresolved with updatedRules collected, pending those tasks.
     return {
       outcome: "unresolved",
-      summary: `Rule update not yet implemented (tasks 6–8 pending): gap identified in ${gap.targetFile}`,
+      summary:
+        `Failure record persistence and result assembly not yet implemented (tasks 7–8 pending): rule updated in ${writeResult.relativePath}`,
     };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Workspace boundary validation — task 6.1 (requirements 4.5, 8.5)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Map a KnowledgeMemoryFile identifier to its workspace-relative file path.
+   * Rule files live under `.kiro/steering/` as Markdown documents.
+   *
+   * Exposed as a public static to allow direct unit-testing of the path mapping.
+   *
+   * Requirements: 4.5
+   */
+  static ruleFileRelativePath(targetFile: KnowledgeMemoryFile): string {
+    return joinPath(".kiro", "steering", `${targetFile}.md`);
+  }
+
+  /**
+   * Return true iff `absolutePath` is the same as `workspaceRoot` or a descendant of it.
+   * Uses `path.resolve` for normalisation (removes `..`, trailing separators, etc.) and
+   * appends `path.sep` before the `startsWith` check so that a sibling directory that shares
+   * a common prefix (e.g. `/workspace-other`) is NOT incorrectly accepted.
+   *
+   * Exposed as a public static so tests can verify the boundary logic directly.
+   *
+   * Requirements: 4.5, 8.5
+   */
+  static isPathWithinWorkspace(workspaceRoot: string, absolutePath: string): boolean {
+    const normalizedRoot = resolvePath(workspaceRoot);
+    const normalizedPath = resolvePath(absolutePath);
+    return (
+      normalizedPath === normalizedRoot
+      || normalizedPath.startsWith(normalizedRoot + pathSep)
+    );
+  }
+
+  /**
+   * Resolve and validate the rule file path for `targetFile`.
+   *
+   * Returns `{ ok: true, resolvedPath }` when the path is inside `workspaceRoot`.
+   * Returns `{ ok: false, summary }` with "workspace safety violation" when it is not.
+   * The resolved path is never exposed in log entries on the failure path (requirement 8.5).
+   *
+   * Requirements: 4.5
+   */
+  #validateRulePath(
+    targetFile: KnowledgeMemoryFile,
+  ): { ok: true; resolvedPath: string } | { ok: false; summary: string } {
+    const relPath = SelfHealingLoopService.ruleFileRelativePath(targetFile);
+    const resolvedPath = resolvePath(this.#config.workspaceRoot, relPath);
+
+    if (!SelfHealingLoopService.isPathWithinWorkspace(this.#config.workspaceRoot, resolvedPath)) {
+      return {
+        ok: false,
+        summary:
+          `Workspace safety violation: the resolved rule file path for "${targetFile}" falls outside the workspace boundary.`,
+      };
+    }
+
+    return { ok: true, resolvedPath };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Rule file write — task 6.2 (requirements 4.1–4.4)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Build a `MemoryEntry` from `GapReport` fields and escalation context.
+   *
+   * Mapping (requirement 4.2):
+   * - `title`       : `proposedChange` prefix (first 80 chars) + " [sectionId]" — ensures uniqueness
+   * - `context`     : "planId/sectionId" — full traceability reference
+   * - `description` : `proposedChange` + machine-readable marker "<!-- self-healing: <sectionId> <timestamp> -->"
+   * - `date`        : current ISO 8601 timestamp
+   *
+   * Never includes LLM API keys, credentials, or workspace-external paths (requirement 8.5).
+   */
+  #buildMemoryEntry(escalation: SectionEscalation, gap: GapReport, timestamp: string): MemoryEntry {
+    const titlePrefix = gap.proposedChange.length > 80
+      ? `${gap.proposedChange.slice(0, 80)}…`
+      : gap.proposedChange;
+    return {
+      title: `${titlePrefix} [${escalation.sectionId}]`,
+      context: `${escalation.planId}/${escalation.sectionId}`,
+      description: `${gap.proposedChange}\n<!-- self-healing: ${escalation.sectionId} ${timestamp} -->`,
+      date: timestamp,
+    };
+  }
+
+  /**
+   * Write the proposed change from `gap` to the target rule file via `MemoryPort.append()`.
+   *
+   * Steps:
+   * 1. Build the `MemoryEntry` with the machine-readable marker (requirement 4.2).
+   * 2. Call `MemoryPort.append()` with trigger `"self_healing"`.
+   * 3. On failure, return `{ ok: false, summary }` with the error message (requirement 4.3).
+   * 4. On success, emit a `rule-updated` log entry and return the workspace-relative path (requirement 4.4).
+   *
+   * Requirements: 4.1, 4.2, 4.3, 4.4
+   */
+  async #updateRuleFile(
+    escalation: SectionEscalation,
+    gap: GapReport,
+  ): Promise<{ ok: true; relativePath: string; action: MemoryWriteAction } | { ok: false; summary: string }> {
+    const timestamp = new Date().toISOString();
+    const entry = this.#buildMemoryEntry(escalation, gap, timestamp);
+    const target: MemoryTarget = { type: "knowledge", file: gap.targetFile };
+
+    const writeResult = await this.#memory.append(target, entry, "self_healing");
+
+    if (!writeResult.ok) {
+      return {
+        ok: false,
+        summary: `Rule file write failed for "${gap.targetFile}": ${writeResult.error.message}`,
+      };
+    }
+
+    // Emit rule-updated log entry (requirement 4.4)
+    const ruleUpdatedEntry: RuleUpdatedLogEntry = {
+      type: "rule-updated",
+      sectionId: escalation.sectionId,
+      planId: escalation.planId,
+      timestamp: new Date().toISOString(),
+      targetFile: gap.targetFile,
+      memoryWriteAction: writeResult.action,
+    };
+    this.#logger?.log(ruleUpdatedEntry);
+
+    const relativePath = SelfHealingLoopService.ruleFileRelativePath(gap.targetFile);
+    return { ok: true, relativePath, action: writeResult.action };
   }
 
   // ---------------------------------------------------------------------------

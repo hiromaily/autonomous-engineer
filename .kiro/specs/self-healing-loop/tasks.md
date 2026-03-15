@@ -68,13 +68,13 @@
   - _Requirements: 3.4_
 
 - [ ] 6. Rule file update and workspace boundary enforcement
-- [ ] 6.1 Validate resolved rule file paths against workspace boundary
+- [x] 6.1 Validate resolved rule file paths against workspace boundary
   - Resolve the absolute path for the target rule file using `workspaceRoot` from config
   - If the resolved path falls outside `workspaceRoot`, return `outcome: "unresolved"` with "workspace safety violation" in `summary` without touching `MemoryPort`
   - Never pass workspace-external paths to `MemoryPort` write methods or include them in log entries
   - _Requirements: 4.5, 8.5_
 
-- [ ] 6.2 Write the proposed change to the target rule file with machine-readable marker
+- [x] 6.2 Write the proposed change to the target rule file with machine-readable marker
   - Call `MemoryPort.append()` or `MemoryPort.update()` to add the proposed change as a clearly delimited section; never overwrite or delete existing content
   - Include the machine-readable marker `<!-- self-healing: <sectionId> <timestamp> -->` in each appended section
   - Map `GapReport` fields to the `MemoryEntry` structure: `proposedChange` as `description`, `planId` + `sectionId` as `context`, and a title prefixed with the proposed change and `sectionId` for uniqueness

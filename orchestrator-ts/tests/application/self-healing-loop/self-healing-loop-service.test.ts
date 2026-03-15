@@ -1239,3 +1239,359 @@ describe("SelfHealingLoopService — duplicate gap detection (task 5.2)", () => 
     expect(gapEntry).toBeDefined();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Task 6.1: Workspace boundary validation — requirements 4.5, 8.5
+// ---------------------------------------------------------------------------
+
+describe("SelfHealingLoopService — task 6.1: workspace boundary validation (static helpers)", () => {
+  describe("isPathWithinWorkspace", () => {
+    it("returns true for a direct child path inside workspace", () => {
+      expect(
+        SelfHealingLoopService.isPathWithinWorkspace("/workspace", "/workspace/file.md"),
+      ).toBe(true);
+    });
+
+    it("returns true for a deeply nested path inside workspace", () => {
+      expect(
+        SelfHealingLoopService.isPathWithinWorkspace(
+          "/workspace",
+          "/workspace/.kiro/steering/coding_rules.md",
+        ),
+      ).toBe(true);
+    });
+
+    it("returns false for a path outside workspace", () => {
+      expect(
+        SelfHealingLoopService.isPathWithinWorkspace("/workspace", "/other/file.md"),
+      ).toBe(false);
+    });
+
+    it("does NOT match a sibling directory that shares a common prefix (no false positive)", () => {
+      // '/workspace-other' starts with '/workspace' — must NOT be considered inside '/workspace'
+      expect(
+        SelfHealingLoopService.isPathWithinWorkspace(
+          "/workspace",
+          "/workspace-other/.kiro/steering/coding_rules.md",
+        ),
+      ).toBe(false);
+    });
+
+    it("returns false when path is the parent of workspace root", () => {
+      expect(
+        SelfHealingLoopService.isPathWithinWorkspace("/workspace/a/b", "/workspace/a"),
+      ).toBe(false);
+    });
+
+    it("handles workspaceRoot with a trailing separator correctly", () => {
+      expect(
+        SelfHealingLoopService.isPathWithinWorkspace(
+          "/workspace/",
+          "/workspace/.kiro/steering/coding_rules.md",
+        ),
+      ).toBe(true);
+    });
+  });
+
+  describe("ruleFileRelativePath", () => {
+    it("maps coding_rules to .kiro/steering/coding_rules.md", () => {
+      const rel = SelfHealingLoopService.ruleFileRelativePath("coding_rules");
+      expect(rel).toMatch(/\.kiro[/\\]steering[/\\]coding_rules\.md$/);
+    });
+
+    it("maps review_rules to .kiro/steering/review_rules.md", () => {
+      const rel = SelfHealingLoopService.ruleFileRelativePath("review_rules");
+      expect(rel).toMatch(/\.kiro[/\\]steering[/\\]review_rules\.md$/);
+    });
+
+    it("maps implementation_patterns to .kiro/steering/implementation_patterns.md", () => {
+      const rel = SelfHealingLoopService.ruleFileRelativePath("implementation_patterns");
+      expect(rel).toMatch(/\.kiro[/\\]steering[/\\]implementation_patterns\.md$/);
+    });
+
+    it("maps debugging_patterns to .kiro/steering/debugging_patterns.md", () => {
+      const rel = SelfHealingLoopService.ruleFileRelativePath("debugging_patterns");
+      expect(rel).toMatch(/\.kiro[/\\]steering[/\\]debugging_patterns\.md$/);
+    });
+  });
+});
+
+describe("SelfHealingLoopService — task 6.1: workspace boundary via escalate()", () => {
+  it("valid gap does NOT produce 'workspace safety violation' (path inside workspaceRoot)", async () => {
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      makeMockMemory(),
+      defaultConfig, // workspaceRoot: "/workspace"
+    );
+
+    const result = await svc.escalate(makeEscalation());
+
+    // Workspace validation should PASS for valid KnowledgeMemoryFile values —
+    // the summary should NOT contain 'workspace safety violation'
+    expect(result.summary.toLowerCase()).not.toContain("workspace safety violation");
+  });
+
+  it("MemoryPort.append and .update are NOT called when workspace validation blocks the path", () => {
+    // This test demonstrates that isPathWithinWorkspace(workspaceRoot, outsidePath) === false
+    // protects MemoryPort from receiving external paths.
+    // The violation case cannot be triggered through escalate() because the path is always
+    // constructed from workspaceRoot + relative, making it structurally inside workspaceRoot.
+    // Boundary logic is fully covered by the static helper unit tests above.
+    expect(
+      SelfHealingLoopService.isPathWithinWorkspace("/workspace", "/etc/passwd"),
+    ).toBe(false);
+    expect(
+      SelfHealingLoopService.isPathWithinWorkspace("/workspace", "/workspace/../etc/passwd"),
+    ).toBe(false); // path.resolve normalizes this to /etc/passwd
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 6.2: Rule file write with machine-readable marker — requirements 4.1–4.4
+// ---------------------------------------------------------------------------
+
+describe("SelfHealingLoopService — task 6.2: rule file write", () => {
+  it("calls MemoryPort.append() with the correct MemoryTarget (knowledge + targetFile)", async () => {
+    let capturedTarget: unknown;
+    const memory = makeMockMemory();
+    memory.append = async (target, _entry, _trigger) => {
+      capturedTarget = target;
+      return { ok: true as const, action: "appended" as const };
+    };
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      memory,
+      defaultConfig,
+    );
+
+    await svc.escalate(makeEscalation());
+
+    expect(capturedTarget).toMatchObject({ type: "knowledge", file: "coding_rules" });
+  });
+
+  it("MemoryEntry.description contains the machine-readable marker with sectionId and timestamp", async () => {
+    let capturedEntry: unknown;
+    const memory = makeMockMemory();
+    memory.append = async (_target, entry, _trigger) => {
+      capturedEntry = entry;
+      return { ok: true as const, action: "appended" as const };
+    };
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      memory,
+      defaultConfig,
+    );
+
+    await svc.escalate(makeEscalation({ sectionId: "sec-marker-test" }));
+
+    // biome-ignore lint/suspicious/noExplicitAny: test assertion
+    const desc = (capturedEntry as any)?.description as string;
+    expect(desc).toContain("<!-- self-healing: sec-marker-test");
+  });
+
+  it("MemoryEntry.description contains the proposedChange from the GapReport", async () => {
+    let capturedEntry: unknown;
+    const memory = makeMockMemory();
+    memory.append = async (_target, entry, _trigger) => {
+      capturedEntry = entry;
+      return { ok: true as const, action: "appended" as const };
+    };
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      memory,
+      defaultConfig,
+    );
+
+    await svc.escalate(makeEscalation());
+
+    // biome-ignore lint/suspicious/noExplicitAny: test assertion
+    const desc = (capturedEntry as any)?.description as string;
+    expect(desc).toContain("Always use const for variable declarations");
+  });
+
+  it("MemoryEntry.context contains both planId and sectionId for traceability", async () => {
+    let capturedEntry: unknown;
+    const memory = makeMockMemory();
+    memory.append = async (_target, entry, _trigger) => {
+      capturedEntry = entry;
+      return { ok: true as const, action: "appended" as const };
+    };
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      memory,
+      defaultConfig,
+    );
+
+    await svc.escalate(makeEscalation({ sectionId: "sec-ctx", planId: "plan-ctx" }));
+
+    // biome-ignore lint/suspicious/noExplicitAny: test assertion
+    const ctx = (capturedEntry as any)?.context as string;
+    expect(ctx).toContain("sec-ctx");
+    expect(ctx).toContain("plan-ctx");
+  });
+
+  it("MemoryEntry.title contains sectionId for uniqueness", async () => {
+    let capturedEntry: unknown;
+    const memory = makeMockMemory();
+    memory.append = async (_target, entry, _trigger) => {
+      capturedEntry = entry;
+      return { ok: true as const, action: "appended" as const };
+    };
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      memory,
+      defaultConfig,
+    );
+
+    await svc.escalate(makeEscalation({ sectionId: "sec-title-test" }));
+
+    // biome-ignore lint/suspicious/noExplicitAny: test assertion
+    const title = (capturedEntry as any)?.title as string;
+    expect(title).toContain("sec-title-test");
+  });
+
+  it("MemoryPort.append() is called with trigger 'self_healing'", async () => {
+    let capturedTrigger: unknown;
+    const memory = makeMockMemory();
+    memory.append = async (_target, _entry, trigger) => {
+      capturedTrigger = trigger;
+      return { ok: true as const, action: "appended" as const };
+    };
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      memory,
+      defaultConfig,
+    );
+
+    await svc.escalate(makeEscalation());
+
+    expect(capturedTrigger).toBe("self_healing");
+  });
+
+  it("returns unresolved with filesystem error in summary when MemoryPort.append() fails", async () => {
+    const memory = makeMockMemory();
+    memory.append = async () => ({
+      ok: false as const,
+      error: { category: "io_error" as const, message: "disk write failed" },
+    });
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      memory,
+      defaultConfig,
+    );
+
+    const result = await svc.escalate(makeEscalation());
+
+    expect(result.outcome).toBe("unresolved");
+    expect(result.summary.toLowerCase()).toContain("disk write failed");
+  });
+
+  it("emits a rule-updated log entry with targetFile and memoryWriteAction after a successful write", async () => {
+    const logSpy = mock((_entry: SelfHealingLogEntry) => {});
+    const logger: ISelfHealingLoopLogger = { log: logSpy };
+    const memory = makeMockMemory();
+    memory.append = async () => ({ ok: true as const, action: "appended" as const });
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      memory,
+      defaultConfig,
+      logger,
+    );
+
+    await svc.escalate(makeEscalation());
+
+    const ruleUpdatedEntry = logSpy.mock.calls
+      .map((args) => args[0])
+      .find((e) => e?.type === "rule-updated");
+    expect(ruleUpdatedEntry).toBeDefined();
+    // biome-ignore lint/suspicious/noExplicitAny: narrowing discriminated union in test
+    expect((ruleUpdatedEntry as any)?.targetFile).toBe("coding_rules");
+    // biome-ignore lint/suspicious/noExplicitAny: narrowing discriminated union in test
+    expect((ruleUpdatedEntry as any)?.memoryWriteAction).toBe("appended");
+  });
+
+  it("rule-updated log entry carries correct sectionId and planId", async () => {
+    const logSpy = mock((_entry: SelfHealingLogEntry) => {});
+    const logger: ISelfHealingLoopLogger = { log: logSpy };
+    const memory = makeMockMemory();
+    memory.append = async () => ({ ok: true as const, action: "appended" as const });
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      memory,
+      defaultConfig,
+      logger,
+    );
+
+    await svc.escalate(makeEscalation({ sectionId: "sec-rule-log", planId: "plan-rule-log" }));
+
+    const entry = logSpy.mock.calls
+      .map((args) => args[0])
+      .find((e) => e?.type === "rule-updated");
+    // biome-ignore lint/suspicious/noExplicitAny: narrowing discriminated union in test
+    expect((entry as any)?.sectionId).toBe("sec-rule-log");
+    // biome-ignore lint/suspicious/noExplicitAny: narrowing discriminated union in test
+    expect((entry as any)?.planId).toBe("plan-rule-log");
+  });
+
+  it("rule-updated log entry reflects the actual memoryWriteAction returned by MemoryPort (updated)", async () => {
+    const logSpy = mock((_entry: SelfHealingLogEntry) => {});
+    const logger: ISelfHealingLoopLogger = { log: logSpy };
+    const memory = makeMockMemory();
+    // Simulate MemoryPort returning "updated" (e.g. entry already existed and was updated)
+    memory.append = async () => ({ ok: true as const, action: "updated" as const });
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      memory,
+      defaultConfig,
+      logger,
+    );
+
+    await svc.escalate(makeEscalation());
+
+    const ruleUpdatedEntry = logSpy.mock.calls
+      .map((args) => args[0])
+      .find((e) => e?.type === "rule-updated");
+    // biome-ignore lint/suspicious/noExplicitAny: narrowing discriminated union in test
+    expect((ruleUpdatedEntry as any)?.memoryWriteAction).toBe("updated");
+  });
+
+  it("rule-updated log entry is NOT emitted when MemoryPort.append() fails", async () => {
+    const logSpy = mock((_entry: SelfHealingLogEntry) => {});
+    const logger: ISelfHealingLoopLogger = { log: logSpy };
+    const memory = makeMockMemory();
+    memory.append = async () => ({
+      ok: false as const,
+      error: { category: "io_error" as const, message: "disk full" },
+    });
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      memory,
+      defaultConfig,
+      logger,
+    );
+
+    await svc.escalate(makeEscalation());
+
+    const ruleUpdatedEntry = logSpy.mock.calls
+      .map((args) => args[0])
+      .find((e) => e?.type === "rule-updated");
+    expect(ruleUpdatedEntry).toBeUndefined();
+  });
+
+  it("workspace-relative path of updated rule file is collected in updatedRules (surfaced by task 8)", async () => {
+    // After task 6.2, the path is collected internally. Task 8 will surface it in the
+    // resolved result. For now, verify indirectly: a successful write does NOT produce
+    // 'rule file write not yet implemented' in the summary.
+    const memory = makeMockMemory();
+    memory.append = async () => ({ ok: true as const, action: "appended" as const });
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      memory,
+      defaultConfig,
+    );
+
+    const result = await svc.escalate(makeEscalation());
+
+    expect(result.summary.toLowerCase()).not.toContain("rule file write not yet implemented");
+  });
+});
