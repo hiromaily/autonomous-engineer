@@ -25,14 +25,14 @@
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5_
 
 - [ ] 3. Implement the interactive configuration wizard
-- [ ] 3.1 (P) Add `@clack/prompts` dependency and implement the four-step prompt sequence
+- [x] 3.1 (P) Add `@clack/prompts` dependency and implement the four-step prompt sequence
   - Add `@clack/prompts` as a production dependency in `orchestrator-ts/package.json`
   - Present prompts in order: LLM provider (select) → model name (text) → SDD framework (select) → spec directory (text)
   - Provide sensible defaults for each prompt (provider: `claude`, modelName: `claude-opus-4-6`, sddFramework: `cc-sdd`, specDir: `.kiro/specs`)
   - Re-prompt for any required text field left empty
   - _Requirements: 2.1, 2.3, 3.1, 3.2, 3.3, 3.4, 3.5_
 
-- [ ] 3.2 Pre-populate prompts from existing config and handle cancellation
+- [x] 3.2 Pre-populate prompts from existing config and handle cancellation
   - Accept an optional `defaults` object to pre-fill each prompt with current values from an existing `aes.config.json`
   - Detect cancellation at every step (`isCancel` check) and return `"cancelled"` immediately without further prompts
   - Display a post-wizard message instructing the user to set `AES_LLM_API_KEY` as an environment variable (no API key prompt in the wizard itself)
