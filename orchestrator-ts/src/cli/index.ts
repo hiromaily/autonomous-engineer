@@ -1,15 +1,19 @@
 #!/usr/bin/env bun
 import { ClaudeProvider } from "@/adapters/llm/claude-provider";
+import { MockLlmProvider } from "@/adapters/llm/mock-llm-provider";
 import { CcSddAdapter } from "@/adapters/sdd/cc-sdd-adapter";
+import { DebugAgentEventBus } from "@/application/agent/debug-agent-event-bus";
 import { ConfigValidationError } from "@/application/ports/config";
 import type { AesConfig } from "@/application/ports/config";
 import type { LlmProviderPort } from "@/application/ports/llm";
 import { RunSpecUseCase } from "@/application/usecases/run-spec";
+import { DebugApprovalGate } from "@/application/workflow/debug-approval-gate";
 import { ConfigLoader } from "@/infra/config/config-loader";
 import { WorkflowEventBus } from "@/infra/events/workflow-event-bus";
 import { FileMemoryStore } from "@/infra/memory/file-memory-store";
 import { WorkflowStateStore } from "@/infra/state/workflow-state-store";
 import { defineCommand, runMain } from "citty";
+import { DebugLogWriter } from "./debug-log-writer";
 import { JsonLogWriter } from "./json-log-writer";
 import { CliRenderer } from "./renderer";
 
@@ -42,6 +46,15 @@ const runCommand = defineCommand({
       type: "string",
       description: "Write workflow events as NDJSON to this file",
     },
+    "debug-flow": {
+      type: "boolean",
+      description: "Run with a mock LLM, auto-approve gates, and emit debug logs",
+      default: false,
+    },
+    "debug-flow-log": {
+      type: "string",
+      description: "Write debug events as NDJSON to this file (default: stderr)",
+    },
   },
   async run({ args }) {
     const specName = args.specName as string;
@@ -51,20 +64,37 @@ const runCommand = defineCommand({
       process.exit(1);
     }
 
+    const debugFlow = Boolean(args["debug-flow"]);
+    const debugFlowLog = args["debug-flow-log"] as string | undefined;
+
     // Load configuration
     const configLoader = new ConfigLoader();
     let config: AesConfig;
     try {
       config = await configLoader.load();
     } catch (err) {
-      if (err instanceof ConfigValidationError) {
+      if (err instanceof ConfigValidationError && debugFlow) {
+        // In debug-flow mode, only bypass validation when llm.apiKey is the sole missing field.
+        const otherMissingFields = err.missingFields.filter((f) => f !== "llm.apiKey");
+        if (otherMissingFields.length > 0) {
+          process.stderr.write(`Error: configuration missing required fields: ${otherMissingFields.join(", ")}\n`);
+          process.exit(1);
+        }
+        // Reload with a placeholder apiKey injected into the env so that all other user
+        // settings (specDir, provider, modelName, etc.) from aes.config.json are preserved.
+        process.stderr.write(
+          "[DEBUG-FLOW] Config validation for 'llm.apiKey' skipped; using placeholder value.\n",
+        );
+        config = await new ConfigLoader(process.cwd(), { ...process.env, AES_LLM_API_KEY: "__debug__" }).load();
+      } else if (err instanceof ConfigValidationError) {
         process.stderr.write(`Error: configuration missing required fields: ${err.missingFields.join(", ")}\n`);
+        process.exit(1);
       } else {
         process.stderr.write(
           `Error: failed to load configuration: ${err instanceof Error ? err.message : String(err)}\n`,
         );
+        process.exit(1);
       }
-      process.exit(1);
     }
 
     // Set up event bus and subscribers
@@ -87,6 +117,18 @@ const runCommand = defineCommand({
       });
     }
 
+    // Set up debug-flow components
+    let debugWriter: DebugLogWriter | null = null;
+    let debugApprovalGate: DebugApprovalGate | null = null;
+    let debugAgentEventBus: DebugAgentEventBus | null = null;
+
+    if (debugFlow) {
+      process.stderr.write("[DEBUG-FLOW MODE] Running with mock LLM and auto-approved gates.\n");
+      debugWriter = new DebugLogWriter(debugFlowLog);
+      debugApprovalGate = new DebugApprovalGate(debugWriter);
+      debugAgentEventBus = new DebugAgentEventBus({ sink: debugWriter, workflowEventBus: eventBus });
+    }
+
     // Build use case with injected deps
     const memory = new FileMemoryStore({ baseDir: process.cwd() });
     const useCase = new RunSpecUseCase({
@@ -95,6 +137,13 @@ const runCommand = defineCommand({
       sdd: new CcSddAdapter(),
       memory,
       createLlmProvider: (cfg: AesConfig, providerOverride?: string): LlmProviderPort => {
+        if (debugFlow && debugWriter) {
+          return new MockLlmProvider({
+            defaultResponse: "[MOCK LLM RESPONSE] Task completed successfully.",
+            sink: debugWriter,
+            workflowEventBus: eventBus,
+          });
+        }
         const provider = providerOverride ?? cfg.llm.provider;
         switch (provider) {
           case "claude":
@@ -103,6 +152,8 @@ const runCommand = defineCommand({
             throw new Error(`Unsupported LLM provider: '${provider}'`);
         }
       },
+      ...(debugApprovalGate !== null ? { approvalGate: debugApprovalGate } : {}),
+      ...(debugAgentEventBus !== null ? { implementationLoopOptions: { agentEventBus: debugAgentEventBus } } : {}),
     });
 
     const providerArg = args.provider as string | undefined;
@@ -112,10 +163,8 @@ const runCommand = defineCommand({
       providerOverride: providerArg,
     });
 
-    // Flush JSON log
-    if (logWriter) {
-      await logWriter.close();
-    }
+    // Flush JSON log and debug log in parallel
+    await Promise.all([logWriter?.close(), debugWriter?.close()]);
 
     if (result.status === "failed") {
       process.exit(1);
