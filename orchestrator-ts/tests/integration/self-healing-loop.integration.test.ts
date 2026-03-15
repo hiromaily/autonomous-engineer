@@ -95,8 +95,8 @@ class InMemoryMemoryPort implements MemoryPort {
     if (!filter) return [...this.failureRecords];
     return this.failureRecords.filter(
       (r) =>
-        (filter.taskId === undefined || r.taskId === filter.taskId) &&
-        (filter.specName === undefined || r.specName === filter.specName),
+        (filter.taskId === undefined || r.taskId === filter.taskId)
+        && (filter.specName === undefined || r.specName === filter.specName),
     );
   }
 }
@@ -408,7 +408,8 @@ describe("SelfHealingLoopService integration — task 10.3: workspace boundary &
   });
 
   it("isPathWithinWorkspace accepts paths that are inside the workspace root", () => {
-    expect(SelfHealingLoopService.isPathWithinWorkspace("/workspace", "/workspace/.kiro/steering/coding_rules.md")).toBe(true);
+    expect(SelfHealingLoopService.isPathWithinWorkspace("/workspace", "/workspace/.kiro/steering/coding_rules.md"))
+      .toBe(true);
     expect(SelfHealingLoopService.isPathWithinWorkspace("/workspace", "/workspace")).toBe(true);
   });
 

@@ -2413,7 +2413,7 @@ describe("SelfHealingLoopService — task 9.1: intake guard and concurrency", ()
                 error: { category: "api_error" as const, message: "slow fail", originalError: null },
               }),
             80,
-          ),
+          )
         ),
       clearContext: () => {},
     };
@@ -2881,39 +2881,47 @@ describe("SelfHealingLoopService — task 9.5: happy path and observability", ()
 // ---------------------------------------------------------------------------
 
 describe("SelfHealingLoopService — task 9.6: performance", () => {
-  it("escalate() completes within selfHealingTimeoutMs under normal mock latency with all steps succeeding", async () => {
-    const timeoutMs = 500;
-    const svc = new SelfHealingLoopService(
-      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
-      makeResolvedMemory(),
-      { ...defaultConfig, selfHealingTimeoutMs: timeoutMs },
-    );
-    const start = Date.now();
-    const result = await svc.escalate(makeEscalation());
-    const elapsed = Date.now() - start;
-    expect(result.outcome).toBe("resolved");
-    expect(elapsed).toBeLessThan(timeoutMs);
-  }, 2000);
+  it(
+    "escalate() completes within selfHealingTimeoutMs under normal mock latency with all steps succeeding",
+    async () => {
+      const timeoutMs = 500;
+      const svc = new SelfHealingLoopService(
+        makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+        makeResolvedMemory(),
+        { ...defaultConfig, selfHealingTimeoutMs: timeoutMs },
+      );
+      const start = Date.now();
+      const result = await svc.escalate(makeEscalation());
+      const elapsed = Date.now() - start;
+      expect(result.outcome).toBe("resolved");
+      expect(elapsed).toBeLessThan(timeoutMs);
+    },
+    2000,
+  );
 
-  it("serializing agentObservations with more than 100 entries results in record at or below maxRecordSizeBytes after truncation", async () => {
-    const { memory, capturedRecords } = makeCapturingMemory();
-    const maxBytes = 65_536;
-    // 101 observations, each ~600 bytes raw
-    const observations = Array.from({ length: 101 }, (_, i) => ({
-      toolName: "write_file",
-      toolInput: { path: `/workspace/src/file-${i}.ts` },
-      rawOutput: `Output ${i}: ${"content-data ".repeat(50)}`,
-      success: true,
-      recordedAt: new Date().toISOString(),
-    }));
-    const svc = new SelfHealingLoopService(makeHangingLlm(), memory, {
-      ...defaultConfig,
-      selfHealingTimeoutMs: 30,
-      maxRecordSizeBytes: maxBytes,
-    });
-    await svc.escalate(makeEscalation({ agentObservations: observations }));
-    expect(capturedRecords.length).toBeGreaterThan(0);
-    const byteLength = Buffer.byteLength(JSON.stringify(capturedRecords[0]!), "utf-8");
-    expect(byteLength).toBeLessThanOrEqual(maxBytes);
-  }, 1000);
+  it(
+    "serializing agentObservations with more than 100 entries results in record at or below maxRecordSizeBytes after truncation",
+    async () => {
+      const { memory, capturedRecords } = makeCapturingMemory();
+      const maxBytes = 65_536;
+      // 101 observations, each ~600 bytes raw
+      const observations = Array.from({ length: 101 }, (_, i) => ({
+        toolName: "write_file",
+        toolInput: { path: `/workspace/src/file-${i}.ts` },
+        rawOutput: `Output ${i}: ${"content-data ".repeat(50)}`,
+        success: true,
+        recordedAt: new Date().toISOString(),
+      }));
+      const svc = new SelfHealingLoopService(makeHangingLlm(), memory, {
+        ...defaultConfig,
+        selfHealingTimeoutMs: 30,
+        maxRecordSizeBytes: maxBytes,
+      });
+      await svc.escalate(makeEscalation({ agentObservations: observations }));
+      expect(capturedRecords.length).toBeGreaterThan(0);
+      const byteLength = Buffer.byteLength(JSON.stringify(capturedRecords[0]!), "utf-8");
+      expect(byteLength).toBeLessThanOrEqual(maxBytes);
+    },
+    1000,
+  );
 });

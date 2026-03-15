@@ -49,17 +49,8 @@ import {
   SelfHealingLoopService,
 } from "@/application/self-healing-loop/self-healing-loop-service";
 import type { AgentState } from "@/domain/agent/types";
-import type {
-  BranchCreationResult,
-  CommitResult,
-  GitChangesResult,
-  PushResult,
-} from "@/domain/git/types";
-import type {
-  ImplementationLoopEvent,
-  ReviewResult,
-  SectionEscalation,
-} from "@/domain/implementation-loop/types";
+import type { BranchCreationResult, CommitResult, GitChangesResult, PushResult } from "@/domain/git/types";
+import type { ImplementationLoopEvent, ReviewResult, SectionEscalation } from "@/domain/implementation-loop/types";
 import type { Task, TaskPlan } from "@/domain/planning/types";
 import { describe, expect, it, mock } from "bun:test";
 
@@ -99,8 +90,8 @@ class InMemoryMemoryPort implements MemoryPort {
     if (!filter) return [...this.failureRecords];
     return this.failureRecords.filter(
       (r) =>
-        (filter.taskId === undefined || r.taskId === filter.taskId) &&
-        (filter.specName === undefined || r.specName === filter.specName),
+        (filter.taskId === undefined || r.taskId === filter.taskId)
+        && (filter.specName === undefined || r.specName === filter.specName),
     );
   }
 }
@@ -188,9 +179,7 @@ function makeInMemoryPlanStore(plan: TaskPlan): IPlanStore & { statusUpdates: St
       statusUpdates.push({ sectionId, status });
       current = {
         ...current,
-        tasks: current.tasks.map((t) =>
-          t.id === sectionId ? { ...t, status: status as Task["status"] } : t,
-        ),
+        tasks: current.tasks.map((t) => t.id === sectionId ? { ...t, status: status as Task["status"] } : t),
       };
     },
   };
@@ -206,7 +195,11 @@ function makeEventBusSpy(): {
 } {
   const events: ImplementationLoopEvent[] = [];
   return {
-    eventBus: { emit: (event: ImplementationLoopEvent) => { events.push(event); } },
+    eventBus: {
+      emit: (event: ImplementationLoopEvent) => {
+        events.push(event);
+      },
+    },
     events,
   };
 }
