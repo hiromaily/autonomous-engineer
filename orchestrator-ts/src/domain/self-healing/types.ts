@@ -113,10 +113,25 @@ export interface SelfHealingResolvedLogEntry extends SelfHealingLogEntryBase {
   readonly totalDurationMs: number;
 }
 
+/**
+ * Identifies which workflow step stopped a self-healing run.
+ * Used as the `stopStep` field of `UnresolvedLogEntry`.
+ *
+ * Requirements: 7.2, 8.2
+ */
+export type SelfHealingStopStep =
+  | "timeout"
+  | "unexpected-error"
+  | "intake-validation"
+  | "root-cause-analysis"
+  | "gap-identification"
+  | "workspace-validation"
+  | "rule-file-write";
+
 /** Emitted as the final log entry when healing cannot resolve the issue. */
 export interface UnresolvedLogEntry extends SelfHealingLogEntryBase {
   readonly type: "unresolved";
-  readonly stopStep: string;
+  readonly stopStep: SelfHealingStopStep;
   readonly totalDurationMs: number;
 }
 

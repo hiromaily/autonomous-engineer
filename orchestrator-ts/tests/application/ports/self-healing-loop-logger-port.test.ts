@@ -77,7 +77,7 @@ function makeUnresolved(overrides: Partial<UnresolvedLogEntry> = {}): Unresolved
     sectionId: "sec-1",
     planId: "plan-abc",
     timestamp: "2026-03-15T00:04:00.000Z",
-    stopStep: "analysis",
+    stopStep: "root-cause-analysis",
     totalDurationMs: 1000,
     ...overrides,
   };

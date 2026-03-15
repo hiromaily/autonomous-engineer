@@ -14,6 +14,7 @@ import type {
   RootCauseAnalysis,
   RuleUpdatedLogEntry,
   SelfHealingResolvedLogEntry,
+  SelfHealingStopStep,
   UnresolvedLogEntry,
 } from "@/domain/self-healing/types";
 import { join as joinPath, resolve as resolvePath, sep as pathSep } from "node:path";
@@ -106,7 +107,7 @@ export class SelfHealingLoopService implements ISelfHealingLoop {
   #returnUnresolved(
     escalation: SectionEscalation,
     startTime: number,
-    stopStep: string,
+    stopStep: SelfHealingStopStep,
     summary: string,
   ): SelfHealingResult {
     const totalDurationMs = Math.max(1, Date.now() - startTime);
@@ -120,6 +121,47 @@ export class SelfHealingLoopService implements ISelfHealingLoop {
     };
     this.#logger?.log(unresolvedEntry);
     return { outcome: "unresolved", summary };
+  }
+
+  /**
+   * Emit `retry-initiated` and `self-healing-resolved` log entries and return a
+   * resolved SelfHealingResult. Symmetric counterpart to `#returnUnresolved`.
+   *
+   * Centralising the resolved-path emission mirrors the pattern used for every
+   * unresolved exit, so future changes to resolved observability stay in one place.
+   *
+   * Requirements: 6.1, 6.5, 8.2, 8.4
+   */
+  #returnResolved(
+    escalation: SectionEscalation,
+    startTime: number,
+    updatedRules: string[],
+  ): SelfHealingResult {
+    const totalDurationMs = Math.max(1, Date.now() - startTime);
+
+    const retryInitiatedEntry: RetryInitiatedLogEntry = {
+      type: "retry-initiated",
+      sectionId: escalation.sectionId,
+      planId: escalation.planId,
+      timestamp: new Date().toISOString(),
+    };
+    this.#logger?.log(retryInitiatedEntry);
+
+    const resolvedLogEntry: SelfHealingResolvedLogEntry = {
+      type: "self-healing-resolved",
+      sectionId: escalation.sectionId,
+      planId: escalation.planId,
+      timestamp: new Date().toISOString(),
+      updatedRules,
+      totalDurationMs,
+    };
+    this.#logger?.log(resolvedLogEntry);
+
+    return {
+      outcome: "resolved",
+      updatedRules,
+      summary: `Self-healing resolved: updated rule file(s): ${updatedRules.join(", ")}`,
+    };
   }
 
   /**
@@ -681,38 +723,10 @@ Rules:
       };
     }
 
-    // Task 8.1: Assemble the resolved result and emit final resolved log entries.
-    const updatedRules = [writeResult.relativePath];
-    // Clamp to 1ms minimum so totalDurationMs is always a positive integer (requirement 8.4).
-    const totalDurationMs = Math.max(1, Date.now() - startTime);
-
-    // Emit retry-initiated log entry (requirement 6.5) — signals the implementation loop will restart.
-    const retryInitiatedEntry: RetryInitiatedLogEntry = {
-      type: "retry-initiated",
-      sectionId: escalation.sectionId,
-      planId: escalation.planId,
-      timestamp: new Date().toISOString(),
-    };
-    this.#logger?.log(retryInitiatedEntry);
-
-    // Emit self-healing-resolved log entry (requirements 8.2, 8.4).
-    const resolvedLogEntry: SelfHealingResolvedLogEntry = {
-      type: "self-healing-resolved",
-      sectionId: escalation.sectionId,
-      planId: escalation.planId,
-      timestamp: new Date().toISOString(),
-      updatedRules,
-      totalDurationMs,
-    };
-    this.#logger?.log(resolvedLogEntry);
-
-    // Return resolved outcome with workspace-relative paths (requirement 6.1).
+    // Task 8.1: Assemble the resolved result via the symmetric #returnResolved helper.
+    // Requirements: 6.1, 6.5, 8.2, 8.4
     return {
-      result: {
-        outcome: "resolved",
-        updatedRules,
-        summary: `Self-healing resolved: updated rule file(s): ${updatedRules.join(", ")}`,
-      },
+      result: this.#returnResolved(escalation, startTime, [writeResult.relativePath]),
       gap,
     };
   }
@@ -833,12 +847,14 @@ Rules:
       };
     }
 
-    // Emit rule-updated log entry (requirement 4.4)
+    // Emit rule-updated log entry (requirement 4.4).
+    // Reuse the same timestamp that was embedded in the MemoryEntry marker so both
+    // the persisted entry and the log entry share a consistent write timestamp.
     const ruleUpdatedEntry: RuleUpdatedLogEntry = {
       type: "rule-updated",
       sectionId: escalation.sectionId,
       planId: escalation.planId,
-      timestamp: new Date().toISOString(),
+      timestamp,
       targetFile: gap.targetFile,
       memoryWriteAction: writeResult.action,
     };
