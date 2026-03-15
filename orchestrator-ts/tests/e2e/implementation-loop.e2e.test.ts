@@ -21,26 +21,22 @@
  * - Requirements: 10.4
  */
 
+import { ImplementationLoopService } from "@/application/implementation-loop/implementation-loop-service";
 import type { IAgentLoop } from "@/application/ports/agent-loop";
+import type { AgentLoopResult } from "@/application/ports/agent-loop";
 import type { IContextEngine } from "@/application/ports/context";
 import type { IGitController } from "@/application/ports/git-controller";
-import type {
-  IPlanStore,
-  IReviewEngine,
-  SectionPersistenceStatus,
-} from "@/application/ports/implementation-loop";
-import { ImplementationLoopService } from "@/application/implementation-loop/implementation-loop-service";
-import { NdjsonImplementationLoopLogger } from "@/infra/implementation-loop/ndjson-logger";
-import type { AgentLoopResult } from "@/application/ports/agent-loop";
 import type { GitResult } from "@/application/ports/git-controller";
-import type { BranchCreationResult, CommitResult, GitChangesResult, PushResult } from "@/domain/git/types";
+import type { IPlanStore, IReviewEngine, SectionPersistenceStatus } from "@/application/ports/implementation-loop";
 import type { AgentState } from "@/domain/agent/types";
+import type { BranchCreationResult, CommitResult, GitChangesResult, PushResult } from "@/domain/git/types";
 import type { ReviewResult, SectionExecutionRecord } from "@/domain/implementation-loop/types";
 import type { Task, TaskPlan } from "@/domain/planning/types";
-import { describe, it, expect, mock } from "bun:test";
+import { NdjsonImplementationLoopLogger } from "@/infra/implementation-loop/ndjson-logger";
+import { describe, expect, it, mock } from "bun:test";
+import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { existsSync } from "node:fs";
 import { join } from "node:path";
 
 // ---------------------------------------------------------------------------
@@ -101,9 +97,7 @@ function makeFilePlanStore(initialPlan: TaskPlan, aesDir: string): IPlanStore {
       currentPlan = {
         ...currentPlan,
         updatedAt: new Date().toISOString(),
-        tasks: currentPlan.tasks.map((t) =>
-          t.id === sectionId ? { ...t, status: status as Task["status"] } : t
-        ),
+        tasks: currentPlan.tasks.map((t) => t.id === sectionId ? { ...t, status: status as Task["status"] } : t),
       };
       // Persist the updated plan to .aes/plans/<planId>.json
       const plansDir = join(aesDir, "plans");
@@ -542,16 +536,20 @@ describe("E2E: implementation loop — resumption after stop signal (Task 7.2)",
           ok: true,
           value: { staged: [], unstaged: [], untracked: ["out.txt"] },
         })),
-        stageAndCommit: mock(async (files: ReadonlyArray<string>, message: string): Promise<GitResult<CommitResult>> => {
-          commitCount++;
-          if (commitCount === 1) serviceRef?.stop();
-          return { ok: true, value: { hash: `sha-${commitCount}`, message, fileCount: files.length } };
-        }),
+        stageAndCommit: mock(
+          async (files: ReadonlyArray<string>, message: string): Promise<GitResult<CommitResult>> => {
+            commitCount++;
+            if (commitCount === 1) serviceRef?.stop();
+            return { ok: true, value: { hash: `sha-${commitCount}`, message, fileCount: files.length } };
+          },
+        ),
         createAndCheckoutBranch: mock(async (): Promise<GitResult<BranchCreationResult>> => ({
-          ok: true, value: { branchName: "feature/test", baseBranch: "main", conflictResolved: false },
+          ok: true,
+          value: { branchName: "feature/test", baseBranch: "main", conflictResolved: false },
         })),
         push: mock(async (): Promise<GitResult<PushResult>> => ({
-          ok: true, value: { remote: "origin", branchName: "feature/test", commitHash: "sha-1" },
+          ok: true,
+          value: { remote: "origin", branchName: "feature/test", commitHash: "sha-1" },
         })),
       };
 
@@ -572,14 +570,20 @@ describe("E2E: implementation loop — resumption after stop signal (Task 7.2)",
           ok: true,
           value: { staged: [], unstaged: [], untracked: ["out.txt"] },
         })),
-        stageAndCommit: mock(async (files: ReadonlyArray<string>, message: string): Promise<GitResult<CommitResult>> => ({
-          ok: true, value: { hash: `resume-sha`, message, fileCount: files.length },
+        stageAndCommit: mock(async (
+          files: ReadonlyArray<string>,
+          message: string,
+        ): Promise<GitResult<CommitResult>> => ({
+          ok: true,
+          value: { hash: `resume-sha`, message, fileCount: files.length },
         })),
         createAndCheckoutBranch: mock(async (): Promise<GitResult<BranchCreationResult>> => ({
-          ok: true, value: { branchName: "feature/test", baseBranch: "main", conflictResolved: false },
+          ok: true,
+          value: { branchName: "feature/test", baseBranch: "main", conflictResolved: false },
         })),
         push: mock(async (): Promise<GitResult<PushResult>> => ({
-          ok: true, value: { remote: "origin", branchName: "feature/test", commitHash: "resume-sha" },
+          ok: true,
+          value: { remote: "origin", branchName: "feature/test", commitHash: "resume-sha" },
         })),
       };
 

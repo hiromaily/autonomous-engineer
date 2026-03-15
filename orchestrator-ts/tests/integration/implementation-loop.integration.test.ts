@@ -59,6 +59,7 @@ import type {
   ReviewResult,
   SectionPersistenceStatus,
 } from "@/application/ports/implementation-loop";
+import type { ISelfHealingLoop } from "@/application/ports/implementation-loop";
 import type { AgentState } from "@/domain/agent/types";
 import type {
   ImplementationLoopEvent,
@@ -67,7 +68,6 @@ import type {
   SectionEscalation,
   SelfHealingResult,
 } from "@/domain/implementation-loop/types";
-import type { ISelfHealingLoop } from "@/application/ports/implementation-loop";
 import type { TaskPlan } from "@/domain/planning/types";
 import { NdjsonImplementationLoopLogger } from "@/infra/implementation-loop/ndjson-logger";
 import { PlanFileStore } from "@/infra/planning/plan-file-store";
@@ -109,7 +109,7 @@ class PlanFileStoreAdapter implements IPlanStore {
     // does not include "escalated-to-human", but PlanFileStore is specified to preserve
     // unknown status values rather than coercing them (design tolerance note).
     const updatedTasks = plan.tasks.map((t) =>
-      t.id === sectionId ? { ...t, status: status as TaskPlan["tasks"][number]["status"] } : t,
+      t.id === sectionId ? { ...t, status: status as TaskPlan["tasks"][number]["status"] } : t
     );
 
     await this.#store.save({
@@ -734,7 +734,9 @@ describe("ImplementationLoop integration — retry flow (task 6.2)", () => {
 // ---------------------------------------------------------------------------
 
 /** Review engine that always returns "failed". */
-function makeAlwaysFailingReviewEngine(feedbackDescription = "Implementation does not meet requirements"): IReviewEngine {
+function makeAlwaysFailingReviewEngine(
+  feedbackDescription = "Implementation does not meet requirements",
+): IReviewEngine {
   return {
     async review(): Promise<ReviewResult> {
       return {
@@ -1000,7 +1002,7 @@ describe("ImplementationLoop integration — plan resumption after interruption 
         const plan = await fileStore.load(pid);
         if (!plan) return;
         const updated = plan.tasks.map((t) =>
-          t.id === sectionId ? { ...t, status: status as TaskPlan["tasks"][number]["status"] } : t,
+          t.id === sectionId ? { ...t, status: status as TaskPlan["tasks"][number]["status"] } : t
         );
         await fileStore.save({ ...plan, tasks: updated, updatedAt: new Date().toISOString() });
       },
