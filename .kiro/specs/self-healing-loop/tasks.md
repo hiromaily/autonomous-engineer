@@ -1,6 +1,6 @@
 # Implementation Plan
 
-- [ ] 1. Self-healing domain types
+- [x] 1. Self-healing domain types
   - Add `RootCauseAnalysis` value object capturing what was attempted, what failed, and the recurring pattern across retries
   - Add `GapReport` value object with `targetFile` (`KnowledgeMemoryFile`), `proposedChange`, and `rationale`
   - Add the `SelfHealingLogEntry` discriminated union covering all seven entry shapes (`escalation-intake`, `analysis-complete`, `gap-identified`, `rule-updated`, `retry-initiated`, `self-healing-resolved`, `unresolved`), each extending a common base of `type`, `sectionId`, `planId`, and ISO 8601 `timestamp`
