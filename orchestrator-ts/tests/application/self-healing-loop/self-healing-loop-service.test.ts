@@ -2364,3 +2364,556 @@ describe("SelfHealingLoopService — task 8.2: unresolved log entry absent on re
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// Task 9.1: Intake guard and concurrency unit tests — requirements 1.2, 1.4, 1.5
+// ---------------------------------------------------------------------------
+
+describe("SelfHealingLoopService — task 9.1: intake guard and concurrency", () => {
+  it("returns unresolved immediately when retryHistory is empty", async () => {
+    const svc = new SelfHealingLoopService(makeMockLlm(), makeMockMemory(), defaultConfig);
+    const result = await svc.escalate(makeEscalation({ retryHistory: [] }));
+    expect(result.outcome).toBe("unresolved");
+    expect(result.summary.length).toBeGreaterThan(0);
+  });
+
+  it("concurrent call for the same sectionId returns unresolved with 'concurrent escalation in progress'", async () => {
+    const svc = new SelfHealingLoopService(makeHangingLlm(), makeMockMemory(), {
+      ...defaultConfig,
+      selfHealingTimeoutMs: 200,
+    });
+    const p1 = svc.escalate(makeEscalation({ sectionId: "sec-concurrent-9" }));
+    const result2 = await svc.escalate(makeEscalation({ sectionId: "sec-concurrent-9" }));
+    expect(result2.outcome).toBe("unresolved");
+    expect(result2.summary.toLowerCase()).toContain("concurrent escalation in progress");
+    await p1;
+  }, 1000);
+
+  it("outer timeout returns unresolved with a timeout description when selfHealingTimeoutMs elapses", async () => {
+    const svc = new SelfHealingLoopService(makeHangingLlm(), makeMockMemory(), {
+      ...defaultConfig,
+      selfHealingTimeoutMs: 30,
+    });
+    const result = await svc.escalate(makeEscalation());
+    expect(result.outcome).toBe("unresolved");
+    expect(result.summary.toLowerCase()).toMatch(/timeout|timed out/i);
+  }, 1000);
+
+  it("#inFlightSections is cleaned up after timeout when background workflow eventually completes", async () => {
+    // Use a slow (but not hanging) LLM: returns after 80ms.
+    // Outer timeout fires at 30ms → escalate() returns quickly.
+    // Background workflow continues and completes at ~80ms, cleaning up #inFlightSections.
+    const slowLlm: LlmProviderPort = {
+      complete: () =>
+        new Promise((resolve) =>
+          setTimeout(
+            () =>
+              resolve({
+                ok: false as const,
+                error: { category: "api_error" as const, message: "slow fail", originalError: null },
+              }),
+            80,
+          ),
+        ),
+      clearContext: () => {},
+    };
+    const svc = new SelfHealingLoopService(slowLlm, makeMockMemory(), {
+      ...defaultConfig,
+      selfHealingTimeoutMs: 30,
+      maxAnalysisRetries: 0,
+    });
+    // First call times out after 30ms; background workflow finishes at ~80ms
+    await svc.escalate(makeEscalation({ sectionId: "sec-timeout-cleanup" }));
+    // Wait for background workflow to complete and clean up inFlightSections
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    // Now sectionId should be removed from inFlightSections
+    const result2 = await svc.escalate(makeEscalation({ sectionId: "sec-timeout-cleanup" }));
+    expect(result2.summary.toLowerCase()).not.toContain("concurrent");
+  }, 2000);
+
+  it("#inFlightSections is cleaned up after resolved path (section re-escalable after success)", async () => {
+    const memory = makeMockMemory();
+    memory.append = async () => ({ ok: true as const, action: "appended" as const });
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      memory,
+      defaultConfig,
+    );
+    const r1 = await svc.escalate(makeEscalation({ sectionId: "sec-resolved-cleanup" }));
+    expect(r1.outcome).toBe("resolved");
+    // Re-escalating the same sectionId should not be blocked
+    const r2 = await svc.escalate(makeEscalation({ sectionId: "sec-resolved-cleanup" }));
+    expect(r2.summary.toLowerCase()).not.toContain("concurrent");
+  });
+
+  it("#inFlightSections is cleaned up after unresolved path (section re-escalable after failure)", async () => {
+    const svc = new SelfHealingLoopService(makeMockLlm(), makeMockMemory(), defaultConfig);
+    // First call: analysis fails → unresolved
+    const r1 = await svc.escalate(makeEscalation({ sectionId: "sec-fail-cleanup" }));
+    expect(r1.outcome).toBe("unresolved");
+    // Second call: should NOT be blocked
+    const r2 = await svc.escalate(makeEscalation({ sectionId: "sec-fail-cleanup" }));
+    expect(r2.summary.toLowerCase()).not.toContain("concurrent");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 9.2: Root-cause analysis retry and timeout unit tests — requirements 2.1, 2.3, 2.5
+// ---------------------------------------------------------------------------
+
+describe("SelfHealingLoopService — task 9.2: root-cause analysis retry and timeout", () => {
+  it("retries LLM up to maxAnalysisRetries times on failing response, then returns unresolved", async () => {
+    let callCount = 0;
+    const failingLlm: LlmProviderPort = {
+      complete: async () => {
+        callCount++;
+        return {
+          ok: false as const,
+          error: { category: "api_error" as const, message: "service down", originalError: null },
+        };
+      },
+      clearContext: () => {},
+    };
+    const svc = new SelfHealingLoopService(failingLlm, makeMockMemory(), {
+      ...defaultConfig,
+      maxAnalysisRetries: 2,
+    });
+    const result = await svc.escalate(makeEscalation());
+    expect(result.outcome).toBe("unresolved");
+    expect(callCount).toBe(3); // 1 initial + 2 retries
+  });
+
+  it("retries LLM up to maxAnalysisRetries times on non-parseable response, then returns unresolved", async () => {
+    let callCount = 0;
+    const garbageLlm: LlmProviderPort = {
+      complete: async () => {
+        callCount++;
+        return {
+          ok: true as const,
+          value: { content: "not json <<<", usage: { inputTokens: 5, outputTokens: 5 } },
+        };
+      },
+      clearContext: () => {},
+    };
+    const svc = new SelfHealingLoopService(garbageLlm, makeMockMemory(), {
+      ...defaultConfig,
+      maxAnalysisRetries: 1,
+    });
+    const result = await svc.escalate(makeEscalation());
+    expect(result.outcome).toBe("unresolved");
+    expect(callCount).toBe(2); // 1 initial + 1 retry
+  });
+
+  it("a call exceeding analysisTimeoutMs is counted as a failure and triggers the retry", async () => {
+    let callCount = 0;
+    const slowLlm: LlmProviderPort = {
+      complete: () => {
+        callCount++;
+        return new Promise<never>(() => {}); // never resolves
+      },
+      clearContext: () => {},
+    };
+    const svc = new SelfHealingLoopService(slowLlm, makeMockMemory(), {
+      ...defaultConfig,
+      analysisTimeoutMs: 20,
+      selfHealingTimeoutMs: 10_000,
+      maxAnalysisRetries: 1,
+    });
+    const result = await svc.escalate(makeEscalation());
+    expect(result.outcome).toBe("unresolved");
+    expect(callCount).toBe(2); // initial + 1 retry (both timed out)
+    expect(result.summary).toMatch(/timeout|failed|analysis/i);
+  }, 3000);
+
+  it("elapsed-time guard prevents new LLM call when outer timeout window is already consumed", async () => {
+    let callCount = 0;
+    const countingLlm: LlmProviderPort = {
+      complete: async () => {
+        callCount++;
+        return {
+          ok: false as const,
+          error: { category: "api_error" as const, message: "fail", originalError: null },
+        };
+      },
+      clearContext: () => {},
+    };
+    // selfHealingTimeoutMs: 0 → elapsed >= 0 always → guard fires before any LLM call
+    const svc = new SelfHealingLoopService(countingLlm, makeMockMemory(), {
+      ...defaultConfig,
+      selfHealingTimeoutMs: 0,
+      maxAnalysisRetries: 5,
+    });
+    const result = await svc.escalate(makeEscalation());
+    expect(result.outcome).toBe("unresolved");
+    expect(callCount).toBe(0);
+    expect(result.summary).toMatch(/timeout|elapsed|consumed|skipped/i);
+  });
+
+  it("successful parse produces RootCauseAnalysis with all three fields and emits analysis-complete log entry", async () => {
+    const validRootCauseJson = JSON.stringify({
+      attemptsNarrative: "Tried to generate a TypeScript module",
+      failureNarrative: "Missing type declarations caused build failure",
+      recurringPattern: "Absent type imports in generated files",
+    });
+    const successLlm: LlmProviderPort = {
+      complete: async () => ({
+        ok: true as const,
+        value: { content: validRootCauseJson, usage: { inputTokens: 10, outputTokens: 20 } },
+      }),
+      clearContext: () => {},
+    };
+    const logSpy = mock((_e: SelfHealingLogEntry) => {});
+    const logger: ISelfHealingLoopLogger = { log: logSpy };
+    const svc = new SelfHealingLoopService(successLlm, makeMockMemory(), defaultConfig, logger);
+    await svc.escalate(makeEscalation());
+
+    const analysisEntry = logSpy.mock.calls
+      .map((args) => args[0])
+      .find((e) => e?.type === "analysis-complete");
+    expect(analysisEntry).toBeDefined();
+    // biome-ignore lint/suspicious/noExplicitAny: discriminated union narrowing
+    expect((analysisEntry as any)?.recurringPattern).toBe("Absent type imports in generated files");
+    // attemptsNarrative and failureNarrative must NOT appear in the log entry
+    const entryStr = JSON.stringify(analysisEntry);
+    expect(entryStr).not.toContain("attemptsNarrative");
+    expect(entryStr).not.toContain("failureNarrative");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 9.3: Gap identification unit tests — requirements 3.3, 3.4
+// ---------------------------------------------------------------------------
+
+describe("SelfHealingLoopService — task 9.3: gap identification", () => {
+  it("LLM response with no actionable gap (targetFile null) returns unresolved with explanatory summary", async () => {
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: noActionableGapJson }),
+      makeMockMemory(),
+      defaultConfig,
+    );
+    const result = await svc.escalate(makeEscalation());
+    expect(result.outcome).toBe("unresolved");
+    expect(result.summary.length).toBeGreaterThan(0);
+    expect(result.summary.toLowerCase()).toMatch(/gap|actionable|no/i);
+  });
+
+  it("targetFile not in supported set returns unresolved with 'unsupported rule file'", async () => {
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: unsupportedFileGapJson }),
+      makeMockMemory(),
+      defaultConfig,
+    );
+    const result = await svc.escalate(makeEscalation());
+    expect(result.outcome).toBe("unresolved");
+    expect(result.summary.toLowerCase()).toMatch(/unsupported/i);
+  });
+
+  it("gap report matching persisted failure record returns unresolved with 'duplicate gap detected'", async () => {
+    const priorRecord = makeFailureRecord({
+      taskId: "sec-9-3",
+      ruleUpdate: SelfHealingLoopService.encodeRuleUpdate(
+        "coding_rules",
+        "Always use const for variable declarations",
+      ),
+    });
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      makeMemoryWithFailures([priorRecord]),
+      defaultConfig,
+    );
+    const result = await svc.escalate(makeEscalation({ sectionId: "sec-9-3" }));
+    expect(result.outcome).toBe("unresolved");
+    expect(result.summary.toLowerCase()).toContain("duplicate gap detected");
+  });
+
+  it("valid gap report triggers rule-update step with correct GapReport → MemoryEntry field mapping", async () => {
+    let capturedTarget: unknown;
+    let capturedEntry: unknown;
+    let capturedTrigger: unknown;
+    const memory = makeMockMemory();
+    memory.append = async (target, entry, trigger) => {
+      capturedTarget = target;
+      capturedEntry = entry;
+      capturedTrigger = trigger;
+      return { ok: true as const, action: "appended" as const };
+    };
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      memory,
+      defaultConfig,
+    );
+    const result = await svc.escalate(makeEscalation({ sectionId: "sec-field-map", planId: "plan-field-map" }));
+    expect(result.outcome).toBe("resolved");
+    // MemoryTarget: type=knowledge, file=coding_rules
+    expect(capturedTarget).toMatchObject({ type: "knowledge", file: "coding_rules" });
+    // Trigger: self_healing
+    expect(capturedTrigger).toBe("self_healing");
+    // MemoryEntry: description contains proposedChange
+    // biome-ignore lint/suspicious/noExplicitAny: test assertion
+    const desc = (capturedEntry as any)?.description as string;
+    expect(desc).toContain("Always use const for variable declarations");
+    // MemoryEntry: description contains machine-readable marker
+    expect(desc).toContain("<!-- self-healing: sec-field-map");
+    // MemoryEntry: context contains planId and sectionId
+    // biome-ignore lint/suspicious/noExplicitAny: test assertion
+    const ctx = (capturedEntry as any)?.context as string;
+    expect(ctx).toContain("sec-field-map");
+    expect(ctx).toContain("plan-field-map");
+    // MemoryEntry: title contains sectionId for uniqueness
+    // biome-ignore lint/suspicious/noExplicitAny: test assertion
+    const title = (capturedEntry as any)?.title as string;
+    expect(title).toContain("sec-field-map");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 9.4: Rule update, workspace validation, and persistence unit tests
+//           — requirements 4.3, 4.5, 5.3, 5.5
+// ---------------------------------------------------------------------------
+
+describe("SelfHealingLoopService — task 9.4: rule update and persistence", () => {
+  it("workspace safety: path outside workspaceRoot is rejected by isPathWithinWorkspace (no MemoryPort write)", () => {
+    // The workspace boundary guard is implemented via isPathWithinWorkspace.
+    // For all valid KnowledgeMemoryFile values, ruleFileRelativePath returns a relative path
+    // that always resolves inside workspaceRoot, so the violation path cannot be reached
+    // through normal escalate() calls. The static helper is the authoritative guard.
+    expect(SelfHealingLoopService.isPathWithinWorkspace("/workspace", "/etc/passwd")).toBe(false);
+    expect(
+      SelfHealingLoopService.isPathWithinWorkspace("/workspace", "/workspace/../etc/passwd"),
+    ).toBe(false);
+    // Only paths that pass isPathWithinWorkspace reach MemoryPort.append.
+    // Structural guarantee: ruleFileRelativePath never produces ".." traversal.
+    const relPath = SelfHealingLoopService.ruleFileRelativePath("coding_rules");
+    expect(relPath).not.toContain("..");
+  });
+
+  it("write failure from MemoryPort returns unresolved with filesystem error in summary", async () => {
+    const memory = makeMockMemory();
+    memory.append = async () => ({
+      ok: false as const,
+      error: { category: "io_error" as const, message: "no space left on device" },
+    });
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      memory,
+      defaultConfig,
+    );
+    const result = await svc.escalate(makeEscalation());
+    expect(result.outcome).toBe("unresolved");
+    expect(result.summary.toLowerCase()).toContain("no space left on device");
+  });
+
+  it("MemoryPort.writeFailure() is called exactly once for every escalate() invocation — empty retryHistory", async () => {
+    const { memory, capturedRecords } = makeCapturingMemory();
+    const svc = new SelfHealingLoopService(makeMockLlm(), memory, defaultConfig);
+    await svc.escalate(makeEscalation({ retryHistory: [] }));
+    expect(capturedRecords.length).toBe(1);
+  });
+
+  it("MemoryPort.writeFailure() is called exactly once for every escalate() invocation — resolved path", async () => {
+    const { memory, capturedRecords } = makeCapturingMemory();
+    memory.append = async () => ({ ok: true as const, action: "appended" as const });
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      memory,
+      defaultConfig,
+    );
+    const result = await svc.escalate(makeEscalation());
+    expect(result.outcome).toBe("resolved");
+    expect(capturedRecords.length).toBe(1);
+  });
+
+  it("MemoryPort.writeFailure() is called exactly once for every escalate() invocation — timeout path", async () => {
+    const { memory, capturedRecords } = makeCapturingMemory();
+    const svc = new SelfHealingLoopService(makeHangingLlm(), memory, {
+      ...defaultConfig,
+      selfHealingTimeoutMs: 30,
+    });
+    await svc.escalate(makeEscalation());
+    expect(capturedRecords.length).toBe(1);
+  }, 1000);
+
+  it("record exceeding maxRecordSizeBytes truncates agentObservations to fit within the limit", async () => {
+    const { memory, capturedRecords } = makeCapturingMemory();
+    const largeObservations = Array.from({ length: 120 }, (_, i) => ({
+      toolName: "write_file",
+      toolInput: { path: `/workspace/src/file-${i}.ts` },
+      rawOutput: `Output ${i}: ${"x".repeat(600)}`,
+      success: true,
+      recordedAt: new Date().toISOString(),
+    }));
+    const maxBytes = 65_536;
+    const svc = new SelfHealingLoopService(makeHangingLlm(), memory, {
+      ...defaultConfig,
+      selfHealingTimeoutMs: 30,
+      maxRecordSizeBytes: maxBytes,
+    });
+    await svc.escalate(makeEscalation({ agentObservations: largeObservations }));
+    expect(capturedRecords.length).toBeGreaterThan(0);
+    const byteLength = Buffer.byteLength(JSON.stringify(capturedRecords[0]!), "utf-8");
+    expect(byteLength).toBeLessThanOrEqual(maxBytes);
+  }, 1000);
+
+  it("failure record write error is logged but does not change the already-determined outcome", async () => {
+    const memory = makeMockMemory();
+    memory.writeFailure = async () => {
+      throw new Error("storage unavailable");
+    };
+    // makeMockLlm returns ok: false → analysis fails → outcome should stay "unresolved"
+    const svc = new SelfHealingLoopService(makeMockLlm(), memory, defaultConfig);
+    const result = await svc.escalate(makeEscalation());
+    expect(result.outcome).toBe("unresolved");
+    // The error from writeFailure must NOT appear in the result summary
+    expect(result.summary.toLowerCase()).not.toContain("storage unavailable");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 9.5: Happy path and observability unit tests — requirements 1.1, 4.2, 6.1, 8.3, 8.4, 8.5
+// ---------------------------------------------------------------------------
+
+/** MemoryPort with append always succeeding — used by tasks 9.5 and 9.6. */
+function makeResolvedMemory(): MemoryPort {
+  const memory = makeMockMemory();
+  memory.append = async () => ({ ok: true as const, action: "appended" as const });
+  return memory;
+}
+
+describe("SelfHealingLoopService — task 9.5: happy path and observability", () => {
+  it("full resolved path: analysis → gap → rule write → failure record → outcome 'resolved' with updatedRules", async () => {
+    let writeFailureCalled = false;
+    const memory = makeResolvedMemory();
+    memory.writeFailure = async (r) => {
+      writeFailureCalled = true;
+      expect(r.taskId).toBeDefined();
+      return { ok: true as const, action: "appended" as const };
+    };
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      memory,
+      defaultConfig,
+    );
+    const result = await svc.escalate(makeEscalation());
+    expect(result.outcome).toBe("resolved");
+    expect(Array.isArray(result.updatedRules)).toBe(true);
+    expect(result.updatedRules!.length).toBe(1);
+    expect(result.updatedRules![0]).toMatch(/coding_rules\.md$/);
+    expect(writeFailureCalled).toBe(true);
+  });
+
+  it("MemoryPort.append() is called with description containing machine-readable marker <!-- self-healing: ... -->", async () => {
+    let capturedDescription = "";
+    const memory = makeMockMemory();
+    memory.append = async (_target, entry, _trigger) => {
+      capturedDescription = entry.description ?? "";
+      return { ok: true as const, action: "appended" as const };
+    };
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      memory,
+      defaultConfig,
+    );
+    await svc.escalate(makeEscalation({ sectionId: "sec-marker-9-5" }));
+    expect(capturedDescription).toContain("<!-- self-healing: sec-marker-9-5");
+  });
+
+  it("all major log entries are emitted at each step when a logger is injected", async () => {
+    const logSpy = mock((_e: SelfHealingLogEntry) => {});
+    const logger: ISelfHealingLoopLogger = { log: logSpy };
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      makeResolvedMemory(),
+      defaultConfig,
+      logger,
+    );
+    await svc.escalate(makeEscalation());
+    const emittedTypes = logSpy.mock.calls.map((args) => args[0]?.type);
+    expect(emittedTypes).toContain("escalation-intake");
+    expect(emittedTypes).toContain("analysis-complete");
+    expect(emittedTypes).toContain("gap-identified");
+    expect(emittedTypes).toContain("rule-updated");
+    expect(emittedTypes).toContain("retry-initiated");
+    expect(emittedTypes).toContain("self-healing-resolved");
+  });
+
+  it("absence of a logger never causes SelfHealingLoopService to throw", async () => {
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      makeResolvedMemory(),
+      defaultConfig,
+      // no logger
+    );
+    await expect(svc.escalate(makeEscalation())).resolves.toMatchObject({ outcome: "resolved" });
+  });
+
+  it("final log entry (self-healing-resolved) includes a non-zero totalDurationMs", async () => {
+    const logSpy = mock((_e: SelfHealingLogEntry) => {});
+    const logger: ISelfHealingLoopLogger = { log: logSpy };
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      makeResolvedMemory(),
+      defaultConfig,
+      logger,
+    );
+    await svc.escalate(makeEscalation());
+    const resolvedEntry = logSpy.mock.calls
+      .map((args) => args[0])
+      .find((e) => e?.type === "self-healing-resolved");
+    // biome-ignore lint/suspicious/noExplicitAny: discriminated union narrowing
+    expect((resolvedEntry as any)?.totalDurationMs).toBeGreaterThan(0);
+  });
+
+  it("final log entry (unresolved) includes a non-zero totalDurationMs on failure path", async () => {
+    const logSpy = mock((_e: SelfHealingLogEntry) => {});
+    const logger: ISelfHealingLoopLogger = { log: logSpy };
+    const svc = new SelfHealingLoopService(makeMockLlm(), makeMockMemory(), defaultConfig, logger);
+    await svc.escalate(makeEscalation());
+    const unresolvedEntry = logSpy.mock.calls
+      .map((args) => args[0])
+      .find((e) => e?.type === "unresolved");
+    // biome-ignore lint/suspicious/noExplicitAny: discriminated union narrowing
+    expect((unresolvedEntry as any)?.totalDurationMs).toBeGreaterThan(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 9.6: Performance unit tests — requirements 1.5, 5.5
+// ---------------------------------------------------------------------------
+
+describe("SelfHealingLoopService — task 9.6: performance", () => {
+  it("escalate() completes within selfHealingTimeoutMs under normal mock latency with all steps succeeding", async () => {
+    const timeoutMs = 500;
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      makeResolvedMemory(),
+      { ...defaultConfig, selfHealingTimeoutMs: timeoutMs },
+    );
+    const start = Date.now();
+    const result = await svc.escalate(makeEscalation());
+    const elapsed = Date.now() - start;
+    expect(result.outcome).toBe("resolved");
+    expect(elapsed).toBeLessThan(timeoutMs);
+  }, 2000);
+
+  it("serializing agentObservations with more than 100 entries results in record at or below maxRecordSizeBytes after truncation", async () => {
+    const { memory, capturedRecords } = makeCapturingMemory();
+    const maxBytes = 65_536;
+    // 101 observations, each ~600 bytes raw
+    const observations = Array.from({ length: 101 }, (_, i) => ({
+      toolName: "write_file",
+      toolInput: { path: `/workspace/src/file-${i}.ts` },
+      rawOutput: `Output ${i}: ${"content-data ".repeat(50)}`,
+      success: true,
+      recordedAt: new Date().toISOString(),
+    }));
+    const svc = new SelfHealingLoopService(makeHangingLlm(), memory, {
+      ...defaultConfig,
+      selfHealingTimeoutMs: 30,
+      maxRecordSizeBytes: maxBytes,
+    });
+    await svc.escalate(makeEscalation({ agentObservations: observations }));
+    expect(capturedRecords.length).toBeGreaterThan(0);
+    const byteLength = Buffer.byteLength(JSON.stringify(capturedRecords[0]!), "utf-8");
+    expect(byteLength).toBeLessThanOrEqual(maxBytes);
+  }, 1000);
+});

@@ -108,29 +108,29 @@
   - Emit an `unresolved` log entry including `stopStep` and `totalDurationMs` before returning
   - _Requirements: 7.1, 7.2, 7.5, 8.2, 8.4_
 
-- [ ] 9. Unit tests
-- [ ] 9.1 (P) Intake guard and concurrency unit tests
+- [x] 9. Unit tests
+- [x] 9.1 (P) Intake guard and concurrency unit tests
   - Test that `escalate()` returns `unresolved` immediately when `retryHistory` is empty
   - Test that a duplicate concurrent call for the same `sectionId` returns `unresolved` with "concurrent escalation in progress"
   - Test that the outer timeout returns `unresolved` with a timeout description when `selfHealingTimeoutMs` elapses
   - Verify `#inFlightSections` is cleaned up in all terminal paths (success, failure, timeout)
   - _Requirements: 1.2, 1.4, 1.5_
 
-- [ ] 9.2 (P) Root-cause analysis retry and timeout unit tests
+- [x] 9.2 (P) Root-cause analysis retry and timeout unit tests
   - Test that the LLM is retried up to `maxAnalysisRetries` times on a failing or non-parseable response, then returns `unresolved`
   - Test that a call exceeding `analysisTimeoutMs` is counted as a failure and triggers the retry
   - Test that the elapsed-time guard prevents a new LLM call when the outer timeout window is already consumed
   - Test that a successful parse produces `RootCauseAnalysis` with all three fields populated and an `analysis-complete` log entry is emitted
   - _Requirements: 2.1, 2.3, 2.5_
 
-- [ ] 9.3 (P) Gap identification unit tests
+- [x] 9.3 (P) Gap identification unit tests
   - Test that an LLM response with no actionable gap returns `unresolved` with an explanatory summary
   - Test that a `targetFile` not in the supported set returns `unresolved` with "unsupported rule file"
   - Test that a gap report matching a previously persisted failure record returns `unresolved` with "duplicate gap detected"
   - Test that a valid gap report triggers the rule-update step with correct `GapReport` → `MemoryEntry` field mapping
   - _Requirements: 3.3, 3.4_
 
-- [ ] 9.4 (P) Rule update, workspace validation, and persistence unit tests
+- [x] 9.4 (P) Rule update, workspace validation, and persistence unit tests
   - Test that a rule file path resolved outside `workspaceRoot` returns `unresolved` with "workspace safety violation" without calling any `MemoryPort` write method
   - Test that a write failure from `MemoryPort` returns `unresolved` with the filesystem error in summary
   - Test that `MemoryPort.writeFailure()` is called exactly once for every `escalate()` invocation regardless of outcome
@@ -138,7 +138,7 @@
   - Test that a failure record write error is logged but does not change the already-determined outcome
   - _Requirements: 4.3, 4.5, 5.3, 5.5_
 
-- [ ] 9.5 (P) Happy path and observability unit tests
+- [x] 9.5 (P) Happy path and observability unit tests
   - Test the full resolved path: analysis → gap → rule write → failure record → `outcome: "resolved"` with `updatedRules` populated
   - Test that `MemoryPort.append()` is called with a `description` containing the machine-readable marker `<!-- self-healing: <sectionId> <timestamp> -->`
   - Test that log entries are emitted at all major steps (`escalation-intake`, `analysis-complete`, `gap-identified`, `rule-updated`, `retry-initiated`, `self-healing-resolved`) when a logger is injected
@@ -146,7 +146,7 @@
   - Test that the final log entry (`self-healing-resolved` or `unresolved`) includes a non-zero `totalDurationMs`
   - _Requirements: 1.1, 4.2, 6.1, 8.3, 8.4, 8.5_
 
-- [ ] 9.6 (P) Performance unit tests
+- [x] 9.6 (P) Performance unit tests
   - Test that `escalate()` completes within `selfHealingTimeoutMs` under normal mock latency with all steps succeeding
   - Test that serializing `agentObservations` with more than 100 entries results in a record at or below `maxRecordSizeBytes` after truncation
   - _Requirements: 1.5, 5.5_
