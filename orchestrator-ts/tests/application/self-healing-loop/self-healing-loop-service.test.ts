@@ -18,7 +18,7 @@
  */
 import type { ISelfHealingLoop } from "@/application/ports/implementation-loop";
 import type { LlmProviderPort } from "@/application/ports/llm";
-import type { MemoryPort, ShortTermMemoryPort } from "@/application/ports/memory";
+import type { FailureFilter, FailureRecord, MemoryPort, ShortTermMemoryPort } from "@/application/ports/memory";
 import type { ISelfHealingLoopLogger } from "@/application/ports/self-healing-loop-logger";
 import {
   type SelfHealingLoopConfig,
@@ -644,5 +644,598 @@ describe("SelfHealingLoopService — analysis-complete log entry (task 4.2)", ()
       .map((args) => args[0])
       .find((e) => e?.type === "analysis-complete");
     expect(analysisEntry).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 5.1: Gap identification — requirements 3.1, 3.2, 3.3, 3.5
+// ---------------------------------------------------------------------------
+
+/**
+ * Two-phase LLM mock: first call returns valid root-cause analysis JSON,
+ * subsequent calls return the provided gap response.
+ */
+function makeTwoPhaseLlm(
+  gapResponse:
+    | { ok: true; content: string }
+    | { ok: false; message?: string }
+    | "hang",
+): LlmProviderPort {
+  const validRootCause = JSON.stringify({
+    attemptsNarrative: "Attempted to create a TypeScript file",
+    failureNarrative: "TypeScript compilation failed due to missing types",
+    recurringPattern: "Missing type imports in generated code",
+  });
+  let callCount = 0;
+  return {
+    complete: async () => {
+      callCount++;
+      if (callCount === 1) {
+        // First call: root-cause analysis succeeds
+        return {
+          ok: true as const,
+          value: { content: validRootCause, usage: { inputTokens: 10, outputTokens: 20 } },
+        };
+      }
+      // Subsequent calls: gap identification
+      if (gapResponse === "hang") {
+        return new Promise<never>(() => {});
+      }
+      if (gapResponse.ok) {
+        return {
+          ok: true as const,
+          value: { content: gapResponse.content, usage: { inputTokens: 10, outputTokens: 20 } },
+        };
+      }
+      return {
+        ok: false as const,
+        error: {
+          category: "api_error" as const,
+          message: gapResponse.message ?? "gap LLM failed",
+          originalError: null,
+        },
+      };
+    },
+    clearContext: () => {},
+  };
+}
+
+const validGapJson = JSON.stringify({
+  targetFile: "coding_rules",
+  proposedChange: "Always use const for variable declarations",
+  rationale: "Pattern shows inconsistent var usage leading to bugs",
+});
+
+const noActionableGapJson = JSON.stringify({
+  targetFile: null,
+  proposedChange: "",
+  rationale: "No actionable knowledge gap identified for this failure pattern",
+});
+
+const unsupportedFileGapJson = JSON.stringify({
+  targetFile: "unknown_file",
+  proposedChange: "Some change",
+  rationale: "Some rationale",
+});
+
+describe("SelfHealingLoopService — gap identification (task 5.1)", () => {
+  it("calls MemoryPort.query() to read rule file contents before the gap LLM call", async () => {
+    let queryCalled = false;
+    const spyMemory = makeMockMemory();
+    const originalQuery = spyMemory.query.bind(spyMemory);
+    spyMemory.query = async (q) => {
+      queryCalled = true;
+      return originalQuery(q);
+    };
+
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      spyMemory,
+      defaultConfig,
+    );
+
+    await svc.escalate(makeEscalation());
+
+    expect(queryCalled).toBe(true);
+  });
+
+  it("returns unresolved with explanatory summary when LLM reports no actionable gap (targetFile null)", async () => {
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: noActionableGapJson }),
+      makeMockMemory(),
+      defaultConfig,
+    );
+
+    const result = await svc.escalate(makeEscalation());
+
+    expect(result.outcome).toBe("unresolved");
+    expect(result.summary.length).toBeGreaterThan(0);
+    expect(result.summary.toLowerCase()).toMatch(/gap|actionable|no/i);
+  });
+
+  it("does NOT retry when LLM returns no actionable gap (targetFile null) — it's a valid terminal response", async () => {
+    let callCount = 0;
+    const validRootCause = JSON.stringify({
+      attemptsNarrative: "Tried",
+      failureNarrative: "Failed",
+      recurringPattern: "Pattern",
+    });
+    const countingLlm: LlmProviderPort = {
+      complete: async () => {
+        callCount++;
+        if (callCount === 1) {
+          return {
+            ok: true as const,
+            value: { content: validRootCause, usage: { inputTokens: 5, outputTokens: 5 } },
+          };
+        }
+        return {
+          ok: true as const,
+          value: { content: noActionableGapJson, usage: { inputTokens: 5, outputTokens: 5 } },
+        };
+      },
+      clearContext: () => {},
+    };
+
+    const svc = new SelfHealingLoopService(countingLlm, makeMockMemory(), {
+      ...defaultConfig,
+      maxAnalysisRetries: 3,
+    });
+
+    await svc.escalate(makeEscalation());
+
+    // Only 2 LLM calls: 1 for analysis + 1 for gap (no_gap is terminal, no retry)
+    expect(callCount).toBe(2);
+  });
+
+  it("returns unresolved with 'unsupported rule file' when targetFile is not in the supported set", async () => {
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: unsupportedFileGapJson }),
+      makeMockMemory(),
+      defaultConfig,
+    );
+
+    const result = await svc.escalate(makeEscalation());
+
+    expect(result.outcome).toBe("unresolved");
+    expect(result.summary.toLowerCase()).toMatch(/unsupported|rule file|unknown_file/i);
+  });
+
+  it("does NOT retry when targetFile is unsupported — it's a terminal validation failure", async () => {
+    let callCount = 0;
+    const validRootCause = JSON.stringify({
+      attemptsNarrative: "Tried",
+      failureNarrative: "Failed",
+      recurringPattern: "Pattern",
+    });
+    const countingLlm: LlmProviderPort = {
+      complete: async () => {
+        callCount++;
+        if (callCount === 1) {
+          return {
+            ok: true as const,
+            value: { content: validRootCause, usage: { inputTokens: 5, outputTokens: 5 } },
+          };
+        }
+        return {
+          ok: true as const,
+          value: { content: unsupportedFileGapJson, usage: { inputTokens: 5, outputTokens: 5 } },
+        };
+      },
+      clearContext: () => {},
+    };
+
+    const svc = new SelfHealingLoopService(countingLlm, makeMockMemory(), {
+      ...defaultConfig,
+      maxAnalysisRetries: 3,
+    });
+
+    await svc.escalate(makeEscalation());
+
+    // Only 2 LLM calls: 1 for analysis + 1 for gap (unsupported file is terminal)
+    expect(callCount).toBe(2);
+  });
+
+  it("retries gap LLM call up to maxAnalysisRetries on API failure, then returns unresolved", async () => {
+    let gapCallCount = 0;
+    const validRootCause = JSON.stringify({
+      attemptsNarrative: "Tried",
+      failureNarrative: "Failed",
+      recurringPattern: "Pattern",
+    });
+    const countingLlm: LlmProviderPort = {
+      complete: async () => {
+        if (gapCallCount === 0) {
+          gapCallCount++; // mark analysis done
+          return {
+            ok: true as const,
+            value: { content: validRootCause, usage: { inputTokens: 5, outputTokens: 5 } },
+          };
+        }
+        gapCallCount++;
+        return {
+          ok: false as const,
+          error: { category: "api_error" as const, message: "gap service down", originalError: null },
+        };
+      },
+      clearContext: () => {},
+    };
+
+    const svc = new SelfHealingLoopService(countingLlm, makeMockMemory(), {
+      ...defaultConfig,
+      maxAnalysisRetries: 2,
+    });
+
+    const result = await svc.escalate(makeEscalation());
+
+    expect(result.outcome).toBe("unresolved");
+    // gapCallCount starts at 0, increments to 1 on analysis call,
+    // then 2,3,4 on gap calls (1 initial + 2 retries)
+    expect(gapCallCount).toBe(4); // 1 analysis + 3 gap attempts
+    expect(result.summary).toMatch(/gap|failed|attempt/i);
+  });
+
+  it("retries gap LLM call on non-parseable response, then returns unresolved after exhausting retries", async () => {
+    let callCount = 0;
+    const validRootCause = JSON.stringify({
+      attemptsNarrative: "Tried",
+      failureNarrative: "Failed",
+      recurringPattern: "Pattern",
+    });
+    const countingLlm: LlmProviderPort = {
+      complete: async () => {
+        callCount++;
+        if (callCount === 1) {
+          return {
+            ok: true as const,
+            value: { content: validRootCause, usage: { inputTokens: 5, outputTokens: 5 } },
+          };
+        }
+        return {
+          ok: true as const,
+          value: { content: "not valid json {{{", usage: { inputTokens: 5, outputTokens: 5 } },
+        };
+      },
+      clearContext: () => {},
+    };
+
+    const svc = new SelfHealingLoopService(countingLlm, makeMockMemory(), {
+      ...defaultConfig,
+      maxAnalysisRetries: 1,
+    });
+
+    const result = await svc.escalate(makeEscalation());
+
+    expect(result.outcome).toBe("unresolved");
+    expect(callCount).toBe(3); // 1 analysis + 2 gap attempts (1 initial + 1 retry)
+  });
+
+  it("emits a gap-identified log entry with targetFile after successful gap parse", async () => {
+    const logSpy = mock((_entry: SelfHealingLogEntry) => {});
+    const logger: ISelfHealingLoopLogger = { log: logSpy };
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      makeMockMemory(),
+      defaultConfig,
+      logger,
+    );
+
+    await svc.escalate(makeEscalation());
+
+    const gapEntry = logSpy.mock.calls
+      .map((args) => args[0])
+      .find((e) => e?.type === "gap-identified");
+    expect(gapEntry).toBeDefined();
+    // biome-ignore lint/suspicious/noExplicitAny: narrowing discriminated union in test
+    expect((gapEntry as any)?.targetFile).toBe("coding_rules");
+  });
+
+  it("gap-identified log entry carries correct sectionId and planId", async () => {
+    const logSpy = mock((_entry: SelfHealingLogEntry) => {});
+    const logger: ISelfHealingLoopLogger = { log: logSpy };
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      makeMockMemory(),
+      defaultConfig,
+      logger,
+    );
+
+    await svc.escalate(makeEscalation({ sectionId: "sec-gap-test", planId: "plan-gap-test" }));
+
+    const gapEntry = logSpy.mock.calls
+      .map((args) => args[0])
+      .find((e) => e?.type === "gap-identified");
+    // biome-ignore lint/suspicious/noExplicitAny: narrowing discriminated union in test
+    expect((gapEntry as any)?.sectionId).toBe("sec-gap-test");
+    // biome-ignore lint/suspicious/noExplicitAny: narrowing discriminated union in test
+    expect((gapEntry as any)?.planId).toBe("plan-gap-test");
+  });
+
+  it("gap-identified is NOT emitted when LLM returns no actionable gap", async () => {
+    const logSpy = mock((_entry: SelfHealingLogEntry) => {});
+    const logger: ISelfHealingLoopLogger = { log: logSpy };
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: noActionableGapJson }),
+      makeMockMemory(),
+      defaultConfig,
+      logger,
+    );
+
+    await svc.escalate(makeEscalation());
+
+    const gapEntry = logSpy.mock.calls
+      .map((args) => args[0])
+      .find((e) => e?.type === "gap-identified");
+    expect(gapEntry).toBeUndefined();
+  });
+
+  it("elapsed-time guard prevents gap LLM call when outer timeout already consumed", async () => {
+    // Use selfHealingTimeoutMs: 0 so the outer guard fires immediately.
+    // With threshold 0, elapsed >= 0 is always true, so analysis guard fires first.
+    // The important property: escalate() returns unresolved with a timeout message,
+    // not a gap-identification error.
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      makeMockMemory(),
+      {
+        ...defaultConfig,
+        selfHealingTimeoutMs: 0,
+        maxAnalysisRetries: 5,
+      },
+    );
+
+    const result = await svc.escalate(makeEscalation());
+
+    expect(result.outcome).toBe("unresolved");
+    expect(result.summary).toMatch(/timeout|elapsed|consumed|skipped/i);
+  });
+
+  it("proceeds past gap identification when valid gap is found (summary does not indicate gap failure)", async () => {
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      makeMockMemory(),
+      defaultConfig,
+    );
+
+    const result = await svc.escalate(makeEscalation());
+
+    // Gap identification succeeds; next task (5.2 / 6) stubs return unresolved
+    expect(result.outcome).toBe("unresolved");
+    // Should NOT indicate a gap identification failure
+    expect(result.summary).not.toMatch(/gap identification failed/i);
+    expect(result.summary).not.toMatch(/unsupported rule file/i);
+    expect(result.summary).not.toMatch(/no actionable gap/i);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 5.2: Duplicate gap detection — requirement 3.4
+// ---------------------------------------------------------------------------
+
+/** Delegates to the service's canonical encoder so tests stay in sync with the implementation. */
+const encodeRuleUpdate = SelfHealingLoopService.encodeRuleUpdate;
+
+/** Creates a MemoryPort mock pre-seeded with the given failure records. */
+function makeMemoryWithFailures(failures: readonly FailureRecord[]): MemoryPort {
+  const base = makeMockMemory();
+  base.getFailures = async (_filter?) => failures;
+  return base;
+}
+
+/** A minimal valid FailureRecord for pre-seeding. */
+function makeFailureRecord(overrides: Partial<FailureRecord> = {}): FailureRecord {
+  return {
+    taskId: "sec-1",
+    specName: "plan-abc",
+    phase: "IMPLEMENTATION",
+    attempted: "[]",
+    errors: [],
+    rootCause: "unknown",
+    ruleUpdate: undefined,
+    timestamp: "2026-03-15T00:00:00.000Z",
+    ...overrides,
+  };
+}
+
+describe("SelfHealingLoopService — duplicate gap detection (task 5.2)", () => {
+  it("proceeds past duplicate check when no prior failure records exist", async () => {
+    const memory = makeMemoryWithFailures([]);
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      memory,
+      defaultConfig,
+    );
+
+    const result = await svc.escalate(makeEscalation());
+
+    expect(result.outcome).toBe("unresolved");
+    // Should NOT say "duplicate gap detected"
+    expect(result.summary.toLowerCase()).not.toContain("duplicate");
+  });
+
+  it("returns unresolved with 'duplicate gap detected' when prior record has identical targetFile + proposedChange", async () => {
+    const priorRecord = makeFailureRecord({
+      taskId: "sec-1",
+      ruleUpdate: encodeRuleUpdate("coding_rules", "Always use const for variable declarations"),
+    });
+    const memory = makeMemoryWithFailures([priorRecord]);
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      memory,
+      defaultConfig,
+    );
+
+    const result = await svc.escalate(makeEscalation({ sectionId: "sec-1" }));
+
+    expect(result.outcome).toBe("unresolved");
+    expect(result.summary.toLowerCase()).toContain("duplicate");
+  });
+
+  it("'duplicate gap detected' appears in summary (exact wording per requirement 3.4)", async () => {
+    const priorRecord = makeFailureRecord({
+      taskId: "sec-1",
+      ruleUpdate: encodeRuleUpdate("coding_rules", "Always use const for variable declarations"),
+    });
+    const memory = makeMemoryWithFailures([priorRecord]);
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      memory,
+      defaultConfig,
+    );
+
+    const result = await svc.escalate(makeEscalation({ sectionId: "sec-1" }));
+
+    expect(result.summary.toLowerCase()).toContain("duplicate gap detected");
+  });
+
+  it("no duplicate detected when prior record has different targetFile (same proposedChange)", async () => {
+    const priorRecord = makeFailureRecord({
+      taskId: "sec-1",
+      // Different targetFile: "review_rules" vs the gap's "coding_rules"
+      ruleUpdate: encodeRuleUpdate("review_rules", "Always use const for variable declarations"),
+    });
+    const memory = makeMemoryWithFailures([priorRecord]);
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      memory,
+      defaultConfig,
+    );
+
+    const result = await svc.escalate(makeEscalation({ sectionId: "sec-1" }));
+
+    expect(result.summary.toLowerCase()).not.toContain("duplicate");
+  });
+
+  it("no duplicate detected when prior record has different proposedChange (same targetFile)", async () => {
+    const priorRecord = makeFailureRecord({
+      taskId: "sec-1",
+      // Different proposedChange
+      ruleUpdate: encodeRuleUpdate("coding_rules", "Some completely different rule"),
+    });
+    const memory = makeMemoryWithFailures([priorRecord]);
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      memory,
+      defaultConfig,
+    );
+
+    const result = await svc.escalate(makeEscalation({ sectionId: "sec-1" }));
+
+    expect(result.summary.toLowerCase()).not.toContain("duplicate");
+  });
+
+  it("no duplicate detected when prior record belongs to a different sectionId", async () => {
+    const priorRecord = makeFailureRecord({
+      taskId: "sec-OTHER", // different section
+      ruleUpdate: encodeRuleUpdate("coding_rules", "Always use const for variable declarations"),
+    });
+    // getFailures is called with a filter; here the mock returns this record regardless
+    // To properly test, we need getFailures to only return records for the queried taskId
+    const memory = makeMockMemory();
+    let capturedFilter: FailureFilter | undefined;
+    memory.getFailures = async (filter?) => {
+      capturedFilter = filter;
+      // Return empty for sec-1 (simulating filtered query)
+      if (filter?.taskId === "sec-1") return [];
+      return [priorRecord];
+    };
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      memory,
+      defaultConfig,
+    );
+
+    const result = await svc.escalate(makeEscalation({ sectionId: "sec-1" }));
+
+    // Should have queried with the correct sectionId filter
+    expect(capturedFilter?.taskId).toBe("sec-1");
+    expect(result.summary.toLowerCase()).not.toContain("duplicate");
+  });
+
+  it("calls getFailures with taskId set to the escalation sectionId", async () => {
+    let capturedFilter: FailureFilter | undefined;
+    const memory = makeMockMemory();
+    memory.getFailures = async (filter?) => {
+      capturedFilter = filter;
+      return [];
+    };
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      memory,
+      defaultConfig,
+    );
+
+    await svc.escalate(makeEscalation({ sectionId: "my-section-id" }));
+
+    expect(capturedFilter?.taskId).toBe("my-section-id");
+  });
+
+  it("proceeds as if no duplicates when getFailures throws (safe default)", async () => {
+    const memory = makeMockMemory();
+    memory.getFailures = async () => {
+      throw new Error("failure memory unavailable");
+    };
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      memory,
+      defaultConfig,
+    );
+
+    // Should not throw and should not report duplicate
+    const result = await svc.escalate(makeEscalation());
+    expect(result.outcome).toBe("unresolved");
+    expect(result.summary.toLowerCase()).not.toContain("duplicate");
+  });
+
+  it("detects duplicate across multiple prior records (any match triggers detection)", async () => {
+    const priorRecords = [
+      makeFailureRecord({
+        taskId: "sec-1",
+        ruleUpdate: encodeRuleUpdate("review_rules", "Some other rule"),
+      }),
+      makeFailureRecord({
+        taskId: "sec-1",
+        ruleUpdate: encodeRuleUpdate("coding_rules", "Always use const for variable declarations"),
+      }),
+      makeFailureRecord({
+        taskId: "sec-1",
+        ruleUpdate: encodeRuleUpdate("implementation_patterns", "Another unrelated rule"),
+      }),
+    ];
+    const memory = makeMemoryWithFailures(priorRecords);
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      memory,
+      defaultConfig,
+    );
+
+    const result = await svc.escalate(makeEscalation({ sectionId: "sec-1" }));
+
+    expect(result.outcome).toBe("unresolved");
+    expect(result.summary.toLowerCase()).toContain("duplicate gap detected");
+  });
+
+  it("gap-identified log entry is still emitted before duplicate check fires", async () => {
+    // The log entry should be emitted before the duplicate check
+    const priorRecord = makeFailureRecord({
+      taskId: "sec-1",
+      ruleUpdate: encodeRuleUpdate("coding_rules", "Always use const for variable declarations"),
+    });
+    const memory = makeMemoryWithFailures([priorRecord]);
+    const logSpy = mock((_entry: SelfHealingLogEntry) => {});
+    const logger: ISelfHealingLoopLogger = { log: logSpy };
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      memory,
+      defaultConfig,
+      logger,
+    );
+
+    await svc.escalate(makeEscalation({ sectionId: "sec-1" }));
+
+    const gapEntry = logSpy.mock.calls
+      .map((args) => args[0])
+      .find((e) => e?.type === "gap-identified");
+    expect(gapEntry).toBeDefined();
   });
 });

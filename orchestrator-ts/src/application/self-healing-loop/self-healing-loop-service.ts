@@ -6,7 +6,9 @@ import type { SectionEscalation, SelfHealingResult } from "@/domain/implementati
 import type {
   AnalysisCompleteLogEntry,
   EscalationIntakeLogEntry,
+  GapIdentifiedLogEntry,
   GapReport,
+  KnowledgeMemoryFile,
   RootCauseAnalysis,
 } from "@/domain/self-healing/types";
 
@@ -183,11 +185,94 @@ export class SelfHealingLoopService implements ISelfHealingLoop {
       };
       this.#logger?.log(analysisCompleteEntry);
 
-      // Task 4.2: Hand off to gap identification (task 5.1 will implement #identifyGap fully)
-      return await this.#identifyGap(escalation, analysis);
+      // Task 4.2: Hand off to gap identification
+      return await this.#identifyGap(escalation, analysis, startTime);
     } finally {
       this.#inFlightSections.delete(escalation.sectionId);
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // LLM retry helper — shared by root-cause analysis and gap identification
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Execute an LLM call with retry loop, per-call timeout, and elapsed-time guard.
+   *
+   * Centralises the duplicated retry pattern used by both `#analyzeRootCause` and
+   * `#identifyGap`: elapsed-guard → Promise.race timeout → parse → retry on failure.
+   *
+   * @param prompt    Full prompt passed to the LLM provider.
+   * @param startTime Timestamp when escalate() was called (for outer timeout guard).
+   * @param parser    Converts raw LLM content to a typed result:
+   *                  - `{ ok: true, value }` — success, stop retrying.
+   *                  - `{ ok: false, noRetry: true, summary }` — terminal semantic failure (e.g. no gap found), stop immediately.
+   *                  - `{ ok: false, noRetry: false }` — parse error, trigger a retry.
+   * @param stepName  Human-readable step label used in error messages.
+   */
+  async #runLlmWithRetry<T>(
+    prompt: string,
+    startTime: number,
+    parser: (content: string) =>
+      | { ok: true; value: T }
+      | { ok: false; noRetry: true; summary: string }
+      | { ok: false; noRetry: false },
+    stepName: string,
+  ): Promise<{ ok: true; value: T } | { ok: false; summary: string }> {
+    let lastError = `${stepName} did not start`;
+
+    for (let attempt = 0; attempt <= this.#config.maxAnalysisRetries; attempt++) {
+      // Elapsed-time guard: skip if outer timeout is already consumed (requirements 2.5, 3.1)
+      const elapsed = Date.now() - startTime;
+      if (elapsed >= this.#config.selfHealingTimeoutMs) {
+        return {
+          ok: false,
+          summary:
+            `${stepName} skipped: outer timeout already consumed (elapsed ${elapsed}ms, limit ${this.#config.selfHealingTimeoutMs}ms)`,
+        };
+      }
+
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
+      try {
+        const llmResult = await Promise.race([
+          this.#llm.complete(prompt),
+          new Promise<never>((_, reject) => {
+            timeoutId = setTimeout(
+              () => reject(new Error(`LLM call timed out after ${this.#config.analysisTimeoutMs}ms`)),
+              this.#config.analysisTimeoutMs,
+            );
+          }),
+        ]);
+        clearTimeout(timeoutId);
+
+        if (!llmResult.ok) {
+          lastError = `LLM call failed: ${llmResult.error.message}`;
+          continue;
+        }
+
+        const parsed = parser(llmResult.value.content);
+
+        if (!parsed.ok) {
+          if (parsed.noRetry) {
+            // Terminal semantic failure — propagate summary immediately, do not retry
+            return { ok: false, summary: parsed.summary };
+          }
+          lastError = `Failed to parse LLM response for ${stepName}`;
+          continue;
+        }
+
+        return { ok: true, value: parsed.value };
+      } catch (e) {
+        clearTimeout(timeoutId);
+        lastError = e instanceof Error ? e.message : String(e);
+        // timeout or unexpected error — continue to next retry
+      }
+    }
+
+    return {
+      ok: false,
+      summary: `${stepName} failed after ${this.#config.maxAnalysisRetries + 1} attempt(s): ${lastError}`,
+    };
   }
 
   // ---------------------------------------------------------------------------
@@ -265,12 +350,7 @@ Rules:
 
   /**
    * Perform LLM-driven root-cause analysis with retry loop and per-call timeout.
-   *
-   * - Wraps each LLM call with Promise.race using analysisTimeoutMs.
-   * - Before each attempt, checks elapsed time against selfHealingTimeoutMs to avoid
-   *   starting a call that would outlive the outer timeout (requirement 2.5).
-   * - Retries up to maxAnalysisRetries times on failure or non-parseable JSON (requirement 2.3).
-   * - Returns { ok: false } after exhausting retries with last error in summary.
+   * Delegates retry/timeout/elapsed-guard logic to `#runLlmWithRetry`.
    *
    * Requirements: 2.1, 2.3, 2.5
    */
@@ -279,77 +359,257 @@ Rules:
     startTime: number,
   ): Promise<{ ok: true; value: RootCauseAnalysis } | { ok: false; summary: string }> {
     const prompt = this.#buildRootCausePrompt(escalation);
-    let lastError = "analysis did not start";
+    return this.#runLlmWithRetry(
+      prompt,
+      startTime,
+      (content) => {
+        const parsed = this.#tryParseRootCauseAnalysis(content);
+        return parsed ? { ok: true, value: parsed } : { ok: false, noRetry: false as const };
+      },
+      "Root-cause analysis",
+    );
+  }
 
-    for (let attempt = 0; attempt <= this.#config.maxAnalysisRetries; attempt++) {
-      // Elapsed-time guard: skip if outer timeout is already consumed (requirement 2.5)
-      const elapsed = Date.now() - startTime;
-      if (elapsed >= this.#config.selfHealingTimeoutMs) {
+  // ---------------------------------------------------------------------------
+  // Gap identification — task 5.1–5.2
+  // ---------------------------------------------------------------------------
+
+  /** Supported knowledge rule files that the self-healing loop may update. */
+  static readonly #SUPPORTED_KNOWLEDGE_FILES = new Set<string>([
+    "coding_rules",
+    "review_rules",
+    "implementation_patterns",
+    "debugging_patterns",
+  ]);
+
+  static readonly #GAP_IDENTIFICATION_SYSTEM_PROMPT =
+    `You are a knowledge gap analyst for an autonomous software engineering agent.
+Your task: given a root-cause analysis, identify which rule file needs updating to prevent this class of failure.
+
+Return ONLY a valid JSON object with this exact structure:
+{
+  "targetFile": "coding_rules" | "review_rules" | "implementation_patterns" | "debugging_patterns" | null,
+  "proposedChange": "Specific addition or correction text (empty string when targetFile is null)",
+  "rationale": "Explanation linking the gap to the observed failure pattern"
+}
+
+Valid targetFile values: coding_rules, review_rules, implementation_patterns, debugging_patterns
+Set targetFile to null if no actionable knowledge gap can be identified from the failure pattern.
+
+Rules:
+- Return only the JSON object, no markdown, no extra text
+- proposedChange and rationale must be non-empty strings when targetFile is non-null
+- Do not include API keys, credentials, or workspace-external paths`;
+
+  /**
+   * Build the LLM prompt for gap identification.
+   * Includes the root-cause analysis and current rule file contents.
+   *
+   * Requirements: 3.1
+   */
+  #buildGapPrompt(analysis: RootCauseAnalysis, ruleFileContents: string): string {
+    const userMessage = [
+      "=== Root-Cause Analysis ===",
+      JSON.stringify(analysis, null, 2),
+      "",
+      "=== Current Rule File Contents ===",
+      ruleFileContents || "(no entries found)",
+    ].join("\n");
+    return `${SelfHealingLoopService.#GAP_IDENTIFICATION_SYSTEM_PROMPT}\n\n${userMessage}`;
+  }
+
+  /**
+   * Parse LLM response into a GapReport parse result.
+   *
+   * Returns:
+   * - `{ ok: true, value: GapReport }` — valid gap identified
+   * - `{ ok: false, noRetry: true, ... }` — terminal semantic failure (no gap / unsupported file)
+   * - `{ ok: false, noRetry: false }` — parse error, should retry
+   *
+   * The three-way return type matches the `parser` parameter of `#runLlmWithRetry`.
+   */
+  #tryParseGapReport(content: string):
+    | { ok: true; value: GapReport }
+    | { ok: false; noRetry: true; summary: string }
+    | { ok: false; noRetry: false }
+  {
+    try {
+      const obj = JSON.parse(content) as unknown;
+      if (obj === null || typeof obj !== "object") return { ok: false, noRetry: false };
+
+      const record = obj as Record<string, unknown>;
+
+      // No actionable gap: LLM explicitly returned null targetFile
+      if (record.targetFile === null) {
         return {
           ok: false,
-          summary:
-            `Root-cause analysis skipped: outer timeout already consumed (elapsed ${elapsed}ms, limit ${this.#config.selfHealingTimeoutMs}ms)`,
+          noRetry: true,
+          summary: `No actionable gap identified: ${String(record.rationale ?? "LLM found no missing rule")}`,
         };
       }
 
-      let timeoutId: ReturnType<typeof setTimeout> | undefined;
-      try {
-        const llmResult = await Promise.race([
-          this.#llm.complete(prompt),
-          new Promise<never>((_, reject) => {
-            timeoutId = setTimeout(
-              () => reject(new Error(`LLM call timed out after ${this.#config.analysisTimeoutMs}ms`)),
-              this.#config.analysisTimeoutMs,
-            );
-          }),
-        ]);
-        clearTimeout(timeoutId);
-
-        if (!llmResult.ok) {
-          lastError = `LLM call failed: ${llmResult.error.message}`;
-          continue;
-        }
-
-        const parsed = this.#tryParseRootCauseAnalysis(llmResult.value.content);
-        if (!parsed) {
-          lastError = "Failed to parse LLM response as RootCauseAnalysis";
-          continue;
-        }
-
-        return { ok: true, value: parsed };
-      } catch (e) {
-        clearTimeout(timeoutId);
-        lastError = e instanceof Error ? e.message : String(e);
-        // timeout or unexpected error — continue to next retry
+      // Validate required string fields
+      if (
+        typeof record.targetFile !== "string"
+        || typeof record.proposedChange !== "string"
+        || typeof record.rationale !== "string"
+      ) {
+        return { ok: false, noRetry: false };
       }
+
+      // Validate targetFile is in the supported set
+      if (!SelfHealingLoopService.#SUPPORTED_KNOWLEDGE_FILES.has(record.targetFile)) {
+        const supported = [...SelfHealingLoopService.#SUPPORTED_KNOWLEDGE_FILES].join(", ");
+        return {
+          ok: false,
+          noRetry: true,
+          summary: `Gap identification returned unsupported rule file: "${record.targetFile}". Supported: ${supported}`,
+        };
+      }
+
+      return {
+        ok: true,
+        value: {
+          targetFile: record.targetFile as KnowledgeMemoryFile,
+          proposedChange: record.proposedChange,
+          rationale: record.rationale,
+        },
+      };
+    } catch {
+      return { ok: false, noRetry: false };
+    }
+  }
+
+  /**
+   * Identify the knowledge gap from the root-cause analysis.
+   *
+   * - Reads current rule file contents via MemoryPort.query() before the LLM call (requirement 3.1).
+   * - Delegates retry/timeout/elapsed-guard to `#runLlmWithRetry` with `#tryParseGapReport` as parser.
+   * - Returns unresolved if the LLM reports no actionable gap or targetFile is unsupported (requirement 3.3).
+   * - Emits a gap-identified log entry with targetFile after successful parse (requirement 3.5).
+   * - Checks for duplicate gaps via `#checkDuplicateGap` before proceeding (requirement 3.4).
+   *
+   * Requirements: 3.1, 3.2, 3.3, 3.4, 3.5
+   */
+  async #identifyGap(
+    escalation: SectionEscalation,
+    analysis: RootCauseAnalysis,
+    startTime: number,
+  ): Promise<SelfHealingResult> {
+    // Read current rule file contents (requirement 3.1)
+    let ruleFileContents: string;
+    try {
+      const queryResult = await this.#memory.query({
+        text: "rules patterns guidelines coding review implementation debugging",
+        memoryTypes: ["knowledge"],
+        topN: 50,
+      });
+      ruleFileContents = queryResult.entries
+        .map((e) => `[${e.sourceFile}] ${e.entry.title}: ${e.entry.description}`)
+        .join("\n");
+    } catch {
+      ruleFileContents = "(rule file query failed)";
     }
 
+    const prompt = this.#buildGapPrompt(analysis, ruleFileContents);
+
+    const gapResult = await this.#runLlmWithRetry(
+      prompt,
+      startTime,
+      (content) => this.#tryParseGapReport(content),
+      "Gap identification",
+    );
+
+    if (!gapResult.ok) {
+      return { outcome: "unresolved", summary: gapResult.summary };
+    }
+
+    const gap = gapResult.value;
+
+    // Emit gap-identified log entry (requirement 3.5)
+    const gapEntry: GapIdentifiedLogEntry = {
+      type: "gap-identified",
+      sectionId: escalation.sectionId,
+      planId: escalation.planId,
+      timestamp: new Date().toISOString(),
+      targetFile: gap.targetFile,
+    };
+    this.#logger?.log(gapEntry);
+
+    // Detect duplicate gaps via failure memory (requirement 3.4)
+    const isDuplicate = await this.#checkDuplicateGap(escalation.sectionId, gap);
+    if (isDuplicate) {
+      return {
+        outcome: "unresolved",
+        summary:
+          "Duplicate gap detected: this targetFile + proposedChange combination was already recorded for this section.",
+      };
+    }
+
+    // Task 6 will add the rule file write and result assembly.
+    // Stub: return unresolved until those tasks are implemented.
     return {
-      ok: false,
-      summary: `Root-cause analysis failed after ${this.#config.maxAnalysisRetries + 1} attempt(s): ${lastError}`,
+      outcome: "unresolved",
+      summary: `Rule update not yet implemented (tasks 6–8 pending): gap identified in ${gap.targetFile}`,
     };
   }
 
   // ---------------------------------------------------------------------------
-  // Gap identification — task 5.1–5.2 will complete this method
+  // Duplicate gap detection — task 5.2
   // ---------------------------------------------------------------------------
 
   /**
-   * Identify the knowledge gap from the root-cause analysis.
-   * Stub for task 4.2 — task 5.1 will add MemoryPort queries, LLM call,
-   * duplicate detection, and full GapReport parsing.
+   * Encode targetFile + proposedChange into the ruleUpdate field format for FailureRecord.
+   * Public so that task 7.1 (failure record persistence) can use the same encoding when writing,
+   * ensuring the reader (task 5.2) and the writer always use a consistent format.
    *
-   * Requirements: 3.1–3.5
+   * Format: JSON.stringify({ targetFile, proposedChange })
+   *
+   * Requirements: 3.4
    */
-  async #identifyGap(
-    _escalation: SectionEscalation,
-    analysis: RootCauseAnalysis,
-  ): Promise<SelfHealingResult> {
-    // Task 5.1 will implement the full gap identification flow.
-    return {
-      outcome: "unresolved",
-      summary: `Gap identification not yet implemented (task 5 pending): ${analysis.recurringPattern}`,
-    };
+  static encodeRuleUpdate(targetFile: KnowledgeMemoryFile, proposedChange: string): string {
+    return JSON.stringify({ targetFile, proposedChange });
+  }
+
+  /**
+   * Return true when a ruleUpdate field value encodes the same targetFile + proposedChange.
+   */
+  static #matchesRuleUpdate(
+    ruleUpdate: string,
+    targetFile: KnowledgeMemoryFile,
+    proposedChange: string,
+  ): boolean {
+    try {
+      const parsed = JSON.parse(ruleUpdate) as unknown;
+      if (parsed === null || typeof parsed !== "object") return false;
+      const record = parsed as Record<string, unknown>;
+      return record.targetFile === targetFile && record.proposedChange === proposedChange;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Return true when a prior failure record for the same sectionId already contains
+   * an identical targetFile + proposedChange combination.
+   *
+   * Falls back to false when getFailures throws, to avoid blocking the workflow.
+   *
+   * Requirements: 3.4
+   */
+  async #checkDuplicateGap(sectionId: string, gap: GapReport): Promise<boolean> {
+    try {
+      const priorRecords = await this.#memory.getFailures({ taskId: sectionId });
+      return priorRecords.some(
+        (record) =>
+          record.ruleUpdate !== undefined
+          && SelfHealingLoopService.#matchesRuleUpdate(record.ruleUpdate, gap.targetFile, gap.proposedChange),
+      );
+    } catch {
+      // getFailures is documented as "never throws" but guard defensively;
+      // treat a thrown error as no prior records to avoid blocking the workflow.
+      return false;
+    }
   }
 
   // ---------------------------------------------------------------------------

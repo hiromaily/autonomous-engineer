@@ -53,7 +53,7 @@
   - _Requirements: 2.2, 2.4_
 
 - [ ] 5. Gap identification
-- [ ] 5.1 Implement `#identifyGap()` with rule file content and structured LLM call
+- [x] 5.1 Implement `#identifyGap()` with rule file content and structured LLM call
   - Read current contents of all three knowledge rule files via `MemoryPort.query()` before calling the LLM
   - Build a system prompt with `GapReport` JSON schema and the valid `KnowledgeMemoryFile` values; include rule file contents and the root-cause output in the user message
   - Parse the LLM response into a `GapReport`; apply the same retry and timeout logic as root-cause analysis
@@ -61,7 +61,7 @@
   - Emit a `gap-identified` log entry with `targetFile` after successful parse
   - _Requirements: 3.1, 3.2, 3.3, 3.5_
 
-- [ ] 5.2 Detect duplicate gaps via failure memory before proceeding
+- [x] 5.2 Detect duplicate gaps via failure memory before proceeding
   - Call `MemoryPort.getFailures(sectionId)` after the gap report is produced and before writing any rule file
   - Compare the proposed gap's (`targetFile` + `proposedChange`) combination against all previously persisted failure records for the same `sectionId`
   - If an identical gap is already recorded, return `outcome: "unresolved"` with "duplicate gap detected" in `summary` to prevent infinite self-healing cycles
