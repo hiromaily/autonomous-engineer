@@ -76,7 +76,13 @@ function makeEntry(
     case "unresolved":
       return { ...base, type, stopStep: "analysis", totalDurationMs: 1000, ...overrides } as SelfHealingLogEntry;
     case "system-error":
-      return { ...base, type, component: "SelfHealingLoopService.persistFailureRecord", message: "write failed", ...overrides } as SelfHealingLogEntry;
+      return {
+        ...base,
+        type,
+        component: "SelfHealingLoopService.persistFailureRecord",
+        message: "write failed",
+        ...overrides,
+      } as SelfHealingLogEntry;
   }
 }
 
