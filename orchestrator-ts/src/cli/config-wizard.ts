@@ -58,6 +58,19 @@ export class ConfigWizard implements IConfigWizard {
     this.prompts = prompts;
   }
 
+  private async promptForRequiredText(opts: {
+    message: string;
+    defaultValue?: string;
+    placeholder?: string;
+  }): Promise<string | "cancelled"> {
+    while (true) {
+      const result = await this.prompts.text(opts);
+      if (this.prompts.isCancel(result)) return "cancelled";
+      const value = (result as string).trim();
+      if (value) return value;
+    }
+  }
+
   async run(defaults?: WizardDefaults): Promise<WizardInput | "cancelled"> {
     this.prompts.intro("Configure aes");
 
@@ -71,20 +84,12 @@ export class ConfigWizard implements IConfigWizard {
 
     // Step 2: Model name (re-prompt until non-empty)
     const modelNameDefault = defaults?.modelName ?? BUILTIN_DEFAULTS.modelName;
-    let modelName: string;
-    while (true) {
-      const result = await this.prompts.text({
-        message: "Model name",
-        defaultValue: modelNameDefault,
-        placeholder: modelNameDefault,
-      });
-      if (this.prompts.isCancel(result)) return "cancelled";
-      const value = (result as string).trim();
-      if (value) {
-        modelName = result as string;
-        break;
-      }
-    }
+    const modelName = await this.promptForRequiredText({
+      message: "Model name",
+      defaultValue: modelNameDefault,
+      placeholder: modelNameDefault,
+    });
+    if (modelName === "cancelled") return "cancelled";
 
     // Step 3: SDD framework
     const sddFramework = await this.prompts.select({
@@ -100,20 +105,12 @@ export class ConfigWizard implements IConfigWizard {
 
     // Step 4: Spec directory (re-prompt until non-empty)
     const specDirDefault = defaults?.specDir ?? BUILTIN_DEFAULTS.specDir;
-    let specDir: string;
-    while (true) {
-      const result = await this.prompts.text({
-        message: "Spec directory",
-        defaultValue: specDirDefault,
-        placeholder: specDirDefault,
-      });
-      if (this.prompts.isCancel(result)) return "cancelled";
-      const value = (result as string).trim();
-      if (value) {
-        specDir = result as string;
-        break;
-      }
-    }
+    const specDir = await this.promptForRequiredText({
+      message: "Spec directory",
+      defaultValue: specDirDefault,
+      placeholder: specDirDefault,
+    });
+    if (specDir === "cancelled") return "cancelled";
 
     // Req 3.6: Instruct user to set API key via environment variable
     this.prompts.note(
