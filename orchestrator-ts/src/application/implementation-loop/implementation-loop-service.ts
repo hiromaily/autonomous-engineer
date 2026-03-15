@@ -104,20 +104,8 @@ export class ImplementationLoopService implements IImplementationLoop {
     planId: string,
     options?: Partial<ImplementationLoopOptions>,
   ): Promise<ImplementationLoopResult> {
-    // Snapshot the stop flag before resetting it for the new run.
-    // This ensures a pre-run stop() call is honored while still allowing
-    // subsequent run() calls to proceed normally.
-    const wasStopRequested = this.#stopRequested;
-    this.#stopRequested = false;
-    if (wasStopRequested) {
-      return {
-        outcome: "stopped",
-        planId,
-        sections: [],
-        durationMs: 0,
-        haltReason: "Stop signal received",
-      };
-    }
+    const stopped = this.#consumeStopSignal(planId);
+    if (stopped) return stopped;
     return this.#execute(planId, options ?? {});
   }
 
@@ -130,6 +118,22 @@ export class ImplementationLoopService implements IImplementationLoop {
     planId: string,
     options?: Partial<ImplementationLoopOptions>,
   ): Promise<ImplementationLoopResult> {
+    const stopped = this.#consumeStopSignal(planId);
+    if (stopped) return stopped;
+    return this.#execute(planId, options ?? {});
+  }
+
+  /** Signal graceful stop; the loop halts at the next section boundary. */
+  stop(): void {
+    this.#stopRequested = true;
+  }
+
+  /**
+   * Atomically reads and clears the stop flag.
+   * Returns a "stopped" result if the flag was set, null otherwise.
+   * Shared by run() and resume() to avoid duplicating the early-exit logic.
+   */
+  #consumeStopSignal(planId: string): ImplementationLoopResult | null {
     const wasStopRequested = this.#stopRequested;
     this.#stopRequested = false;
     if (wasStopRequested) {
@@ -141,12 +145,7 @@ export class ImplementationLoopService implements IImplementationLoop {
         haltReason: "Stop signal received",
       };
     }
-    return this.#execute(planId, options ?? {});
-  }
-
-  /** Signal graceful stop; the loop halts at the next section boundary. */
-  stop(): void {
-    this.#stopRequested = true;
+    return null;
   }
 
   // ---------------------------------------------------------------------------
@@ -540,8 +539,9 @@ export class ImplementationLoopService implements IImplementationLoop {
       let healingResult: SelfHealingResult;
       try {
         healingResult = await options.selfHealingLoop.escalate(escalation);
-      } catch {
+      } catch (err) {
         // Self-healing loop threw — treat as unresolvable failure.
+        const errMessage = err instanceof Error ? err.message : String(err);
         await this.#planStore.updateSectionStatus(plan.id, task.id, "failed");
         return {
           action: "halt",
@@ -553,7 +553,7 @@ export class ImplementationLoopService implements IImplementationLoop {
             iterations,
             sectionStartAt,
             undefined,
-            `Self-healing loop threw unexpectedly: ${escalationSummary}`,
+            `Self-healing loop threw unexpectedly: ${errMessage}`,
           ),
         };
       }

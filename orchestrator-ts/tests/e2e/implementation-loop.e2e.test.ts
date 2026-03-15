@@ -262,7 +262,7 @@ describe("E2E: implementation loop — minimal one-section plan (Task 7.1)", () 
     try {
       const planId = "e2e-minimal-plan";
       const plan = makeMinimalPlan(planId);
-      const sectionTitle = plan.tasks[0].title;
+      const sectionTitle = plan.tasks[0]!.title;
 
       const planStore = makeFilePlanStore(plan, aesDir);
       const { agentLoop } = makeStubAgentLoop(tmpDir);
@@ -280,7 +280,7 @@ describe("E2E: implementation loop — minimal one-section plan (Task 7.1)", () 
 
       expect(result.outcome).toBe("completed");
       expect(commits).toHaveLength(1);
-      expect(commits[0].message).toContain(sectionTitle);
+      expect(commits[0]!.message).toContain(sectionTitle);
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -293,7 +293,7 @@ describe("E2E: implementation loop — minimal one-section plan (Task 7.1)", () 
     try {
       const planId = "e2e-plan-status-check";
       const plan = makeMinimalPlan(planId);
-      const sectionId = plan.tasks[0].id;
+      const sectionId = plan.tasks[0]!.id;
 
       const planStore = makeFilePlanStore(plan, aesDir);
       const { agentLoop } = makeStubAgentLoop(tmpDir);
@@ -381,7 +381,7 @@ describe("E2E: implementation loop — minimal one-section plan (Task 7.1)", () 
     try {
       const planId = "e2e-result-check";
       const plan = makeMinimalPlan(planId);
-      const sectionId = plan.tasks[0].id;
+      const sectionId = plan.tasks[0]!.id;
 
       const planStore = makeFilePlanStore(plan, aesDir);
       const { agentLoop } = makeStubAgentLoop(tmpDir);
@@ -400,9 +400,9 @@ describe("E2E: implementation loop — minimal one-section plan (Task 7.1)", () 
       expect(result.outcome).toBe("completed");
       expect(result.planId).toBe(planId);
       expect(result.sections).toHaveLength(1);
-      expect(result.sections[0].sectionId).toBe(sectionId);
-      expect(result.sections[0].status).toBe("completed");
-      expect(result.sections[0].commitSha).toBe("abc1234def5678");
+      expect(result.sections[0]!.sectionId).toBe(sectionId);
+      expect(result.sections[0]!.status).toBe("completed");
+      expect(result.sections[0]!.commitSha).toBe("abc1234def5678");
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -481,7 +481,7 @@ describe("E2E: implementation loop — resumption after stop signal (Task 7.2)",
       // First run should stop after section 1 commits
       expect(result.outcome).toBe("stopped");
       expect(commits).toHaveLength(1);
-      expect(commits[0].message).toContain("implement section 1");
+      expect(commits[0]!.message).toContain("implement section 1");
 
       // Section 2 should still be in "pending" state (stop check happens before in_progress write)
       const planFilePath = join(aesDir, "plans", `${planId}.json`);
@@ -491,10 +491,10 @@ describe("E2E: implementation loop — resumption after stop signal (Task 7.2)",
 
       const section1 = persisted.tasks.find((t) => t.id === "section-1");
       const section2 = persisted.tasks.find((t) => t.id === "section-2");
-      expect(section1?.status).toBe("completed");
-      expect(section2?.status).toSatisfy(
-        (s: string) => s === "pending" || s === "in_progress",
-      );
+      expect(section1).toBeDefined();
+      expect(section2).toBeDefined();
+      expect(section1!.status).toBe("completed");
+      expect(["pending", "in_progress"]).toContain(section2!.status);
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -596,14 +596,14 @@ describe("E2E: implementation loop — resumption after stop signal (Task 7.2)",
       expect(resumeResult.outcome).toBe("completed");
 
       // Section 1 title must NOT appear in the second run's agent tasks
-      expect(agentRunTasks).not.toContain(plan.tasks[0].title);
+      expect(agentRunTasks).not.toContain(plan.tasks[0]!.title);
 
       // Section 1 task from first pass was executed
-      expect(tasksRunInFirstPass).toContain(plan.tasks[0].title);
+      expect(tasksRunInFirstPass).toContain(plan.tasks[0]!.title);
 
       // Sections 2 and 3 should be completed in the resume pass
-      expect(agentRunTasks).toContain(plan.tasks[1].title);
-      expect(agentRunTasks).toContain(plan.tasks[2].title);
+      expect(agentRunTasks).toContain(plan.tasks[1]!.title);
+      expect(agentRunTasks).toContain(plan.tasks[2]!.title);
 
       // All sections are completed in the final plan
       const planFilePath = join(aesDir, "plans", `${planId}.json`);
@@ -674,7 +674,7 @@ describe("Performance: elapsed time logging across sections (Task 7.3)", () => {
       // Each section should have exactly one iteration record (review passes on first attempt)
       for (const section of result.sections as SectionExecutionRecord[]) {
         expect(section.iterations).toHaveLength(1);
-        expect(section.iterations[0].durationMs).toBeGreaterThanOrEqual(0);
+        expect(section.iterations[0]!.durationMs).toBeGreaterThanOrEqual(0);
       }
     } finally {
       await rm(tmpDir, { recursive: true, force: true });

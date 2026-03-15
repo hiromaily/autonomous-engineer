@@ -769,7 +769,10 @@ type SectionExecutionStatus =
 
 type SectionIterationRecord = Readonly<{
   iterationNumber: number;
-  agentLoopResult: AgentLoopResult;
+  // Note: agentLoopResult is intentionally omitted from the persisted record.
+  // AgentLoopResult contains Observation[] with arbitrary rawOutput values that are
+  // not guaranteed to be JSON-serializable. Observations needed for escalation are
+  // accumulated separately in ImplementationLoopService and passed to ISelfHealingLoop.
   reviewResult: ReviewResult;
   improvePrompt?: string;
   durationMs: number;

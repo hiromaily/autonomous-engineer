@@ -91,12 +91,39 @@ export class NoopQualityGate implements IQualityGate {
 // ---------------------------------------------------------------------------
 
 /**
- * Split a shell command string (e.g. `"bun run lint"`) into a command and
- * args array suitable for `run_command` tool invocation. Splits on whitespace;
- * does not handle quoted arguments.
+ * Split a shell command string (e.g. `"bun run lint"` or `'my-tool --msg "hello world"'`)
+ * into a command and args array suitable for `run_command` tool invocation.
+ * Handles single- and double-quoted arguments containing spaces.
  */
 function parseCommand(command: string): { command: string; args: string[] } {
-  const parts = command.trim().split(/\s+/);
+  const parts: string[] = [];
+  let current = "";
+  let inQuote = false;
+  let quoteChar = "";
+
+  for (const char of command.trim()) {
+    if (inQuote) {
+      if (char === quoteChar) {
+        inQuote = false;
+      } else {
+        current += char;
+      }
+    } else if (char === "\"" || char === "'") {
+      inQuote = true;
+      quoteChar = char;
+    } else if (/\s/.test(char)) {
+      if (current.length > 0) {
+        parts.push(current);
+        current = "";
+      }
+    } else {
+      current += char;
+    }
+  }
+  if (current.length > 0) {
+    parts.push(current);
+  }
+
   const cmd = parts[0] ?? command;
   const args = parts.slice(1);
   return { command: cmd, args };

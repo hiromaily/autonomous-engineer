@@ -192,9 +192,13 @@ function parseLlmResponse(
     ];
 
     return { passed, checks, feedback };
-  } catch {
-    // JSON parse failure treated as a blocking failure
-    return llmErrorResult(category, `Failed to parse LLM response: ${content.slice(0, 200)}`);
+  } catch (err) {
+    // JSON parse failure treated as a blocking failure; include error message for debuggability
+    const message = err instanceof Error ? err.message : String(err);
+    return llmErrorResult(
+      category,
+      `Failed to parse LLM response. Error: ${message}. Content preview: ${content.slice(0, 200)}`,
+    );
   }
 }
 

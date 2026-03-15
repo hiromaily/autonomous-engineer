@@ -46,8 +46,9 @@ export class NdjsonImplementationLoopLogger implements IImplementationLoopLogger
     try {
       mkdirSync(this.#logDir, { recursive: true });
       appendFileSync(this.#logPath, `${JSON.stringify(entry)}\n`, "utf8");
-    } catch {
+    } catch (err) {
       // Never throw — log failures must not disrupt the implementation loop.
+      console.error("Failed to write to NDJSON log:", err);
     }
   }
 }

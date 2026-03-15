@@ -321,8 +321,8 @@ describe("ImplementationLoop integration — full implement → review → commi
     await service.run(planId);
 
     expect(gitController.commits).toHaveLength(2);
-    expect(gitController.commits[0].message).toContain("Section Alpha");
-    expect(gitController.commits[1].message).toContain("Section Beta");
+    expect(gitController.commits[0]!.message).toContain("Section Alpha");
+    expect(gitController.commits[1]!.message).toContain("Section Beta");
   });
 
   it("emits plan:completed event after all sections complete", async () => {
@@ -486,7 +486,7 @@ describe("ImplementationLoop integration — full implement → review → commi
     expect(callTracker.count).toBe(1);
     // Only one commit (for the pending section)
     expect(gitController.commits).toHaveLength(1);
-    expect(gitController.commits[0].message).toContain("Section Beta");
+    expect(gitController.commits[0]!.message).toContain("Section Beta");
   });
 });
 
