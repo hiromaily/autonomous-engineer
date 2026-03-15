@@ -95,15 +95,35 @@ export class SelfHealingLoopService implements ISelfHealingLoop {
    */
   async escalate(escalation: SectionEscalation): Promise<SelfHealingResult> {
     const startTime = Date.now();
+
+    // Per-invocation flag: prevents double-write when both the timeout handler and the
+    // workflow finally block race to persist the failure record.
+    // JavaScript is single-threaded, so the synchronous assignment before any `await`
+    // guarantees atomicity — only one caller will see `false` and proceed.
+    let failureRecordWritten = false;
+
+    // Mutable context updated by #runHealingWorkflow as the workflow progresses.
+    // Captured values are used by the finally block to build the failure record with
+    // the richest data available at the time of persistence (requirement 5.1).
+    const captured: {
+      rootCause: RootCauseAnalysis | null;
+      gapReport: GapReport | null;
+      outcome: "resolved" | "unresolved";
+    } = { rootCause: null, gapReport: null, outcome: "unresolved" };
+
     try {
       let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
       const timeoutPromise = new Promise<SelfHealingResult>((resolve) => {
         timeoutId = setTimeout(async () => {
-          // Write the failure record before resolving the timeout (requirement 1.5)
-          await this.#persistFailureRecord(escalation, null, null, "unresolved").catch(() => {
-            // Failure record write errors on timeout path are silently ignored
-          });
+          // Write the failure record before resolving the timeout (requirement 1.5).
+          // Uses null rootCause/gapReport when analysis has not yet completed.
+          if (!failureRecordWritten) {
+            failureRecordWritten = true;
+            await this.#persistFailureRecord(escalation, null, null).catch(() => {
+              // Failure record write errors on timeout path are silently ignored
+            });
+          }
           resolve({
             outcome: "unresolved",
             summary: `Self-healing timed out after ${this.#config.selfHealingTimeoutMs}ms`,
@@ -111,9 +131,26 @@ export class SelfHealingLoopService implements ISelfHealingLoop {
         }, this.#config.selfHealingTimeoutMs);
       });
 
-      const workflowPromise = this.#runHealingWorkflow(escalation, startTime).finally(() => {
-        clearTimeout(timeoutId);
-      });
+      const workflowPromise = this.#runHealingWorkflow(escalation, startTime, captured)
+        .finally(async () => {
+          clearTimeout(timeoutId);
+          // Write failure record unless the timeout handler already did so (requirement 5.2).
+          // `captured` now holds the rootCause/gapReport/outcome from the completed workflow.
+          if (!failureRecordWritten) {
+            failureRecordWritten = true;
+            await this.#persistFailureRecord(
+              escalation,
+              captured.rootCause,
+              captured.gapReport,
+            ).catch((e) => {
+              // Requirement 5.4: log the write error but do not alter the determined outcome.
+              console.error(
+                `[SelfHealingLoopService] writeFailure error for section "${escalation.sectionId}":`,
+                e instanceof Error ? e.message : String(e),
+              );
+            });
+          }
+        });
 
       return await Promise.race([workflowPromise, timeoutPromise]);
     } catch (e) {
@@ -141,7 +178,11 @@ export class SelfHealingLoopService implements ISelfHealingLoop {
    *
    * The failure record is written in a finally block regardless of outcome (task 7.2).
    */
-  async #runHealingWorkflow(escalation: SectionEscalation, startTime: number): Promise<SelfHealingResult> {
+  async #runHealingWorkflow(
+    escalation: SectionEscalation,
+    startTime: number,
+    captured: { rootCause: RootCauseAnalysis | null; gapReport: GapReport | null; outcome: "resolved" | "unresolved" },
+  ): Promise<SelfHealingResult> {
     // --- Intake: always log first (requirement 8.1) ---
     const intakeEntry: EscalationIntakeLogEntry = {
       type: "escalation-intake",
@@ -153,6 +194,7 @@ export class SelfHealingLoopService implements ISelfHealingLoop {
     this.#logger?.log(intakeEntry);
 
     // --- Guard 1: empty retryHistory (requirement 1.2) ---
+    // captured.outcome stays "unresolved" (default); failure record written by escalate() finally.
     if (escalation.retryHistory.length === 0) {
       return {
         outcome: "unresolved",
@@ -174,8 +216,12 @@ export class SelfHealingLoopService implements ISelfHealingLoop {
       // Task 4.1: Root-cause analysis with LLM retry loop
       const analysisResult = await this.#analyzeRootCause(escalation, startTime);
       if (!analysisResult.ok) {
+        // captured.rootCause stays null; failure record written with null analysis.
         return { outcome: "unresolved", summary: analysisResult.summary };
       }
+
+      // Capture rootCause for failure record persistence (task 7.2, requirement 5.1).
+      captured.rootCause = analysisResult.value;
 
       // Task 4.2: Emit analysis-complete log entry (requirement 2.4)
       const analysis = analysisResult.value;
@@ -189,7 +235,11 @@ export class SelfHealingLoopService implements ISelfHealingLoop {
       this.#logger?.log(analysisCompleteEntry);
 
       // Task 4.2: Hand off to gap identification
-      return await this.#identifyGap(escalation, analysis, startTime);
+      const gapResult = await this.#identifyGap(escalation, analysis, startTime);
+      // Capture gapReport and outcome for failure record persistence (task 7.2, requirement 5.1).
+      captured.gapReport = gapResult.gap;
+      captured.outcome = gapResult.result.outcome;
+      return gapResult.result;
     } finally {
       this.#inFlightSections.delete(escalation.sectionId);
     }
@@ -498,7 +548,7 @@ Rules:
     escalation: SectionEscalation,
     analysis: RootCauseAnalysis,
     startTime: number,
-  ): Promise<SelfHealingResult> {
+  ): Promise<{ result: SelfHealingResult; gap: GapReport | null }> {
     // Read current rule file contents (requirement 3.1)
     let ruleFileContents: string;
     try {
@@ -524,7 +574,8 @@ Rules:
     );
 
     if (!gapResult.ok) {
-      return { outcome: "unresolved", summary: gapResult.summary };
+      // No gap identified — gap is null for failure record (requirement 5.1).
+      return { result: { outcome: "unresolved", summary: gapResult.summary }, gap: null };
     }
 
     const gap = gapResult.value;
@@ -543,30 +594,36 @@ Rules:
     const isDuplicate = await this.#checkDuplicateGap(escalation.sectionId, gap);
     if (isDuplicate) {
       return {
-        outcome: "unresolved",
-        summary:
-          "Duplicate gap detected: this targetFile + proposedChange combination was already recorded for this section.",
+        result: {
+          outcome: "unresolved",
+          summary:
+            "Duplicate gap detected: this targetFile + proposedChange combination was already recorded for this section.",
+        },
+        // Expose the identified gap even though it's a duplicate, so the failure record
+        // captures the proposedChange that triggered the duplicate detection.
+        gap,
       };
     }
 
     // Task 6.1: Validate resolved rule file path against workspace boundary (requirements 4.5, 8.5)
     const pathValidation = this.#validateRulePath(gap.targetFile);
     if (!pathValidation.ok) {
-      return { outcome: "unresolved", summary: pathValidation.summary };
+      return { result: { outcome: "unresolved", summary: pathValidation.summary }, gap };
     }
 
     // Task 6.2: Write the proposed change to the target rule file (requirements 4.1–4.4)
     const writeResult = await this.#updateRuleFile(escalation, gap);
     if (!writeResult.ok) {
-      return { outcome: "unresolved", summary: writeResult.summary };
+      return { result: { outcome: "unresolved", summary: writeResult.summary }, gap };
     }
 
-    // Tasks 7–8 will add failure record persistence and result assembly.
-    // Stub: return unresolved with updatedRules collected, pending those tasks.
+    // Task 8 will assemble the resolved result. Stub: return unresolved pending task 8.
     return {
-      outcome: "unresolved",
-      summary:
-        `Failure record persistence and result assembly not yet implemented (tasks 7–8 pending): rule updated in ${writeResult.relativePath}`,
+      result: {
+        outcome: "unresolved",
+        summary: `Result assembly not yet implemented (task 8 pending): rule updated in ${writeResult.relativePath}`,
+      },
+      gap,
     };
   }
 
@@ -760,33 +817,84 @@ Rules:
   }
 
   // ---------------------------------------------------------------------------
-  // Failure record persistence — task 7.1–7.2 will complete this method
+  // Failure record persistence — tasks 7.1–7.2
   // ---------------------------------------------------------------------------
 
   /**
-   * Build and persist a FailureRecord via MemoryPort.writeFailure().
-   * Stub for task 3.1 — task 7.1 will add full field mapping and truncation.
+   * Build a `FailureRecord` from escalation context, applying size-bounded
+   * agentObservations truncation if the serialized record exceeds `maxRecordSizeBytes`.
    *
-   * Requirements: 5.1–5.4
+   * Field mapping (requirement 5.1):
+   * - sectionId         → taskId
+   * - planId            → specName
+   * - "IMPLEMENTATION"  → phase (always fixed)
+   * - {retryHistory, agentObservations} JSON → attempted
+   * - [attemptsNarrative, failureNarrative, recurringPattern] → errors ([] when null)
+   * - recurringPattern  → rootCause ("unknown" when null)
+   * - encodeRuleUpdate(targetFile, proposedChange) → ruleUpdate (undefined when null)
+   *
+   * If the serialized record exceeds `maxRecordSizeBytes`, `agentObservations` are trimmed
+   * from the end one entry at a time until the record fits; `truncated` is set to true
+   * whenever any trimming occurs (requirement 5.5).
+   *
+   * Requirements: 5.1, 5.5
+   */
+  #buildFailureRecord(
+    escalation: SectionEscalation,
+    rootCause: RootCauseAnalysis | null,
+    gapReport: GapReport | null,
+  ): { record: FailureRecord; truncated: boolean } {
+    const timestamp = new Date().toISOString();
+
+    const baseRecord = {
+      taskId: escalation.sectionId,
+      specName: escalation.planId,
+      phase: "IMPLEMENTATION" as const,
+      errors: rootCause
+        ? [rootCause.attemptsNarrative, rootCause.failureNarrative, rootCause.recurringPattern]
+        : [],
+      rootCause: rootCause?.recurringPattern ?? "unknown",
+      ruleUpdate: gapReport
+        ? SelfHealingLoopService.encodeRuleUpdate(gapReport.targetFile, gapReport.proposedChange)
+        : undefined,
+      timestamp,
+    };
+
+    // `attempted` encodes both retryHistory and agentObservations for full traceability.
+    // When the record is too large, agentObservations are trimmed from the end.
+    let agentObs = escalation.agentObservations;
+    const buildAttempted = (obs: typeof agentObs): string =>
+      JSON.stringify({ retryHistory: escalation.retryHistory, agentObservations: obs });
+
+    let attempted = buildAttempted(agentObs);
+    let truncated = false;
+
+    // Trim agentObservations until the record fits within maxRecordSizeBytes (requirement 5.5).
+    while (agentObs.length > 0) {
+      const candidate: FailureRecord = { ...baseRecord, attempted };
+      const byteLength = Buffer.byteLength(JSON.stringify(candidate), "utf-8");
+      if (byteLength <= this.#config.maxRecordSizeBytes) break;
+
+      agentObs = agentObs.slice(0, -1);
+      truncated = true;
+      attempted = buildAttempted(agentObs);
+    }
+
+    return { record: { ...baseRecord, attempted }, truncated };
+  }
+
+  /**
+   * Build and persist a `FailureRecord` via `MemoryPort.writeFailure()`.
+   * Delegates field mapping and truncation to `#buildFailureRecord`.
+   *
+   * Requirements: 5.1, 5.5
    */
   async #persistFailureRecord(
     escalation: SectionEscalation,
-    rootCause: string | null,
-    _gapReport: GapReport | null,
-    _outcome: "resolved" | "unresolved",
+    rootCause: RootCauseAnalysis | null,
+    gapReport: GapReport | null,
   ): Promise<void> {
-    // Task 7.1 will map _outcome and _gapReport into the full SelfHealingFailureRecord shape.
-    // FailureRecord (MemoryPort) does not carry an outcome field yet.
-    const record: FailureRecord = {
-      taskId: escalation.sectionId,
-      specName: escalation.planId,
-      phase: "IMPLEMENTATION",
-      attempted: JSON.stringify(escalation.retryHistory),
-      errors: rootCause ? [rootCause] : [],
-      rootCause: rootCause ?? "unknown",
-      ruleUpdate: undefined,
-      timestamp: new Date().toISOString(),
-    };
+    const { record } = this.#buildFailureRecord(escalation, rootCause, gapReport);
     await this.#memory.writeFailure(record);
   }
 }

@@ -1595,3 +1595,361 @@ describe("SelfHealingLoopService — task 6.2: rule file write", () => {
     expect(result.summary.toLowerCase()).not.toContain("rule file write not yet implemented");
   });
 });
+
+// ---------------------------------------------------------------------------
+// Task 7.1: Failure record field mapping and size truncation — requirements 5.1, 5.5
+// ---------------------------------------------------------------------------
+
+/** LLM that never resolves — forces the timeout path which calls #persistFailureRecord. */
+function makeHangingLlm(): LlmProviderPort {
+  return {
+    complete: () => new Promise<never>(() => {}),
+    clearContext: () => {},
+  };
+}
+
+/** MemoryPort that captures every writeFailure call. */
+function makeCapturingMemory(): { memory: MemoryPort; capturedRecords: FailureRecord[] } {
+  const capturedRecords: FailureRecord[] = [];
+  const memory = makeMockMemory();
+  memory.writeFailure = async (record) => {
+    capturedRecords.push(record);
+    return { ok: true as const, action: "appended" as const };
+  };
+  return { memory, capturedRecords };
+}
+
+describe("SelfHealingLoopService — task 7.1: failure record field mapping (timeout path)", () => {
+  it("writeFailure is called with taskId mapped from sectionId", async () => {
+    const { memory, capturedRecords } = makeCapturingMemory();
+    const svc = new SelfHealingLoopService(makeHangingLlm(), memory, {
+      ...defaultConfig,
+      selfHealingTimeoutMs: 30,
+    });
+
+    await svc.escalate(makeEscalation({ sectionId: "sec-mapping-test", planId: "plan-xyz" }));
+
+    expect(capturedRecords.length).toBeGreaterThan(0);
+    expect(capturedRecords[0]!.taskId).toBe("sec-mapping-test");
+  }, 1000);
+
+  it("writeFailure is called with specName mapped from planId", async () => {
+    const { memory, capturedRecords } = makeCapturingMemory();
+    const svc = new SelfHealingLoopService(makeHangingLlm(), memory, {
+      ...defaultConfig,
+      selfHealingTimeoutMs: 30,
+    });
+
+    await svc.escalate(makeEscalation({ sectionId: "sec-1", planId: "plan-mapping-test" }));
+
+    expect(capturedRecords[0]!.specName).toBe("plan-mapping-test");
+  }, 1000);
+
+  it("writeFailure is called with fixed phase 'IMPLEMENTATION'", async () => {
+    const { memory, capturedRecords } = makeCapturingMemory();
+    const svc = new SelfHealingLoopService(makeHangingLlm(), memory, {
+      ...defaultConfig,
+      selfHealingTimeoutMs: 30,
+    });
+
+    await svc.escalate(makeEscalation());
+
+    expect(capturedRecords[0]!.phase).toBe("IMPLEMENTATION");
+  }, 1000);
+
+  it("writeFailure 'attempted' field contains serialized retryHistory", async () => {
+    const { memory, capturedRecords } = makeCapturingMemory();
+    const svc = new SelfHealingLoopService(makeHangingLlm(), memory, {
+      ...defaultConfig,
+      selfHealingTimeoutMs: 30,
+    });
+
+    await svc.escalate(makeEscalation());
+
+    const attempted = capturedRecords[0]!.attempted;
+    // retryHistory has iterationNumber field
+    expect(attempted).toContain("iterationNumber");
+  }, 1000);
+
+  it("writeFailure 'ruleUpdate' is undefined when no gap was identified (null gapReport)", async () => {
+    const { memory, capturedRecords } = makeCapturingMemory();
+    const svc = new SelfHealingLoopService(makeHangingLlm(), memory, {
+      ...defaultConfig,
+      selfHealingTimeoutMs: 30,
+    });
+
+    await svc.escalate(makeEscalation());
+
+    expect(capturedRecords[0]!.ruleUpdate).toBeUndefined();
+  }, 1000);
+
+  it("writeFailure 'errors' is empty array when rootCause is null (timeout path)", async () => {
+    const { memory, capturedRecords } = makeCapturingMemory();
+    const svc = new SelfHealingLoopService(makeHangingLlm(), memory, {
+      ...defaultConfig,
+      selfHealingTimeoutMs: 30,
+    });
+
+    await svc.escalate(makeEscalation());
+
+    expect(Array.isArray(capturedRecords[0]!.errors)).toBe(true);
+    expect(capturedRecords[0]!.errors.length).toBe(0);
+  }, 1000);
+
+  it("writeFailure 'rootCause' is 'unknown' when rootCause analysis is null (timeout path)", async () => {
+    const { memory, capturedRecords } = makeCapturingMemory();
+    const svc = new SelfHealingLoopService(makeHangingLlm(), memory, {
+      ...defaultConfig,
+      selfHealingTimeoutMs: 30,
+    });
+
+    await svc.escalate(makeEscalation());
+
+    expect(capturedRecords[0]!.rootCause).toBe("unknown");
+  }, 1000);
+
+  it("writeFailure 'timestamp' is a valid ISO 8601 string", async () => {
+    const { memory, capturedRecords } = makeCapturingMemory();
+    const svc = new SelfHealingLoopService(makeHangingLlm(), memory, {
+      ...defaultConfig,
+      selfHealingTimeoutMs: 30,
+    });
+
+    await svc.escalate(makeEscalation());
+
+    const ts = capturedRecords[0]!.timestamp;
+    expect(ts).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+    expect(new Date(ts).toISOString()).toBe(ts);
+  }, 1000);
+});
+
+describe("SelfHealingLoopService — task 7.1: agentObservations truncation (requirement 5.5)", () => {
+  it("serialized record stays within maxRecordSizeBytes when agentObservations are large", async () => {
+    const { memory, capturedRecords } = makeCapturingMemory();
+
+    // Build 150 large observations — each with a ~500-char rawOutput
+    const largeObservations = Array.from({ length: 150 }, (_, i) => ({
+      toolName: "write_file",
+      toolInput: { path: `/workspace/src/file-${i}.ts` },
+      rawOutput: `Output ${i}: ${"large content ".repeat(40)}`,
+      success: true,
+      recordedAt: new Date().toISOString(),
+    }));
+
+    const maxBytes = 65_536; // default maxRecordSizeBytes
+    const svc = new SelfHealingLoopService(makeHangingLlm(), memory, {
+      ...defaultConfig,
+      selfHealingTimeoutMs: 30,
+      maxRecordSizeBytes: maxBytes,
+    });
+
+    await svc.escalate(makeEscalation({ agentObservations: largeObservations }));
+
+    expect(capturedRecords.length).toBeGreaterThan(0);
+    const serialized = JSON.stringify(capturedRecords[0]!);
+    const byteLength = new TextEncoder().encode(serialized).length;
+    expect(byteLength).toBeLessThanOrEqual(maxBytes);
+  }, 1000);
+
+  it("does not truncate when agentObservations are small enough to fit", async () => {
+    const { memory, capturedRecords } = makeCapturingMemory();
+
+    const smallObservations = [
+      { toolName: "read_file", toolInput: { path: "/workspace/src/a.ts" }, rawOutput: "content", success: true, recordedAt: new Date().toISOString() },
+    ];
+
+    const svc = new SelfHealingLoopService(makeHangingLlm(), memory, {
+      ...defaultConfig,
+      selfHealingTimeoutMs: 30,
+      maxRecordSizeBytes: 65_536,
+    });
+
+    await svc.escalate(makeEscalation({ agentObservations: smallObservations }));
+
+    const attempted = capturedRecords[0]!.attempted;
+    // agentObservations should still be present (not truncated away)
+    expect(attempted).toContain("read_file");
+  }, 1000);
+
+  it("handles zero agentObservations without error", async () => {
+    const { memory, capturedRecords } = makeCapturingMemory();
+
+    const svc = new SelfHealingLoopService(makeHangingLlm(), memory, {
+      ...defaultConfig,
+      selfHealingTimeoutMs: 30,
+    });
+
+    await svc.escalate(makeEscalation({ agentObservations: [] }));
+
+    expect(capturedRecords.length).toBeGreaterThan(0);
+    const attempted = capturedRecords[0]!.attempted;
+    expect(attempted).toContain("retryHistory");
+  }, 1000);
+});
+
+// ---------------------------------------------------------------------------
+// Task 7.2: Failure record written in finally block — requirements 5.2, 5.3, 5.4
+// ---------------------------------------------------------------------------
+
+describe("SelfHealingLoopService — task 7.2: writeFailure in finally block", () => {
+  it("calls writeFailure exactly once when analysis fails (normal unresolved path)", async () => {
+    let writeCount = 0;
+    const memory = makeMockMemory();
+    memory.writeFailure = async () => {
+      writeCount++;
+      return { ok: true as const, action: "appended" as const };
+    };
+    // makeMockLlm returns ok: false → analysis fails → workflow completes quickly
+    const svc = new SelfHealingLoopService(makeMockLlm(), memory, defaultConfig);
+
+    await svc.escalate(makeEscalation());
+
+    expect(writeCount).toBe(1);
+  });
+
+  it("calls writeFailure exactly once when gap identification fails", async () => {
+    let writeCount = 0;
+    const memory = makeMockMemory();
+    memory.writeFailure = async () => {
+      writeCount++;
+      return { ok: true as const, action: "appended" as const };
+    };
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: noActionableGapJson }),
+      memory,
+      defaultConfig,
+    );
+
+    await svc.escalate(makeEscalation());
+
+    expect(writeCount).toBe(1);
+  });
+
+  it("calls writeFailure exactly once when rule file write fails", async () => {
+    let writeCount = 0;
+    const memory = makeMockMemory();
+    memory.append = async () => ({
+      ok: false as const,
+      error: { category: "io_error" as const, message: "disk full" },
+    });
+    memory.writeFailure = async () => {
+      writeCount++;
+      return { ok: true as const, action: "appended" as const };
+    };
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      memory,
+      defaultConfig,
+    );
+
+    await svc.escalate(makeEscalation());
+
+    expect(writeCount).toBe(1);
+  });
+
+  it("calls writeFailure even when the empty retryHistory guard fires", async () => {
+    let writeCount = 0;
+    const memory = makeMockMemory();
+    memory.writeFailure = async () => {
+      writeCount++;
+      return { ok: true as const, action: "appended" as const };
+    };
+    const svc = new SelfHealingLoopService(makeMockLlm(), memory, defaultConfig);
+
+    await svc.escalate(makeEscalation({ retryHistory: [] }));
+
+    expect(writeCount).toBe(1);
+  });
+
+  it("calls writeFailure with rootCause.recurringPattern populated when analysis succeeds", async () => {
+    const capturedRecords: FailureRecord[] = [];
+    const memory = makeMockMemory();
+    memory.writeFailure = async (r) => {
+      capturedRecords.push(r);
+      return { ok: true as const, action: "appended" as const };
+    };
+
+    const validRootCauseJson = JSON.stringify({
+      attemptsNarrative: "Tried to create TypeScript files",
+      failureNarrative: "Build system failed with missing types",
+      recurringPattern: "Missing type imports in generated code",
+    });
+    const successAnalysisLlm: LlmProviderPort = {
+      complete: async () => ({
+        ok: true as const,
+        value: { content: validRootCauseJson, usage: { inputTokens: 10, outputTokens: 20 } },
+      }),
+      clearContext: () => {},
+    };
+
+    const svc = new SelfHealingLoopService(successAnalysisLlm, memory, defaultConfig);
+    await svc.escalate(makeEscalation());
+
+    expect(capturedRecords.length).toBe(1);
+    expect(capturedRecords[0]!.rootCause).toBe("Missing type imports in generated code");
+    expect(capturedRecords[0]!.errors).toContain("Tried to create TypeScript files");
+    expect(capturedRecords[0]!.errors).toContain("Build system failed with missing types");
+  });
+
+  it("calls writeFailure with ruleUpdate from gap report when gap is identified", async () => {
+    const capturedRecords: FailureRecord[] = [];
+    const memory = makeMockMemory();
+    memory.writeFailure = async (r) => {
+      capturedRecords.push(r);
+      return { ok: true as const, action: "appended" as const };
+    };
+
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      memory,
+      defaultConfig,
+    );
+    await svc.escalate(makeEscalation());
+
+    expect(capturedRecords.length).toBe(1);
+    expect(capturedRecords[0]!.ruleUpdate).toBe(
+      SelfHealingLoopService.encodeRuleUpdate(
+        "coding_rules",
+        "Always use const for variable declarations",
+      ),
+    );
+  });
+
+  it("does not alter the determined outcome when writeFailure throws", async () => {
+    const memory = makeMockMemory();
+    memory.writeFailure = async () => {
+      throw new Error("persistence layer down");
+    };
+    // makeMockLlm fails → analysis fails → outcome = unresolved
+    const svc = new SelfHealingLoopService(makeMockLlm(), memory, defaultConfig);
+
+    const result = await svc.escalate(makeEscalation());
+
+    expect(result.outcome).toBe("unresolved");
+    expect(result.summary).not.toMatch(/persistence layer down/i);
+  });
+
+  it("does not propagate writeFailure throw to the escalate() caller", async () => {
+    const memory = makeMockMemory();
+    memory.writeFailure = async () => {
+      throw new Error("fatal write error");
+    };
+    const svc = new SelfHealingLoopService(makeMockLlm(), memory, defaultConfig);
+
+    await expect(svc.escalate(makeEscalation())).resolves.toBeDefined();
+  });
+
+  it("calls writeFailure exactly once per invocation (not twice) for non-timeout paths", async () => {
+    let writeCount = 0;
+    const memory = makeMockMemory();
+    memory.writeFailure = async () => {
+      writeCount++;
+      return { ok: true as const, action: "appended" as const };
+    };
+    const svc = new SelfHealingLoopService(makeMockLlm(), memory, defaultConfig);
+
+    await svc.escalate(makeEscalation());
+
+    expect(writeCount).toBe(1);
+  });
+});

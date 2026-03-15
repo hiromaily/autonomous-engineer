@@ -84,12 +84,12 @@
   - _Requirements: 4.1, 4.2, 4.3, 4.4_
 
 - [ ] 7. Failure record persistence
-- [ ] 7.1 Map internal record to `MemoryPort.FailureRecord` and enforce size limit
+- [x] 7.1 Map internal record to `MemoryPort.FailureRecord` and enforce size limit
   - Build a `SelfHealingFailureRecord` from the escalation context: `sectionId` → `taskId`, `planId` → `specName`, fixed phase `"IMPLEMENTATION"`, serialized `retryHistory` → `attempted`, root-cause strings → `errors`, `rootCause` → `rootCause`, and gap report's `proposedChange` → `ruleUpdate` (null if no gap identified)
   - Serialize the record and measure its byte length; if it exceeds `maxRecordSizeBytes`, truncate `agentObservations` to bring it within the limit and set `truncated: true` in the record
   - _Requirements: 5.1, 5.5_
 
-- [ ] 7.2 Write failure record via `IFailureMemory` port in a `finally` block
+- [x] 7.2 Write failure record via `IFailureMemory` port in a `finally` block
   - Await `MemoryPort.writeFailure()` to persist the record as a new NDJSON entry in `.memory/failures/failure-records.ndjson`; each call appends a new entry and never modifies existing ones
   - Place the write inside the `finally` block of `#runHealingWorkflow()` so that it executes on every code path — resolved and unresolved alike — including timeout paths
   - If the write fails, log the error via `ISelfHealingLoopLogger` but do not alter the `outcome` already determined by the analysis
