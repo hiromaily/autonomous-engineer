@@ -219,20 +219,20 @@
 ---
 
 - [ ] 7. Write E2E and performance tests
-- [ ] 7.1 E2E test: full `aes run` with a minimal one-section plan
+- [x] 7.1 E2E test: full `aes run` with a minimal one-section plan
   - Run `aes run` against a minimal plan with a single task section and a stub agent loop that writes one file
   - Assert that a git commit is produced with the section title in the commit message
   - Assert that the plan JSON in `.aes/plans/` shows `status: "completed"` for the section after the run
   - Assert that an NDJSON log file is created at `.aes/logs/implementation-loop-<planId>.ndjson` with at least one iteration entry
   - _Requirements: 1.1, 1.3, 1.6, 4.4, 10.3_
 
-- [ ] 7.2 (P) E2E test: resumption after stop signal
+- [x] 7.2 (P) E2E test: resumption after stop signal
   - Run `aes run` against a three-section plan, send a stop signal after section 1 commits
   - Assert that section 2 is in `"in_progress"` or `"pending"` state in the persisted plan
   - Restart with `aes run --resume`; assert that section 1 is not re-executed and sections 2 and 3 complete
   - _Requirements: 9.1, 9.3, 9.4_
 
-- [ ] 7.3 (P) Performance test: elapsed time logging across sections
+- [x] 7.3 (P) Performance test: elapsed time logging across sections
   - Run the implementation loop against a five-section stub plan; assert all five `SectionIterationRecord.durationMs` fields are positive numbers
   - Assert that context re-initialization per section does not cause observable memory growth (RSS stays bounded) across ten sequential sections using a memory stub
   - _Requirements: 10.4_
