@@ -74,11 +74,14 @@ const runCommand = defineCommand({
       config = await configLoader.load();
     } catch (err) {
       if (err instanceof ConfigValidationError && debugFlow) {
-        // In debug-flow mode, bypass config validation by synthesizing a placeholder config.
+        // In debug-flow mode, only bypass validation when llm.apiKey is the sole missing field.
+        const otherMissingFields = err.missingFields.filter((f) => f !== "llm.apiKey");
+        if (otherMissingFields.length > 0) {
+          process.stderr.write(`Error: configuration missing required fields: ${otherMissingFields.join(", ")}\n`);
+          process.exit(1);
+        }
         process.stderr.write(
-          `[DEBUG-FLOW] Config validation skipped (missing: ${
-            err.missingFields.join(", ")
-          }); using placeholder values.\n`,
+          "[DEBUG-FLOW] Config validation for 'llm.apiKey' skipped; using placeholder value.\n",
         );
         config = {
           llm: { provider: "claude", apiKey: "__debug__", modelName: "claude-sonnet-4-6" },
@@ -125,7 +128,7 @@ const runCommand = defineCommand({
       process.stderr.write("[DEBUG-FLOW MODE] Running with mock LLM and auto-approved gates.\n");
       debugWriter = new DebugLogWriter(debugFlowLog);
       debugApprovalGate = new DebugApprovalGate(debugWriter);
-      debugAgentEventBus = new DebugAgentEventBus(debugWriter);
+      debugAgentEventBus = new DebugAgentEventBus({ sink: debugWriter, workflowEventBus: eventBus });
     }
 
     // Build use case with injected deps

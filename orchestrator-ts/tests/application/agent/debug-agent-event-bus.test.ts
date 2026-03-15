@@ -1,8 +1,9 @@
 import { DebugAgentEventBus } from "@/application/agent/debug-agent-event-bus";
 import type { IDebugEventSink } from "@/application/ports/debug";
+import type { IWorkflowEventBus, WorkflowEvent } from "@/application/ports/workflow";
 import type { AgentLoopEvent } from "@/domain/agent/types";
 import type { DebugEvent } from "@/domain/debug/types";
-import { beforeEach, describe, expect, it, mock } from "bun:test";
+import { beforeEach, describe, expect, it } from "bun:test";
 
 // ---------------------------------------------------------------------------
 // Test doubles
@@ -19,15 +20,38 @@ function makeSink(): IDebugEventSink & { events: DebugEvent[] } {
   };
 }
 
+function makeWorkflowEventBus(): IWorkflowEventBus & { emit: (event: WorkflowEvent) => void } {
+  const handlers: Set<(event: WorkflowEvent) => void> = new Set();
+  return {
+    emit(event: WorkflowEvent) {
+      for (const h of handlers) h(event);
+    },
+    on(handler: (event: WorkflowEvent) => void) {
+      handlers.add(handler);
+    },
+    off(handler: (event: WorkflowEvent) => void) {
+      handlers.delete(handler);
+    },
+  };
+}
+
+function makeBus() {
+  const sink = makeSink();
+  const workflowEventBus = makeWorkflowEventBus();
+  const bus = new DebugAgentEventBus({ sink, workflowEventBus });
+  return { sink, workflowEventBus, bus };
+}
+
 function makeIterationCompleteEvent(
   iteration = 1,
-  category: AgentLoopEvent["type"] extends "iteration:complete" ? never : string = "Modification",
+  category = "Modification",
+  toolName = "write_file",
 ): AgentLoopEvent & { type: "iteration:complete" } {
   return {
     type: "iteration:complete",
     iteration,
-    category: "Modification",
-    toolName: "write_file",
+    category,
+    toolName,
     durationMs: 50,
     assessment: "task_complete",
   } as unknown as AgentLoopEvent & { type: "iteration:complete" };
@@ -51,27 +75,18 @@ describe("DebugAgentEventBus.emit() — iteration:complete", () => {
   let bus: DebugAgentEventBus;
 
   beforeEach(() => {
-    sink = makeSink();
-    bus = new DebugAgentEventBus(sink);
+    ({ sink, bus } = makeBus());
   });
 
   it("emits an agent:iteration debug event to the sink", () => {
-    const event = makeIterationCompleteEvent();
-    bus.emit(event);
+    bus.emit(makeIterationCompleteEvent());
 
     expect(sink.events).toHaveLength(1);
     expect(sink.events[0]?.type).toBe("agent:iteration");
   });
 
   it("maps actionCategory from iteration:complete.category", () => {
-    bus.emit({
-      type: "iteration:complete",
-      iteration: 1,
-      category: "Exploration",
-      toolName: "read_file",
-      durationMs: 30,
-      assessment: "continue",
-    } as unknown as AgentLoopEvent);
+    bus.emit(makeIterationCompleteEvent(1, "Exploration", "read_file"));
 
     const ev = sink.events[0];
     if (ev?.type === "agent:iteration") {
@@ -80,14 +95,7 @@ describe("DebugAgentEventBus.emit() — iteration:complete", () => {
   });
 
   it("maps toolName from iteration:complete.toolName", () => {
-    bus.emit({
-      type: "iteration:complete",
-      iteration: 2,
-      category: "Modification",
-      toolName: "edit_file",
-      durationMs: 25,
-      assessment: "continue",
-    } as unknown as AgentLoopEvent);
+    bus.emit(makeIterationCompleteEvent(2, "Modification", "edit_file"));
 
     const ev = sink.events[0];
     if (ev?.type === "agent:iteration") {
@@ -96,14 +104,7 @@ describe("DebugAgentEventBus.emit() — iteration:complete", () => {
   });
 
   it("maps iterationNumber from iteration:complete.iteration", () => {
-    bus.emit({
-      type: "iteration:complete",
-      iteration: 7,
-      category: "Modification",
-      toolName: "write_file",
-      durationMs: 10,
-      assessment: "continue",
-    } as unknown as AgentLoopEvent);
+    bus.emit(makeIterationCompleteEvent(7));
 
     const ev = sink.events[0];
     if (ev?.type === "agent:iteration") {
@@ -123,6 +124,46 @@ describe("DebugAgentEventBus.emit() — iteration:complete", () => {
 });
 
 // ---------------------------------------------------------------------------
+// emit() — phase tracking via workflowEventBus
+// ---------------------------------------------------------------------------
+
+describe("DebugAgentEventBus phase tracking", () => {
+  it("reports UNKNOWN phase before any phase:start event", () => {
+    const { sink, bus } = makeBus();
+    bus.emit(makeIterationCompleteEvent());
+
+    const ev = sink.events[0];
+    if (ev?.type === "agent:iteration") {
+      expect(ev.phase).toBe("UNKNOWN");
+    }
+  });
+
+  it("reports correct phase after phase:start event", () => {
+    const { sink, workflowEventBus, bus } = makeBus();
+    workflowEventBus.emit({ type: "phase:start", phase: "IMPLEMENTATION", timestamp: "t" });
+    bus.emit(makeIterationCompleteEvent());
+
+    const ev = sink.events[0];
+    if (ev?.type === "agent:iteration") {
+      expect(ev.phase).toBe("IMPLEMENTATION");
+    }
+  });
+
+  it("updates phase on each subsequent phase:start event", () => {
+    const { sink, workflowEventBus, bus } = makeBus();
+
+    workflowEventBus.emit({ type: "phase:start", phase: "REQUIREMENTS", timestamp: "t1" });
+    bus.emit(makeIterationCompleteEvent(1));
+
+    workflowEventBus.emit({ type: "phase:start", phase: "IMPLEMENTATION", timestamp: "t2" });
+    bus.emit(makeIterationCompleteEvent(2));
+
+    const phases = sink.events.map((e) => (e.type === "agent:iteration" ? e.phase : null));
+    expect(phases).toEqual(["REQUIREMENTS", "IMPLEMENTATION"]);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // emit() — non-iteration:complete events are NOT forwarded to sink
 // ---------------------------------------------------------------------------
 
@@ -131,8 +172,7 @@ describe("DebugAgentEventBus.emit() — other event types", () => {
   let bus: DebugAgentEventBus;
 
   beforeEach(() => {
-    sink = makeSink();
-    bus = new DebugAgentEventBus(sink);
+    ({ sink, bus } = makeBus());
   });
 
   it("does NOT emit to sink for iteration:start events", () => {
@@ -156,12 +196,10 @@ describe("DebugAgentEventBus.emit() — other event types", () => {
 // ---------------------------------------------------------------------------
 
 describe("DebugAgentEventBus.on() and off()", () => {
-  let sink: ReturnType<typeof makeSink>;
   let bus: DebugAgentEventBus;
 
   beforeEach(() => {
-    sink = makeSink();
-    bus = new DebugAgentEventBus(sink);
+    ({ bus } = makeBus());
   });
 
   it("on() handlers receive all emitted events (including iteration:complete)", () => {

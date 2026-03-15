@@ -20,6 +20,7 @@ export type DebugEvent =
     readonly prompt: string;
     readonly errorCategory: string;
     readonly errorMessage: string;
+    readonly durationMs: number;
     readonly timestamp: string;
   }
   | {
