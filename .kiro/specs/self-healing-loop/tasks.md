@@ -151,20 +151,20 @@
   - Test that serializing `agentObservations` with more than 100 entries results in a record at or below `maxRecordSizeBytes` after truncation
   - _Requirements: 1.5, 5.5_
 
-- [ ] 10. Integration tests
-- [ ] 10.1 (P) Full happy-path integration with in-memory MemoryPort stub
+- [x] 10. Integration tests
+- [x] 10.1 (P) Full happy-path integration with in-memory MemoryPort stub
   - Wire `SelfHealingLoopService` to an in-memory `MemoryPort` stub and a mock `LlmProviderPort`
   - Execute the full analysis → gap → rule update → resolved flow and assert `updatedRules` contains the correct workspace-relative paths
   - Verify the failure record is appended and readable via `MemoryPort.getFailures()` after the call completes
   - Verify the NDJSON log file receives all expected entries via `NdjsonSelfHealingLoopLogger`
   - _Requirements: 2.4, 3.5, 5.2, 6.5_
 
-- [ ] 10.2 (P) Duplicate gap detection integration test
+- [x] 10.2 (P) Duplicate gap detection integration test
   - Pre-seed the in-memory `MemoryPort` stub with a failure record matching the target `sectionId` and the same `targetFile` + `proposedChange` combination
   - Execute `escalate()` and assert `outcome: "unresolved"` with "duplicate gap detected" in the summary
   - _Requirements: 3.4_
 
-- [ ] 10.3 (P) Workspace boundary and append-only persistence integration tests
+- [x] 10.3 (P) Workspace boundary and append-only persistence integration tests
   - Verify that a rule file path outside `workspaceRoot` produces `outcome: "unresolved"` without any `MemoryPort` write call
   - Execute two `escalate()` calls with different outcomes and verify that two distinct failure records are appended and no prior entry is modified in the in-memory stub
   - _Requirements: 4.5, 5.2_
