@@ -17,16 +17,16 @@
  * Requirements: 1.1, 1.2, 1.3, 1.4, 1.5
  */
 import type { ISelfHealingLoop } from "@/application/ports/implementation-loop";
-import type { ISelfHealingLoopLogger } from "@/application/ports/self-healing-loop-logger";
 import type { LlmProviderPort } from "@/application/ports/llm";
 import type { MemoryPort, ShortTermMemoryPort } from "@/application/ports/memory";
+import type { ISelfHealingLoopLogger } from "@/application/ports/self-healing-loop-logger";
 import {
-  SelfHealingLoopService,
   type SelfHealingLoopConfig,
+  SelfHealingLoopService,
 } from "@/application/self-healing-loop/self-healing-loop-service";
 import type { SectionEscalation } from "@/domain/implementation-loop/types";
 import type { EscalationIntakeLogEntry, SelfHealingLogEntry } from "@/domain/self-healing/types";
-import { describe, it, expect, beforeEach, mock } from "bun:test";
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 
 // ---------------------------------------------------------------------------
 // Minimal mock factories
@@ -123,8 +123,7 @@ describe("SelfHealingLoopService — constructor", () => {
 
   it("constructs with all args including optional logger", () => {
     expect(
-      () =>
-        new SelfHealingLoopService(makeMockLlm(), makeMockMemory(), defaultConfig, makeMockLogger()),
+      () => new SelfHealingLoopService(makeMockLlm(), makeMockMemory(), defaultConfig, makeMockLogger()),
     ).not.toThrow();
   });
 
@@ -413,5 +412,237 @@ describe("SelfHealingLoopService — concurrency guard (#inFlightSections)", () 
     // Second call — sectionId should be cleaned up from #inFlightSections
     const result2 = await service.escalate(escalation);
     expect(result2.summary.toLowerCase()).not.toContain("concurrent");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 4.1: Root-cause analysis — retry loop and per-call timeout
+// ---------------------------------------------------------------------------
+
+describe("SelfHealingLoopService — root-cause analysis (task 4.1)", () => {
+  const validRootCauseJson = JSON.stringify({
+    attemptsNarrative: "Attempted to create a TypeScript file",
+    failureNarrative: "TypeScript compilation failed due to missing types",
+    recurringPattern: "Missing type imports in generated code",
+  });
+
+  it("retries LLM up to maxAnalysisRetries times on API failure, then returns unresolved", async () => {
+    let callCount = 0;
+    const failingLlm: LlmProviderPort = {
+      complete: async () => {
+        callCount++;
+        return {
+          ok: false as const,
+          error: { category: "api_error" as const, message: "service unavailable", originalError: null },
+        };
+      },
+      clearContext: () => {},
+    };
+
+    const service = new SelfHealingLoopService(failingLlm, makeMockMemory(), {
+      ...defaultConfig,
+      maxAnalysisRetries: 2,
+    });
+
+    const result = await service.escalate(makeEscalation());
+
+    expect(result.outcome).toBe("unresolved");
+    expect(callCount).toBe(3); // 1 initial + 2 retries
+    expect(result.summary).toMatch(/analysis|failed|attempt/i);
+  });
+
+  it("retries on non-parseable LLM response, then returns unresolved after exhausting retries", async () => {
+    let callCount = 0;
+    const garbageLlm: LlmProviderPort = {
+      complete: async () => {
+        callCount++;
+        return {
+          ok: true as const,
+          value: { content: "not valid json {{{", usage: { inputTokens: 5, outputTokens: 5 } },
+        };
+      },
+      clearContext: () => {},
+    };
+
+    const service = new SelfHealingLoopService(garbageLlm, makeMockMemory(), {
+      ...defaultConfig,
+      maxAnalysisRetries: 1,
+    });
+
+    const result = await service.escalate(makeEscalation());
+
+    expect(result.outcome).toBe("unresolved");
+    expect(callCount).toBe(2); // 1 initial + 1 retry
+    expect(result.summary).toMatch(/analysis|parse|failed/i);
+  });
+
+  it("counts a timed-out LLM call as a failure and triggers retry", async () => {
+    let callCount = 0;
+    const slowLlm: LlmProviderPort = {
+      complete: () => {
+        callCount++;
+        return new Promise<never>(() => {}); // hangs forever
+      },
+      clearContext: () => {},
+    };
+
+    const service = new SelfHealingLoopService(slowLlm, makeMockMemory(), {
+      ...defaultConfig,
+      analysisTimeoutMs: 20, // very short per-call timeout
+      selfHealingTimeoutMs: 5_000, // generous outer timeout
+      maxAnalysisRetries: 1,
+    });
+
+    const result = await service.escalate(makeEscalation());
+
+    expect(result.outcome).toBe("unresolved");
+    expect(callCount).toBe(2); // initial + 1 retry (both timed out)
+    expect(result.summary).toMatch(/analysis|timeout|failed/i);
+  }, 2_000);
+
+  it("elapsed-time guard prevents LLM call when outer timeout is already consumed", async () => {
+    let callCount = 0;
+    const countingLlm: LlmProviderPort = {
+      complete: async () => {
+        callCount++;
+        return {
+          ok: false as const,
+          error: { category: "api_error" as const, message: "fail", originalError: null },
+        };
+      },
+      clearContext: () => {},
+    };
+
+    // selfHealingTimeoutMs: 0 means elapsed >= 0 is always true at the guard check
+    const service = new SelfHealingLoopService(countingLlm, makeMockMemory(), {
+      ...defaultConfig,
+      selfHealingTimeoutMs: 0,
+      maxAnalysisRetries: 5,
+    });
+
+    const result = await service.escalate(makeEscalation());
+
+    expect(result.outcome).toBe("unresolved");
+    expect(callCount).toBe(0); // no LLM calls — guard fires before first attempt
+    expect(result.summary).toMatch(/timeout|elapsed|consumed|skipped/i);
+  });
+
+  it("successful parse with valid JSON proceeds beyond analysis (not an analysis failure)", async () => {
+    const successLlm: LlmProviderPort = {
+      complete: async () => ({
+        ok: true as const,
+        value: { content: validRootCauseJson, usage: { inputTokens: 10, outputTokens: 20 } },
+      }),
+      clearContext: () => {},
+    };
+
+    const service = new SelfHealingLoopService(successLlm, makeMockMemory(), defaultConfig);
+    const result = await service.escalate(makeEscalation());
+
+    // Analysis succeeds; workflow continues — outcome is unresolved until tasks 5–8 are implemented
+    expect(result.outcome).toBe("unresolved");
+    // Summary should NOT indicate an analysis failure
+    expect(result.summary).not.toMatch(/analysis failed|Root-cause analysis failed/i);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 4.2: analysis-complete log entry emission — requirements 2.2, 2.4
+// ---------------------------------------------------------------------------
+
+describe("SelfHealingLoopService — analysis-complete log entry (task 4.2)", () => {
+  const validRootCauseJson = JSON.stringify({
+    attemptsNarrative: "Tried to generate code using the wrong pattern",
+    failureNarrative: "Build failed due to incorrect import style",
+    recurringPattern: "Wrong import style used consistently across retries",
+  });
+
+  function makeSuccessLlm(): LlmProviderPort {
+    return {
+      complete: async () => ({
+        ok: true as const,
+        value: { content: validRootCauseJson, usage: { inputTokens: 10, outputTokens: 20 } },
+      }),
+      clearContext: () => {},
+    };
+  }
+
+  it("emits an analysis-complete log entry after successful root-cause analysis", async () => {
+    const logSpy = mock((_entry: SelfHealingLogEntry) => {});
+    const logger: ISelfHealingLoopLogger = { log: logSpy };
+    const svc = new SelfHealingLoopService(makeSuccessLlm(), makeMockMemory(), defaultConfig, logger);
+
+    await svc.escalate(makeEscalation());
+
+    const analysisEntry = logSpy.mock.calls
+      .map((args) => args[0])
+      .find((e) => e?.type === "analysis-complete");
+    expect(analysisEntry).toBeDefined();
+  });
+
+  it("analysis-complete entry carries the recurringPattern from the parsed analysis", async () => {
+    const logSpy = mock((_entry: SelfHealingLogEntry) => {});
+    const logger: ISelfHealingLoopLogger = { log: logSpy };
+    const svc = new SelfHealingLoopService(makeSuccessLlm(), makeMockMemory(), defaultConfig, logger);
+
+    await svc.escalate(makeEscalation());
+
+    const analysisEntry = logSpy.mock.calls
+      .map((args) => args[0])
+      .find((e) => e?.type === "analysis-complete");
+    expect(analysisEntry).toBeDefined();
+    // biome-ignore lint/suspicious/noExplicitAny: narrowing discriminated union in test
+    expect((analysisEntry as any).recurringPattern).toBe(
+      "Wrong import style used consistently across retries",
+    );
+  });
+
+  it("analysis-complete entry carries correct sectionId and planId", async () => {
+    const logSpy = mock((_entry: SelfHealingLogEntry) => {});
+    const logger: ISelfHealingLoopLogger = { log: logSpy };
+    const svc = new SelfHealingLoopService(makeSuccessLlm(), makeMockMemory(), defaultConfig, logger);
+
+    await svc.escalate(makeEscalation({ sectionId: "sec-analysis", planId: "plan-analysis" }));
+
+    const analysisEntry = logSpy.mock.calls
+      .map((args) => args[0])
+      .find((e) => e?.type === "analysis-complete");
+    // biome-ignore lint/suspicious/noExplicitAny: narrowing discriminated union in test
+    expect((analysisEntry as any)?.sectionId).toBe("sec-analysis");
+    // biome-ignore lint/suspicious/noExplicitAny: narrowing discriminated union in test
+    expect((analysisEntry as any)?.planId).toBe("plan-analysis");
+  });
+
+  it("analysis-complete entry does NOT contain raw LLM output (only recurringPattern)", async () => {
+    const logSpy = mock((_entry: SelfHealingLogEntry) => {});
+    const logger: ISelfHealingLoopLogger = { log: logSpy };
+    const svc = new SelfHealingLoopService(makeSuccessLlm(), makeMockMemory(), defaultConfig, logger);
+
+    await svc.escalate(makeEscalation());
+
+    const analysisEntry = logSpy.mock.calls
+      .map((args) => args[0])
+      .find((e) => e?.type === "analysis-complete");
+    expect(analysisEntry).toBeDefined();
+    const entryStr = JSON.stringify(analysisEntry);
+    // Raw LLM fields like attemptsNarrative and failureNarrative should NOT appear in log
+    expect(entryStr).not.toContain("attemptsNarrative");
+    expect(entryStr).not.toContain("failureNarrative");
+    // Only recurringPattern is logged
+    expect(entryStr).toContain("recurringPattern");
+  });
+
+  it("analysis-complete is NOT emitted when analysis fails", async () => {
+    const logSpy = mock((_entry: SelfHealingLogEntry) => {});
+    const logger: ISelfHealingLoopLogger = { log: logSpy };
+    const svc = new SelfHealingLoopService(makeMockLlm(), makeMockMemory(), defaultConfig, logger);
+
+    // makeMockLlm returns ok: false — analysis fails
+    await svc.escalate(makeEscalation());
+
+    const analysisEntry = logSpy.mock.calls
+      .map((args) => args[0])
+      .find((e) => e?.type === "analysis-complete");
+    expect(analysisEntry).toBeUndefined();
   });
 });

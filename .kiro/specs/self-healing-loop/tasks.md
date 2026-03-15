@@ -39,7 +39,7 @@
   - _Requirements: 1.2, 1.3, 1.4_
 
 - [ ] 4. Root-cause analysis
-- [ ] 4.1 Implement `#analyzeRootCause()` with LLM retry loop and per-call timeout
+- [x] 4.1 Implement `#analyzeRootCause()` with LLM retry loop and per-call timeout
   - Build a structured system prompt from `RootCauseAnalysis` JSON schema and a user message from serialized `retryHistory`, `reviewFeedback`, and `agentObservations`
   - Wrap each `LlmProviderPort.complete()` call with `Promise.race` using `analysisTimeoutMs`; count both timeout and call failure as LLM failures that trigger the retry
   - Before launching each retry attempt, check whether the elapsed time since `escalate()` started would exceed `selfHealingTimeoutMs`; skip the call and return `unresolved` immediately if so, capping background LLM calls to at most one dangling promise per invocation
@@ -47,7 +47,7 @@
   - Parse a successful LLM response into `RootCauseAnalysis` (`attemptsNarrative`, `failureNarrative`, `recurringPattern`)
   - _Requirements: 2.1, 2.3, 2.5_
 
-- [ ] 4.2 Emit the analysis log entry and hand off to gap identification
+- [x] 4.2 Emit the analysis log entry and hand off to gap identification
   - After a successful parse, emit an `analysis-complete` log entry carrying `recurringPattern`; do not log raw LLM output
   - Pass the parsed `RootCauseAnalysis` to `#identifyGap()` as the sole input for the next step
   - _Requirements: 2.2, 2.4_

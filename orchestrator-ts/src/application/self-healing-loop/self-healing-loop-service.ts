@@ -3,7 +3,12 @@ import type { LlmProviderPort } from "@/application/ports/llm";
 import type { FailureRecord, MemoryPort } from "@/application/ports/memory";
 import type { ISelfHealingLoopLogger } from "@/application/ports/self-healing-loop-logger";
 import type { SectionEscalation, SelfHealingResult } from "@/domain/implementation-loop/types";
-import type { EscalationIntakeLogEntry, GapReport } from "@/domain/self-healing/types";
+import type {
+  AnalysisCompleteLogEntry,
+  EscalationIntakeLogEntry,
+  GapReport,
+  RootCauseAnalysis,
+} from "@/domain/self-healing/types";
 
 // ---------------------------------------------------------------------------
 // SelfHealingLoopConfig — tunable parameters (requirement 1.5)
@@ -84,6 +89,7 @@ export class SelfHealingLoopService implements ISelfHealingLoop {
    * Requirements: 1.1, 1.5
    */
   async escalate(escalation: SectionEscalation): Promise<SelfHealingResult> {
+    const startTime = Date.now();
     try {
       let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
@@ -100,7 +106,7 @@ export class SelfHealingLoopService implements ISelfHealingLoop {
         }, this.#config.selfHealingTimeoutMs);
       });
 
-      const workflowPromise = this.#runHealingWorkflow(escalation).finally(() => {
+      const workflowPromise = this.#runHealingWorkflow(escalation, startTime).finally(() => {
         clearTimeout(timeoutId);
       });
 
@@ -130,7 +136,7 @@ export class SelfHealingLoopService implements ISelfHealingLoop {
    *
    * The failure record is written in a finally block regardless of outcome (task 7.2).
    */
-  async #runHealingWorkflow(escalation: SectionEscalation): Promise<SelfHealingResult> {
+  async #runHealingWorkflow(escalation: SectionEscalation, startTime: number): Promise<SelfHealingResult> {
     // --- Intake: always log first (requirement 8.1) ---
     const intakeEntry: EscalationIntakeLogEntry = {
       type: "escalation-intake",
@@ -160,16 +166,190 @@ export class SelfHealingLoopService implements ISelfHealingLoop {
     // --- Register section as in-flight; always deregister in finally (requirement 1.4) ---
     this.#inFlightSections.add(escalation.sectionId);
     try {
-      // Tasks 4–8 will add root-cause analysis, gap identification, rule update, and result assembly.
-      // The LLM call stub below keeps the outer timeout exercisable until task 4 is implemented.
-      await this.#llm.complete("stub");
-      return {
-        outcome: "unresolved",
-        summary: "Self-healing workflow not yet fully implemented (tasks 4–8 pending).",
+      // Task 4.1: Root-cause analysis with LLM retry loop
+      const analysisResult = await this.#analyzeRootCause(escalation, startTime);
+      if (!analysisResult.ok) {
+        return { outcome: "unresolved", summary: analysisResult.summary };
+      }
+
+      // Task 4.2: Emit analysis-complete log entry (requirement 2.4)
+      const analysis = analysisResult.value;
+      const analysisCompleteEntry: AnalysisCompleteLogEntry = {
+        type: "analysis-complete",
+        sectionId: escalation.sectionId,
+        planId: escalation.planId,
+        timestamp: new Date().toISOString(),
+        recurringPattern: analysis.recurringPattern,
       };
+      this.#logger?.log(analysisCompleteEntry);
+
+      // Task 4.2: Hand off to gap identification (task 5.1 will implement #identifyGap fully)
+      return await this.#identifyGap(escalation, analysis);
     } finally {
       this.#inFlightSections.delete(escalation.sectionId);
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Root-cause analysis — task 4.1
+  // ---------------------------------------------------------------------------
+
+  static readonly #ROOT_CAUSE_SYSTEM_PROMPT =
+    `You are a root-cause analysis assistant for an autonomous software engineering agent.
+Your task: analyze the retry history and identify why the implementation agent failed repeatedly.
+
+Return ONLY a valid JSON object with this exact structure:
+{
+  "attemptsNarrative": "Description of what was attempted in each retry",
+  "failureNarrative": "Description of what failed each time and why",
+  "recurringPattern": "The concise cross-attempt theme or root cause"
+}
+
+Rules:
+- Return only the JSON object, no markdown, no extra text
+- All fields must be non-empty strings
+- Do not include API keys, credentials, or workspace-external paths`;
+
+  /**
+   * Build the LLM prompt for root-cause analysis.
+   * Serializes retryHistory, reviewFeedback, and agentObservations from the escalation.
+   *
+   * Requirements: 2.1
+   */
+  #buildRootCausePrompt(escalation: SectionEscalation): string {
+    const userMessage = [
+      `Section ID: ${escalation.sectionId}`,
+      `Plan ID: ${escalation.planId}`,
+      "",
+      "=== Retry History ===",
+      JSON.stringify(escalation.retryHistory, null, 2),
+      "",
+      "=== Review Feedback ===",
+      JSON.stringify(escalation.reviewFeedback, null, 2),
+      "",
+      "=== Agent Observations ===",
+      JSON.stringify(escalation.agentObservations, null, 2),
+    ].join("\n");
+    return `${SelfHealingLoopService.#ROOT_CAUSE_SYSTEM_PROMPT}\n\n${userMessage}`;
+  }
+
+  /**
+   * Attempt to parse a string as RootCauseAnalysis. Returns null on any parse error
+   * or if required fields are missing or have wrong types.
+   */
+  #tryParseRootCauseAnalysis(content: string): RootCauseAnalysis | null {
+    try {
+      const obj = JSON.parse(content) as unknown;
+      if (
+        obj !== null
+        && typeof obj === "object"
+        && "attemptsNarrative" in obj
+        && "failureNarrative" in obj
+        && "recurringPattern" in obj
+        && typeof (obj as Record<string, unknown>).attemptsNarrative === "string"
+        && typeof (obj as Record<string, unknown>).failureNarrative === "string"
+        && typeof (obj as Record<string, unknown>).recurringPattern === "string"
+      ) {
+        const record = obj as Record<string, unknown>;
+        return {
+          attemptsNarrative: record.attemptsNarrative as string,
+          failureNarrative: record.failureNarrative as string,
+          recurringPattern: record.recurringPattern as string,
+        };
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Perform LLM-driven root-cause analysis with retry loop and per-call timeout.
+   *
+   * - Wraps each LLM call with Promise.race using analysisTimeoutMs.
+   * - Before each attempt, checks elapsed time against selfHealingTimeoutMs to avoid
+   *   starting a call that would outlive the outer timeout (requirement 2.5).
+   * - Retries up to maxAnalysisRetries times on failure or non-parseable JSON (requirement 2.3).
+   * - Returns { ok: false } after exhausting retries with last error in summary.
+   *
+   * Requirements: 2.1, 2.3, 2.5
+   */
+  async #analyzeRootCause(
+    escalation: SectionEscalation,
+    startTime: number,
+  ): Promise<{ ok: true; value: RootCauseAnalysis } | { ok: false; summary: string }> {
+    const prompt = this.#buildRootCausePrompt(escalation);
+    let lastError = "analysis did not start";
+
+    for (let attempt = 0; attempt <= this.#config.maxAnalysisRetries; attempt++) {
+      // Elapsed-time guard: skip if outer timeout is already consumed (requirement 2.5)
+      const elapsed = Date.now() - startTime;
+      if (elapsed >= this.#config.selfHealingTimeoutMs) {
+        return {
+          ok: false,
+          summary:
+            `Root-cause analysis skipped: outer timeout already consumed (elapsed ${elapsed}ms, limit ${this.#config.selfHealingTimeoutMs}ms)`,
+        };
+      }
+
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
+      try {
+        const llmResult = await Promise.race([
+          this.#llm.complete(prompt),
+          new Promise<never>((_, reject) => {
+            timeoutId = setTimeout(
+              () => reject(new Error(`LLM call timed out after ${this.#config.analysisTimeoutMs}ms`)),
+              this.#config.analysisTimeoutMs,
+            );
+          }),
+        ]);
+        clearTimeout(timeoutId);
+
+        if (!llmResult.ok) {
+          lastError = `LLM call failed: ${llmResult.error.message}`;
+          continue;
+        }
+
+        const parsed = this.#tryParseRootCauseAnalysis(llmResult.value.content);
+        if (!parsed) {
+          lastError = "Failed to parse LLM response as RootCauseAnalysis";
+          continue;
+        }
+
+        return { ok: true, value: parsed };
+      } catch (e) {
+        clearTimeout(timeoutId);
+        lastError = e instanceof Error ? e.message : String(e);
+        // timeout or unexpected error — continue to next retry
+      }
+    }
+
+    return {
+      ok: false,
+      summary: `Root-cause analysis failed after ${this.#config.maxAnalysisRetries + 1} attempt(s): ${lastError}`,
+    };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Gap identification — task 5.1–5.2 will complete this method
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Identify the knowledge gap from the root-cause analysis.
+   * Stub for task 4.2 — task 5.1 will add MemoryPort queries, LLM call,
+   * duplicate detection, and full GapReport parsing.
+   *
+   * Requirements: 3.1–3.5
+   */
+  async #identifyGap(
+    _escalation: SectionEscalation,
+    analysis: RootCauseAnalysis,
+  ): Promise<SelfHealingResult> {
+    // Task 5.1 will implement the full gap identification flow.
+    return {
+      outcome: "unresolved",
+      summary: `Gap identification not yet implemented (task 5 pending): ${analysis.recurringPattern}`,
+    };
   }
 
   // ---------------------------------------------------------------------------
