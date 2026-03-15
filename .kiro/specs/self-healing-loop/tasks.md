@@ -146,7 +146,7 @@
   - Test that the final log entry (`self-healing-resolved` or `unresolved`) includes a non-zero `totalDurationMs`
   - _Requirements: 1.1, 4.2, 6.1, 8.3, 8.4, 8.5_
 
-- [ ]* 9.6 (P) Performance unit tests
+- [ ] 9.6 (P) Performance unit tests
   - Test that `escalate()` completes within `selfHealingTimeoutMs` under normal mock latency with all steps succeeding
   - Test that serializing `agentObservations` with more than 100 entries results in a record at or below `maxRecordSizeBytes` after truncation
   - _Requirements: 1.5, 5.5_

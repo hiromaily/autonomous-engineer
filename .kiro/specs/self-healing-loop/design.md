@@ -346,6 +346,10 @@ interface RuleUpdatedLogEntry extends SelfHealingLogEntryBase {
   readonly memoryWriteAction: MemoryWriteAction;
 }
 
+interface RetryInitiatedLogEntry extends SelfHealingLogEntryBase {
+  readonly type: "retry-initiated";
+}
+
 interface SelfHealingResolvedLogEntry extends SelfHealingLogEntryBase {
   readonly type: "self-healing-resolved";
   readonly updatedRules: ReadonlyArray<string>;
@@ -363,6 +367,7 @@ type SelfHealingLogEntry =
   | AnalysisCompleteLogEntry
   | GapIdentifiedLogEntry
   | RuleUpdatedLogEntry
+  | RetryInitiatedLogEntry
   | SelfHealingResolvedLogEntry
   | UnresolvedLogEntry;
 

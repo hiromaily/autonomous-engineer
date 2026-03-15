@@ -58,9 +58,19 @@ export interface GapReport {
 // SelfHealingLogEntry — discriminated union covering all seven log entry shapes
 // ---------------------------------------------------------------------------
 
+/** Discriminated union of all log entry type strings. Requirements: 8.1, 8.2 */
+export type SelfHealingLogEntryType =
+  | "escalation-intake"
+  | "analysis-complete"
+  | "gap-identified"
+  | "rule-updated"
+  | "retry-initiated"
+  | "self-healing-resolved"
+  | "unresolved";
+
 /** Base fields shared by all log entry shapes. Requirements: 8.1, 8.2 */
 interface SelfHealingLogEntryBase {
-  readonly type: string;
+  readonly type: SelfHealingLogEntryType;
   readonly sectionId: string;
   readonly planId: string;
   readonly timestamp: string; // ISO 8601
