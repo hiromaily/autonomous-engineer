@@ -1,3 +1,8 @@
+import type {
+  IImplementationLoop,
+  ImplementationLoopOutcome,
+  ImplementationLoopResult,
+} from "@/application/ports/implementation-loop";
 import type { LlmProviderPort } from "@/application/ports/llm";
 import type { SddFrameworkPort, SddOperationResult, SpecContext } from "@/application/ports/sdd";
 import { PhaseRunner } from "@/domain/workflow/phase-runner";
@@ -114,6 +119,98 @@ describe("PhaseRunner", () => {
       expect(sdd.generateDesign).not.toHaveBeenCalled();
       expect(sdd.validateDesign).not.toHaveBeenCalled();
       expect(sdd.generateTasks).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("execute - IMPLEMENTATION phase with IImplementationLoop (task 5.2)", () => {
+    function makeImplementationLoop(outcome: ImplementationLoopOutcome): IImplementationLoop {
+      const result: ImplementationLoopResult = { outcome, planId: "my-spec", sections: [], durationMs: 0 };
+      return {
+        run: mock(() => Promise.resolve(result)),
+        resume: mock(() => Promise.resolve(result)),
+        stop: mock(() => {}),
+      };
+    }
+
+    it("delegates to implementationLoop.run(specName) for IMPLEMENTATION phase", async () => {
+      const loop = makeImplementationLoop("completed");
+      const runner = new PhaseRunner({
+        sdd: makeSddAdapter({ ok: true, artifactPath: "" }),
+        llm: makeLlmProvider(),
+        implementationLoop: loop,
+      });
+      await runner.execute("IMPLEMENTATION", ctx);
+      expect(loop.run).toHaveBeenCalledTimes(1);
+    });
+
+    it("passes specName as planId to implementationLoop.run", async () => {
+      const loop = makeImplementationLoop("completed");
+      const runner = new PhaseRunner({
+        sdd: makeSddAdapter({ ok: true, artifactPath: "" }),
+        llm: makeLlmProvider(),
+        implementationLoop: loop,
+      });
+      await runner.execute("IMPLEMENTATION", ctx);
+      const [planIdArg] = (loop.run as unknown as { mock: { calls: unknown[][] } }).mock.calls[0] ?? [];
+      expect(planIdArg).toBe("my-spec");
+    });
+
+    it("returns ok:true when implementationLoop.run returns completed", async () => {
+      const runner = new PhaseRunner({
+        sdd: makeSddAdapter({ ok: true, artifactPath: "" }),
+        llm: makeLlmProvider(),
+        implementationLoop: makeImplementationLoop("completed"),
+      });
+      const result = await runner.execute("IMPLEMENTATION", ctx);
+      expect(result).toEqual({ ok: true, artifacts: [] });
+    });
+
+    it("returns ok:false when implementationLoop.run returns section-failed", async () => {
+      const runner = new PhaseRunner({
+        sdd: makeSddAdapter({ ok: true, artifactPath: "" }),
+        llm: makeLlmProvider(),
+        implementationLoop: makeImplementationLoop("section-failed"),
+      });
+      const result = await runner.execute("IMPLEMENTATION", ctx);
+      expect(result.ok).toBe(false);
+    });
+
+    it("returns ok:false when implementationLoop.run returns human-intervention-required", async () => {
+      const runner = new PhaseRunner({
+        sdd: makeSddAdapter({ ok: true, artifactPath: "" }),
+        llm: makeLlmProvider(),
+        implementationLoop: makeImplementationLoop("human-intervention-required"),
+      });
+      const result = await runner.execute("IMPLEMENTATION", ctx);
+      expect(result.ok).toBe(false);
+    });
+
+    it("includes haltReason in error when present in loop result", async () => {
+      const loop = makeImplementationLoop("section-failed");
+      // Override run to return a result with haltReason
+      (loop.run as ReturnType<typeof mock>).mockImplementation(() =>
+        Promise.resolve({
+          outcome: "section-failed" as const,
+          planId: "my-spec",
+          sections: [],
+          durationMs: 0,
+          haltReason: "Max retries exceeded",
+        })
+      );
+      const runner = new PhaseRunner({
+        sdd: makeSddAdapter({ ok: true, artifactPath: "" }),
+        llm: makeLlmProvider(),
+        implementationLoop: loop,
+      });
+      const result = await runner.execute("IMPLEMENTATION", ctx);
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.error).toBe("Max retries exceeded");
+    });
+
+    it("stubs to success when implementationLoop is not provided", async () => {
+      const runner = new PhaseRunner({ sdd: makeSddAdapter({ ok: true, artifactPath: "" }), llm: makeLlmProvider() });
+      const result = await runner.execute("IMPLEMENTATION", ctx);
+      expect(result).toEqual({ ok: true, artifacts: [] });
     });
   });
 

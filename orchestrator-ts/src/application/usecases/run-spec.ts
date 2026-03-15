@@ -1,4 +1,5 @@
 import type { AesConfig } from "@/application/ports/config";
+import type { IImplementationLoop } from "@/application/ports/implementation-loop";
 import type { LlmProviderPort } from "@/application/ports/llm";
 import type { MemoryPort } from "@/application/ports/memory";
 import type { SddFrameworkPort } from "@/application/ports/sdd";
@@ -23,6 +24,8 @@ export interface RunSpecUseCaseDeps {
   readonly sdd: SddFrameworkPort;
   readonly createLlmProvider: (config: AesConfig, providerOverride?: string) => LlmProviderPort;
   readonly memory: MemoryPort;
+  /** Optional implementation loop service injected into the workflow's IMPLEMENTATION phase. */
+  readonly implementationLoop?: IImplementationLoop;
 }
 
 export class RunSpecUseCase {
@@ -57,7 +60,11 @@ export class RunSpecUseCase {
 
     // Construct engine with all dependencies
     const llm = createLlmProvider(config, options.providerOverride);
-    const phaseRunner = new PhaseRunner({ sdd, llm });
+    const phaseRunner = new PhaseRunner({
+      sdd,
+      llm,
+      ...(this.deps.implementationLoop !== undefined ? { implementationLoop: this.deps.implementationLoop } : {}),
+    });
     const approvalGate = new ApprovalGate();
 
     const engine = new WorkflowEngine({

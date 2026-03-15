@@ -45,3 +45,4 @@ pre-commit:
     check-ts:
       glob: "orchestrator-ts/src/**/*.ts"
       run: make -C orchestrator-ts ts-lint
+      stage_fixed: true
