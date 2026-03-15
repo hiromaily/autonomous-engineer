@@ -66,7 +66,8 @@ export type SelfHealingLogEntryType =
   | "rule-updated"
   | "retry-initiated"
   | "self-healing-resolved"
-  | "unresolved";
+  | "unresolved"
+  | "system-error";
 
 /** Base fields shared by all log entry shapes. Requirements: 8.1, 8.2 */
 interface SelfHealingLogEntryBase {
@@ -135,8 +136,15 @@ export interface UnresolvedLogEntry extends SelfHealingLogEntryBase {
   readonly totalDurationMs: number;
 }
 
+/** Emitted when an internal error occurs (e.g., failure record write error). */
+export interface SystemErrorLogEntry extends SelfHealingLogEntryBase {
+  readonly type: "system-error";
+  readonly component: string;
+  readonly message: string;
+}
+
 /**
- * Discriminated union of all seven NDJSON log entry shapes emitted by
+ * Discriminated union of all NDJSON log entry shapes emitted by
  * SelfHealingLoopService during an escalate() invocation.
  *
  * Requirements: 8.1, 8.2
@@ -148,7 +156,8 @@ export type SelfHealingLogEntry =
   | RuleUpdatedLogEntry
   | RetryInitiatedLogEntry
   | SelfHealingResolvedLogEntry
-  | UnresolvedLogEntry;
+  | UnresolvedLogEntry
+  | SystemErrorLogEntry;
 
 // ---------------------------------------------------------------------------
 // SelfHealingFailureRecord — internal record before mapping to MemoryPort.FailureRecord

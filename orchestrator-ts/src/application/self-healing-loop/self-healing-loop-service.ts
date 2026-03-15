@@ -15,6 +15,7 @@ import type {
   RuleUpdatedLogEntry,
   SelfHealingResolvedLogEntry,
   SelfHealingStopStep,
+  SystemErrorLogEntry,
   UnresolvedLogEntry,
 } from "@/domain/self-healing/types";
 import { join as joinPath, resolve as resolvePath, sep as pathSep } from "node:path";
@@ -229,10 +230,15 @@ export class SelfHealingLoopService implements ISelfHealingLoop {
               captured.gapReport,
             ).catch((e) => {
               // Requirement 5.4: log the write error but do not alter the determined outcome.
-              console.error(
-                `[SelfHealingLoopService] writeFailure error for section "${escalation.sectionId}":`,
-                e instanceof Error ? e.message : String(e),
-              );
+              const systemErrorEntry: SystemErrorLogEntry = {
+                type: "system-error",
+                sectionId: escalation.sectionId,
+                planId: escalation.planId,
+                timestamp: new Date().toISOString(),
+                component: "SelfHealingLoopService.persistFailureRecord",
+                message: e instanceof Error ? e.message : String(e),
+              };
+              this.#logger?.log(systemErrorEntry);
             });
           }
         });

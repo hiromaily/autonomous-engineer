@@ -528,17 +528,21 @@ export class ImplementationLoopService implements IImplementationLoop {
   ): Promise<EscalationDecision> {
     const escalationSummary = `Section escalated after ${retryCount} failed attempts`;
 
+    const emitEscalationEvent = (reason: string) => {
+      options.eventBus?.emit({
+        type: "section:escalated",
+        sectionId: task.id,
+        retryCount,
+        reason,
+      });
+    };
+
     // Requirement 6.4: if self-healing already resolved once for this section, skip re-escalation
     // and go straight to "escalated-to-human" so ISelfHealingLoop.escalate() is never called twice.
     if (options.selfHealingLoop !== undefined && healingAlreadyAttempted) {
       const humanSummary =
         `${escalationSummary}. Section failed again after self-healing resolved; escalating to human.`;
-      options.eventBus?.emit({
-        type: "section:escalated",
-        sectionId: task.id,
-        retryCount,
-        reason: humanSummary,
-      });
+      emitEscalationEvent(humanSummary);
       await this.#planStore.updateSectionStatus(plan.id, task.id, "escalated-to-human");
       return {
         action: "halt",
@@ -571,12 +575,7 @@ export class ImplementationLoopService implements IImplementationLoop {
       } catch (err) {
         // Self-healing loop threw — treat as unresolvable failure.
         const errMessage = err instanceof Error ? err.message : String(err);
-        options.eventBus?.emit({
-          type: "section:escalated",
-          sectionId: task.id,
-          retryCount,
-          reason: escalationSummary,
-        });
+        emitEscalationEvent(escalationSummary);
         await this.#planStore.updateSectionStatus(plan.id, task.id, "failed");
         return {
           action: "halt",
@@ -606,12 +605,7 @@ export class ImplementationLoopService implements IImplementationLoop {
       // Self-healing unresolved → escalated-to-human.
       // Requirement 7.3: emit section:escalated with the SelfHealingResult.summary in the reason.
       const humanSummary = `${escalationSummary}. Self-healing was unable to resolve: ${healingResult.summary}`;
-      options.eventBus?.emit({
-        type: "section:escalated",
-        sectionId: task.id,
-        retryCount,
-        reason: humanSummary,
-      });
+      emitEscalationEvent(humanSummary);
       await this.#planStore.updateSectionStatus(plan.id, task.id, "escalated-to-human");
       return {
         action: "halt",
@@ -629,12 +623,7 @@ export class ImplementationLoopService implements IImplementationLoop {
     }
 
     // No self-healing loop configured — permanent failure.
-    options.eventBus?.emit({
-      type: "section:escalated",
-      sectionId: task.id,
-      retryCount,
-      reason: escalationSummary,
-    });
+    emitEscalationEvent(escalationSummary);
     await this.#planStore.updateSectionStatus(plan.id, task.id, "failed");
 
     return {
