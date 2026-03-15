@@ -248,6 +248,64 @@ describe("IWorkflowEventBus contract (mock implementation)", () => {
   });
 });
 
+describe("WorkflowEvent discriminated union — IMPLEMENTATION phase (task 5.1)", () => {
+  it("phase:start event accepts IMPLEMENTATION phase", () => {
+    const event: WorkflowEvent = {
+      type: "phase:start",
+      phase: "IMPLEMENTATION",
+      timestamp: "2026-01-01T00:00:00Z",
+    };
+
+    if (event.type === "phase:start") {
+      expect(event.phase).toBe("IMPLEMENTATION");
+      expect(event.timestamp).toBe("2026-01-01T00:00:00Z");
+    } else {
+      throw new Error("Expected phase:start event");
+    }
+  });
+
+  it("phase:complete event accepts IMPLEMENTATION phase", () => {
+    const event: WorkflowEvent = {
+      type: "phase:complete",
+      phase: "IMPLEMENTATION",
+      durationMs: 12000,
+      artifacts: [],
+    };
+
+    if (event.type === "phase:complete") {
+      expect(event.phase).toBe("IMPLEMENTATION");
+      expect(event.durationMs).toBe(12000);
+      expect(event.artifacts).toHaveLength(0);
+    } else {
+      throw new Error("Expected phase:complete event");
+    }
+  });
+
+  it("phase:error event accepts IMPLEMENTATION phase", () => {
+    const event: WorkflowEvent = {
+      type: "phase:error",
+      phase: "IMPLEMENTATION",
+      operation: "ImplementationLoopService.run",
+      error: "section-failed",
+    };
+
+    if (event.type === "phase:error") {
+      expect(event.phase).toBe("IMPLEMENTATION");
+      expect(event.operation).toBe("ImplementationLoopService.run");
+      expect(event.error).toBe("section-failed");
+    } else {
+      throw new Error("Expected phase:error event");
+    }
+  });
+
+  it("IMPLEMENTATION is in WORKFLOW_PHASES and is a valid WorkflowPhase", () => {
+    expect(WORKFLOW_PHASES).toContain("IMPLEMENTATION");
+    // Type-level check: assign to WorkflowPhase without cast
+    const phase: WorkflowPhase = "IMPLEMENTATION";
+    expect(phase).toBe("IMPLEMENTATION");
+  });
+});
+
 // Compile-time checks: ensure all WorkflowStatus values are recognised
 const _exhaustiveStatusCheck = (status: WorkflowStatus): string => {
   switch (status) {

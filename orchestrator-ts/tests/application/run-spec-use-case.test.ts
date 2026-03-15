@@ -1,12 +1,17 @@
 import type { AesConfig } from "@/application/ports/config";
+import type {
+  IImplementationLoop,
+  ImplementationLoopOutcome,
+  ImplementationLoopResult,
+} from "@/application/ports/implementation-loop";
 import type { LlmProviderPort } from "@/application/ports/llm";
 import type { MemoryPort, ShortTermMemoryPort } from "@/application/ports/memory";
 import type { SddFrameworkPort } from "@/application/ports/sdd";
-import type { IWorkflowEventBus, IWorkflowStateStore } from "@/application/ports/workflow";
+import type { IWorkflowEventBus, IWorkflowStateStore, WorkflowEvent } from "@/application/ports/workflow";
 import { RunSpecUseCase } from "@/application/usecases/run-spec";
 import type { WorkflowState } from "@/domain/workflow/types";
 import { beforeEach, describe, expect, it, mock } from "bun:test";
-import { mkdtemp } from "node:fs/promises";
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -322,6 +327,161 @@ describe("RunSpecUseCase", () => {
       });
 
       expect(result).toBeDefined();
+    });
+  });
+
+  // ─── implementation loop integration (task 5.2) ──────────────────────────
+
+  describe("implementation loop integration (task 5.2)", () => {
+    let specSubDir: string;
+
+    /** Set up a spec dir with all approvals granted so IMPLEMENTATION phase is reached. */
+    async function setupFullSpecDir(parent: string, specName = "test-spec"): Promise<void> {
+      specSubDir = join(parent, specName);
+      await mkdir(specSubDir, { recursive: true });
+      await writeFile(
+        join(specSubDir, "spec.json"),
+        JSON.stringify({
+          approvals: {
+            requirements: { approved: true },
+            design: { approved: true },
+            tasks: { approved: true },
+          },
+          ready_for_implementation: true,
+        }),
+      );
+      await writeFile(join(specSubDir, "requirements.md"), "# Requirements");
+      await writeFile(join(specSubDir, "design.md"), "# Design");
+      await writeFile(join(specSubDir, "tasks.md"), "# Tasks");
+    }
+
+    function makeImplementationLoop(outcome: ImplementationLoopOutcome = "completed"): IImplementationLoop {
+      const result: ImplementationLoopResult = { outcome, planId: "test-spec", sections: [], durationMs: 0 };
+      return {
+        run: mock(() => Promise.resolve(result)),
+        resume: mock(() => Promise.resolve(result)),
+        stop: mock(() => {}),
+      };
+    }
+
+    it("calls implementationLoop.run(specName) when IMPLEMENTATION phase is reached", async () => {
+      await setupFullSpecDir(tmpDir);
+      const implementationLoop = makeImplementationLoop("completed");
+      const useCase = new RunSpecUseCase({
+        stateStore: makeStateStore({ persist: mock(() => Promise.resolve()) }),
+        eventBus: makeEventBus(),
+        sdd: makeSdd(),
+        createLlmProvider: () => makeLlm(),
+        memory: makeMemoryPort(),
+        implementationLoop,
+      });
+
+      await useCase.run("test-spec", { ...baseConfig, specDir: tmpDir }, { resume: false, dryRun: false });
+
+      expect(implementationLoop.run).toHaveBeenCalledTimes(1);
+      // First argument must be the specName used as planId
+      const [planIdArg] = (implementationLoop.run as unknown as { mock: { calls: unknown[][] } }).mock.calls[0] ?? [];
+      expect(planIdArg).toBe("test-spec");
+    });
+
+    it("workflow completes when implementation loop returns completed", async () => {
+      await setupFullSpecDir(tmpDir);
+      const implementationLoop = makeImplementationLoop("completed");
+      const useCase = new RunSpecUseCase({
+        stateStore: makeStateStore({ persist: mock(() => Promise.resolve()) }),
+        eventBus: makeEventBus(),
+        sdd: makeSdd(),
+        createLlmProvider: () => makeLlm(),
+        memory: makeMemoryPort(),
+        implementationLoop,
+      });
+
+      const result = await useCase.run("test-spec", { ...baseConfig, specDir: tmpDir }, { resume: false, dryRun: false });
+
+      expect(result.status).toBe("completed");
+    });
+
+    it("workflow fails when implementation loop returns section-failed", async () => {
+      await setupFullSpecDir(tmpDir);
+      const implementationLoop = makeImplementationLoop("section-failed");
+      const useCase = new RunSpecUseCase({
+        stateStore: makeStateStore({ persist: mock(() => Promise.resolve()) }),
+        eventBus: makeEventBus(),
+        sdd: makeSdd(),
+        createLlmProvider: () => makeLlm(),
+        memory: makeMemoryPort(),
+        implementationLoop,
+      });
+
+      const result = await useCase.run("test-spec", { ...baseConfig, specDir: tmpDir }, { resume: false, dryRun: false });
+
+      expect(result.status).toBe("failed");
+    });
+
+    it("phase:start and phase:complete events are emitted for IMPLEMENTATION phase", async () => {
+      await setupFullSpecDir(tmpDir);
+      const events: WorkflowEvent[] = [];
+      const eventBus: IWorkflowEventBus = {
+        emit: mock((e: WorkflowEvent) => { events.push(e); }),
+        on: mock(() => {}),
+        off: mock(() => {}),
+      };
+
+      const useCase = new RunSpecUseCase({
+        stateStore: makeStateStore({ persist: mock(() => Promise.resolve()) }),
+        eventBus,
+        sdd: makeSdd(),
+        createLlmProvider: () => makeLlm(),
+        memory: makeMemoryPort(),
+        implementationLoop: makeImplementationLoop("completed"),
+      });
+
+      await useCase.run("test-spec", { ...baseConfig, specDir: tmpDir }, { resume: false, dryRun: false });
+
+      const startEvent = events.find((e) => e.type === "phase:start" && e.phase === "IMPLEMENTATION");
+      const completeEvent = events.find((e) => e.type === "phase:complete" && e.phase === "IMPLEMENTATION");
+      expect(startEvent).toBeDefined();
+      expect(completeEvent).toBeDefined();
+    });
+
+    it("phase:error is emitted and workflow fails when implementation loop returns non-completed", async () => {
+      await setupFullSpecDir(tmpDir);
+      const events: WorkflowEvent[] = [];
+      const eventBus: IWorkflowEventBus = {
+        emit: mock((e: WorkflowEvent) => { events.push(e); }),
+        on: mock(() => {}),
+        off: mock(() => {}),
+      };
+
+      const useCase = new RunSpecUseCase({
+        stateStore: makeStateStore({ persist: mock(() => Promise.resolve()) }),
+        eventBus,
+        sdd: makeSdd(),
+        createLlmProvider: () => makeLlm(),
+        memory: makeMemoryPort(),
+        implementationLoop: makeImplementationLoop("section-failed"),
+      });
+
+      await useCase.run("test-spec", { ...baseConfig, specDir: tmpDir }, { resume: false, dryRun: false });
+
+      const errorEvent = events.find((e) => e.type === "phase:error" && e.phase === "IMPLEMENTATION");
+      expect(errorEvent).toBeDefined();
+    });
+
+    it("IMPLEMENTATION phase stubs to success when implementationLoop is not provided", async () => {
+      await setupFullSpecDir(tmpDir);
+      const useCase = new RunSpecUseCase({
+        stateStore: makeStateStore({ persist: mock(() => Promise.resolve()) }),
+        eventBus: makeEventBus(),
+        sdd: makeSdd(),
+        createLlmProvider: () => makeLlm(),
+        memory: makeMemoryPort(),
+        // no implementationLoop
+      });
+
+      const result = await useCase.run("test-spec", { ...baseConfig, specDir: tmpDir }, { resume: false, dryRun: false });
+
+      expect(result.status).toBe("completed");
     });
   });
 

@@ -161,13 +161,13 @@
 ---
 
 - [ ] 5. Wire into the workflow engine
-- [ ] 5.1 Extend workflow phase and event types for the implementation phase
+- [x] 5.1 Extend workflow phase and event types for the implementation phase
   - Add `"implementation"` to the `WorkflowPhase` union in `application/ports/workflow.ts`
   - Add `phase:start`, `phase:complete`, and `phase:error` variants for `phase: "implementation"` to the `WorkflowEvent` discriminated union
   - Ensure existing `WorkflowEngine` phase-runner handles the new phase value without modification to its core logic
   - _Requirements: 1.6_
 
-- [ ] 5.2 Wire `ImplementationLoopService` into the `run-spec.ts` use case
+- [x] 5.2 Wire `ImplementationLoopService` into the `run-spec.ts` use case
   - Add `IImplementationLoop` as a constructor dependency of `RunSpecUseCase` alongside existing services
   - After `TaskPlanningService.run()` returns a completed plan result, invoke `IImplementationLoop.run(planId)` as the next phase step
   - Emit `phase:start` for `"implementation"` before invoking the loop and `phase:complete` (or `phase:error`) after it returns

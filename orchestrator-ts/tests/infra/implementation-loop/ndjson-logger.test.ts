@@ -12,13 +12,13 @@
  *
  * Requirements: 7.1, 7.2, 7.3, 7.4, 7.5
  */
-import { NdjsonImplementationLoopLogger } from "@/infra/implementation-loop/ndjson-logger";
 import type { SectionIterationLogEntry } from "@/application/ports/implementation-loop";
 import type { SectionExecutionRecord } from "@/domain/implementation-loop/types";
+import { NdjsonImplementationLoopLogger } from "@/infra/implementation-loop/ndjson-logger";
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
-import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 // ---------------------------------------------------------------------------
 // Test helpers
@@ -108,7 +108,12 @@ describe("NdjsonImplementationLoopLogger — logIteration", () => {
 
   it("includes planId, sectionId, iterationNumber, reviewOutcome in the log entry", () => {
     const logger = new NdjsonImplementationLoopLogger("plan-abc", logDir);
-    const entry = makeIterationEntry({ planId: "plan-abc", sectionId: "section-1", iterationNumber: 2, reviewOutcome: "failed" });
+    const entry = makeIterationEntry({
+      planId: "plan-abc",
+      sectionId: "section-1",
+      iterationNumber: 2,
+      reviewOutcome: "failed",
+    });
 
     logger.logIteration(entry);
 
