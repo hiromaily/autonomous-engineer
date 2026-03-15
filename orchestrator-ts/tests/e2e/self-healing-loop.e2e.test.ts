@@ -175,7 +175,7 @@ function makeInMemoryPlanStore(plan: TaskPlan): IPlanStore & { statusUpdates: St
     async loadPlan(planId: string) {
       return planId === current.id ? current : null;
     },
-    async updateSectionStatus(planId: string, sectionId: string, status: SectionPersistenceStatus) {
+    async updateSectionStatus(_planId: string, sectionId: string, status: SectionPersistenceStatus) {
       statusUpdates.push({ sectionId, status });
       current = {
         ...current,

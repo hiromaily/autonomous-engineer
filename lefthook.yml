@@ -43,6 +43,8 @@
 pre-commit:
   commands:
     check-ts:
-      glob: "orchestrator-ts/src/**/*.ts"
+      glob:
+        - "orchestrator-ts/src/**/*.ts"
+        - "orchestrator-ts/tests/**/*.ts"
       run: make -C orchestrator-ts ts-lint
       stage_fixed: true

@@ -43,7 +43,7 @@ import {
 } from "@/application/self-healing-loop/self-healing-loop-service";
 import type { SectionEscalation } from "@/domain/implementation-loop/types";
 import { NdjsonSelfHealingLoopLogger } from "@/infra/self-healing/ndjson-logger";
-import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
