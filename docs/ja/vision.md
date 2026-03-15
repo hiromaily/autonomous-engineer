@@ -115,17 +115,17 @@ AIが受動的なアシスタントとして機能するのではなく、シス
 ```
 1.  spec-init
 2.  前提条件の検証
-3.  requirements
-4.  validate-requirements (llm)
-5.  reflect on existing information (llm)
-6.  validate-gap (optional)
-7.  design
-8.  validate-design (optional)
-9.  reflect on existing information (llm)
-10. tasks
-11. validate-tasks
-12. implementation
-13. create PR
+3.  要件定義
+4.  要件の検証 (llm)
+5.  既存情報への振り返り (llm)
+6.  ギャップ検証 (optional)
+7.  設計
+8.  設計の検証 (optional)
+9.  既存情報への振り返り (llm)
+10. タスク生成
+11. タスクの検証
+12. 実装
+13. プルリクエスト作成
 ```
 
 各フェーズは次のフェーズを導く構造化されたアーティファクトを生成します。
