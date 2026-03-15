@@ -6,38 +6,29 @@ It provides a CLI-driven spec workflow that generates structured artifacts (requ
 
 ---
 
-## Phase Structure
+## Install cc-sdd
 
-cc-sdd follows seven sequential phases:
+```sh
+npx cc-sdd@latest --claude --lang en
+```
 
 ```
-SPEC_INIT
-    ↓
-REQUIREMENTS
-    ↓
-DESIGN
-    ↓
-VALIDATE_DESIGN  (optional)
-    ↓
-TASK_GENERATION
-    ↓
-IMPLEMENTATION
-    ↓
-PULL_REQUEST
+# As custom slash command
+/kiro:steering
 ```
 
 ---
 
-## Commands
+## Custom Slash Commands
 
 | Command | Phase | Description |
 |---|---|---|
 | `spec-init "description"` | Init | Create spec directory and initial metadata |
 | `spec-requirements <feature>` | Requirements | Generate `requirements.md` |
 | `validate-gap <feature>` | Optional | Check requirements against existing codebase |
-| `spec-design <feature>` | Design | Generate `design.md` |
+| `spec-design <feature> -y` | Design | Generate `design.md` |
 | `validate-design <feature>` | Optional | Validate design quality and consistency |
-| `spec-tasks <feature>` | Tasks | Generate `tasks.md` |
+| `spec-tasks <feature> -y` | Tasks | Generate `tasks.md` |
 | `spec-impl <feature> [task-ids]` | Implementation | Execute implementation loop |
 | `validate-impl <feature>` | Optional | Validate implementation against requirements |
 | `spec-status <feature>` | Any | Show current phase and task progress |
@@ -58,7 +49,31 @@ All artifacts are stored under `.kiro/specs/<feature-name>/`.
 
 ---
 
-## Human Review Gates
+## Phase Structure
+
+cc-sdd follows 8 sequential phases:
+
+```
+SPEC_INIT
+    ↓
+SPEC_REQUIREMENTS
+    ↓
+VALIDATE_GAP  (optional)
+    ↓
+SPEC_DESIGN
+    ↓
+VALIDATE_DESIGN  (optional)
+    ↓
+SPEC_TASKS (TASK_GENERATION)
+    ↓
+SPEC_IMPL (IMPLEMENTATION)
+    ↓
+VALIDATE_IMPL  (optional)
+```
+
+---
+
+## General Human Review Gates
 
 cc-sdd enforces review gates at three points:
 

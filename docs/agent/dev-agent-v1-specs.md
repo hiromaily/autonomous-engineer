@@ -82,7 +82,7 @@ The following table summarizes which specs can be implemented in parallel:
 **Sub-components**:
 - `cli` — Entry point: `aes run <spec-name>`, configuration loading, execution trigger, progress reporting
 - `workflow-engine` — State machine managing the 7-phase development lifecycle:
-  `SPEC_INIT → REQUIREMENTS → DESIGN → VALIDATE_DESIGN → TASK_GENERATION → IMPLEMENTATION → PULL_REQUEST`
+  `SPEC_INIT → SPEC_REQUIREMENTS → VALIDATE_GAP  (optional) → SPEC_DESIGN → VALIDATE_DESIGN → SPEC_TASKS (TASK_GENERATION) → SPEC_IMPL (IMPLEMENTATION) → VALIDATE_IMPL  (optional) → PULL_REQUEST`
 - `phase-transitions` — Phase validation, lifecycle hooks, state persistence, phase-boundary context reset
 - `cc-sdd-adapter` — Adapter that invokes cc-sdd commands to generate requirements, design docs, and task definitions from a spec
 - `llm-abstraction` — LLM provider interface + Claude provider implementation; all LLM calls flow through this abstraction, never directly to provider APIs

@@ -82,10 +82,11 @@ spec11: codebase-intelligence  （v1.x — spec2, spec6に依存）
 **サブコンポーネント**:
 - `cli` — エントリーポイント: `aes run <spec-name>`、設定の読み込み、実行トリガー、進捗レポート
 - `workflow-engine` — 7フェーズの開発ライフサイクルを管理するステートマシン:
-  `SPEC_INIT → REQUIREMENTS → DESIGN → VALIDATE_DESIGN → TASK_GENERATION → IMPLEMENTATION → PULL_REQUEST`
+  `SPEC_INIT → SPEC_REQUIREMENTS → VALIDATE_GAP  (optional) → SPEC_DESIGN → VALIDATE_DESIGN → SPEC_TASKS (TASK_GENERATION) → SPEC_IMPL (IMPLEMENTATION) → VALIDATE_IMPL  (optional) → PULL_REQUEST`
 - `phase-transitions` — フェーズ検証、ライフサイクルフック、状態の永続化、フェーズ境界コンテキストリセット
 - `cc-sdd-adapter` — cc-sddコマンドを呼び出して仕様から要件、設計ドキュメント、タスク定義を生成するアダプター
 - `llm-abstraction` — LLMプロバイダーインターフェース + Claudeプロバイダー実装；すべてのLLM呼び出しはこの抽象化を通じて行われ、プロバイダーAPIに直接アクセスしない
+
 
 **依存関係**: なし
 

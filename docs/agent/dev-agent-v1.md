@@ -43,14 +43,20 @@ Typical execution flow:
 ```
 spec-init
 requirements
+validate-requirements (llm)
+reflect-on-existing-information (llm)
+validate-gap (optional)
 design
-validate-design
+validate-design (optional)
+reflect-on-existing-information (llm)
 tasks
 implementation
 pull-request
 ```
 
 Each stage produces structured artifacts that guide the next stage.
+
+Phases marked `(llm)` run automatically within the orchestrator without human approval gates. The `reflect-on-existing-information` steps are post-phase reflections where the LLM reviews what was just completed and surfaces hints for improving agent resources such as steering documents, rules, and commands.
 
 This structure improves AI reasoning and reduces ambiguity.
 
