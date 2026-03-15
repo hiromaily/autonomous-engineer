@@ -1,4 +1,4 @@
-import type { IImplementationLoop } from "@/application/ports/implementation-loop";
+import type { IImplementationLoop, ImplementationLoopOptions } from "@/application/ports/implementation-loop";
 import type { LlmProviderPort } from "@/application/ports/llm";
 import type { SddFrameworkPort, SpecContext } from "@/application/ports/sdd";
 import type { WorkflowPhase } from "./types";
@@ -13,17 +13,21 @@ export interface PhaseRunnerDeps {
   /** Optional implementation loop service. When provided, the IMPLEMENTATION phase delegates
    *  to `implementationLoop.run(specName)`. When absent, the phase stubs to success. */
   readonly implementationLoop?: IImplementationLoop;
+  /** Optional options forwarded to `implementationLoop.run()` calls (e.g. debug agentEventBus). */
+  readonly implementationLoopOptions?: Partial<ImplementationLoopOptions>;
 }
 
 export class PhaseRunner {
   private readonly sdd: SddFrameworkPort;
   private readonly llm: LlmProviderPort;
   private readonly implementationLoop: IImplementationLoop | undefined;
+  private readonly implementationLoopOptions: Partial<ImplementationLoopOptions> | undefined;
 
   constructor(deps: PhaseRunnerDeps) {
     this.sdd = deps.sdd;
     this.llm = deps.llm;
     this.implementationLoop = deps.implementationLoop;
+    this.implementationLoopOptions = deps.implementationLoopOptions;
   }
 
   async execute(phase: WorkflowPhase, ctx: SpecContext): Promise<PhaseResult> {
@@ -50,7 +54,7 @@ export class PhaseRunner {
         return { ok: true, artifacts: [] };
       case "IMPLEMENTATION": {
         if (this.implementationLoop) {
-          const result = await this.implementationLoop.run(ctx.specName);
+          const result = await this.implementationLoop.run(ctx.specName, this.implementationLoopOptions);
           if (result.outcome === "completed") {
             return { ok: true, artifacts: [] };
           }
