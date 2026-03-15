@@ -2,6 +2,7 @@
 import { ClaudeProvider } from "@/adapters/llm/claude-provider";
 import { MockLlmProvider } from "@/adapters/llm/mock-llm-provider";
 import { CcSddAdapter } from "@/adapters/sdd/cc-sdd-adapter";
+import { MockSddAdapter } from "@/adapters/sdd/mock-sdd-adapter";
 import { DebugAgentEventBus } from "@/application/agent/debug-agent-event-bus";
 import { ConfigValidationError } from "@/application/ports/config";
 import type { AesConfig } from "@/application/ports/config";
@@ -74,18 +75,22 @@ const runCommand = defineCommand({
       config = await configLoader.load();
     } catch (err) {
       if (err instanceof ConfigValidationError && debugFlow) {
-        // In debug-flow mode, only bypass validation when llm.apiKey is the sole missing field.
-        const otherMissingFields = err.missingFields.filter((f) => f !== "llm.apiKey");
-        if (otherMissingFields.length > 0) {
-          process.stderr.write(`Error: configuration missing required fields: ${otherMissingFields.join(", ")}\n`);
+        // In debug-flow mode, bypass all llm.* validation since MockLlmProvider doesn't use them.
+        const nonLlmMissingFields = err.missingFields.filter((f) => !f.startsWith("llm."));
+        if (nonLlmMissingFields.length > 0) {
+          process.stderr.write(`Error: configuration missing required fields: ${nonLlmMissingFields.join(", ")}\n`);
           process.exit(1);
         }
-        // Reload with a placeholder apiKey injected into the env so that all other user
-        // settings (specDir, provider, modelName, etc.) from aes.config.json are preserved.
+        // Reload with placeholder LLM values so that non-LLM user settings from aes.config.json are preserved.
         process.stderr.write(
-          "[DEBUG-FLOW] Config validation for 'llm.apiKey' skipped; using placeholder value.\n",
+          "[DEBUG-FLOW] Config validation for LLM fields skipped; using placeholder values.\n",
         );
-        config = await new ConfigLoader(process.cwd(), { ...process.env, AES_LLM_API_KEY: "__debug__" }).load();
+        config = await new ConfigLoader(process.cwd(), {
+          ...process.env,
+          AES_LLM_API_KEY: "__debug__",
+          AES_LLM_PROVIDER: "claude",
+          AES_LLM_MODEL_NAME: "__debug__",
+        }).load();
       } else if (err instanceof ConfigValidationError) {
         process.stderr.write(`Error: configuration missing required fields: ${err.missingFields.join(", ")}\n`);
         process.exit(1);
@@ -134,7 +139,7 @@ const runCommand = defineCommand({
     const useCase = new RunSpecUseCase({
       stateStore: new WorkflowStateStore(),
       eventBus,
-      sdd: new CcSddAdapter(),
+      sdd: debugFlow ? new MockSddAdapter() : new CcSddAdapter(),
       memory,
       createLlmProvider: (cfg: AesConfig, providerOverride?: string): LlmProviderPort => {
         if (debugFlow && debugWriter) {
