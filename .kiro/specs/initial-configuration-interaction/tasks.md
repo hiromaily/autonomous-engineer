@@ -54,12 +54,12 @@
   - _Requirements: 2.4, 4.1, 4.3, 4.4, 4.5, 5.2, 5.3, 5.4_
 
 - [ ] 5. Wire the configure subcommand into the CLI entry point and improve the run error
-- [ ] 5.1 Register the `configure` subcommand in the CLI entry point
+- [x] 5.1 Register the `configure` subcommand in the CLI entry point
   - Instantiate concrete infra implementations (`ConfigWriter`, `SddFrameworkChecker`) and inject them into `ConfigureCommand`
   - Register the command as `aes configure` using the existing CLI framework (`citty`)
   - _Requirements: 2.1_
 
-- [ ] 5.2 Improve the `aes run` missing-configuration error message
+- [x] 5.2 Improve the `aes run` missing-configuration error message
   - In the `run` command's missing-config error branch, append an instruction to run `aes configure` to the error output
   - Display a warning identifying `AES_LLM_API_KEY` when that environment variable is absent
   - Ensure no interactive prompts are ever launched from within `aes run`
