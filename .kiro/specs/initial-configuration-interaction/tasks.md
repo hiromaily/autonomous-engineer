@@ -92,12 +92,12 @@
   - _Requirements: 2.1, 2.4, 2.5, 4.3, 4.4, 5.2, 5.3_
 
 - [ ] 7. Integration tests
-- [ ] 7.1 End-to-end `aes configure` with a real temp directory
+- [x] 7.1 End-to-end `aes configure` with a real temp directory
   - Pipe wizard inputs via a stdin mock; verify `aes.config.json` is written with the correct schema
   - Verify `llm.apiKey` is not present in the written file
   - _Requirements: 2.1, 5.1, 5.4_
 
-- [ ] 7.2 `aes run` missing-config error message validation
+- [x] 7.2 `aes run` missing-config error message validation
   - Invoke `aes run` without a config file; verify stderr contains an instruction to run `aes configure`
   - Invoke without `AES_LLM_API_KEY` set; verify the warning identifying the missing variable appears
   - _Requirements: 1.1, 1.2, 1.3_
