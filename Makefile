@@ -24,4 +24,4 @@ ts-lint:
 
 .PHONY: debug-aes-flow
 debug-aes-flow:
-	cd orchestrator-ts && bun run aes run debug-aes-workflow --debug-flow
+	$(MAKE) -C orchestrator-ts debug-aes-flow

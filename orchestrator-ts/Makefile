@@ -11,3 +11,7 @@ ts-lint:
 	bun run typecheck
 	bun run fmt
 	bun run lint:fix
+
+.PHONY: debug-aes-flow
+debug-aes-flow:
+	bun run aes run debug-aes-workflow --debug-flow

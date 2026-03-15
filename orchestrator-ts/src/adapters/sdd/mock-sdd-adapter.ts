@@ -34,7 +34,11 @@ export class MockSddAdapter implements SddFrameworkPort {
     let existing: Record<string, unknown> = {};
     try {
       existing = JSON.parse(await readFile(specJsonPath, "utf-8")) as Record<string, unknown>;
-    } catch { /* file may not exist yet */ }
+    } catch (err) {
+      if (!(err instanceof Error && "code" in err && err.code === "ENOENT")) {
+        console.warn(`[MockSddAdapter] Error reading/parsing ${specJsonPath}. Proceeding with an empty object.`, err);
+      }
+    }
     await writeFile(specJsonPath, JSON.stringify({ ...existing, ready_for_implementation: true }, null, 2), "utf-8");
   }
 
