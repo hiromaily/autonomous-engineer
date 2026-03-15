@@ -1,6 +1,6 @@
 import { DebugLogWriter } from "@/cli/debug-log-writer";
 import type { DebugEvent } from "@/domain/debug/types";
-import { beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -163,11 +163,9 @@ describe("DebugLogWriter — file mode", () => {
 });
 
 describe("DebugLogWriter — file-open failure fallback", () => {
-  let stderrWrites: string[];
   let originalWrite: typeof process.stderr.write;
 
   beforeEach(() => {
-    stderrWrites = [];
     originalWrite = process.stderr.write.bind(process.stderr);
   });
 

@@ -14,6 +14,14 @@ setup:
 gen-repo-map:
 	./scripts/generate-repo-map.sh
 
+#------------------------------------------------------------------------------
+# orchestrator-ts specific
+#------------------------------------------------------------------------------
+
 .PHONY: ts-lint
 ts-lint:
 	make -C orchestrator-ts ts-lint
+
+.PHONY: debug-aes-flow
+debug-aes-flow:
+	$(MAKE) -C orchestrator-ts debug-aes-flow
