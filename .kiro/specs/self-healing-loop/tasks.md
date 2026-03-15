@@ -102,7 +102,7 @@
   - Return `SelfHealingResult { outcome: "resolved", updatedRules }` with workspace-relative paths of all updated rule files
   - _Requirements: 6.1, 6.5, 8.2, 8.4_
 
-- [ ] 8.2 Assemble the unresolved result with a comprehensive, non-empty summary
+- [x] 8.2 Assemble the unresolved result with a comprehensive, non-empty summary
   - When any step fails (intake guard, analysis, gap identification, rule write, timeout), construct `SelfHealingResult { outcome: "unresolved", summary }` where `summary` names the step that stopped, includes the root-cause analysis or the reason analysis was skipped, the gap report or why no gap was identified, and a description of the specific error or condition
   - Every unresolved return site must produce a non-empty, human-readable `summary`; no error is silently swallowed
   - Emit an `unresolved` log entry including `stopStep` and `totalDurationMs` before returning

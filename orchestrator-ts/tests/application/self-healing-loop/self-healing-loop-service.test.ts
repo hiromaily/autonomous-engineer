@@ -2155,3 +2155,212 @@ describe("SelfHealingLoopService — task 8.1: resolved result assembly", () => 
     expect(loggedPaths).toContain(expectedPath);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Task 8.2: Unresolved result observability — requirements 7.1, 7.2, 7.5, 8.2, 8.4
+// ---------------------------------------------------------------------------
+
+/** Helper: find the first "unresolved" log entry in a log spy's recorded calls. */
+function getUnresolvedLogEntry(
+  logSpy: ReturnType<typeof mock<(entry: SelfHealingLogEntry) => void>>,
+) {
+  return logSpy.mock.calls
+    .map((args) => args[0])
+    .find((e) => e?.type === "unresolved");
+}
+
+describe("SelfHealingLoopService — task 8.2: unresolved log entry (intake-validation path)", () => {
+  it("emits unresolved log entry when retryHistory is empty", async () => {
+    const { service, logSpy } = makeServiceWithLogSpy();
+    await service.escalate(makeEscalation({ retryHistory: [] }));
+    expect(getUnresolvedLogEntry(logSpy)).toBeDefined();
+  });
+
+  it("unresolved log entry has non-empty stopStep on empty retryHistory path", async () => {
+    const { service, logSpy } = makeServiceWithLogSpy();
+    await service.escalate(makeEscalation({ retryHistory: [] }));
+    const entry = getUnresolvedLogEntry(logSpy);
+    // biome-ignore lint/suspicious/noExplicitAny: narrowing discriminated union in test
+    expect(typeof (entry as any)?.stopStep).toBe("string");
+    // biome-ignore lint/suspicious/noExplicitAny: narrowing discriminated union in test
+    expect((entry as any)?.stopStep.length).toBeGreaterThan(0);
+  });
+
+  it("unresolved log entry has positive totalDurationMs on empty retryHistory path", async () => {
+    const { service, logSpy } = makeServiceWithLogSpy();
+    await service.escalate(makeEscalation({ retryHistory: [] }));
+    const entry = getUnresolvedLogEntry(logSpy);
+    // biome-ignore lint/suspicious/noExplicitAny: narrowing discriminated union in test
+    expect((entry as any)?.totalDurationMs).toBeGreaterThan(0);
+  });
+
+  it("unresolved log entry carries correct sectionId and planId", async () => {
+    const logSpy = mock((_entry: SelfHealingLogEntry) => {});
+    const logger: ISelfHealingLoopLogger = { log: logSpy };
+    const svc = new SelfHealingLoopService(makeMockLlm(), makeMockMemory(), defaultConfig, logger);
+    await svc.escalate(
+      makeEscalation({ retryHistory: [], sectionId: "sec-unresolved", planId: "plan-unresolved" }),
+    );
+    const entry = getUnresolvedLogEntry(logSpy);
+    // biome-ignore lint/suspicious/noExplicitAny: narrowing discriminated union in test
+    expect((entry as any)?.sectionId).toBe("sec-unresolved");
+    // biome-ignore lint/suspicious/noExplicitAny: narrowing discriminated union in test
+    expect((entry as any)?.planId).toBe("plan-unresolved");
+  });
+
+  it("emits unresolved log entry when concurrent escalation is detected", async () => {
+    const logSpy = mock((_entry: SelfHealingLogEntry) => {});
+    const logger: ISelfHealingLoopLogger = { log: logSpy };
+    // First call hangs in LLM so sectionId remains in-flight for the second call
+    const svc = new SelfHealingLoopService(
+      makeHangingLlm(),
+      makeMockMemory(),
+      { ...defaultConfig, selfHealingTimeoutMs: 200 },
+      logger,
+    );
+    const p1 = svc.escalate(makeEscalation()); // hangs until timeout
+    const result2 = await svc.escalate(makeEscalation()); // concurrent guard fires
+    expect(result2.outcome).toBe("unresolved");
+    expect(result2.summary.toLowerCase()).toContain("concurrent");
+    // The concurrent-guard return should have emitted an unresolved log entry
+    const unresolvedEntries = logSpy.mock.calls
+      .map((args) => args[0])
+      .filter((e) => e?.type === "unresolved");
+    expect(unresolvedEntries.length).toBeGreaterThanOrEqual(1);
+    await p1; // clean up
+  }, 2000);
+});
+
+describe("SelfHealingLoopService — task 8.2: unresolved log entry (analysis path)", () => {
+  it("emits unresolved log entry when root-cause analysis fails", async () => {
+    const logSpy = mock((_entry: SelfHealingLogEntry) => {});
+    const logger: ISelfHealingLoopLogger = { log: logSpy };
+    // makeMockLlm returns ok: false → analysis exhausts retries
+    const svc = new SelfHealingLoopService(makeMockLlm(), makeMockMemory(), defaultConfig, logger);
+    await svc.escalate(makeEscalation());
+    const entry = getUnresolvedLogEntry(logSpy);
+    expect(entry).toBeDefined();
+    // biome-ignore lint/suspicious/noExplicitAny: narrowing discriminated union in test
+    expect((entry as any)?.stopStep).toMatch(/analysis|root.cause/i);
+  });
+
+  it("unresolved log entry for analysis failure has positive totalDurationMs", async () => {
+    const logSpy = mock((_entry: SelfHealingLogEntry) => {});
+    const logger: ISelfHealingLoopLogger = { log: logSpy };
+    const svc = new SelfHealingLoopService(makeMockLlm(), makeMockMemory(), defaultConfig, logger);
+    await svc.escalate(makeEscalation());
+    const entry = getUnresolvedLogEntry(logSpy);
+    // biome-ignore lint/suspicious/noExplicitAny: narrowing discriminated union in test
+    expect((entry as any)?.totalDurationMs).toBeGreaterThan(0);
+  });
+});
+
+describe("SelfHealingLoopService — task 8.2: unresolved log entry (gap-identification path)", () => {
+  it("emits unresolved log entry when no actionable gap is found", async () => {
+    const logSpy = mock((_entry: SelfHealingLogEntry) => {});
+    const logger: ISelfHealingLoopLogger = { log: logSpy };
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: noActionableGapJson }),
+      makeMockMemory(),
+      defaultConfig,
+      logger,
+    );
+    await svc.escalate(makeEscalation());
+    const entry = getUnresolvedLogEntry(logSpy);
+    expect(entry).toBeDefined();
+    // biome-ignore lint/suspicious/noExplicitAny: narrowing discriminated union in test
+    expect((entry as any)?.stopStep).toMatch(/gap/i);
+  });
+
+  it("emits unresolved log entry when duplicate gap is detected", async () => {
+    const logSpy = mock((_entry: SelfHealingLogEntry) => {});
+    const logger: ISelfHealingLoopLogger = { log: logSpy };
+    const priorRecord = makeFailureRecord({
+      taskId: "sec-1",
+      ruleUpdate: SelfHealingLoopService.encodeRuleUpdate(
+        "coding_rules",
+        "Always use const for variable declarations",
+      ),
+    });
+    const memory = makeMemoryWithFailures([priorRecord]);
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      memory,
+      defaultConfig,
+      logger,
+    );
+    await svc.escalate(makeEscalation({ sectionId: "sec-1" }));
+    const entry = getUnresolvedLogEntry(logSpy);
+    expect(entry).toBeDefined();
+    // biome-ignore lint/suspicious/noExplicitAny: narrowing discriminated union in test
+    expect((entry as any)?.stopStep).toMatch(/gap|duplicate/i);
+  });
+});
+
+describe("SelfHealingLoopService — task 8.2: unresolved log entry (rule-file-write path)", () => {
+  it("emits unresolved log entry when rule file write fails", async () => {
+    const logSpy = mock((_entry: SelfHealingLogEntry) => {});
+    const logger: ISelfHealingLoopLogger = { log: logSpy };
+    const memory = makeMockMemory();
+    memory.append = async () => ({
+      ok: false as const,
+      error: { category: "io_error" as const, message: "disk full" },
+    });
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      memory,
+      defaultConfig,
+      logger,
+    );
+    await svc.escalate(makeEscalation());
+    const entry = getUnresolvedLogEntry(logSpy);
+    expect(entry).toBeDefined();
+    // biome-ignore lint/suspicious/noExplicitAny: narrowing discriminated union in test
+    expect((entry as any)?.stopStep).toMatch(/rule|write|file/i);
+  });
+
+  it("unresolved log entry for rule write failure has positive totalDurationMs", async () => {
+    const logSpy = mock((_entry: SelfHealingLogEntry) => {});
+    const logger: ISelfHealingLoopLogger = { log: logSpy };
+    const memory = makeMockMemory();
+    memory.append = async () => ({
+      ok: false as const,
+      error: { category: "io_error" as const, message: "disk full" },
+    });
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      memory,
+      defaultConfig,
+      logger,
+    );
+    await svc.escalate(makeEscalation());
+    const entry = getUnresolvedLogEntry(logSpy);
+    // biome-ignore lint/suspicious/noExplicitAny: narrowing discriminated union in test
+    expect((entry as any)?.totalDurationMs).toBeGreaterThan(0);
+  });
+});
+
+describe("SelfHealingLoopService — task 8.2: unresolved log entry absent on resolved path", () => {
+  it("does NOT emit an unresolved log entry when outcome is resolved", async () => {
+    const logSpy = mock((_entry: SelfHealingLogEntry) => {});
+    const logger: ISelfHealingLoopLogger = { log: logSpy };
+    const memory = makeMockMemory();
+    memory.append = async () => ({ ok: true as const, action: "appended" as const });
+    const svc = new SelfHealingLoopService(
+      makeTwoPhaseLlm({ ok: true, content: validGapJson }),
+      memory,
+      defaultConfig,
+      logger,
+    );
+    const result = await svc.escalate(makeEscalation());
+    expect(result.outcome).toBe("resolved");
+    expect(getUnresolvedLogEntry(logSpy)).toBeUndefined();
+  });
+
+  it("does not throw when logger is absent on any unresolved path", async () => {
+    const svc = new SelfHealingLoopService(makeMockLlm(), makeMockMemory(), defaultConfig);
+    await expect(svc.escalate(makeEscalation({ retryHistory: [] }))).resolves.toMatchObject({
+      outcome: "unresolved",
+    });
+  });
+});

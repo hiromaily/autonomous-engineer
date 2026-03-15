@@ -14,6 +14,7 @@ import type {
   RootCauseAnalysis,
   RuleUpdatedLogEntry,
   SelfHealingResolvedLogEntry,
+  UnresolvedLogEntry,
 } from "@/domain/self-healing/types";
 import { join as joinPath, resolve as resolvePath, sep as pathSep } from "node:path";
 
@@ -85,6 +86,42 @@ export class SelfHealingLoopService implements ISelfHealingLoop {
     this.#logger = logger;
   }
 
+  // ---------------------------------------------------------------------------
+  // Unresolved result helper — task 8.2 (requirements 7.2, 7.5, 8.2, 8.4)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Emit an `unresolved` NDJSON log entry and return an unresolved SelfHealingResult.
+   *
+   * Must be called at every unresolved exit point so that observers can see:
+   * - which step stopped the workflow (`stopStep`)
+   * - how long the workflow ran (`totalDurationMs`)
+   * - what the human-readable reason is (`summary`)
+   *
+   * Using a single helper avoids duplicating the log-entry construction and ensures
+   * no unresolved path silently swallows an error without emitting observability data.
+   *
+   * Requirements: 7.2, 7.5, 8.2, 8.4
+   */
+  #returnUnresolved(
+    escalation: SectionEscalation,
+    startTime: number,
+    stopStep: string,
+    summary: string,
+  ): SelfHealingResult {
+    const totalDurationMs = Math.max(1, Date.now() - startTime);
+    const unresolvedEntry: UnresolvedLogEntry = {
+      type: "unresolved",
+      sectionId: escalation.sectionId,
+      planId: escalation.planId,
+      timestamp: new Date().toISOString(),
+      stopStep,
+      totalDurationMs,
+    };
+    this.#logger?.log(unresolvedEntry);
+    return { outcome: "unresolved", summary };
+  }
+
   /**
    * Escalate an exhausted section to the self-healing workflow.
    *
@@ -126,10 +163,14 @@ export class SelfHealingLoopService implements ISelfHealingLoop {
               // Failure record write errors on timeout path are silently ignored
             });
           }
-          resolve({
-            outcome: "unresolved",
-            summary: `Self-healing timed out after ${this.#config.selfHealingTimeoutMs}ms`,
-          });
+          resolve(
+            this.#returnUnresolved(
+              escalation,
+              startTime,
+              "timeout",
+              `Self-healing timed out after ${this.#config.selfHealingTimeoutMs}ms`,
+            ),
+          );
         }, this.#config.selfHealingTimeoutMs);
       });
 
@@ -157,10 +198,12 @@ export class SelfHealingLoopService implements ISelfHealingLoop {
       return await Promise.race([workflowPromise, timeoutPromise]);
     } catch (e) {
       // Catch-all safety net — no code path should reach here normally
-      return {
-        outcome: "unresolved",
-        summary: `Unexpected error in self-healing escalation: ${e instanceof Error ? e.message : String(e)}`,
-      };
+      return this.#returnUnresolved(
+        escalation,
+        startTime,
+        "unexpected-error",
+        `Unexpected error in self-healing escalation: ${e instanceof Error ? e.message : String(e)}`,
+      );
     }
   }
 
@@ -198,18 +241,22 @@ export class SelfHealingLoopService implements ISelfHealingLoop {
     // --- Guard 1: empty retryHistory (requirement 1.2) ---
     // captured.outcome stays "unresolved" (default); failure record written by escalate() finally.
     if (escalation.retryHistory.length === 0) {
-      return {
-        outcome: "unresolved",
-        summary: "No retry history available: root-cause analysis requires at least one prior attempt.",
-      };
+      return this.#returnUnresolved(
+        escalation,
+        startTime,
+        "intake-validation",
+        "No retry history available: root-cause analysis requires at least one prior attempt.",
+      );
     }
 
     // --- Guard 2: concurrent escalation for same sectionId (requirement 1.4) ---
     if (this.#inFlightSections.has(escalation.sectionId)) {
-      return {
-        outcome: "unresolved",
-        summary: `Concurrent escalation in progress for section "${escalation.sectionId}": skipping duplicate.`,
-      };
+      return this.#returnUnresolved(
+        escalation,
+        startTime,
+        "intake-validation",
+        `Concurrent escalation in progress for section "${escalation.sectionId}": skipping duplicate.`,
+      );
     }
 
     // --- Register section as in-flight; always deregister in finally (requirement 1.4) ---
@@ -219,7 +266,12 @@ export class SelfHealingLoopService implements ISelfHealingLoop {
       const analysisResult = await this.#analyzeRootCause(escalation, startTime);
       if (!analysisResult.ok) {
         // captured.rootCause stays null; failure record written with null analysis.
-        return { outcome: "unresolved", summary: analysisResult.summary };
+        return this.#returnUnresolved(
+          escalation,
+          startTime,
+          "root-cause-analysis",
+          analysisResult.summary,
+        );
       }
 
       // Capture rootCause for failure record persistence (task 7.2, requirement 5.1).
@@ -577,7 +629,10 @@ Rules:
 
     if (!gapResult.ok) {
       // No gap identified — gap is null for failure record (requirement 5.1).
-      return { result: { outcome: "unresolved", summary: gapResult.summary }, gap: null };
+      return {
+        result: this.#returnUnresolved(escalation, startTime, "gap-identification", gapResult.summary),
+        gap: null,
+      };
     }
 
     const gap = gapResult.value;
@@ -596,11 +651,12 @@ Rules:
     const isDuplicate = await this.#checkDuplicateGap(escalation.sectionId, gap);
     if (isDuplicate) {
       return {
-        result: {
-          outcome: "unresolved",
-          summary:
-            "Duplicate gap detected: this targetFile + proposedChange combination was already recorded for this section.",
-        },
+        result: this.#returnUnresolved(
+          escalation,
+          startTime,
+          "gap-identification",
+          "Duplicate gap detected: this targetFile + proposedChange combination was already recorded for this section.",
+        ),
         // Expose the identified gap even though it's a duplicate, so the failure record
         // captures the proposedChange that triggered the duplicate detection.
         gap,
@@ -610,13 +666,19 @@ Rules:
     // Task 6.1: Validate resolved rule file path against workspace boundary (requirements 4.5, 8.5)
     const pathValidation = this.#validateRulePath(gap.targetFile);
     if (!pathValidation.ok) {
-      return { result: { outcome: "unresolved", summary: pathValidation.summary }, gap };
+      return {
+        result: this.#returnUnresolved(escalation, startTime, "workspace-validation", pathValidation.summary),
+        gap,
+      };
     }
 
     // Task 6.2: Write the proposed change to the target rule file (requirements 4.1–4.4)
     const writeResult = await this.#updateRuleFile(escalation, gap);
     if (!writeResult.ok) {
-      return { result: { outcome: "unresolved", summary: writeResult.summary }, gap };
+      return {
+        result: this.#returnUnresolved(escalation, startTime, "rule-file-write", writeResult.summary),
+        gap,
+      };
     }
 
     // Task 8.1: Assemble the resolved result and emit final resolved log entries.
