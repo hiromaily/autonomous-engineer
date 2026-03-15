@@ -1,5 +1,5 @@
 import type { AesConfig } from "@/application/ports/config";
-import type { IImplementationLoop, ImplementationLoopOptions } from "@/application/ports/implementation-loop";
+import type { IImplementationLoop } from "@/application/ports/implementation-loop";
 import type { LlmProviderPort } from "@/application/ports/llm";
 import type { MemoryPort } from "@/application/ports/memory";
 import type { SddFrameworkPort } from "@/application/ports/sdd";
@@ -26,10 +26,6 @@ export interface RunSpecUseCaseDeps {
   readonly memory: MemoryPort;
   /** Optional implementation loop service injected into the workflow's IMPLEMENTATION phase. */
   readonly implementationLoop?: IImplementationLoop;
-  /** Optional approval gate override; when present, replaces the internally constructed ApprovalGate. */
-  readonly approvalGate?: ApprovalGate;
-  /** Optional options forwarded to the implementation loop (e.g. agentEventBus for debug-flow). */
-  readonly implementationLoopOptions?: Partial<ImplementationLoopOptions>;
 }
 
 export class RunSpecUseCase {
@@ -68,11 +64,8 @@ export class RunSpecUseCase {
       sdd,
       llm,
       ...(this.deps.implementationLoop !== undefined ? { implementationLoop: this.deps.implementationLoop } : {}),
-      ...(this.deps.implementationLoopOptions !== undefined
-        ? { implementationLoopOptions: this.deps.implementationLoopOptions }
-        : {}),
     });
-    const approvalGate = this.deps.approvalGate ?? new ApprovalGate();
+    const approvalGate = new ApprovalGate();
 
     const engine = new WorkflowEngine({
       stateStore,

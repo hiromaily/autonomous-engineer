@@ -1,4 +1,4 @@
-import type { AgentLoopResult, IAgentEventBus } from "@/application/ports/agent-loop";
+import type { AgentLoopResult } from "@/application/ports/agent-loop";
 import type { IContextEngine } from "@/application/ports/context";
 import type {
   ImplementationLoopEvent,
@@ -261,12 +261,6 @@ export type ImplementationLoopOptions = Readonly<{
    * When absent, no context isolation is performed and no `contextProvider` is injected.
    */
   contextEngine?: IContextEngine;
-  /**
-   * Optional agent event bus forwarded to every AgentLoopService.run() call.
-   * Used by debug-flow to capture per-iteration agent loop events.
-   * When absent, no IAgentEventBus is passed to the agent loop.
-   */
-  agentEventBus?: IAgentEventBus;
 }>;
 
 // ---------------------------------------------------------------------------

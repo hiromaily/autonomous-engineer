@@ -46,7 +46,6 @@ const DEFAULT_OPTIONS: Required<ImplementationLoopOptions> = {
   eventBus: undefined as never,
   logger: undefined as never,
   contextEngine: undefined as never,
-  agentEventBus: undefined as never,
 };
 
 function resolveOptions(
@@ -316,10 +315,10 @@ export class ImplementationLoopService implements IImplementationLoop {
       // Invoke agent loop with improve prompt (or original task title on first attempt).
       // Pass the pre-built contextProvider so the agent loop queries the context engine.
       const agentInput = improvePrompt ?? task.title;
-      const agentResult = await this.#agentLoop.run(agentInput, {
-        ...(contextProvider !== undefined ? { contextProvider } : {}),
-        ...(options.agentEventBus !== undefined ? { eventBus: options.agentEventBus } : {}),
-      });
+      const agentResult = await this.#agentLoop.run(
+        agentInput,
+        contextProvider !== undefined ? { contextProvider } : undefined,
+      );
       const iterationDurationMs = Date.now() - iterationStartMs;
 
       // Accumulate agent observations across all attempts for escalation payloads.
