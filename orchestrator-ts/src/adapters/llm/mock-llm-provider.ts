@@ -34,7 +34,7 @@ export class MockLlmProvider implements LlmProviderPort {
     });
   }
 
-  async complete(prompt: string, _options?: LlmCompleteOptions): Promise<LlmResult> {
+  async complete(prompt: string, options?: LlmCompleteOptions): Promise<LlmResult> {
     const startMs = Date.now();
     this.#callIndex++;
     const callIndex = this.#callIndex;
@@ -48,7 +48,7 @@ export class MockLlmProvider implements LlmProviderPort {
       type: "llm:call",
       callIndex,
       phase,
-      iterationNumber: null,
+      iterationNumber: options?.iterationNumber ?? null,
       prompt,
       response,
       durationMs,

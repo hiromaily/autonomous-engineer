@@ -321,7 +321,7 @@ export class AgentLoopService implements IAgentLoop {
         ? baseContext
         : `${baseContext}\n\nPrevious attempt failed: ${lastError}. Please respond with valid JSON.`;
 
-      const result = await this.#llm.complete(prompt);
+      const result = await this.#llm.complete(prompt, { iterationNumber: state.iterationCount });
 
       if (!result.ok) {
         lastError = result.error.message;
@@ -406,7 +406,7 @@ export class AgentLoopService implements IAgentLoop {
    */
   async #reflectStep(plan: ActionPlan, state: AgentState): Promise<AgentState> {
     const prompt = this.#buildReflectionPrompt(plan, state);
-    const result = await this.#llm.complete(prompt);
+    const result = await this.#llm.complete(prompt, { iterationNumber: state.iterationCount });
 
     let reflection: ReflectionOutput;
     if (!result.ok) {

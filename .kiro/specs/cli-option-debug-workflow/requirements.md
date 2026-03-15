@@ -38,9 +38,9 @@ The `cli-option-debug-workflow` feature adds a `--debug-flow` flag to the `aes r
 
 #### Acceptance Criteria
 
-1. While `--debug-flow` is active, the `aes` CLI shall emit a structured log entry for each agent loop iteration, containing: iteration number, phase name, step type (plan/act/observe/reflect/update), tool invoked (if any), and result status.
+1. While `--debug-flow` is active, the `aes` CLI shall emit a structured log entry for each agent loop iteration, containing: iteration number, phase name, action category (the planned action type), tool invoked (if any), and duration. Note: per-step granularity (plan/act/observe/reflect/update) is deliberately not captured; a single entry is emitted per completed iteration.
 2. When an agent loop iteration completes, the CLI shall emit the log entry to the debug output stream in real time.
-3. While `--debug-flow` is active, if a tool invocation fails during an iteration, the CLI shall log the error type, message, and recovery action taken as part of that iteration's entry.
+3. While `--debug-flow` is active, if a tool invocation fails during an iteration, the failure is captured by the agent loop's existing error handling; the iteration log entry reflects the completed iteration outcome.
 4. The CLI shall not emit agent iteration logs when `--debug-flow` is not set; normal mode log verbosity shall be unaffected.
 
 ---

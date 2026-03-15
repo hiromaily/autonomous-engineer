@@ -84,6 +84,22 @@ describe("MockLlmProvider.complete()", () => {
     }
   });
 
+  it("uses iterationNumber from options in the emitted event", async () => {
+    await provider.complete("prompt", { iterationNumber: 5 });
+    const ev = sink.events[0];
+    if (ev?.type === "llm:call") {
+      expect(ev.iterationNumber).toBe(5);
+    }
+  });
+
+  it("sets iterationNumber to null when options omit it", async () => {
+    await provider.complete("prompt");
+    const ev = sink.events[0];
+    if (ev?.type === "llm:call") {
+      expect(ev.iterationNumber).toBeNull();
+    }
+  });
+
   it("increments callIndex monotonically across multiple calls", async () => {
     await provider.complete("first");
     await provider.complete("second");

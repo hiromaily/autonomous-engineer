@@ -80,14 +80,12 @@ const runCommand = defineCommand({
           process.stderr.write(`Error: configuration missing required fields: ${otherMissingFields.join(", ")}\n`);
           process.exit(1);
         }
+        // Reload with a placeholder apiKey injected into the env so that all other user
+        // settings (specDir, provider, modelName, etc.) from aes.config.json are preserved.
         process.stderr.write(
           "[DEBUG-FLOW] Config validation for 'llm.apiKey' skipped; using placeholder value.\n",
         );
-        config = {
-          llm: { provider: "claude", apiKey: "__debug__", modelName: "claude-sonnet-4-6" },
-          specDir: ".kiro/specs",
-          sddFramework: "cc-sdd",
-        };
+        config = await new ConfigLoader(process.cwd(), { ...process.env, AES_LLM_API_KEY: "__debug__" }).load();
       } else if (err instanceof ConfigValidationError) {
         process.stderr.write(`Error: configuration missing required fields: ${err.missingFields.join(", ")}\n`);
         process.exit(1);
@@ -165,13 +163,8 @@ const runCommand = defineCommand({
       providerOverride: providerArg,
     });
 
-    // Flush JSON log and debug log
-    if (logWriter) {
-      await logWriter.close();
-    }
-    if (debugWriter) {
-      await debugWriter.close();
-    }
+    // Flush JSON log and debug log in parallel
+    await Promise.all([logWriter?.close(), debugWriter?.close()]);
 
     if (result.status === "failed") {
       process.exit(1);

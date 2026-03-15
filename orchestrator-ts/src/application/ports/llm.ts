@@ -20,6 +20,8 @@ export type LlmResult =
 
 export interface LlmCompleteOptions {
   readonly maxTokens?: number;
+  /** Current agent loop iteration number, if the call originates from within an agent loop. */
+  readonly iterationNumber?: number;
 }
 
 export interface LlmProviderPort {
