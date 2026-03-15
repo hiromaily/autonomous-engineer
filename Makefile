@@ -13,3 +13,7 @@ setup:
 .PHONY: gen-repo-map
 gen-repo-map:
 	./scripts/generate-repo-map.sh
+
+.PHONY: ts-lint
+ts-lint:
+	make -C orchestrator-ts ts-lint

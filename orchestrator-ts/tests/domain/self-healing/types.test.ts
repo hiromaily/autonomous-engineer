@@ -260,6 +260,8 @@ describe("SelfHealingLogEntry — exhaustive switch coverage", () => {
           return `resolved:${entry.totalDurationMs}ms`;
         case "unresolved":
           return `unresolved:${entry.stopStep}`;
+        case "system-error":
+          return `system-error:${entry.component}`;
       }
     };
 
