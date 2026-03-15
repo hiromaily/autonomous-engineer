@@ -39,13 +39,13 @@
   - _Requirements: 2.2, 2.4, 3.6_
 
 - [ ] 4. Implement the `ConfigureCommand` orchestrator
-- [ ] 4.1 Implement non-TTY guard and wizard launch
+- [x] 4.1 Implement non-TTY guard and wizard launch
   - Check `process.stdin.isTTY` before starting the wizard; exit with a clear error if not running in a terminal
   - Attempt to load `aes.config.json` partially (raw JSON parse, ignoring validation errors) to supply defaults to the wizard; treat a missing or malformed file as "no defaults"
   - Pass loaded defaults to the wizard and await the result
   - _Requirements: 2.1, 2.2, 2.3, 2.5_
 
-- [ ] 4.2 Integrate framework check and config write with correct flow control
+- [x] 4.2 Integrate framework check and config write with correct flow control
   - If the wizard returns `"cancelled"`, exit cleanly without writing any file
   - After a successful wizard result, invoke the framework checker with the selected SDD framework
   - If the framework is not detected, display the checker's hint message and exit without writing the config file
