@@ -34,16 +34,13 @@ export class MockSddAdapter implements SddFrameworkPort {
         requirementsPath,
         `# Requirements\n\n<!-- Describe the feature requirements for spec: ${ctx.specName} -->\n`,
         { flag: "wx" }, // only create if not already present
-      ).catch(() => {/* file already exists — leave it intact */});
+      ).catch((err: NodeJS.ErrnoException) => {
+        if (err.code !== "EEXIST") throw err;
+      });
       this.emitOperation("initSpec", ctx.specName, { ok: true, artifactPath });
       return { ok: true, artifactPath };
     } catch (err) {
-      const result: SddOperationResult = {
-        ok: false,
-        error: { exitCode: 1, stderr: err instanceof Error ? err.message : String(err) },
-      };
-      this.emitOperation("initSpec", ctx.specName, result);
-      return result;
+      return this.failResult("initSpec", ctx.specName, err);
     }
   }
 
@@ -163,13 +160,17 @@ export class MockSddAdapter implements SddFrameworkPort {
       this.emitOperation(operation, ctx.specName, result);
       return result;
     } catch (err) {
-      const result: SddOperationResult = {
-        ok: false,
-        error: { exitCode: 1, stderr: err instanceof Error ? err.message : String(err) },
-      };
-      this.emitOperation(operation, ctx.specName, result);
-      return result;
+      return this.failResult(operation, ctx.specName, err);
     }
+  }
+
+  private failResult(operation: string, specName: string, err: unknown): SddOperationResult {
+    const result: SddOperationResult = {
+      ok: false,
+      error: { exitCode: 1, stderr: err instanceof Error ? err.message : String(err) },
+    };
+    this.emitOperation(operation, specName, result);
+    return result;
   }
 
   private emitOperation(operation: string, specName: string, result: SddOperationResult): void {

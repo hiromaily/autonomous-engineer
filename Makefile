@@ -29,7 +29,7 @@ debug-aes-flow:
 .PHONY: restart-debug-aes-flow
 restart-debug-aes-flow: rm-state debug-aes-flow
 
-.PHONY: debug-aes-flow
+.PHONY: rm-state
 rm-state:
 	rm -rf orchestrator-ts/.aes/state/
 
