@@ -42,12 +42,12 @@ describe("InProcessShortTermStore", () => {
 
   it("write() leaves unmentioned fields at their previous values", () => {
     store.write({ currentSpec: "spec-a", recentFiles: ["file.ts"] });
-    store.write({ currentPhase: "DESIGN" });
+    store.write({ currentPhase: "SPEC_DESIGN" });
     const state = store.read();
 
     expect(state.currentSpec).toBe("spec-a"); // preserved from first write
     expect(state.recentFiles).toEqual(["file.ts"]); // preserved from first write
-    expect(state.currentPhase).toBe("DESIGN"); // from second write
+    expect(state.currentPhase).toBe("SPEC_DESIGN"); // from second write
   });
 
   it("write() with empty object leaves state unchanged", () => {
@@ -102,11 +102,11 @@ describe("InProcessShortTermStore", () => {
   it("write() after clear() works normally", () => {
     store.write({ currentSpec: "spec-y" });
     store.clear();
-    store.write({ currentPhase: "DESIGN" });
+    store.write({ currentPhase: "SPEC_DESIGN" });
     const state = store.read();
 
     expect(state.currentSpec).toBeUndefined(); // cleared, not restored
-    expect(state.currentPhase).toBe("DESIGN");
+    expect(state.currentPhase).toBe("SPEC_DESIGN");
   });
 
   // -------------------------------------------------------------------------
@@ -148,7 +148,7 @@ describe("InProcessShortTermStore", () => {
     const storeB = new InProcessShortTermStore();
 
     storeA.write({ recentFiles: ["foo.ts"] });
-    storeB.write({ currentPhase: "REQUIREMENTS" });
+    storeB.write({ currentPhase: "SPEC_REQUIREMENTS" });
 
     expect(storeA.read().currentPhase).toBeUndefined();
     expect(storeB.read().recentFiles).toEqual([]);

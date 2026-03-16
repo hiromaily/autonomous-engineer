@@ -11,8 +11,24 @@ const defaultSpawn: SpawnFn = (argv) => Bun.spawn(argv as string[], { stderr: "p
 export class CcSddAdapter implements SddFrameworkPort {
   constructor(private readonly spawnFn: SpawnFn = defaultSpawn) {}
 
+  validatePrerequisites(ctx: SpecContext): Promise<SddOperationResult> {
+    return this.run("validate-prerequisites", ctx, "requirements.md");
+  }
+
   generateRequirements(ctx: SpecContext): Promise<SddOperationResult> {
     return this.run("requirements", ctx, "requirements.md");
+  }
+
+  validateRequirements(ctx: SpecContext): Promise<SddOperationResult> {
+    return this.run("validate-requirements", ctx, "requirements.md");
+  }
+
+  reflectOnExistingInformation(ctx: SpecContext): Promise<SddOperationResult> {
+    return this.run("reflect", ctx, "requirements.md");
+  }
+
+  validateGap(ctx: SpecContext): Promise<SddOperationResult> {
+    return this.run("validate-gap", ctx, "requirements.md");
   }
 
   generateDesign(ctx: SpecContext): Promise<SddOperationResult> {
@@ -25,6 +41,10 @@ export class CcSddAdapter implements SddFrameworkPort {
 
   generateTasks(ctx: SpecContext): Promise<SddOperationResult> {
     return this.run("tasks", ctx, "tasks.md");
+  }
+
+  validateTask(ctx: SpecContext): Promise<SddOperationResult> {
+    return this.run("validate-task", ctx, "tasks.md");
   }
 
   private async run(

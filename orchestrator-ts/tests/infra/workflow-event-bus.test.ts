@@ -36,10 +36,10 @@ describe("WorkflowEventBus", () => {
       const events: WorkflowEvent[] = [
         { type: "phase:start", phase: "SPEC_INIT", timestamp: "2026-01-01T00:00:00Z" },
         { type: "phase:complete", phase: "SPEC_INIT", durationMs: 100, artifacts: [] },
-        { type: "phase:error", phase: "DESIGN", operation: "generateDesign", error: "timeout" },
-        { type: "approval:required", phase: "REQUIREMENTS", artifactPath: "req.md", instruction: "Approve it" },
+        { type: "phase:error", phase: "SPEC_DESIGN", operation: "generateDesign", error: "timeout" },
+        { type: "approval:required", phase: "SPEC_REQUIREMENTS", artifactPath: "req.md", instruction: "Approve it" },
         { type: "workflow:complete", completedPhases: ["SPEC_INIT"] },
-        { type: "workflow:failed", phase: "DESIGN", error: "LLM error" },
+        { type: "workflow:failed", phase: "SPEC_DESIGN", error: "LLM error" },
       ];
 
       for (const event of events) {

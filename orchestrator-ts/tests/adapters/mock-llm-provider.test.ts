@@ -122,24 +122,24 @@ describe("MockLlmProvider.complete()", () => {
   });
 
   it("records correct phase after phase:start event", async () => {
-    bus.emit({ type: "phase:start", phase: "REQUIREMENTS", timestamp: "2026-01-01T00:00:00.000Z" });
+    bus.emit({ type: "phase:start", phase: "SPEC_REQUIREMENTS", timestamp: "2026-01-01T00:00:00.000Z" });
     await provider.complete("prompt");
 
     const ev = sink.events[0];
     expect(ev?.type).toBe("llm:call");
     if (ev?.type === "llm:call") {
-      expect(ev.phase).toBe("REQUIREMENTS");
+      expect(ev.phase).toBe("SPEC_REQUIREMENTS");
     }
   });
 
   it("updates phase when phase:start is emitted again", async () => {
-    bus.emit({ type: "phase:start", phase: "REQUIREMENTS", timestamp: "t1" });
+    bus.emit({ type: "phase:start", phase: "SPEC_REQUIREMENTS", timestamp: "t1" });
     await provider.complete("first");
-    bus.emit({ type: "phase:start", phase: "DESIGN", timestamp: "t2" });
+    bus.emit({ type: "phase:start", phase: "SPEC_DESIGN", timestamp: "t2" });
     await provider.complete("second");
 
     const phases = sink.events.map((e) => (e.type === "llm:call" ? e.phase : ""));
-    expect(phases).toEqual(["REQUIREMENTS", "DESIGN"]);
+    expect(phases).toEqual(["SPEC_REQUIREMENTS", "SPEC_DESIGN"]);
   });
 
   it("uses UNKNOWN phase before any phase:start event", async () => {
@@ -188,12 +188,12 @@ describe("MockLlmProvider.clearContext()", () => {
   });
 
   it("does not reset the current phase", async () => {
-    bus.emit({ type: "phase:start", phase: "DESIGN", timestamp: "t" });
+    bus.emit({ type: "phase:start", phase: "SPEC_DESIGN", timestamp: "t" });
     await provider.complete("before");
     provider.clearContext();
     await provider.complete("after");
 
     const phases = sink.events.map((e) => (e.type === "llm:call" ? e.phase : ""));
-    expect(phases).toEqual(["DESIGN", "DESIGN"]);
+    expect(phases).toEqual(["SPEC_DESIGN", "SPEC_DESIGN"]);
   });
 });

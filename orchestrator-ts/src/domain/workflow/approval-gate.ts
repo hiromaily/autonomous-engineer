@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
-export type ApprovalPhase = "requirements" | "design" | "tasks";
+export type ApprovalPhase = "human_interaction" | "requirements" | "design" | "tasks";
 
 export type ApprovalCheckResult =
   | { readonly approved: true }
@@ -46,6 +46,8 @@ function getApprovalField(parsed: unknown, phase: ApprovalPhase): unknown {
 
 function artifactFilename(phase: ApprovalPhase): string {
   switch (phase) {
+    case "human_interaction":
+      return "requirements.md";
     case "requirements":
       return "requirements.md";
     case "design":

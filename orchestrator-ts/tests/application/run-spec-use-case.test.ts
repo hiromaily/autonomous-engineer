@@ -44,10 +44,15 @@ function makeEventBus(): IWorkflowEventBus {
 
 function makeSdd(): SddFrameworkPort {
   return {
+    validatePrerequisites: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
     generateRequirements: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
+    validateRequirements: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
+    reflectOnExistingInformation: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
+    validateGap: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
     generateDesign: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
     validateDesign: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
     generateTasks: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
+    validateTask: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
   };
 }
 
@@ -161,7 +166,7 @@ describe("RunSpecUseCase", () => {
     it("calls stateStore.restore on --resume", async () => {
       const restoredState: WorkflowState = {
         specName: "test-spec",
-        currentPhase: "REQUIREMENTS",
+        currentPhase: "HUMAN_INTERACTION",
         completedPhases: ["SPEC_INIT"],
         status: "paused_for_approval",
         startedAt: new Date().toISOString(),
@@ -176,9 +181,16 @@ describe("RunSpecUseCase", () => {
       const specDir = tmpDir;
       // Provide spec.json with approvals to allow paused phase to advance
       const { writeFile } = await import("node:fs/promises");
+      await writeFile(join(specDir, "requirements.md"), "# Requirements\n");
       await writeFile(
         join(specDir, "spec.json"),
-        JSON.stringify({ approvals: { requirements: { approved: true } }, ready_for_implementation: true }),
+        JSON.stringify({
+          approvals: {
+            human_interaction: { approved: true },
+            requirements: { approved: true },
+          },
+          ready_for_implementation: true,
+        }),
       );
 
       const useCase = new RunSpecUseCase({
@@ -278,6 +290,7 @@ describe("RunSpecUseCase", () => {
       await mkdir(specSubDir, { recursive: true });
       const specJson = {
         approvals: {
+          human_interaction: { approved: true },
           requirements: { approved: true },
           design: { approved: true },
           tasks: { approved: true },
@@ -343,6 +356,7 @@ describe("RunSpecUseCase", () => {
         join(specSubDir, "spec.json"),
         JSON.stringify({
           approvals: {
+            human_interaction: { approved: true },
             requirements: { approved: true },
             design: { approved: true },
             tasks: { approved: true },

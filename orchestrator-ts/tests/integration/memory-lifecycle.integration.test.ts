@@ -51,10 +51,15 @@ function makeEventBus(): IWorkflowEventBus {
 
 function makeSdd(): SddFrameworkPort {
   return {
+    validatePrerequisites: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
     generateRequirements: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
+    validateRequirements: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
+    reflectOnExistingInformation: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
+    validateGap: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
     generateDesign: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
     validateDesign: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
     generateTasks: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
+    validateTask: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
   };
 }
 

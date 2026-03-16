@@ -84,7 +84,7 @@ describe("WorkflowStateStore", () => {
 
       const updated: WorkflowState = {
         ...initial,
-        currentPhase: "REQUIREMENTS",
+        currentPhase: "SPEC_REQUIREMENTS",
         completedPhases: ["SPEC_INIT"],
         status: "paused_for_approval",
         updatedAt: new Date().toISOString(),
@@ -92,22 +92,22 @@ describe("WorkflowStateStore", () => {
       await store.persist(updated);
 
       const restored = await store.restore("my-feature");
-      expect(restored?.currentPhase).toBe("REQUIREMENTS");
+      expect(restored?.currentPhase).toBe("SPEC_REQUIREMENTS");
       expect(restored?.status).toBe("paused_for_approval");
     });
 
     it("stores and restores state with failureDetail", async () => {
       const state: WorkflowState = {
         ...store.init("my-feature"),
-        currentPhase: "DESIGN",
-        completedPhases: ["SPEC_INIT", "REQUIREMENTS"],
+        currentPhase: "SPEC_DESIGN",
+        completedPhases: ["SPEC_INIT", "SPEC_REQUIREMENTS"],
         status: "failed",
-        failureDetail: { phase: "DESIGN", error: "LLM API error" },
+        failureDetail: { phase: "SPEC_DESIGN", error: "LLM API error" },
       };
       await store.persist(state);
 
       const restored = await store.restore("my-feature");
-      expect(restored?.failureDetail?.phase).toBe("DESIGN");
+      expect(restored?.failureDetail?.phase).toBe("SPEC_DESIGN");
       expect(restored?.failureDetail?.error).toBe("LLM API error");
     });
 
@@ -115,7 +115,7 @@ describe("WorkflowStateStore", () => {
       const stateA = store.init("spec-a");
       const stateB: WorkflowState = {
         ...store.init("spec-b"),
-        currentPhase: "REQUIREMENTS",
+        currentPhase: "SPEC_REQUIREMENTS",
         completedPhases: ["SPEC_INIT"],
         updatedAt: new Date().toISOString(),
       };
@@ -127,7 +127,7 @@ describe("WorkflowStateStore", () => {
       const restoredB = await store.restore("spec-b");
 
       expect(restoredA?.currentPhase).toBe("SPEC_INIT");
-      expect(restoredB?.currentPhase).toBe("REQUIREMENTS");
+      expect(restoredB?.currentPhase).toBe("SPEC_REQUIREMENTS");
     });
   });
 

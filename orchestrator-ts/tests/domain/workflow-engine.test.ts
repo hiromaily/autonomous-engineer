@@ -127,7 +127,7 @@ describe("WorkflowEngine", () => {
   beforeEach(async () => {
     tmpDir = await mkdtemp(join(tmpdir(), "aes-engine-test-"));
     // Pre-create all required artifact files and a ready spec.json so the
-    // default test suite can run all 7 phases without failing.
+    // default test suite can run all 14 phases without failing.
     await writeFile(join(tmpDir, "requirements.md"), "# Requirements");
     await writeFile(join(tmpDir, "design.md"), "# Design");
     await writeFile(join(tmpDir, "tasks.md"), "# Tasks");
@@ -193,7 +193,7 @@ describe("WorkflowEngine", () => {
 
       const partialState: WorkflowState = {
         ...makeInitialState(),
-        currentPhase: "REQUIREMENTS",
+        currentPhase: "HUMAN_INTERACTION",
         completedPhases: ["SPEC_INIT"],
         updatedAt: new Date().toISOString(),
       };
@@ -202,7 +202,7 @@ describe("WorkflowEngine", () => {
 
       expect(result.status).toBe("completed");
       expect(executeCalls).not.toContain("SPEC_INIT");
-      expect(executeCalls).toContain("REQUIREMENTS");
+      expect(executeCalls).toContain("HUMAN_INTERACTION");
     });
 
     it("returns completed result with all completedPhases", async () => {
@@ -258,7 +258,7 @@ describe("WorkflowEngine", () => {
     it("persists failed state with failureDetail when a phase fails", async () => {
       const stateStore = makeStateStore();
       const { runner } = makePhaseRunner((phase) =>
-        phase === "REQUIREMENTS"
+        phase === "SPEC_REQUIREMENTS"
           ? { ok: false, error: "SDD adapter error" }
           : { ok: true, artifacts: [] }
       );
@@ -268,7 +268,7 @@ describe("WorkflowEngine", () => {
 
       expect(result.status).toBe("failed");
       const failedState = stateStore.persisted.find((s) => s.status === "failed");
-      expect(failedState?.failureDetail?.phase).toBe("REQUIREMENTS");
+      expect(failedState?.failureDetail?.phase).toBe("SPEC_REQUIREMENTS");
       expect(failedState?.failureDetail?.error).toBe("SDD adapter error");
     });
   });
@@ -278,7 +278,7 @@ describe("WorkflowEngine", () => {
   describe("phase failure", () => {
     it("returns failed result when a phase fails", async () => {
       const { runner } = makePhaseRunner((phase) =>
-        phase === "DESIGN"
+        phase === "SPEC_DESIGN"
           ? { ok: false, error: "cc-sdd returned exit 1" }
           : { ok: true, artifacts: [] }
       );
@@ -288,14 +288,14 @@ describe("WorkflowEngine", () => {
 
       expect(result.status).toBe("failed");
       if (result.status === "failed") {
-        expect(result.phase).toBe("DESIGN");
+        expect(result.phase).toBe("SPEC_DESIGN");
         expect(result.error).toBe("cc-sdd returned exit 1");
       }
     });
 
     it("stops execution after a phase fails (does not run subsequent phases)", async () => {
       const { runner, executeCalls } = makePhaseRunner((phase) =>
-        phase === "REQUIREMENTS"
+        phase === "SPEC_REQUIREMENTS"
           ? { ok: false, error: "error" }
           : { ok: true, artifacts: [] }
       );
@@ -303,27 +303,27 @@ describe("WorkflowEngine", () => {
 
       await engine.execute(makeInitialState());
 
-      expect(executeCalls).not.toContain("DESIGN");
+      expect(executeCalls).not.toContain("SPEC_DESIGN");
       expect(executeCalls).not.toContain("VALIDATE_DESIGN");
     });
 
     it("reflects failed status in getState() after a phase fails", async () => {
       const { runner } = makePhaseRunner((phase) =>
-        phase === "DESIGN" ? { ok: false, error: "boom" } : { ok: true, artifacts: [] }
+        phase === "SPEC_DESIGN" ? { ok: false, error: "boom" } : { ok: true, artifacts: [] }
       );
       const engine = buildEngine({ phaseRunner: runner });
       await engine.execute(makeInitialState());
 
       const state = engine.getState();
       expect(state.status).toBe("failed");
-      expect(state.failureDetail?.phase).toBe("DESIGN");
+      expect(state.failureDetail?.phase).toBe("SPEC_DESIGN");
     });
   });
 
   // ---- Artifact validation --------------------------------------------------
 
   describe("artifact validation", () => {
-    it("fails at DESIGN when requirements.md is missing", async () => {
+    it("fails at SPEC_DESIGN when requirements.md is missing", async () => {
       // Fresh dir with no artifacts
       const emptyDir = await mkdtemp(join(tmpdir(), "aes-engine-empty-"));
       try {
@@ -337,11 +337,19 @@ describe("WorkflowEngine", () => {
           language: "en",
         });
 
-        // Start right before DESIGN
+        // Start right before SPEC_DESIGN (simulate all prior phases completed)
         const stateBeforeDesign: WorkflowState = {
           ...makeInitialState(),
-          currentPhase: "DESIGN",
-          completedPhases: ["SPEC_INIT", "REQUIREMENTS"],
+          currentPhase: "SPEC_DESIGN",
+          completedPhases: [
+            "SPEC_INIT",
+            "HUMAN_INTERACTION",
+            "VALIDATE_PREREQUISITES",
+            "SPEC_REQUIREMENTS",
+            "VALIDATE_REQUIREMENTS",
+            "REFLECT_BEFORE_DESIGN",
+            "VALIDATE_GAP",
+          ],
           updatedAt: new Date().toISOString(),
         };
 
@@ -349,7 +357,7 @@ describe("WorkflowEngine", () => {
 
         expect(result.status).toBe("failed");
         if (result.status === "failed") {
-          expect(result.phase).toBe("DESIGN");
+          expect(result.phase).toBe("SPEC_DESIGN");
           expect(result.error).toContain("requirements.md");
         }
       } finally {
@@ -357,7 +365,7 @@ describe("WorkflowEngine", () => {
       }
     });
 
-    it("succeeds at DESIGN when requirements.md exists", async () => {
+    it("succeeds at SPEC_DESIGN when requirements.md exists", async () => {
       const specDir = await mkdtemp(join(tmpdir(), "aes-engine-art-"));
       try {
         await writeFile(join(specDir, "requirements.md"), "# Requirements");
@@ -377,8 +385,16 @@ describe("WorkflowEngine", () => {
 
         const stateBeforeDesign: WorkflowState = {
           ...makeInitialState(),
-          currentPhase: "DESIGN",
-          completedPhases: ["SPEC_INIT", "REQUIREMENTS"],
+          currentPhase: "SPEC_DESIGN",
+          completedPhases: [
+            "SPEC_INIT",
+            "HUMAN_INTERACTION",
+            "VALIDATE_PREREQUISITES",
+            "SPEC_REQUIREMENTS",
+            "VALIDATE_REQUIREMENTS",
+            "REFLECT_BEFORE_DESIGN",
+            "VALIDATE_GAP",
+          ],
           updatedAt: new Date().toISOString(),
         };
 
@@ -409,7 +425,20 @@ describe("WorkflowEngine", () => {
         const stateBeforeImpl: WorkflowState = {
           ...makeInitialState(),
           currentPhase: "IMPLEMENTATION",
-          completedPhases: ["SPEC_INIT", "REQUIREMENTS", "DESIGN", "VALIDATE_DESIGN", "TASK_GENERATION"],
+          completedPhases: [
+            "SPEC_INIT",
+            "HUMAN_INTERACTION",
+            "VALIDATE_PREREQUISITES",
+            "SPEC_REQUIREMENTS",
+            "VALIDATE_REQUIREMENTS",
+            "REFLECT_BEFORE_DESIGN",
+            "VALIDATE_GAP",
+            "SPEC_DESIGN",
+            "VALIDATE_DESIGN",
+            "REFLECT_BEFORE_TASKS",
+            "SPEC_TASKS",
+            "VALIDATE_TASK",
+          ],
           updatedAt: new Date().toISOString(),
         };
 
@@ -638,7 +667,7 @@ describe("WorkflowEngine", () => {
     it("emits phase:error (not phase:complete) when phase runner returns failure", async () => {
       const eventBus = makeSpyEventBus();
       const { runner } = makePhaseRunner((phase) =>
-        phase === "DESIGN"
+        phase === "SPEC_DESIGN"
           ? { ok: false, error: "adapter crashed" }
           : { ok: true, artifacts: [] }
       );
@@ -658,7 +687,7 @@ describe("WorkflowEngine", () => {
       expect(errorEvents).toHaveLength(1);
       const errEvt = errorEvents[0];
       if (errEvt?.type === "phase:error") {
-        expect(errEvt.phase).toBe("DESIGN");
+        expect(errEvt.phase).toBe("SPEC_DESIGN");
         expect(errEvt.error).toBe("adapter crashed");
         expect(typeof errEvt.operation).toBe("string");
         expect(errEvt.operation.length).toBeGreaterThan(0);
@@ -668,13 +697,13 @@ describe("WorkflowEngine", () => {
       const completePhases = eventBus.events
         .filter((e) => e.type === "phase:complete")
         .map((e) => (e as { phase: WorkflowPhase }).phase);
-      expect(completePhases).not.toContain("DESIGN");
+      expect(completePhases).not.toContain("SPEC_DESIGN");
     });
 
     it("emits workflow:failed when a phase fails", async () => {
       const eventBus = makeSpyEventBus();
       const { runner } = makePhaseRunner((phase) =>
-        phase === "REQUIREMENTS"
+        phase === "SPEC_REQUIREMENTS"
           ? { ok: false, error: "SDD error" }
           : { ok: true, artifacts: [] }
       );
@@ -694,7 +723,7 @@ describe("WorkflowEngine", () => {
       expect(failedEvents).toHaveLength(1);
       const failEvt = failedEvents[0];
       if (failEvt?.type === "workflow:failed") {
-        expect(failEvt.phase).toBe("REQUIREMENTS");
+        expect(failEvt.phase).toBe("SPEC_REQUIREMENTS");
         expect(failEvt.error).toBe("SDD error");
       }
     });
@@ -753,11 +782,19 @@ describe("WorkflowEngine", () => {
           language: "en",
         });
 
-        // Start before DESIGN — artifact validation will fail (no requirements.md)
+        // Start before SPEC_DESIGN — artifact validation will fail (no requirements.md)
         await engine.execute({
           ...makeInitialState(),
-          currentPhase: "DESIGN",
-          completedPhases: ["SPEC_INIT", "REQUIREMENTS"],
+          currentPhase: "SPEC_DESIGN",
+          completedPhases: [
+            "SPEC_INIT",
+            "HUMAN_INTERACTION",
+            "VALIDATE_PREREQUISITES",
+            "SPEC_REQUIREMENTS",
+            "VALIDATE_REQUIREMENTS",
+            "REFLECT_BEFORE_DESIGN",
+            "VALIDATE_GAP",
+          ],
           updatedAt: new Date().toISOString(),
         });
 
@@ -765,7 +802,7 @@ describe("WorkflowEngine", () => {
         expect(errorEvents).toHaveLength(1);
         const errEvt = errorEvents[0];
         if (errEvt?.type === "phase:error") {
-          expect(errEvt.phase).toBe("DESIGN");
+          expect(errEvt.phase).toBe("SPEC_DESIGN");
           expect(errEvt.error).toContain("requirements.md");
         }
       } finally {
@@ -808,10 +845,24 @@ describe("WorkflowEngine", () => {
   describe("approval gates", () => {
     // ---- Gate is checked for the right phases --------------------------------
 
-    it("checks approval gate after REQUIREMENTS (with phase type \"requirements\")", async () => {
+    it("checks approval gate after HUMAN_INTERACTION (with phase type \"human_interaction\")", async () => {
       const gate = makeTrackingGate();
-      const _engine = buildEngine({ phaseRunner: makePhaseRunner().runner });
-      // Replace the engine with one using our tracking gate
+      const tracked = new WorkflowEngine({
+        stateStore: makeStateStore(),
+        eventBus: makeEventBus(),
+        phaseRunner: makePhaseRunner().runner,
+        approvalGate: gate,
+        specDir: tmpDir,
+        language: "en",
+      });
+
+      await tracked.execute(makeInitialState());
+
+      expect(gate.checkedPhases).toContain("human_interaction");
+    });
+
+    it("checks approval gate after SPEC_REQUIREMENTS (with phase type \"requirements\")", async () => {
+      const gate = makeTrackingGate();
       const tracked = new WorkflowEngine({
         stateStore: makeStateStore(),
         eventBus: makeEventBus(),
@@ -842,7 +893,7 @@ describe("WorkflowEngine", () => {
       expect(gate.checkedPhases).toContain("design");
     });
 
-    it("checks approval gate after TASK_GENERATION (with phase type \"tasks\")", async () => {
+    it("checks approval gate after SPEC_TASKS (with phase type \"tasks\")", async () => {
       const gate = makeTrackingGate();
       const tracked = new WorkflowEngine({
         stateStore: makeStateStore(),
@@ -858,7 +909,7 @@ describe("WorkflowEngine", () => {
       expect(gate.checkedPhases).toContain("tasks");
     });
 
-    it("does not check approval gate for non-gated phases (SPEC_INIT, DESIGN, IMPLEMENTATION, PULL_REQUEST)", async () => {
+    it("does not check approval gate for non-gated phases (SPEC_INIT, VALIDATE_PREREQUISITES, SPEC_DESIGN, IMPLEMENTATION, PULL_REQUEST)", async () => {
       const gate = makeTrackingGate();
       const tracked = new WorkflowEngine({
         stateStore: makeStateStore(),
@@ -872,14 +923,15 @@ describe("WorkflowEngine", () => {
       await tracked.execute(makeInitialState());
 
       expect(gate.checkedPhases).not.toContain("spec_init");
-      expect(gate.checkedPhases).not.toContain("design_validate");
-      // Only 3 gate checks expected: requirements, design, tasks
-      expect(gate.checkedPhases).toHaveLength(3);
+      expect(gate.checkedPhases).not.toContain("validate_prerequisites");
+      expect(gate.checkedPhases).not.toContain("spec_design");
+      // Only 4 gate checks expected: human_interaction, requirements, design, tasks
+      expect(gate.checkedPhases).toHaveLength(4);
     });
 
     // ---- Paused state when gate returns pending ------------------------------
 
-    it("returns paused result when REQUIREMENTS gate is pending", async () => {
+    it("returns paused result when SPEC_REQUIREMENTS gate is pending", async () => {
       const engine = new WorkflowEngine({
         stateStore: makeStateStore(),
         eventBus: makeEventBus(),
@@ -893,7 +945,7 @@ describe("WorkflowEngine", () => {
 
       expect(result.status).toBe("paused");
       if (result.status === "paused") {
-        expect(result.phase).toBe("REQUIREMENTS");
+        expect(result.phase).toBe("SPEC_REQUIREMENTS");
         expect(result.reason).toBe("approval_required");
       }
     });
@@ -913,9 +965,9 @@ describe("WorkflowEngine", () => {
 
       const pausedPersisted = stateStore.persisted.find((s) => s.status === "paused_for_approval");
       expect(pausedPersisted).toBeDefined();
-      expect(pausedPersisted?.currentPhase).toBe("REQUIREMENTS");
-      // REQUIREMENTS must NOT be in completedPhases when paused
-      expect(pausedPersisted?.completedPhases).not.toContain("REQUIREMENTS");
+      expect(pausedPersisted?.currentPhase).toBe("SPEC_REQUIREMENTS");
+      // SPEC_REQUIREMENTS must NOT be in completedPhases when paused
+      expect(pausedPersisted?.completedPhases).not.toContain("SPEC_REQUIREMENTS");
     });
 
     it("emits approval:required event with artifactPath and instruction when paused", async () => {
@@ -935,7 +987,7 @@ describe("WorkflowEngine", () => {
       expect(approvalEvents).toHaveLength(1);
       const evt = approvalEvents[0];
       if (evt?.type === "approval:required") {
-        expect(evt.phase).toBe("REQUIREMENTS");
+        expect(evt.phase).toBe("SPEC_REQUIREMENTS");
         expect(typeof evt.artifactPath).toBe("string");
         expect(evt.artifactPath.length).toBeGreaterThan(0);
         expect(typeof evt.instruction).toBe("string");
@@ -943,7 +995,7 @@ describe("WorkflowEngine", () => {
       }
     });
 
-    it("does not advance to DESIGN when REQUIREMENTS gate is pending", async () => {
+    it("does not advance to SPEC_DESIGN when SPEC_REQUIREMENTS gate is pending", async () => {
       const { runner, executeCalls } = makePhaseRunner();
       const engine = new WorkflowEngine({
         stateStore: makeStateStore(),
@@ -956,7 +1008,7 @@ describe("WorkflowEngine", () => {
 
       await engine.execute(makeInitialState());
 
-      expect(executeCalls).not.toContain("DESIGN");
+      expect(executeCalls).not.toContain("SPEC_DESIGN");
     });
 
     // ---- Resume from paused state --------------------------------------------
@@ -972,11 +1024,11 @@ describe("WorkflowEngine", () => {
         language: "en",
       });
 
-      // Simulate a paused state (REQUIREMENTS already ran but not approved)
+      // Simulate a paused state (SPEC_REQUIREMENTS already ran but not approved)
       const pausedState: WorkflowState = {
         ...makeInitialState(),
-        currentPhase: "REQUIREMENTS",
-        completedPhases: ["SPEC_INIT"],
+        currentPhase: "SPEC_REQUIREMENTS",
+        completedPhases: ["SPEC_INIT", "HUMAN_INTERACTION", "VALIDATE_PREREQUISITES"],
         status: "paused_for_approval",
         updatedAt: new Date().toISOString(),
       };
@@ -985,8 +1037,8 @@ describe("WorkflowEngine", () => {
 
       // Should return paused again
       expect(result.status).toBe("paused");
-      // REQUIREMENTS must NOT have been re-executed
-      expect(executeCalls).not.toContain("REQUIREMENTS");
+      // SPEC_REQUIREMENTS must NOT have been re-executed
+      expect(executeCalls).not.toContain("SPEC_REQUIREMENTS");
     });
 
     it("on resume with now-approved gate, advances without re-executing paused phase", async () => {
@@ -1000,11 +1052,11 @@ describe("WorkflowEngine", () => {
         language: "en",
       });
 
-      // Simulate a paused state (REQUIREMENTS already ran and is now approved)
+      // Simulate a paused state (SPEC_REQUIREMENTS already ran and is now approved)
       const pausedState: WorkflowState = {
         ...makeInitialState(),
-        currentPhase: "REQUIREMENTS",
-        completedPhases: ["SPEC_INIT"],
+        currentPhase: "SPEC_REQUIREMENTS",
+        completedPhases: ["SPEC_INIT", "HUMAN_INTERACTION", "VALIDATE_PREREQUISITES"],
         status: "paused_for_approval",
         updatedAt: new Date().toISOString(),
       };
@@ -1013,14 +1065,14 @@ describe("WorkflowEngine", () => {
 
       // Should complete the full workflow
       expect(result.status).toBe("completed");
-      // REQUIREMENTS must NOT have been re-executed
-      expect(executeCalls).not.toContain("REQUIREMENTS");
+      // SPEC_REQUIREMENTS must NOT have been re-executed
+      expect(executeCalls).not.toContain("SPEC_REQUIREMENTS");
       // But subsequent phases SHOULD have run
-      expect(executeCalls).toContain("DESIGN");
+      expect(executeCalls).toContain("SPEC_DESIGN");
       expect(executeCalls).toContain("PULL_REQUEST");
     });
 
-    it("on resume, REQUIREMENTS is added to completedPhases when approved", async () => {
+    it("on resume, SPEC_REQUIREMENTS is added to completedPhases when approved", async () => {
       const engine = new WorkflowEngine({
         stateStore: makeStateStore(),
         eventBus: makeEventBus(),
@@ -1032,8 +1084,8 @@ describe("WorkflowEngine", () => {
 
       const pausedState: WorkflowState = {
         ...makeInitialState(),
-        currentPhase: "REQUIREMENTS",
-        completedPhases: ["SPEC_INIT"],
+        currentPhase: "SPEC_REQUIREMENTS",
+        completedPhases: ["SPEC_INIT", "HUMAN_INTERACTION", "VALIDATE_PREREQUISITES"],
         status: "paused_for_approval",
         updatedAt: new Date().toISOString(),
       };
@@ -1041,7 +1093,7 @@ describe("WorkflowEngine", () => {
       await engine.execute(pausedState);
 
       const finalState = engine.getState();
-      expect(finalState.completedPhases).toContain("REQUIREMENTS");
+      expect(finalState.completedPhases).toContain("SPEC_REQUIREMENTS");
     });
 
     // ---- ready_for_implementation check before IMPLEMENTATION ---------------
@@ -1068,7 +1120,20 @@ describe("WorkflowEngine", () => {
         const stateBeforeImpl: WorkflowState = {
           ...makeInitialState(),
           currentPhase: "IMPLEMENTATION",
-          completedPhases: ["SPEC_INIT", "REQUIREMENTS", "DESIGN", "VALIDATE_DESIGN", "TASK_GENERATION"],
+          completedPhases: [
+            "SPEC_INIT",
+            "HUMAN_INTERACTION",
+            "VALIDATE_PREREQUISITES",
+            "SPEC_REQUIREMENTS",
+            "VALIDATE_REQUIREMENTS",
+            "REFLECT_BEFORE_DESIGN",
+            "VALIDATE_GAP",
+            "SPEC_DESIGN",
+            "VALIDATE_DESIGN",
+            "REFLECT_BEFORE_TASKS",
+            "SPEC_TASKS",
+            "VALIDATE_TASK",
+          ],
           updatedAt: new Date().toISOString(),
         };
 
@@ -1103,7 +1168,20 @@ describe("WorkflowEngine", () => {
         const stateBeforeImpl: WorkflowState = {
           ...makeInitialState(),
           currentPhase: "IMPLEMENTATION",
-          completedPhases: ["SPEC_INIT", "REQUIREMENTS", "DESIGN", "VALIDATE_DESIGN", "TASK_GENERATION"],
+          completedPhases: [
+            "SPEC_INIT",
+            "HUMAN_INTERACTION",
+            "VALIDATE_PREREQUISITES",
+            "SPEC_REQUIREMENTS",
+            "VALIDATE_REQUIREMENTS",
+            "REFLECT_BEFORE_DESIGN",
+            "VALIDATE_GAP",
+            "SPEC_DESIGN",
+            "VALIDATE_DESIGN",
+            "REFLECT_BEFORE_TASKS",
+            "SPEC_TASKS",
+            "VALIDATE_TASK",
+          ],
           updatedAt: new Date().toISOString(),
         };
 
@@ -1153,7 +1231,20 @@ describe("WorkflowEngine", () => {
         const stateBeforeImpl: WorkflowState = {
           ...makeInitialState(),
           currentPhase: "IMPLEMENTATION",
-          completedPhases: ["SPEC_INIT", "REQUIREMENTS", "DESIGN", "VALIDATE_DESIGN", "TASK_GENERATION"],
+          completedPhases: [
+            "SPEC_INIT",
+            "HUMAN_INTERACTION",
+            "VALIDATE_PREREQUISITES",
+            "SPEC_REQUIREMENTS",
+            "VALIDATE_REQUIREMENTS",
+            "REFLECT_BEFORE_DESIGN",
+            "VALIDATE_GAP",
+            "SPEC_DESIGN",
+            "VALIDATE_DESIGN",
+            "REFLECT_BEFORE_TASKS",
+            "SPEC_TASKS",
+            "VALIDATE_TASK",
+          ],
           updatedAt: new Date().toISOString(),
         };
 
