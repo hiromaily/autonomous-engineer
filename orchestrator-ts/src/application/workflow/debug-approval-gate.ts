@@ -5,17 +5,19 @@ import { join } from "node:path";
 /**
  * Approval gate used in --debug-flow mode.
  *
- * The only behavioural difference from the base ApprovalGate is that the mock
- * LLM is used instead of a real one. Approval logic follows the same rules:
+ * This gate simplifies the approval process for debugging by modifying the
+ * standard approval logic:
  *
- * check() — called after a phase executes:
- *   - `human_interaction`: returns not-approved so the workflow pauses after
- *     SPEC_INIT. The user inspects the output, then re-runs to continue.
- *   - all other phases: auto-approved (no human review required in debug mode).
+ * **`check()`** (called on first execution of a phase):
+ *   - `human_interaction`: Always returns `approved: false` to pause the workflow
+ *     after `SPEC_INIT`, allowing the developer to inspect initial output.
+ *   - All other phases (`requirements`, `design`, `tasks`): Are auto-approved.
  *
- * checkResume() — called when resuming from a paused state:
- *   - inherited from ApprovalGate: auto-approves `human_interaction`, delegates
- *     to check() for all other phases.
+ * **`checkResume()`** (called when resuming a paused workflow):
+ *   - Inherits from `ApprovalGate`, which auto-approves `human_interaction`.
+ *     This allows the workflow to continue simply by re-running the command.
+ *   - For other phases, it delegates to this class's `check()` method, which
+ *     results in them being auto-approved.
  */
 export class DebugApprovalGate extends ApprovalGate {
   readonly #sink: IDebugEventSink;
