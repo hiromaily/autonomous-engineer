@@ -13,16 +13,16 @@
  *
  * Task 9.2 — Requirements: 1.1, 1.6, 1.7, 1.8, 3.6, 5.1, 5.5
  */
-import type { SpawnFn } from "@/adapters/sdd/cc-sdd-adapter";
+import { JsonLogWriter } from "@/adapters/cli/json-log-writer";
 import type { AesConfig } from "@/application/ports/config";
 import type { LlmProviderPort } from "@/application/ports/llm";
 import type { MemoryPort, ShortTermMemoryPort } from "@/application/ports/memory";
 import type { SddFrameworkPort } from "@/application/ports/sdd";
 import type { WorkflowEvent } from "@/application/ports/workflow";
 import { RunSpecUseCase } from "@/application/usecases/run-spec";
-import { JsonLogWriter } from "@/cli/json-log-writer";
 import type { WorkflowPhase, WorkflowState } from "@/domain/workflow/types";
 import { WorkflowEventBus } from "@/infra/events/workflow-event-bus";
+import type { SpawnFn } from "@/infra/sdd/cc-sdd-adapter";
 import { WorkflowStateStore } from "@/infra/state/workflow-state-store";
 import { afterAll, beforeAll, describe, expect, it, mock } from "bun:test";
 import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
@@ -779,7 +779,7 @@ describe("E2E: CLI subprocess dry-run exit code", () => {
         }),
       );
 
-      const cliPath = join(import.meta.dir, "../../src/cli/index.ts");
+      const cliPath = join(import.meta.dir, "../../src/adapters/cli/index.ts");
       const proc = Bun.spawn(
         ["bun", cliPath, "run", env.specName, "--dry-run"],
         { cwd: env.tmpDir, stderr: "pipe", stdout: "pipe" },
@@ -804,7 +804,7 @@ describe("E2E: CLI subprocess dry-run exit code", () => {
         }),
       );
 
-      const cliPath = join(import.meta.dir, "../../src/cli/index.ts");
+      const cliPath = join(import.meta.dir, "../../src/adapters/cli/index.ts");
       const proc = Bun.spawn(
         ["bun", cliPath, "run", "nonexistent-spec", "--dry-run"],
         { cwd: env.tmpDir, stderr: "pipe", stdout: "pipe" },

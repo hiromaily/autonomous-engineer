@@ -24,7 +24,6 @@
  * - Controlled mock LlmProviderPort and IAgentLoop for deterministic scenarios
  */
 
-import { ImplementationLoopService } from "@/application/implementation-loop/implementation-loop-service";
 import type { AgentLoopResult, IAgentLoop } from "@/application/ports/agent-loop";
 import type { GitResult, IGitController } from "@/application/ports/git-controller";
 import type {
@@ -44,10 +43,11 @@ import type {
   MemoryWriteTrigger,
   ShortTermMemoryPort,
 } from "@/application/ports/memory";
+import { ImplementationLoopService } from "@/application/services/implementation-loop/implementation-loop-service";
 import {
   type SelfHealingLoopConfig,
   SelfHealingLoopService,
-} from "@/application/self-healing-loop/self-healing-loop-service";
+} from "@/application/services/self-healing-loop/self-healing-loop-service";
 import type { AgentState } from "@/domain/agent/types";
 import type { BranchCreationResult, CommitResult, GitChangesResult, PushResult } from "@/domain/git/types";
 import type { ImplementationLoopEvent, ReviewResult, SectionEscalation } from "@/domain/implementation-loop/types";

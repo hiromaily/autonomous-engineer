@@ -45,7 +45,6 @@
  *              6.1, 6.2, 6.3, 6.4, 6.5, 7.1, 7.3, 7.4, 7.5, 9.1, 9.2, 9.3, 9.4
  */
 
-import { ImplementationLoopService } from "@/application/implementation-loop/implementation-loop-service";
 import type { AgentLoopResult, IAgentLoop } from "@/application/ports/agent-loop";
 import type { IContextEngine } from "@/application/ports/context";
 import type { IGitController } from "@/application/ports/git-controller";
@@ -60,6 +59,7 @@ import type {
   SectionPersistenceStatus,
 } from "@/application/ports/implementation-loop";
 import type { ISelfHealingLoop } from "@/application/ports/implementation-loop";
+import { ImplementationLoopService } from "@/application/services/implementation-loop/implementation-loop-service";
 import type { AgentState } from "@/domain/agent/types";
 import type {
   ImplementationLoopEvent,
@@ -1163,7 +1163,7 @@ describe("ImplementationLoop integration — quality gate checks and commit bloc
   it("required lint check failure blocks commit and routes to improve step", async () => {
     // Use LlmReviewEngineService with a stub LLM (passes) + stub quality gate (required lint fails)
     const { LlmReviewEngineService } = await import(
-      "@/application/implementation-loop/llm-review-engine"
+      "@/application/services/implementation-loop/llm-review-engine"
     );
 
     const fileStore = new PlanFileStore({ baseDir: tmpDir });
@@ -1203,7 +1203,7 @@ describe("ImplementationLoop integration — quality gate checks and commit bloc
 
   it("advisory test check failure does not block commit — review passes with advisory feedback", async () => {
     const { LlmReviewEngineService } = await import(
-      "@/application/implementation-loop/llm-review-engine"
+      "@/application/services/implementation-loop/llm-review-engine"
     );
 
     const fileStore = new PlanFileStore({ baseDir: tmpDir });
@@ -1240,7 +1240,7 @@ describe("ImplementationLoop integration — quality gate checks and commit bloc
 
   it("gate check results appear in the iteration log entry", async () => {
     const { LlmReviewEngineService } = await import(
-      "@/application/implementation-loop/llm-review-engine"
+      "@/application/services/implementation-loop/llm-review-engine"
     );
 
     const fileStore = new PlanFileStore({ baseDir: tmpDir });
@@ -1292,7 +1292,7 @@ describe("ImplementationLoop integration — quality gate checks and commit bloc
 
   it("required check failure shows as blocking feedback; advisory shows as advisory", async () => {
     const { LlmReviewEngineService } = await import(
-      "@/application/implementation-loop/llm-review-engine"
+      "@/application/services/implementation-loop/llm-review-engine"
     );
 
     const fileStore = new PlanFileStore({ baseDir: tmpDir });

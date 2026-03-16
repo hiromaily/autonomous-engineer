@@ -16,10 +16,10 @@
  *
  * Requirements: 1.1, 1.2, 1.3, 4.1, 4.2, 5.1, 5.2, 6.1, 10.3
  */
-import { AgentLoopService } from "@/application/agent/agent-loop-service";
 import type { IAgentEventBus } from "@/application/ports/agent-loop";
 import type { LlmProviderPort } from "@/application/ports/llm";
-import type { IToolExecutor } from "@/application/tools/executor";
+import { AgentLoopService } from "@/application/services/agent/agent-loop-service";
+import type { IToolExecutor } from "@/application/services/tools/executor";
 import type { AgentLoopEvent, ReflectionOutput } from "@/domain/agent/types";
 import { ToolRegistry } from "@/domain/tools/registry";
 import type { MemoryEntry, Tool, ToolContext } from "@/domain/tools/types";

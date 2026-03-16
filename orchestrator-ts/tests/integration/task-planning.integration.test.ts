@@ -14,10 +14,10 @@
  * Requirements: 2.1, 4.1, 4.2, 5.1, 5.2, 5.4, 6.1, 7.4, 8.1, 8.2, 8.3, 8.5
  */
 
-import { TaskPlanningService } from "@/application/planning/task-planning-service";
 import type { AgentLoopResult, IAgentLoop } from "@/application/ports/agent-loop";
 import type { LlmProviderPort, LlmResult } from "@/application/ports/llm";
 import type { IPlanContextBuilder } from "@/application/ports/task-planning";
+import { TaskPlanningService } from "@/application/services/planning/task-planning-service";
 import type { AgentState } from "@/domain/agent/types";
 import type { TaskPlan } from "@/domain/planning/types";
 import { PlanFileStore } from "@/infra/planning/plan-file-store";

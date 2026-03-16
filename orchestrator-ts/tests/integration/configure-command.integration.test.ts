@@ -8,8 +8,8 @@
  * - Req 5.1: file is written to the correct path
  * - Req 5.4: llm.apiKey is absent from the written file
  */
-import type { IConfigWizard, WizardInput } from "@/cli/config-wizard";
-import { ConfigureCommand } from "@/cli/configure-command";
+import type { IConfigWizard, WizardInput } from "@/adapters/cli/config-wizard";
+import { ConfigureCommand } from "@/adapters/cli/configure-command";
 import { ConfigWriter } from "@/infra/config/config-writer";
 import { SddFrameworkChecker } from "@/infra/config/sdd-framework-checker";
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";

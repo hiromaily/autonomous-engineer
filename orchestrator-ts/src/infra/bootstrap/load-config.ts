@@ -1,0 +1,3 @@
+// Re-export ConfigLoader through the bootstrap module so that adapters/cli/index.ts
+// can import it from @/infra/bootstrap/... rather than directly from @/infra/config/...
+export { ConfigLoader } from "@/infra/config/config-loader";

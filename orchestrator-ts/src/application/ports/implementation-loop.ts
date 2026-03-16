@@ -22,6 +22,20 @@ export type {
 } from "@/domain/implementation-loop/types";
 
 // ---------------------------------------------------------------------------
+// Run-command tool contract (used by QualityGateRunner)
+// ---------------------------------------------------------------------------
+
+/** Name of the tool used to run quality gate shell commands. */
+export const RUN_COMMAND_TOOL_NAME = "run_command" as const;
+
+/** Output shape returned by the run_command tool invocation. */
+export interface RunCommandOutput {
+  readonly exitCode: number;
+  readonly stdout: string;
+  readonly stderr: string;
+}
+
+// ---------------------------------------------------------------------------
 // QualityGate types
 // ---------------------------------------------------------------------------
 

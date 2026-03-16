@@ -8,8 +8,8 @@
  *
  * Task 9.1 — Requirements: 3.1, 3.2, 3.3, 3.6, 6.1, 6.4
  */
-import { CcSddAdapter, type SpawnFn } from "@/adapters/sdd/cc-sdd-adapter";
 import type { SpecContext } from "@/application/ports/sdd";
+import { CcSddAdapter, type SpawnFn } from "@/infra/sdd/cc-sdd-adapter";
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";

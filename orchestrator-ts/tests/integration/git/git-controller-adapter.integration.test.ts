@@ -20,7 +20,18 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 
-import { GitControllerAdapter } from "@/adapters/git/git-controller-adapter";
+import type { LlmProviderPort } from "@/application/ports/llm";
+import type { IPullRequestProvider } from "@/application/ports/pr-provider";
+import type { IAuditLogger } from "@/application/ports/safety";
+import { GitIntegrationService } from "@/application/services/git/git-integration-service";
+import { ToolExecutor } from "@/application/services/tools/executor";
+import { GitValidator } from "@/domain/git/git-validator";
+import type { GitIntegrationConfig } from "@/domain/git/types";
+import { PermissionSystem } from "@/domain/tools/permissions";
+import { ToolRegistry } from "@/domain/tools/registry";
+import type { PermissionSet, ToolContext, ToolInvocationLog } from "@/domain/tools/types";
+import { GitEventBus } from "@/infra/events/git-event-bus";
+import { GitControllerAdapter } from "@/infra/git/git-controller-adapter";
 import {
   gitAddTool,
   gitBranchCreateTool,
@@ -29,18 +40,7 @@ import {
   gitCommitTool,
   gitPushTool,
   gitStatusTool,
-} from "@/adapters/tools/git";
-import { GitIntegrationService } from "@/application/git/git-integration-service";
-import type { LlmProviderPort } from "@/application/ports/llm";
-import type { IPullRequestProvider } from "@/application/ports/pr-provider";
-import type { IAuditLogger } from "@/application/safety/ports";
-import { ToolExecutor } from "@/application/tools/executor";
-import { GitValidator } from "@/domain/git/git-validator";
-import type { GitIntegrationConfig } from "@/domain/git/types";
-import { PermissionSystem } from "@/domain/tools/permissions";
-import { ToolRegistry } from "@/domain/tools/registry";
-import type { PermissionSet, ToolContext, ToolInvocationLog } from "@/domain/tools/types";
-import { GitEventBus } from "@/infra/events/git-event-bus";
+} from "@/infra/tools/git";
 
 const execFile = promisify(execFileCb);
 
