@@ -1,11 +1,11 @@
+import type { PermissionSet, ToolContext } from "@/domain/tools/types";
 import {
   listDirectoryTool,
   readFileTool,
   resolveWorkspacePath,
   searchFilesTool,
   writeFileTool,
-} from "@/adapters/tools/filesystem";
-import type { PermissionSet, ToolContext } from "@/domain/tools/types";
+} from "@/infra/tools/filesystem";
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdir, mkdtemp, rm, writeFile as fsWriteFile } from "node:fs/promises";
 import { tmpdir } from "node:os";

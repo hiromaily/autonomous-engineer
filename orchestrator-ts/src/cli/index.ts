@@ -1,8 +1,4 @@
 #!/usr/bin/env bun
-import { ClaudeProvider } from "@/adapters/llm/claude-provider";
-import { MockLlmProvider } from "@/adapters/llm/mock-llm-provider";
-import { CcSddAdapter } from "@/adapters/sdd/cc-sdd-adapter";
-import { MockSddAdapter } from "@/adapters/sdd/mock-sdd-adapter";
 import { DebugAgentEventBus } from "@/application/agent/debug-agent-event-bus";
 import { ConfigValidationError } from "@/application/ports/config";
 import type { AesConfig } from "@/application/ports/config";
@@ -14,7 +10,11 @@ import { ConfigWriter } from "@/infra/config/config-writer";
 import { SddFrameworkChecker } from "@/infra/config/sdd-framework-checker";
 import { WorkflowEventBus } from "@/infra/events/workflow-event-bus";
 import { createImplementationLoopService } from "@/infra/implementation-loop/create-implementation-loop-service";
+import { ClaudeProvider } from "@/infra/llm/claude-provider";
+import { MockLlmProvider } from "@/infra/llm/mock-llm-provider";
 import { FileMemoryStore } from "@/infra/memory/file-memory-store";
+import { CcSddAdapter } from "@/infra/sdd/cc-sdd-adapter";
+import { MockSddAdapter } from "@/infra/sdd/mock-sdd-adapter";
 import { WorkflowStateStore } from "@/infra/state/workflow-state-store";
 import { defineCommand, runMain } from "citty";
 import { ConfigWizard } from "./config-wizard";

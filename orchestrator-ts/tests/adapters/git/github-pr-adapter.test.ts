@@ -1,5 +1,5 @@
-import { GitHubPrAdapter } from "@/adapters/git/github-pr-adapter";
 import type { PullRequestParams } from "@/domain/git/types";
+import { GitHubPrAdapter } from "@/infra/git/github-pr-adapter";
 import { describe, expect, it } from "bun:test";
 
 // ---------------------------------------------------------------------------

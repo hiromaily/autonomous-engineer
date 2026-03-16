@@ -20,16 +20,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 
-import { GitControllerAdapter } from "@/adapters/git/git-controller-adapter";
-import {
-  gitAddTool,
-  gitBranchCreateTool,
-  gitBranchListTool,
-  gitBranchSwitchTool,
-  gitCommitTool,
-  gitPushTool,
-  gitStatusTool,
-} from "@/adapters/tools/git";
 import { GitIntegrationService } from "@/application/git/git-integration-service";
 import type { LlmProviderPort } from "@/application/ports/llm";
 import type { IPullRequestProvider } from "@/application/ports/pr-provider";
@@ -41,6 +31,16 @@ import { PermissionSystem } from "@/domain/tools/permissions";
 import { ToolRegistry } from "@/domain/tools/registry";
 import type { PermissionSet, ToolContext, ToolInvocationLog } from "@/domain/tools/types";
 import { GitEventBus } from "@/infra/events/git-event-bus";
+import { GitControllerAdapter } from "@/infra/git/git-controller-adapter";
+import {
+  gitAddTool,
+  gitBranchCreateTool,
+  gitBranchListTool,
+  gitBranchSwitchTool,
+  gitCommitTool,
+  gitPushTool,
+  gitStatusTool,
+} from "@/infra/tools/git";
 
 const execFile = promisify(execFileCb);
 

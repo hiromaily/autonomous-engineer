@@ -10,6 +10,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 
+import { ToolExecutor } from "@/application/tools/executor";
+import { PermissionSystem } from "@/domain/tools/permissions";
+import { ToolRegistry } from "@/domain/tools/registry";
+import type { PermissionSet, ToolContext, ToolInvocationLog } from "@/domain/tools/types";
 import {
   gitAddTool,
   gitBranchCreateTool,
@@ -19,11 +23,7 @@ import {
   gitDiffTool,
   gitPushTool,
   gitStatusTool,
-} from "@/adapters/tools/git";
-import { ToolExecutor } from "@/application/tools/executor";
-import { PermissionSystem } from "@/domain/tools/permissions";
-import { ToolRegistry } from "@/domain/tools/registry";
-import type { PermissionSet, ToolContext, ToolInvocationLog } from "@/domain/tools/types";
+} from "@/infra/tools/git";
 
 const execFile = promisify(execFileCb);
 

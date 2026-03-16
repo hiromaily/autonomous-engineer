@@ -1,8 +1,8 @@
-import { MockLlmProvider } from "@/adapters/llm/mock-llm-provider";
 import type { IDebugEventSink } from "@/application/ports/debug";
 import type { IWorkflowEventBus } from "@/application/ports/workflow";
 import type { WorkflowEvent } from "@/application/ports/workflow";
 import type { DebugEvent } from "@/domain/debug/types";
+import { MockLlmProvider } from "@/infra/llm/mock-llm-provider";
 import { beforeEach, describe, expect, it } from "bun:test";
 
 // ---------------------------------------------------------------------------

@@ -1,7 +1,7 @@
-import { GitControllerAdapter } from "@/adapters/git/git-controller-adapter";
 import type { IToolExecutor } from "@/application/tools/executor";
 import type { IGitValidator } from "@/domain/git/git-validator";
 import type { ToolContext, ToolResult } from "@/domain/tools/types";
+import { GitControllerAdapter } from "@/infra/git/git-controller-adapter";
 import { describe, expect, it } from "bun:test";
 
 // ---------------------------------------------------------------------------

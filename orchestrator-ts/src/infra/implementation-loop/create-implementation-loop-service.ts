@@ -2,26 +2,6 @@
 // createImplementationLoopService — composition root for the implementation loop
 // ---------------------------------------------------------------------------
 
-import { GitControllerAdapter } from "@/adapters/git/git-controller-adapter";
-import {
-  dependencyGraphTool,
-  findReferencesTool,
-  findSymbolDefinitionTool,
-  parseTsAstTool,
-} from "@/adapters/tools/code-analysis";
-import { listDirectoryTool, readFileTool, searchFilesTool, writeFileTool } from "@/adapters/tools/filesystem";
-import {
-  gitAddTool,
-  gitBranchCreateTool,
-  gitBranchListTool,
-  gitBranchSwitchTool,
-  gitCommitTool,
-  gitDiffTool,
-  gitPushTool,
-  gitStatusTool,
-} from "@/adapters/tools/git";
-import { retrieveDesignDocTool, retrieveSpecTool, searchMemoryTool } from "@/adapters/tools/knowledge";
-import { installDependenciesTool, runCommandTool, runTestSuiteTool } from "@/adapters/tools/shell";
 import { AgentLoopService } from "@/application/agent/agent-loop-service";
 import { ImplementationLoopService } from "@/application/implementation-loop/implementation-loop-service";
 import { LlmReviewEngineService } from "@/application/implementation-loop/llm-review-engine";
@@ -34,7 +14,27 @@ import { GitValidator } from "@/domain/git/git-validator";
 import { PermissionSystem } from "@/domain/tools/permissions";
 import { ToolRegistry } from "@/domain/tools/registry";
 import type { ToolContext } from "@/domain/tools/types";
+import { GitControllerAdapter } from "@/infra/git/git-controller-adapter";
 import { PlanFileStore, PlanFileStoreAdapter } from "@/infra/planning/plan-file-store";
+import {
+  dependencyGraphTool,
+  findReferencesTool,
+  findSymbolDefinitionTool,
+  parseTsAstTool,
+} from "@/infra/tools/code-analysis";
+import { listDirectoryTool, readFileTool, searchFilesTool, writeFileTool } from "@/infra/tools/filesystem";
+import {
+  gitAddTool,
+  gitBranchCreateTool,
+  gitBranchListTool,
+  gitBranchSwitchTool,
+  gitCommitTool,
+  gitDiffTool,
+  gitPushTool,
+  gitStatusTool,
+} from "@/infra/tools/git";
+import { retrieveDesignDocTool, retrieveSpecTool, searchMemoryTool } from "@/infra/tools/knowledge";
+import { installDependenciesTool, runCommandTool, runTestSuiteTool } from "@/infra/tools/shell";
 
 export interface ImplementationLoopServiceOptions {
   readonly llm: LlmProviderPort;

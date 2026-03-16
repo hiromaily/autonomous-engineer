@@ -1,9 +1,9 @@
-import { runCommandTool } from "@/adapters/tools/shell";
-import type { RunCommandOutput } from "@/adapters/tools/shell";
 import type { IQualityGate, QualityGateCheck, QualityGateConfig } from "@/application/ports/implementation-loop";
 import type { IToolExecutor } from "@/application/tools/executor";
 import type { ReviewCheckResult } from "@/domain/implementation-loop/types";
 import type { ToolContext } from "@/domain/tools/types";
+import { runCommandTool } from "@/infra/tools/shell";
+import type { RunCommandOutput } from "@/infra/tools/shell";
 
 // ---------------------------------------------------------------------------
 // QualityGateRunner — stateless IQualityGate implementation

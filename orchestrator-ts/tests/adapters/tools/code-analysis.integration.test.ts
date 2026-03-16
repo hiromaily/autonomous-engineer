@@ -12,13 +12,13 @@ import { mkdtemp, realpath, rm, writeFile as fsWriteFile } from "node:fs/promise
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+import type { PermissionSet, ToolContext, ToolInvocationLog } from "@/domain/tools/types";
 import {
   dependencyGraphTool,
   findReferencesTool,
   findSymbolDefinitionTool,
   parseTsAstTool,
-} from "@/adapters/tools/code-analysis";
-import type { PermissionSet, ToolContext, ToolInvocationLog } from "@/domain/tools/types";
+} from "@/infra/tools/code-analysis";
 
 // ---------------------------------------------------------------------------
 // Helpers

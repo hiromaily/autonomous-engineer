@@ -1,5 +1,5 @@
-import { AuditLogger } from "@/adapters/safety/audit-logger";
 import type { AuditEntry } from "@/application/safety/ports";
+import { AuditLogger } from "@/infra/safety/audit-logger";
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { access, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";

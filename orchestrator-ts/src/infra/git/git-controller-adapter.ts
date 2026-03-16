@@ -5,6 +5,11 @@
 // IToolExecutor. Never calls child_process or git SDKs directly.
 // ---------------------------------------------------------------------------
 
+import type { GitResult, IGitController } from "@/application/ports/git-controller";
+import type { IToolExecutor } from "@/application/tools/executor";
+import type { IGitValidator } from "@/domain/git/git-validator";
+import type { BranchCreationResult, CommitResult, GitChangesResult, PushResult } from "@/domain/git/types";
+import type { ToolContext, ToolError, ToolResult } from "@/domain/tools/types";
 import {
   type GitAddOutput,
   gitAddTool,
@@ -20,12 +25,7 @@ import {
   gitPushTool,
   type GitStatusOutput,
   gitStatusTool,
-} from "@/adapters/tools/git";
-import type { GitResult, IGitController } from "@/application/ports/git-controller";
-import type { IToolExecutor } from "@/application/tools/executor";
-import type { IGitValidator } from "@/domain/git/git-validator";
-import type { BranchCreationResult, CommitResult, GitChangesResult, PushResult } from "@/domain/git/types";
-import type { ToolContext, ToolError, ToolResult } from "@/domain/tools/types";
+} from "@/infra/tools/git";
 
 export class GitControllerAdapter implements IGitController {
   constructor(

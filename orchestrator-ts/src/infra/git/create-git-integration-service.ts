@@ -5,8 +5,6 @@
 // Constructs all components and wires them together.
 // ---------------------------------------------------------------------------
 
-import { GitControllerAdapter } from "@/adapters/git/git-controller-adapter";
-import { GitHubPrAdapter } from "@/adapters/git/github-pr-adapter";
 import { GitIntegrationService, type IGitIntegrationService } from "@/application/git/git-integration-service";
 import type { LlmProviderPort } from "@/application/ports/llm";
 import type { IPullRequestProvider } from "@/application/ports/pr-provider";
@@ -16,6 +14,8 @@ import { GitValidator } from "@/domain/git/git-validator";
 import type { GitIntegrationConfig } from "@/domain/git/types";
 import type { ToolContext } from "@/domain/tools/types";
 import { GitEventBus } from "@/infra/events/git-event-bus";
+import { GitControllerAdapter } from "@/infra/git/git-controller-adapter";
+import { GitHubPrAdapter } from "@/infra/git/github-pr-adapter";
 
 // ---------------------------------------------------------------------------
 // Public types

@@ -1,5 +1,5 @@
-import { CliApprovalGateway } from "@/adapters/safety/approval-gateway";
 import type { ApprovalRequest } from "@/domain/safety/guards";
+import { CliApprovalGateway } from "@/infra/safety/approval-gateway";
 import { describe, expect, it } from "bun:test";
 
 // ---------------------------------------------------------------------------

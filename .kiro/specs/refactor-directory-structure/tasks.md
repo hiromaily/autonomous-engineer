@@ -9,32 +9,32 @@ Migration executes in sequential phases; each phase ends with a typecheck gate b
 
 - [ ] 1. Move outbound adapters from `src/adapters/` to `src/infra/`
 
-- [ ] 1.1 (P) Move LLM adapter files into `src/infra/llm/`
+- [x] 1.1 (P) Move LLM adapter files into `src/infra/llm/`
   - Create `src/infra/llm/` directory
   - Move `src/adapters/llm/claude-provider.ts` and `src/adapters/llm/mock-llm-provider.ts` into the new location
   - Move the mock LLM provider alongside the real provider since both are concrete implementations of the LLM port
   - _Requirements: 2.1, 2.8_
 
-- [ ] 1.2 (P) Move SDD adapter files into `src/infra/sdd/`
+- [x] 1.2 (P) Move SDD adapter files into `src/infra/sdd/`
   - Create `src/infra/sdd/` directory
   - Move `src/adapters/sdd/cc-sdd-adapter.ts` and `src/adapters/sdd/mock-sdd-adapter.ts` into the new location
   - _Requirements: 2.3, 2.8_
 
-- [ ] 1.3 (P) Move tool adapter files into `src/infra/tools/`
+- [x] 1.3 (P) Move tool adapter files into `src/infra/tools/`
   - Create `src/infra/tools/` directory
   - Move all files from `src/adapters/tools/` (`code-analysis.ts`, `filesystem.ts`, `git.ts`, `knowledge.ts`, `shell.ts`) into the new location
   - _Requirements: 2.4_
 
-- [ ] 1.4 (P) Merge git adapter files into the existing `src/infra/git/`
+- [x] 1.4 (P) Merge git adapter files into the existing `src/infra/git/`
   - Move `src/adapters/git/git-controller-adapter.ts` and `src/adapters/git/github-pr-adapter.ts` into `src/infra/git/` alongside the existing factory file
   - No naming conflict exists; placement is flat within the directory
   - _Requirements: 2.2, 2.7_
 
-- [ ] 1.5 (P) Merge safety adapter files into the existing `src/infra/safety/`
+- [x] 1.5 (P) Merge safety adapter files into the existing `src/infra/safety/`
   - Move `src/adapters/safety/approval-gateway.ts`, `src/adapters/safety/audit-logger.ts`, and `src/adapters/safety/sandbox-executor.ts` into `src/infra/safety/` alongside the existing factory file
   - _Requirements: 2.5_
 
-- [ ] 1.6 Update all import statements across the codebase to reflect the outbound adapter relocations
+- [x] 1.6 Update all import statements across the codebase to reflect the outbound adapter relocations
   - Replace all `@/adapters/llm/...` imports with `@/infra/llm/...`
   - Replace all `@/adapters/sdd/...` imports with `@/infra/sdd/...`
   - Replace all `@/adapters/tools/...` imports with `@/infra/tools/...`
@@ -45,7 +45,7 @@ Migration executes in sequential phases; each phase ends with a typecheck gate b
   - Update `src/infra/safety/create-safety-executor.ts` to import from `@/infra/safety/...` instead of `@/adapters/safety/...`
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 8.2_
 
-- [ ] 1.7 Verify the codebase compiles cleanly after Phase 1
+- [x] 1.7 Verify the codebase compiles cleanly after Phase 1
   - Run `bun run typecheck` and confirm zero errors before proceeding
   - If errors remain, fix all import breakage before moving to Task 2
   - _Requirements: 7.3, 7.4_

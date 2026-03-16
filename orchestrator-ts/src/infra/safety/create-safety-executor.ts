@@ -1,6 +1,3 @@
-import { CliApprovalGateway } from "@/adapters/safety/approval-gateway";
-import { AuditLogger } from "@/adapters/safety/audit-logger";
-import { TempDirSandboxExecutor } from "@/adapters/safety/sandbox-executor";
 import { EmergencyStopHandler } from "@/application/safety/emergency-stop-handler";
 import { SafetyGuardedToolExecutor } from "@/application/safety/guarded-executor";
 import type { IEmergencyStopHandler } from "@/application/safety/ports";
@@ -8,6 +5,9 @@ import type { IApprovalGateway, IAuditLogger, ISandboxExecutor } from "@/applica
 import type { IToolExecutor } from "@/application/tools/executor";
 import { createSafetyConfig, createSafetySession } from "@/domain/safety/types";
 import type { SafetyConfigOverrides, SafetySession } from "@/domain/safety/types";
+import { CliApprovalGateway } from "@/infra/safety/approval-gateway";
+import { AuditLogger } from "@/infra/safety/audit-logger";
+import { TempDirSandboxExecutor } from "@/infra/safety/sandbox-executor";
 import { join } from "node:path";
 
 // ---------------------------------------------------------------------------

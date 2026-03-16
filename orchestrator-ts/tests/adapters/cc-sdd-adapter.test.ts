@@ -1,5 +1,5 @@
-import { CcSddAdapter, type SpawnFn } from "@/adapters/sdd/cc-sdd-adapter";
 import type { SpecContext } from "@/application/ports/sdd";
+import { CcSddAdapter, type SpawnFn } from "@/infra/sdd/cc-sdd-adapter";
 import { describe, expect, it } from "bun:test";
 import { join } from "node:path";
 
