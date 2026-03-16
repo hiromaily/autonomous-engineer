@@ -50,9 +50,12 @@ The example below shows the phases for the **orchestrator-ts** implementation us
 13. tasks *(llm slash command)*
 14. validate-tasks *(llm prompt)*
 15. **`/clear` slash command** — reset context before implementation
-16. implementation *(llm slash command)*
-17. **`/clear` slash command** — reset context before pull request
-18. create PR *(git command)*
+16. implementation loop *(repeat per task group)*:
+    - spec-impl *(llm slash command)*
+    - validate-impl *(llm prompt)*
+    - commit *(git command)*
+    - **`/clear` slash command** — reset context before next task group
+17. create PR *(git command)*
 
 Each phase produces structured artifacts that guide the next phase. Steps annotated with `(llm prompt)` run automatically within the orchestrator without human approval gates. Steps annotated with `(llm slash command: ...)` are invoked via CLI. Steps annotated with `(user input ...)` require manual input from the user. Steps marked `optional` may be skipped. `CLEAR_CONTEXT` steps reset the LLM context window to prevent token accumulation and reasoning degradation across phase boundaries.
 
@@ -239,29 +242,79 @@ Human review is required before implementation begins.
 
 The implementation phase executes the tasks from `tasks.md` using the agent loop.
 
-For each task section, the agent runs an iterative cycle:
+### Outer loop: per task group
 
+Tasks in `tasks.md` are organized hierarchically — top-level tasks (e.g., Task 1, Task 2) each contain sub-tasks (e.g., 1.1, 1.2, 1.3). The outer loop iterates once per top-level **task group**:
+
+```text
+FOR EACH task group (Task 1, Task 2, ...):
+
+    SPEC_IMPL sub-task batch(es)   ← one or more /kiro:spec-impl calls
+        ↓
+    VALIDATE_IMPL                  ← llm prompt, reviews the full task group
+        ↓
+    COMMIT                         ← git commit for this task group
+        ↓
+    CLEAR_CONTEXT                  ← /clear resets context before next group
+
+    [repeat for next task group]
+        ↓ (after all groups)
+
+PULL_REQUEST
 ```
+
+Sub-tasks within a group may be batched across multiple `spec-impl` calls when splitting work into smaller context windows is beneficial. For example:
+
+```text
+# Task 1 iteration
+/kiro:spec-impl spec1-orchestrator-core 1.1,1.2
+validate implementation for task 1 (llm prompt)
+commit changes
+/clear
+
+# Task 2 iteration
+/kiro:spec-impl spec1-orchestrator-core 2.1
+/kiro:spec-impl spec1-orchestrator-core 2.2,2.3
+validate implementation for task 2 (llm prompt)
+commit changes
+/clear
+
+# Task 3 iteration
+/kiro:spec-impl spec1-orchestrator-core 3.1
+/kiro:spec-impl spec1-orchestrator-core 3.2
+validate implementation for task 3 (llm prompt)
+commit changes
+/clear
+```
+
+### Inner loop: per spec-impl call
+
+Within each `spec-impl` call, the agent runs an automated review cycle:
+
+```text
 Implement
     ↓
 Review (automated)
     ↓
 Improve
     ↓
-Commit
+(repeat until passing or retry threshold reached)
 ```
 
 The review step checks:
+
 - alignment with the task description
 - consistency with the design document
 - requirement satisfaction
 - code quality (linting, naming, structure)
 
-The cycle repeats until the output passes the review gate or the retry threshold is reached.
+If the retry threshold is exceeded, the self-healing loop activates to analyze the failure and update rules.
 
-If the threshold is exceeded, the self-healing loop activates to analyze the failure and update rules.
+### Why CLEAR_CONTEXT between task groups
 
-Optional validation after implementation:
+Each task group accumulates substantial context. Clearing after each group prevents token growth from degrading reasoning quality in subsequent groups, and keeps each group's implementation focused on only its own sub-tasks.
+
+### Optional post-implementation validation
 
 **Command**: `validate-impl <feature>`
 
