@@ -11,7 +11,7 @@ export const WORKFLOW_PHASES = Object.freeze(
     "VALIDATE_DESIGN",
     "REFLECT_BEFORE_TASKS",
     "SPEC_TASKS",
-    "VALIDATE_TASK",
+    "VALIDATE_TASKS",
     "IMPLEMENTATION",
     "PULL_REQUEST",
   ] as const,

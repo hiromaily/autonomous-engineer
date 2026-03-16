@@ -23,7 +23,7 @@ export class CcSddAdapter implements SddFrameworkPort {
     return this.run("validate-requirements", ctx, "requirements.md");
   }
 
-  reflectOnExistingInformation(ctx: SpecContext): Promise<SddOperationResult> {
+  reflectBeforeDesign(ctx: SpecContext): Promise<SddOperationResult> {
     return this.run("reflect", ctx, "requirements.md");
   }
 
@@ -39,11 +39,15 @@ export class CcSddAdapter implements SddFrameworkPort {
     return this.run("validate-design", ctx, "design.md");
   }
 
+  reflectBeforeTasks(ctx: SpecContext): Promise<SddOperationResult> {
+    return this.run("reflect", ctx, "design.md");
+  }
+
   generateTasks(ctx: SpecContext): Promise<SddOperationResult> {
     return this.run("tasks", ctx, "tasks.md");
   }
 
-  validateTask(ctx: SpecContext): Promise<SddOperationResult> {
+  validateTasks(ctx: SpecContext): Promise<SddOperationResult> {
     return this.run("validate-task", ctx, "tasks.md");
   }
 

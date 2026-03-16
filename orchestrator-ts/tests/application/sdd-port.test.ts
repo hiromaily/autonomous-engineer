@@ -70,12 +70,13 @@ describe("SddFrameworkPort contract (mock implementation)", () => {
       validatePrerequisites: async (_ctx: SpecContext) => result,
       generateRequirements: async (_ctx: SpecContext) => result,
       validateRequirements: async (_ctx: SpecContext) => result,
-      reflectOnExistingInformation: async (_ctx: SpecContext) => result,
+      reflectBeforeDesign: async (_ctx: SpecContext) => result,
+      reflectBeforeTasks: async (_ctx: SpecContext) => result,
       validateGap: async (_ctx: SpecContext) => result,
       generateDesign: async (_ctx: SpecContext) => result,
       validateDesign: async (_ctx: SpecContext) => result,
       generateTasks: async (_ctx: SpecContext) => result,
-      validateTask: async (_ctx: SpecContext) => result,
+      validateTasks: async (_ctx: SpecContext) => result,
     };
   }
 
@@ -100,9 +101,15 @@ describe("SddFrameworkPort contract (mock implementation)", () => {
     expect(result.ok).toBe(true);
   });
 
-  it("reflectOnExistingInformation returns SddOperationResult", async () => {
+  it("reflectBeforeDesign returns SddOperationResult", async () => {
     const adapter = makeAdapter({ ok: true, artifactPath: "requirements.md" });
-    const result = await adapter.reflectOnExistingInformation(ctx);
+    const result = await adapter.reflectBeforeDesign(ctx);
+    expect(result.ok).toBe(true);
+  });
+
+  it("reflectBeforeTasks returns SddOperationResult", async () => {
+    const adapter = makeAdapter({ ok: true, artifactPath: "design.md" });
+    const result = await adapter.reflectBeforeTasks(ctx);
     expect(result.ok).toBe(true);
   });
 
@@ -132,9 +139,9 @@ describe("SddFrameworkPort contract (mock implementation)", () => {
     if (result.ok) expect(result.artifactPath).toBe("tasks.md");
   });
 
-  it("validateTask returns SddOperationResult", async () => {
+  it("validateTasks returns SddOperationResult", async () => {
     const adapter = makeAdapter({ ok: true, artifactPath: "tasks.md" });
-    const result = await adapter.validateTask(ctx);
+    const result = await adapter.validateTasks(ctx);
     expect(result.ok).toBe(true);
   });
 
@@ -147,12 +154,13 @@ describe("SddFrameworkPort contract (mock implementation)", () => {
         adapter.validatePrerequisites(ctx),
         adapter.generateRequirements(ctx),
         adapter.validateRequirements(ctx),
-        adapter.reflectOnExistingInformation(ctx),
+        adapter.reflectBeforeDesign(ctx),
+        adapter.reflectBeforeTasks(ctx),
         adapter.validateGap(ctx),
         adapter.generateDesign(ctx),
         adapter.validateDesign(ctx),
         adapter.generateTasks(ctx),
-        adapter.validateTask(ctx),
+        adapter.validateTasks(ctx),
       ]
     ) {
       const result = await op;

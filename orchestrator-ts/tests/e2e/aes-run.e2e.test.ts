@@ -128,12 +128,13 @@ function makeStubSdd(): SddFrameworkPort {
     validatePrerequisites: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
     generateRequirements: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
     validateRequirements: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
-    reflectOnExistingInformation: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
+    reflectBeforeDesign: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
+    reflectBeforeTasks: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
     validateGap: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
     generateDesign: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
     validateDesign: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
     generateTasks: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
-    validateTask: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
+    validateTasks: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
   };
 }
 
@@ -312,7 +313,7 @@ describe("E2E: full 7-phase workflow", () => {
         expect(phases).toContain("VALIDATE_DESIGN");
         expect(phases).toContain("REFLECT_BEFORE_TASKS");
         expect(phases).toContain("SPEC_TASKS");
-        expect(phases).toContain("VALIDATE_TASK");
+        expect(phases).toContain("VALIDATE_TASKS");
         expect(phases).toContain("IMPLEMENTATION");
         expect(phases).toContain("PULL_REQUEST");
       }
@@ -416,9 +417,13 @@ describe("E2E: --resume after simulated SPEC_REQUIREMENTS interruption", () => {
           sddCalls.push("validateRequirements");
           return { ok: true as const, artifactPath: join(env.specDir, "requirements.md") };
         }),
-        reflectOnExistingInformation: mock(async () => {
-          sddCalls.push("reflectOnExistingInformation");
+        reflectBeforeDesign: mock(async () => {
+          sddCalls.push("reflectBeforeDesign");
           return { ok: true as const, artifactPath: join(env.specDir, "requirements.md") };
+        }),
+        reflectBeforeTasks: mock(async () => {
+          sddCalls.push("reflectBeforeTasks");
+          return { ok: true as const, artifactPath: join(env.specDir, "design.md") };
         }),
         validateGap: mock(async () => {
           sddCalls.push("validateGap");
@@ -436,8 +441,8 @@ describe("E2E: --resume after simulated SPEC_REQUIREMENTS interruption", () => {
           sddCalls.push("generateTasks");
           return { ok: true as const, artifactPath: join(env.specDir, "tasks.md") };
         }),
-        validateTask: mock(async () => {
-          sddCalls.push("validateTask");
+        validateTasks: mock(async () => {
+          sddCalls.push("validateTasks");
           return { ok: true as const, artifactPath: join(env.specDir, "tasks.md") };
         }),
       };
@@ -485,7 +490,7 @@ describe("E2E: --resume after simulated SPEC_REQUIREMENTS interruption", () => {
           "VALIDATE_DESIGN",
           "REFLECT_BEFORE_TASKS",
           "SPEC_TASKS",
-          "VALIDATE_TASK",
+          "VALIDATE_TASKS",
           "IMPLEMENTATION",
           "PULL_REQUEST",
         ],
@@ -528,9 +533,13 @@ describe("E2E: --resume after simulated SPEC_REQUIREMENTS interruption", () => {
           sddCalls.push("validateRequirements");
           return { ok: true as const, artifactPath: join(env.specDir, "requirements.md") };
         }),
-        reflectOnExistingInformation: mock(async () => {
-          sddCalls.push("reflectOnExistingInformation");
+        reflectBeforeDesign: mock(async () => {
+          sddCalls.push("reflectBeforeDesign");
           return { ok: true as const, artifactPath: join(env.specDir, "requirements.md") };
+        }),
+        reflectBeforeTasks: mock(async () => {
+          sddCalls.push("reflectBeforeTasks");
+          return { ok: true as const, artifactPath: join(env.specDir, "design.md") };
         }),
         validateGap: mock(async () => {
           sddCalls.push("validateGap");
@@ -548,8 +557,8 @@ describe("E2E: --resume after simulated SPEC_REQUIREMENTS interruption", () => {
           sddCalls.push("generateTasks");
           return { ok: true as const, artifactPath: join(env.specDir, "tasks.md") };
         }),
-        validateTask: mock(async () => {
-          sddCalls.push("validateTask");
+        validateTasks: mock(async () => {
+          sddCalls.push("validateTasks");
           return { ok: true as const, artifactPath: join(env.specDir, "tasks.md") };
         }),
       };
@@ -751,7 +760,7 @@ describe("E2E: --log-json writes all events as newline-delimited JSON", () => {
         "VALIDATE_DESIGN",
         "REFLECT_BEFORE_TASKS",
         "SPEC_TASKS",
-        "VALIDATE_TASK",
+        "VALIDATE_TASKS",
         "IMPLEMENTATION",
         "PULL_REQUEST",
       ];

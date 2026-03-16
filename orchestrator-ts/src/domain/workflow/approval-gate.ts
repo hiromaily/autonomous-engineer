@@ -47,7 +47,6 @@ function getApprovalField(parsed: unknown, phase: ApprovalPhase): unknown {
 function artifactFilename(phase: ApprovalPhase): string {
   switch (phase) {
     case "human_interaction":
-      return "requirements.md";
     case "requirements":
       return "requirements.md";
     case "design":

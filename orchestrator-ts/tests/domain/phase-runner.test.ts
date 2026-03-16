@@ -23,9 +23,10 @@ function makeSddAdapter(result: SddOperationResult): SddFrameworkPort {
     generateTasks: mock(() => Promise.resolve(result)),
     validatePrerequisites: mock(() => Promise.resolve(result)),
     validateRequirements: mock(() => Promise.resolve(result)),
-    reflectOnExistingInformation: mock(() => Promise.resolve(result)),
+    reflectBeforeDesign: mock(() => Promise.resolve(result)),
+    reflectBeforeTasks: mock(() => Promise.resolve(result)),
     validateGap: mock(() => Promise.resolve(result)),
-    validateTask: mock(() => Promise.resolve(result)),
+    validateTasks: mock(() => Promise.resolve(result)),
   };
 }
 
@@ -94,12 +95,12 @@ describe("PhaseRunner", () => {
       expect(result).toEqual({ ok: true, artifacts: [".kiro/specs/my-spec/requirements.md"] });
     });
 
-    it("dispatches REFLECT_BEFORE_DESIGN to reflectOnExistingInformation", async () => {
+    it("dispatches REFLECT_BEFORE_DESIGN to reflectBeforeDesign", async () => {
       const sdd = makeSddAdapter({ ok: true, artifactPath: ".kiro/specs/my-spec/requirements.md" });
       const runner = new PhaseRunner({ sdd, llm: makeLlmProvider() });
       const result = await runner.execute("REFLECT_BEFORE_DESIGN", ctx);
 
-      expect(sdd.reflectOnExistingInformation).toHaveBeenCalledWith(ctx);
+      expect(sdd.reflectBeforeDesign).toHaveBeenCalledWith(ctx);
       expect(result).toEqual({ ok: true, artifacts: [".kiro/specs/my-spec/requirements.md"] });
     });
 
@@ -112,21 +113,21 @@ describe("PhaseRunner", () => {
       expect(result).toEqual({ ok: true, artifacts: [".kiro/specs/my-spec/requirements.md"] });
     });
 
-    it("dispatches REFLECT_BEFORE_TASKS to reflectOnExistingInformation", async () => {
+    it("dispatches REFLECT_BEFORE_TASKS to reflectBeforeTasks", async () => {
       const sdd = makeSddAdapter({ ok: true, artifactPath: ".kiro/specs/my-spec/design.md" });
       const runner = new PhaseRunner({ sdd, llm: makeLlmProvider() });
       const result = await runner.execute("REFLECT_BEFORE_TASKS", ctx);
 
-      expect(sdd.reflectOnExistingInformation).toHaveBeenCalledWith(ctx);
+      expect(sdd.reflectBeforeTasks).toHaveBeenCalledWith(ctx);
       expect(result).toEqual({ ok: true, artifacts: [".kiro/specs/my-spec/design.md"] });
     });
 
-    it("dispatches VALIDATE_TASK to validateTask", async () => {
+    it("dispatches VALIDATE_TASKS to validateTasks", async () => {
       const sdd = makeSddAdapter({ ok: true, artifactPath: ".kiro/specs/my-spec/tasks.md" });
       const runner = new PhaseRunner({ sdd, llm: makeLlmProvider() });
-      const result = await runner.execute("VALIDATE_TASK", ctx);
+      const result = await runner.execute("VALIDATE_TASKS", ctx);
 
-      expect(sdd.validateTask).toHaveBeenCalledWith(ctx);
+      expect(sdd.validateTasks).toHaveBeenCalledWith(ctx);
       expect(result).toEqual({ ok: true, artifacts: [".kiro/specs/my-spec/tasks.md"] });
     });
 
@@ -187,9 +188,10 @@ describe("PhaseRunner", () => {
       expect(sdd.generateTasks).not.toHaveBeenCalled();
       expect(sdd.validatePrerequisites).not.toHaveBeenCalled();
       expect(sdd.validateRequirements).not.toHaveBeenCalled();
-      expect(sdd.reflectOnExistingInformation).not.toHaveBeenCalled();
+      expect(sdd.reflectBeforeDesign).not.toHaveBeenCalled();
+      expect(sdd.reflectBeforeTasks).not.toHaveBeenCalled();
       expect(sdd.validateGap).not.toHaveBeenCalled();
-      expect(sdd.validateTask).not.toHaveBeenCalled();
+      expect(sdd.validateTasks).not.toHaveBeenCalled();
     });
   });
 
@@ -300,7 +302,7 @@ describe("PhaseRunner", () => {
         "VALIDATE_DESIGN",
         "REFLECT_BEFORE_TASKS",
         "SPEC_TASKS",
-        "VALIDATE_TASK",
+        "VALIDATE_TASKS",
         "IMPLEMENTATION",
         "PULL_REQUEST",
       ];
@@ -323,7 +325,7 @@ describe("PhaseRunner", () => {
         "VALIDATE_DESIGN",
         "REFLECT_BEFORE_TASKS",
         "SPEC_TASKS",
-        "VALIDATE_TASK",
+        "VALIDATE_TASKS",
         "IMPLEMENTATION",
         "PULL_REQUEST",
       ];
@@ -346,7 +348,7 @@ describe("PhaseRunner", () => {
       "VALIDATE_DESIGN",
       "REFLECT_BEFORE_TASKS",
       "SPEC_TASKS",
-      "VALIDATE_TASK",
+      "VALIDATE_TASKS",
       "IMPLEMENTATION",
       "PULL_REQUEST",
     ];

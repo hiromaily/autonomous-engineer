@@ -17,15 +17,19 @@ export class MockSddAdapter implements SddFrameworkPort {
     return this.writeStub(ctx, "requirements.md", undefined);
   }
 
-  reflectOnExistingInformation(ctx: SpecContext): Promise<SddOperationResult> {
+  reflectBeforeDesign(ctx: SpecContext): Promise<SddOperationResult> {
     return this.writeStub(ctx, "requirements.md", undefined);
+  }
+
+  reflectBeforeTasks(ctx: SpecContext): Promise<SddOperationResult> {
+    return this.writeStub(ctx, "design.md", undefined);
   }
 
   validateGap(ctx: SpecContext): Promise<SddOperationResult> {
     return this.writeStub(ctx, "requirements.md", undefined);
   }
 
-  validateTask(ctx: SpecContext): Promise<SddOperationResult> {
+  validateTasks(ctx: SpecContext): Promise<SddOperationResult> {
     return this.writeStub(ctx, "tasks.md", undefined);
   }
 

@@ -194,8 +194,8 @@ const _exhaustivePhase = (phase: WorkflowPhase): string => {
       return "REFLECT_BEFORE_TASKS";
     case "SPEC_TASKS":
       return "SPEC_TASKS";
-    case "VALIDATE_TASK":
-      return "VALIDATE_TASK";
+    case "VALIDATE_TASKS":
+      return "VALIDATE_TASKS";
     case "IMPLEMENTATION":
       return "IMPLEMENTATION";
     case "PULL_REQUEST":

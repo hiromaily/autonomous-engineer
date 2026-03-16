@@ -345,7 +345,7 @@ describe("WorkflowEngine integration — resume after HUMAN_INTERACTION approval
       expect(result.completedPhases).toContain("VALIDATE_DESIGN");
       expect(result.completedPhases).toContain("REFLECT_BEFORE_TASKS");
       expect(result.completedPhases).toContain("SPEC_TASKS");
-      expect(result.completedPhases).toContain("VALIDATE_TASK");
+      expect(result.completedPhases).toContain("VALIDATE_TASKS");
       expect(result.completedPhases).toContain("IMPLEMENTATION");
       expect(result.completedPhases).toContain("PULL_REQUEST");
     }

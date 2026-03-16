@@ -16,7 +16,7 @@ describe("WORKFLOW_PHASES", () => {
     expect(WORKFLOW_PHASES[8]).toBe("VALIDATE_DESIGN");
     expect(WORKFLOW_PHASES[9]).toBe("REFLECT_BEFORE_TASKS");
     expect(WORKFLOW_PHASES[10]).toBe("SPEC_TASKS");
-    expect(WORKFLOW_PHASES[11]).toBe("VALIDATE_TASK");
+    expect(WORKFLOW_PHASES[11]).toBe("VALIDATE_TASKS");
     expect(WORKFLOW_PHASES[12]).toBe("IMPLEMENTATION");
     expect(WORKFLOW_PHASES[13]).toBe("PULL_REQUEST");
   });

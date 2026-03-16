@@ -437,7 +437,7 @@ describe("WorkflowEngine", () => {
             "VALIDATE_DESIGN",
             "REFLECT_BEFORE_TASKS",
             "SPEC_TASKS",
-            "VALIDATE_TASK",
+            "VALIDATE_TASKS",
           ],
           updatedAt: new Date().toISOString(),
         };
@@ -1132,7 +1132,7 @@ describe("WorkflowEngine", () => {
             "VALIDATE_DESIGN",
             "REFLECT_BEFORE_TASKS",
             "SPEC_TASKS",
-            "VALIDATE_TASK",
+            "VALIDATE_TASKS",
           ],
           updatedAt: new Date().toISOString(),
         };
@@ -1180,7 +1180,7 @@ describe("WorkflowEngine", () => {
             "VALIDATE_DESIGN",
             "REFLECT_BEFORE_TASKS",
             "SPEC_TASKS",
-            "VALIDATE_TASK",
+            "VALIDATE_TASKS",
           ],
           updatedAt: new Date().toISOString(),
         };
@@ -1243,7 +1243,7 @@ describe("WorkflowEngine", () => {
             "VALIDATE_DESIGN",
             "REFLECT_BEFORE_TASKS",
             "SPEC_TASKS",
-            "VALIDATE_TASK",
+            "VALIDATE_TASKS",
           ],
           updatedAt: new Date().toISOString(),
         };

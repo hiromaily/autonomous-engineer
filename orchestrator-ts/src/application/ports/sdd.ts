@@ -16,16 +16,18 @@ export interface SddFrameworkPort {
   generateRequirements(ctx: SpecContext): Promise<SddOperationResult>;
   /** Validate the generated requirements document for the spec. */
   validateRequirements(ctx: SpecContext): Promise<SddOperationResult>;
-  /** Reflect on existing information to synthesize insights before design. */
-  reflectOnExistingInformation(ctx: SpecContext): Promise<SddOperationResult>;
+  /** Reflect on requirements to synthesize insights before design. */
+  reflectBeforeDesign(ctx: SpecContext): Promise<SddOperationResult>;
   /** Analyze the gap between requirements and the existing codebase. */
   validateGap(ctx: SpecContext): Promise<SddOperationResult>;
   /** Generate design document for the spec. */
   generateDesign(ctx: SpecContext): Promise<SddOperationResult>;
   /** Validate the design document for the spec. */
   validateDesign(ctx: SpecContext): Promise<SddOperationResult>;
+  /** Reflect on design to synthesize insights before generating tasks. */
+  reflectBeforeTasks(ctx: SpecContext): Promise<SddOperationResult>;
   /** Generate implementation task list for the spec. */
   generateTasks(ctx: SpecContext): Promise<SddOperationResult>;
   /** Validate the generated task list for the spec. */
-  validateTask(ctx: SpecContext): Promise<SddOperationResult>;
+  validateTasks(ctx: SpecContext): Promise<SddOperationResult>;
 }

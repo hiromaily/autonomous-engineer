@@ -14,6 +14,8 @@ export type WorkflowResult =
 
 /** Artifact filenames (relative to specDir) that must exist before entering each phase. */
 const REQUIRED_ARTIFACTS: Partial<Record<WorkflowPhase, readonly string[]>> = {
+  VALIDATE_PREREQUISITES: ["requirements.md"],
+  SPEC_REQUIREMENTS: ["requirements.md"],
   VALIDATE_REQUIREMENTS: ["requirements.md"],
   REFLECT_BEFORE_DESIGN: ["requirements.md"],
   VALIDATE_GAP: ["requirements.md"],
@@ -21,7 +23,7 @@ const REQUIRED_ARTIFACTS: Partial<Record<WorkflowPhase, readonly string[]>> = {
   VALIDATE_DESIGN: ["design.md"],
   REFLECT_BEFORE_TASKS: ["design.md"],
   SPEC_TASKS: ["design.md"],
-  VALIDATE_TASK: ["tasks.md"],
+  VALIDATE_TASKS: ["tasks.md"],
   IMPLEMENTATION: ["tasks.md"],
 };
 

@@ -44,9 +44,12 @@ export class PhaseRunner {
         const result = await this.sdd.validateRequirements(ctx);
         return this.mapSddResult(result);
       }
-      case "REFLECT_BEFORE_DESIGN":
+      case "REFLECT_BEFORE_DESIGN": {
+        const result = await this.sdd.reflectBeforeDesign(ctx);
+        return this.mapSddResult(result);
+      }
       case "REFLECT_BEFORE_TASKS": {
-        const result = await this.sdd.reflectOnExistingInformation(ctx);
+        const result = await this.sdd.reflectBeforeTasks(ctx);
         return this.mapSddResult(result);
       }
       case "VALIDATE_GAP": {
@@ -65,8 +68,8 @@ export class PhaseRunner {
         const result = await this.sdd.generateTasks(ctx);
         return this.mapSddResult(result);
       }
-      case "VALIDATE_TASK": {
-        const result = await this.sdd.validateTask(ctx);
+      case "VALIDATE_TASKS": {
+        const result = await this.sdd.validateTasks(ctx);
         return this.mapSddResult(result);
       }
       case "SPEC_INIT":
