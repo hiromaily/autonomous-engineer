@@ -1,5 +1,5 @@
+import type { IConfigWizard, WizardDefaults, WizardInput } from "@/adapters/cli/config-wizard";
 import type { IConfigWriter, IFrameworkChecker, WritableConfig } from "@/application/ports/config";
-import type { IConfigWizard, WizardDefaults, WizardInput } from "@/cli/config-wizard";
 import { readFile as fsReadFile } from "node:fs/promises";
 import { join } from "node:path";
 

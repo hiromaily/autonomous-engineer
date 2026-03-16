@@ -18,7 +18,6 @@
     "outDir": "dist"
   },
   "include": [
-    "src/cli/**/*",
     "src/application/**/*",
     "src/domain/**/*",
     "src/adapters/**/*",

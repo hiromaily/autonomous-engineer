@@ -52,15 +52,15 @@ Migration executes in sequential phases; each phase ends with a typecheck gate b
 
 ---
 
-- [ ] 2. Relocate CLI to `src/adapters/cli/` and extract the DI composition root into `src/infra/bootstrap/`
+- [x] 2. Relocate CLI to `src/adapters/cli/` and extract the DI composition root into `src/infra/bootstrap/`
 
-- [ ] 2.1 Move all CLI source files to `src/adapters/cli/`
+- [x] 2.1 Move all CLI source files to `src/adapters/cli/`
   - Create `src/adapters/cli/` directory
   - Move all files from `src/cli/` (`index.ts`, `renderer.ts`, `config-wizard.ts`, `configure-command.ts`, `debug-log-writer.ts`, `json-log-writer.ts`) to the new location
   - Confirm relative imports between CLI files (e.g., `configure-command.ts` → `config-wizard.ts`) remain correct after relocation
   - _Requirements: 1.1, 1.3, 1.4_
 
-- [ ] 2.2 Extract dependency injection wiring from the CLI entry point into `src/infra/bootstrap/`
+- [x] 2.2 Extract dependency injection wiring from the CLI entry point into `src/infra/bootstrap/`
   - Create `src/infra/bootstrap/` directory and a `create-run-dependencies.ts` file
   - Move all DI wiring logic (instantiating concrete infra implementations and assembling the `RunSpecUseCase`) out of `src/adapters/cli/index.ts` into the new bootstrap factory
   - The bootstrap factory function accepts parsed configuration flags and returns `RunDependencies` with typed interfaces for the use case, event bus, log writer, and debug writer — using `IJsonLogWriter` from `application/ports/logging.ts` and `IDebugEventSink` from `application/ports/debug.ts` (not concrete types)
@@ -68,13 +68,13 @@ Migration executes in sequential phases; each phase ends with a typecheck gate b
   - The CLI entry point imports only from the bootstrap factory and CLI-local helpers — no direct infra imports except via bootstrap
   - _Requirements: 5.3, 8.3_
 
-- [ ] 2.3 Update configuration files for the new CLI path
+- [x] 2.3 Update configuration files for the new CLI path
   - Update `package.json` `bin.aes` to point to the new CLI entry path
   - Update `package.json` scripts (`aes`, `aes:dev`, `build`) to use the new path
   - Update `tsconfig.json` `include` array: replace `src/cli/**/*` with `src/adapters/**/*` (or verify the existing `src/adapters/**/*` glob already covers it)
   - _Requirements: 1.1, 7.5_
 
-- [ ] 2.4 Verify the codebase compiles cleanly after Phase 2
+- [x] 2.4 Verify the codebase compiles cleanly after Phase 2
   - Run `bun run typecheck` and confirm zero errors before proceeding
   - If errors remain, fix all import and path breakage before moving to Task 3
   - _Requirements: 7.3, 7.4_

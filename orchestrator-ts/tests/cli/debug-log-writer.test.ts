@@ -1,4 +1,4 @@
-import { DebugLogWriter } from "@/cli/debug-log-writer";
+import { DebugLogWriter } from "@/adapters/cli/debug-log-writer";
 import type { DebugEvent } from "@/domain/debug/types";
 import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { mkdtemp, readFile } from "node:fs/promises";

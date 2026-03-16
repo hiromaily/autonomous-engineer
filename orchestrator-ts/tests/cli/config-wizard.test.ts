@@ -1,4 +1,4 @@
-import { ConfigWizard } from "@/cli/config-wizard";
+import { ConfigWizard } from "@/adapters/cli/config-wizard";
 import { describe, expect, it, mock } from "bun:test";
 
 // ---------------------------------------------------------------------------

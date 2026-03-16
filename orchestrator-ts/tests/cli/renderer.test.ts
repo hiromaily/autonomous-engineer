@@ -1,5 +1,5 @@
+import { CliRenderer } from "@/adapters/cli/renderer";
 import type { WorkflowEvent } from "@/application/ports/workflow";
-import { CliRenderer } from "@/cli/renderer";
 import { describe, expect, it } from "bun:test";
 
 function makeWriter() {

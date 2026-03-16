@@ -1,11 +1,11 @@
+import type { IConfigWizard, WizardInput } from "@/adapters/cli/config-wizard";
+import { ConfigureCommand } from "@/adapters/cli/configure-command";
 import type {
   FrameworkCheckResult,
   IConfigWriter,
   IFrameworkChecker,
   WritableConfig,
 } from "@/application/ports/config";
-import type { IConfigWizard, WizardInput } from "@/cli/config-wizard";
-import { ConfigureCommand } from "@/cli/configure-command";
 import { describe, expect, it, mock } from "bun:test";
 
 // ---------------------------------------------------------------------------
