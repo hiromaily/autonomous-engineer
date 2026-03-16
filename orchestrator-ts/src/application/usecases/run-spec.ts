@@ -13,7 +13,6 @@ import { access } from "node:fs/promises";
 import { join } from "node:path";
 
 export type RunOptions = {
-  readonly resume: boolean;
   readonly dryRun: boolean;
   readonly providerOverride?: string | undefined;
 };
@@ -56,11 +55,10 @@ export class RunSpecUseCase {
     // Reset ephemeral short-term memory before each workflow run
     this.deps.memory.shortTerm.clear();
 
-    // Resolve initial workflow state
-    let state = options.resume ? await stateStore.restore(specName) : null;
-    if (state === null) {
-      state = stateStore.init(specName);
-    }
+    // Always check for persisted state first; only initialise fresh when none exists.
+    // This ensures re-runs automatically resume from the last paused/failed phase
+    // without requiring an explicit flag.
+    const state = (await stateStore.restore(specName)) ?? stateStore.init(specName);
 
     // Construct engine with all dependencies
     const llm = createLlmProvider(config, options.providerOverride);

@@ -51,6 +51,7 @@ function makeEventBus(): IWorkflowEventBus {
 
 function makeSdd(): SddFrameworkPort {
   return {
+    initSpec: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
     validatePrerequisites: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
     generateRequirements: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
     validateRequirements: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
@@ -337,7 +338,6 @@ describe("Memory lifecycle - Task 6.2: RunSpecUseCase with real FileMemoryStore"
       memory: memoryStore,
     });
     await useCase.run(specName, { ...baseConfig, specDir: specParent }, {
-      resume: false,
       dryRun: true,
     });
   }
@@ -402,7 +402,6 @@ describe("Memory lifecycle - Task 6.2: RunSpecUseCase with real FileMemoryStore"
     });
 
     await useCase.run("test-spec", { ...baseConfig, specDir: tmpDir }, {
-      resume: false,
       dryRun: false,
     });
 
@@ -423,8 +422,8 @@ describe("Memory lifecycle - Task 6.2: RunSpecUseCase with real FileMemoryStore"
       memory: memoryStore,
     });
 
-    await useCase.run("test-spec", { ...baseConfig, specDir: tmpDir }, { resume: false, dryRun: false });
-    await useCase.run("test-spec", { ...baseConfig, specDir: tmpDir }, { resume: false, dryRun: false });
+    await useCase.run("test-spec", { ...baseConfig, specDir: tmpDir }, { dryRun: false });
+    await useCase.run("test-spec", { ...baseConfig, specDir: tmpDir }, { dryRun: false });
 
     expect(getClearCallCount()).toBe(2);
   });
@@ -444,7 +443,7 @@ describe("Memory lifecycle - Task 6.2: RunSpecUseCase with real FileMemoryStore"
       memory: memoryStore,
     });
 
-    await useCase.run(specName, { ...baseConfig, specDir: specParent }, { resume: false, dryRun: true });
+    await useCase.run(specName, { ...baseConfig, specDir: specParent }, { dryRun: true });
 
     expect(getClearCallCount()).toBe(0);
   });

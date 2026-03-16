@@ -44,6 +44,7 @@ function makeEventBus(): IWorkflowEventBus {
 
 function makeSdd(): SddFrameworkPort {
   return {
+    initSpec: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
     validatePrerequisites: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
     generateRequirements: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
     validateRequirements: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
@@ -116,7 +117,6 @@ describe("RunSpecUseCase", () => {
       });
 
       const result = await useCase.run(specName, { ...baseConfig, specDir: specParent }, {
-        resume: false,
         dryRun: true,
       });
 
@@ -133,7 +133,6 @@ describe("RunSpecUseCase", () => {
       });
 
       const result = await useCase.run("missing-spec", { ...baseConfig, specDir: "/nonexistent/path/xyz" }, {
-        resume: false,
         dryRun: true,
       });
 
@@ -153,7 +152,6 @@ describe("RunSpecUseCase", () => {
       });
 
       await useCase.run(specName, { ...baseConfig, specDir: specParent }, {
-        resume: false,
         dryRun: true,
       });
 
@@ -163,8 +161,8 @@ describe("RunSpecUseCase", () => {
     });
   });
 
-  describe("resume mode", () => {
-    it("calls stateStore.restore on --resume", async () => {
+  describe("auto-resume: always restores persisted state", () => {
+    it("always calls stateStore.restore and uses it when state exists", async () => {
       const restoredState: WorkflowState = {
         specName: "test-spec",
         currentPhase: "HUMAN_INTERACTION",
@@ -178,13 +176,11 @@ describe("RunSpecUseCase", () => {
         persist: mock(() => Promise.resolve()),
       });
 
-      // WorkflowEngine will be invoked; use a spec dir that has all required artifacts
-      const specDir = tmpDir;
-      // Provide spec.json with approvals to allow paused phase to advance
+      // Provide spec.json with approvals to allow the paused phase to advance
       const { writeFile } = await import("node:fs/promises");
-      await writeFile(join(specDir, "requirements.md"), "# Requirements\n");
+      await writeFile(join(tmpDir, "requirements.md"), "# Requirements\n");
       await writeFile(
-        join(specDir, "spec.json"),
+        join(tmpDir, "spec.json"),
         JSON.stringify({
           approvals: {
             human_interaction: { approved: true },
@@ -202,13 +198,13 @@ describe("RunSpecUseCase", () => {
         memory: makeMemoryPort(),
       });
 
-      await useCase.run("test-spec", { ...baseConfig, specDir }, { resume: true, dryRun: false });
+      await useCase.run("test-spec", { ...baseConfig, specDir: tmpDir }, { dryRun: false });
 
       expect(stateStore.restore).toHaveBeenCalledWith("test-spec");
       expect(stateStore.init).not.toHaveBeenCalled();
     });
 
-    it("falls back to stateStore.init when restore returns null on --resume", async () => {
+    it("falls back to stateStore.init when no persisted state exists", async () => {
       const stateStore = makeStateStore({
         restore: mock(() => Promise.resolve(null)),
         persist: mock(() => Promise.resolve()),
@@ -221,28 +217,10 @@ describe("RunSpecUseCase", () => {
         memory: makeMemoryPort(),
       });
 
-      await useCase.run("test-spec", { ...baseConfig, specDir: tmpDir }, { resume: true, dryRun: false });
+      await useCase.run("test-spec", { ...baseConfig, specDir: tmpDir }, { dryRun: false });
 
       expect(stateStore.restore).toHaveBeenCalledWith("test-spec");
       expect(stateStore.init).toHaveBeenCalledWith("test-spec");
-    });
-
-    it("calls stateStore.init (not restore) when not resuming", async () => {
-      const stateStore = makeStateStore({
-        persist: mock(() => Promise.resolve()),
-      });
-      const useCase = new RunSpecUseCase({
-        stateStore,
-        eventBus: makeEventBus(),
-        sdd: makeSdd(),
-        createLlmProvider: () => makeLlm(),
-        memory: makeMemoryPort(),
-      });
-
-      await useCase.run("test-spec", { ...baseConfig, specDir: tmpDir }, { resume: false, dryRun: false });
-
-      expect(stateStore.init).toHaveBeenCalledWith("test-spec");
-      expect(stateStore.restore).not.toHaveBeenCalled();
     });
   });
 
@@ -258,7 +236,6 @@ describe("RunSpecUseCase", () => {
       });
 
       await useCase.run("test-spec", { ...baseConfig, specDir: tmpDir }, {
-        resume: false,
         dryRun: false,
         providerOverride: "openai",
       });
@@ -276,7 +253,7 @@ describe("RunSpecUseCase", () => {
         memory: makeMemoryPort(),
       });
 
-      await useCase.run("test-spec", { ...baseConfig, specDir: tmpDir }, { resume: false, dryRun: false });
+      await useCase.run("test-spec", { ...baseConfig, specDir: tmpDir }, { dryRun: false });
 
       expect(createLlmProvider).toHaveBeenCalledWith(expect.objectContaining({}), undefined);
     });
@@ -315,7 +292,6 @@ describe("RunSpecUseCase", () => {
       });
 
       const result = await useCase.run("test-spec", { ...baseConfig, specDir: tmpDir }, {
-        resume: false,
         dryRun: false,
       });
 
@@ -336,7 +312,6 @@ describe("RunSpecUseCase", () => {
       });
 
       const result = await useCase.run("test-spec", { ...baseConfig, specDir: tmpDir }, {
-        resume: false,
         dryRun: false,
       });
 
@@ -391,7 +366,7 @@ describe("RunSpecUseCase", () => {
         implementationLoop,
       });
 
-      await useCase.run("test-spec", { ...baseConfig, specDir: tmpDir }, { resume: false, dryRun: false });
+      await useCase.run("test-spec", { ...baseConfig, specDir: tmpDir }, { dryRun: false });
 
       expect(implementationLoop.run).toHaveBeenCalledTimes(1);
       // First argument must be the specName used as planId
@@ -412,7 +387,6 @@ describe("RunSpecUseCase", () => {
       });
 
       const result = await useCase.run("test-spec", { ...baseConfig, specDir: tmpDir }, {
-        resume: false,
         dryRun: false,
       });
 
@@ -432,7 +406,6 @@ describe("RunSpecUseCase", () => {
       });
 
       const result = await useCase.run("test-spec", { ...baseConfig, specDir: tmpDir }, {
-        resume: false,
         dryRun: false,
       });
 
@@ -459,7 +432,7 @@ describe("RunSpecUseCase", () => {
         implementationLoop: makeImplementationLoop("completed"),
       });
 
-      await useCase.run("test-spec", { ...baseConfig, specDir: tmpDir }, { resume: false, dryRun: false });
+      await useCase.run("test-spec", { ...baseConfig, specDir: tmpDir }, { dryRun: false });
 
       const startEvent = events.find((e) => e.type === "phase:start" && e.phase === "IMPLEMENTATION");
       const completeEvent = events.find((e) => e.type === "phase:complete" && e.phase === "IMPLEMENTATION");
@@ -487,7 +460,7 @@ describe("RunSpecUseCase", () => {
         implementationLoop: makeImplementationLoop("section-failed"),
       });
 
-      await useCase.run("test-spec", { ...baseConfig, specDir: tmpDir }, { resume: false, dryRun: false });
+      await useCase.run("test-spec", { ...baseConfig, specDir: tmpDir }, { dryRun: false });
 
       const errorEvent = events.find((e) => e.type === "phase:error" && e.phase === "IMPLEMENTATION");
       expect(errorEvent).toBeDefined();
@@ -505,7 +478,6 @@ describe("RunSpecUseCase", () => {
       });
 
       const result = await useCase.run("test-spec", { ...baseConfig, specDir: tmpDir }, {
-        resume: false,
         dryRun: false,
       });
 
@@ -525,7 +497,7 @@ describe("RunSpecUseCase", () => {
         memory,
       });
 
-      await useCase.run("test-spec", { ...baseConfig, specDir: tmpDir }, { resume: false, dryRun: false });
+      await useCase.run("test-spec", { ...baseConfig, specDir: tmpDir }, { dryRun: false });
 
       expect(shortTerm.clear).toHaveBeenCalledTimes(1);
     });
@@ -543,7 +515,7 @@ describe("RunSpecUseCase", () => {
         memory,
       });
 
-      await useCase.run(specName, { ...baseConfig, specDir: specParent }, { resume: false, dryRun: true });
+      await useCase.run(specName, { ...baseConfig, specDir: specParent }, { dryRun: true });
 
       expect(shortTerm.clear).not.toHaveBeenCalled();
     });

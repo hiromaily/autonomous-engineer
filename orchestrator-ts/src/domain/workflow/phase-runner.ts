@@ -72,11 +72,14 @@ export class PhaseRunner {
         const result = await this.sdd.validateTasks(ctx);
         return this.mapSddResult(result);
       }
-      case "SPEC_INIT":
+      case "SPEC_INIT": {
+        const result = await this.sdd.initSpec(ctx);
+        return this.mapSddResult(result);
+      }
       case "HUMAN_INTERACTION":
       case "PULL_REQUEST":
-        // Stubs: SPEC_INIT and PULL_REQUEST wired in spec4 and spec8;
-        // HUMAN_INTERACTION is a pause point — the approval gate handles the wait
+        // HUMAN_INTERACTION is a pause point — the approval gate handles the wait.
+        // PULL_REQUEST wired in a future spec.
         return { ok: true, artifacts: [] };
       case "IMPLEMENTATION": {
         if (this.implementationLoop) {

@@ -8,7 +8,7 @@
  * Test coverage:
  * - dry-run: no file writes, exit code 0
  * - full 7-phase workflow with fake cc-sdd binary and pre-approved spec.json
- * - --resume: SPEC_INIT not re-executed after simulated REQUIREMENTS interruption
+ * - auto-resume: SPEC_INIT not re-executed after simulated REQUIREMENTS interruption
  * - --log-json: all workflow events appear as valid NDJSON in the log file
  *
  * Task 9.2 — Requirements: 1.1, 1.6, 1.7, 1.8, 3.6, 5.1, 5.5
@@ -125,6 +125,7 @@ function makeMemoryPort(): MemoryPort {
 
 function makeStubSdd(): SddFrameworkPort {
   return {
+    initSpec: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
     validatePrerequisites: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
     generateRequirements: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
     validateRequirements: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
@@ -200,7 +201,7 @@ describe("E2E: --dry-run", () => {
         memory: makeMemoryPort(),
       });
 
-      const result = await useCase.run(env.specName, env.config, { resume: false, dryRun: true });
+      const result = await useCase.run(env.specName, env.config, { dryRun: true });
 
       expect(result.status).toBe("completed");
       if (result.status === "completed") {
@@ -222,7 +223,7 @@ describe("E2E: --dry-run", () => {
         memory: makeMemoryPort(),
       });
 
-      await useCase.run(env.specName, env.config, { resume: false, dryRun: true });
+      await useCase.run(env.specName, env.config, { dryRun: true });
 
       // .aes/state directory should not exist (or be empty)
       const aesStateDir = join(env.tmpDir, ".aes", "state");
@@ -249,7 +250,7 @@ describe("E2E: --dry-run", () => {
         memory: makeMemoryPort(),
       });
 
-      const result = await useCase.run("nonexistent-spec", env.config, { resume: false, dryRun: true });
+      const result = await useCase.run("nonexistent-spec", env.config, { dryRun: true });
 
       expect(result.status).toBe("failed");
     } finally {
@@ -297,7 +298,7 @@ describe("E2E: full 7-phase workflow", () => {
         memory: makeMemoryPort(),
       });
 
-      const result = await useCase.run(env.specName, env.config, { resume: false, dryRun: false });
+      const result = await useCase.run(env.specName, env.config, { dryRun: false });
 
       expect(result.status).toBe("completed");
       if (result.status === "completed") {
@@ -350,7 +351,7 @@ describe("E2E: full 7-phase workflow", () => {
         memory: makeMemoryPort(),
       });
 
-      await useCase.run(env.specName, env.config, { resume: false, dryRun: false });
+      await useCase.run(env.specName, env.config, { dryRun: false });
 
       expect(env.events.some((e) => e.type === "workflow:complete")).toBe(true);
     } finally {
@@ -360,11 +361,11 @@ describe("E2E: full 7-phase workflow", () => {
 });
 
 // ---------------------------------------------------------------------------
-// --resume: SPEC_INIT not re-executed after interruption at SPEC_REQUIREMENTS
+// auto-resume: SPEC_INIT not re-executed after interruption at SPEC_REQUIREMENTS
 // ---------------------------------------------------------------------------
 
-describe("E2E: --resume after simulated SPEC_REQUIREMENTS interruption", () => {
-  it("SPEC_INIT is not re-executed when resuming from paused_for_approval at SPEC_REQUIREMENTS", async () => {
+describe("E2E: auto-resume after simulated SPEC_REQUIREMENTS interruption", () => {
+  it("SPEC_INIT is not re-executed when auto-resuming from paused_for_approval at SPEC_REQUIREMENTS", async () => {
     const env = await setupTestEnv();
     try {
       // Persist a paused_for_approval state (simulating interruption after SPEC_REQUIREMENTS ran)
@@ -405,6 +406,10 @@ describe("E2E: --resume after simulated SPEC_REQUIREMENTS interruption", () => {
       // Track SDD calls to verify SPEC_INIT is not re-executed
       const sddCalls: string[] = [];
       const trackingSdd: SddFrameworkPort = {
+        initSpec: mock(async () => {
+          sddCalls.push("initSpec");
+          return { ok: true as const, artifactPath: join(env.specDir, "spec.json") };
+        }),
         validatePrerequisites: mock(async () => {
           sddCalls.push("validatePrerequisites");
           return { ok: true as const, artifactPath: join(env.specDir, "requirements.md") };
@@ -455,14 +460,13 @@ describe("E2E: --resume after simulated SPEC_REQUIREMENTS interruption", () => {
         memory: makeMemoryPort(),
       });
 
-      const result = await useCase.run(env.specName, env.config, { resume: true, dryRun: false });
+      const result = await useCase.run(env.specName, env.config, { dryRun: false });
 
       expect(result.status).toBe("completed");
 
-      // SPEC_INIT has no SDD call (it's a stub no-op); the key assertion is that
-      // generateRequirements is also NOT called (SPEC_REQUIREMENTS was already completed)
-      // since SPEC_INIT/HUMAN_INTERACTION/VALIDATE_PREREQUISITES were in completedPhases
-      // and SPEC_REQUIREMENTS is the paused phase
+      // SPEC_INIT/HUMAN_INTERACTION/VALIDATE_PREREQUISITES are in completedPhases and
+      // SPEC_REQUIREMENTS is the paused phase, so initSpec and generateRequirements must not run.
+      expect(sddCalls).not.toContain("initSpec");
       expect(sddCalls).not.toContain("generateRequirements");
       // SPEC_DESIGN and onwards should be executed
       expect(sddCalls).toContain("generateDesign");
@@ -471,10 +475,10 @@ describe("E2E: --resume after simulated SPEC_REQUIREMENTS interruption", () => {
     }
   });
 
-  it("without --resume, starts fresh even when state file exists", async () => {
+  it("auto-resumes from persisted completed state without re-running any phases", async () => {
     const env = await setupTestEnv();
     try {
-      // Persist a "completed" state
+      // Persist a "completed" state — all 14 phases already done
       const completedState: WorkflowState = {
         specName: env.specName,
         currentPhase: "PULL_REQUEST",
@@ -500,66 +504,51 @@ describe("E2E: --resume after simulated SPEC_REQUIREMENTS interruption", () => {
       };
       await env.stateStore.persist(completedState);
 
-      // Grant all approvals
-      await writeFile(
-        join(env.specDir, "spec.json"),
-        JSON.stringify({
-          approvals: {
-            human_interaction: { approved: true },
-            requirements: { approved: true },
-            design: { approved: true },
-            tasks: { approved: true },
-          },
-          ready_for_implementation: true,
-        }),
-      );
-
-      // Pre-create artifacts
-      await writeFile(join(env.specDir, "requirements.md"), "# Requirements\n");
-      await writeFile(join(env.specDir, "design.md"), "# Design\n");
-      await writeFile(join(env.specDir, "tasks.md"), "# Tasks\n");
-
       const sddCalls: string[] = [];
       const trackingSdd: SddFrameworkPort = {
+        initSpec: mock(async () => {
+          sddCalls.push("initSpec");
+          return { ok: true as const, artifactPath: "" };
+        }),
         validatePrerequisites: mock(async () => {
           sddCalls.push("validatePrerequisites");
-          return { ok: true as const, artifactPath: join(env.specDir, "requirements.md") };
+          return { ok: true as const, artifactPath: "" };
         }),
         generateRequirements: mock(async () => {
           sddCalls.push("generateRequirements");
-          return { ok: true as const, artifactPath: join(env.specDir, "requirements.md") };
+          return { ok: true as const, artifactPath: "" };
         }),
         validateRequirements: mock(async () => {
           sddCalls.push("validateRequirements");
-          return { ok: true as const, artifactPath: join(env.specDir, "requirements.md") };
+          return { ok: true as const, artifactPath: "" };
         }),
         reflectBeforeDesign: mock(async () => {
           sddCalls.push("reflectBeforeDesign");
-          return { ok: true as const, artifactPath: join(env.specDir, "requirements.md") };
+          return { ok: true as const, artifactPath: "" };
         }),
         reflectBeforeTasks: mock(async () => {
           sddCalls.push("reflectBeforeTasks");
-          return { ok: true as const, artifactPath: join(env.specDir, "design.md") };
+          return { ok: true as const, artifactPath: "" };
         }),
         validateGap: mock(async () => {
           sddCalls.push("validateGap");
-          return { ok: true as const, artifactPath: join(env.specDir, "requirements.md") };
+          return { ok: true as const, artifactPath: "" };
         }),
         generateDesign: mock(async () => {
           sddCalls.push("generateDesign");
-          return { ok: true as const, artifactPath: join(env.specDir, "design.md") };
+          return { ok: true as const, artifactPath: "" };
         }),
         validateDesign: mock(async () => {
           sddCalls.push("validateDesign");
-          return { ok: true as const, artifactPath: join(env.specDir, "design.md") };
+          return { ok: true as const, artifactPath: "" };
         }),
         generateTasks: mock(async () => {
           sddCalls.push("generateTasks");
-          return { ok: true as const, artifactPath: join(env.specDir, "tasks.md") };
+          return { ok: true as const, artifactPath: "" };
         }),
         validateTasks: mock(async () => {
           sddCalls.push("validateTasks");
-          return { ok: true as const, artifactPath: join(env.specDir, "tasks.md") };
+          return { ok: true as const, artifactPath: "" };
         }),
       };
 
@@ -571,12 +560,11 @@ describe("E2E: --resume after simulated SPEC_REQUIREMENTS interruption", () => {
         memory: makeMemoryPort(),
       });
 
-      // Without --resume, starts from scratch
-      const result = await useCase.run(env.specName, env.config, { resume: false, dryRun: false });
+      const result = await useCase.run(env.specName, env.config, { dryRun: false });
 
       expect(result.status).toBe("completed");
-      // Fresh run should execute all SDD phases
-      expect(sddCalls).toContain("generateRequirements");
+      // No SDD operations should run — all phases were already completed
+      expect(sddCalls).toHaveLength(0);
     } finally {
       await env.cleanup();
     }
@@ -626,7 +614,7 @@ describe("E2E: --log-json writes all events as newline-delimited JSON", () => {
         memory: makeMemoryPort(),
       });
 
-      await useCase.run(env.specName, env.config, { resume: false, dryRun: false });
+      await useCase.run(env.specName, env.config, { dryRun: false });
       await logWriter.close();
 
       // Read and parse the NDJSON log
@@ -686,7 +674,7 @@ describe("E2E: --log-json writes all events as newline-delimited JSON", () => {
         memory: makeMemoryPort(),
       });
 
-      await useCase.run(env.specName, env.config, { resume: false, dryRun: false });
+      await useCase.run(env.specName, env.config, { dryRun: false });
       await logWriter.close();
 
       const raw = await readFile(logFilePath, "utf-8");
@@ -736,7 +724,7 @@ describe("E2E: --log-json writes all events as newline-delimited JSON", () => {
         memory: makeMemoryPort(),
       });
 
-      await useCase.run(env.specName, env.config, { resume: false, dryRun: false });
+      await useCase.run(env.specName, env.config, { dryRun: false });
       await logWriter.close();
 
       const raw = await readFile(logFilePath, "utf-8");

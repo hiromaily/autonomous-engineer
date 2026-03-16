@@ -43,11 +43,6 @@ const runCommand = defineCommand({
       description: "Validate spec and config without running the workflow",
       default: false,
     },
-    resume: {
-      type: "boolean",
-      description: "Resume from the last persisted state",
-      default: false,
-    },
     "log-json": {
       type: "string",
       description: "Write workflow events as NDJSON to this file",
@@ -163,7 +158,7 @@ const runCommand = defineCommand({
     const useCase = new RunSpecUseCase({
       stateStore: new WorkflowStateStore(),
       eventBus,
-      sdd: debugFlow ? new MockSddAdapter() : new CcSddAdapter(),
+      sdd: debugFlow ? new MockSddAdapter(debugWriter ?? undefined) : new CcSddAdapter(),
       memory,
       implementationLoop,
       createLlmProvider: (cfg: AesConfig, providerOverride?: string): LlmProviderPort => {
@@ -187,7 +182,6 @@ const runCommand = defineCommand({
 
     const providerArg = args.provider as string | undefined;
     const result = await useCase.run(specName, config, {
-      resume: Boolean(args.resume),
       dryRun: Boolean(args["dry-run"]),
       providerOverride: providerArg,
     });

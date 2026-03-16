@@ -11,6 +11,10 @@ const defaultSpawn: SpawnFn = (argv) => Bun.spawn(argv as string[], { stderr: "p
 export class CcSddAdapter implements SddFrameworkPort {
   constructor(private readonly spawnFn: SpawnFn = defaultSpawn) {}
 
+  initSpec(ctx: SpecContext): Promise<SddOperationResult> {
+    return this.run("spec-init", ctx, "spec.json");
+  }
+
   validatePrerequisites(ctx: SpecContext): Promise<SddOperationResult> {
     return this.run("validate-prerequisites", ctx, "requirements.md");
   }
