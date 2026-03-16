@@ -8,6 +8,10 @@ paths: ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx"]
 
 Rules for modifying TypeScript (`*.ts`, `*.tsx`) and JavaScript (`*.js`, `*.jsx`) files.
 
+## Directory Structure
+
+To understand the source directory layout and the role of each layer in `orchestrator-ts`, read [`orchestrator-ts/src/README.md`](../../orchestrator-ts/src/README.md) before making structural changes.
+
 ## Applicable Directories
 
 | App              | Language              | Runtime | Path                     |

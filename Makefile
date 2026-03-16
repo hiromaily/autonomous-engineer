@@ -22,6 +22,10 @@ gen-repo-map:
 ts-lint:
 	make -C orchestrator-ts ts-lint
 
+.PHONY: ts-lint-arch
+ts-lint-arch:
+	make -C orchestrator-ts ts-lint-arch
+
 .PHONY: debug-aes-flow
 debug-aes-flow:
 	$(MAKE) -C orchestrator-ts debug-aes-flow
