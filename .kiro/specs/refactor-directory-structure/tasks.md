@@ -119,7 +119,7 @@ Migration executes in sequential phases; each phase ends with a typecheck gate b
 
 ---
 
-- [ ] 4. Remove the empty `src/domain/engines/` directory
+- [x] 4. Remove the empty `src/domain/engines/` directory
   - Verify no source or test file imports from `@/domain/engines/` by running a grep across the codebase
   - Delete the empty `src/domain/engines/` directory
   - Run `bun run typecheck` to confirm zero errors after the removal
@@ -127,14 +127,14 @@ Migration executes in sequential phases; each phase ends with a typecheck gate b
 
 ---
 
-- [ ] 5. Mirror the refactored source structure in the `tests/` directory
+- [x] 5. Mirror the refactored source structure in the `tests/` directory
 
-- [ ] 5.1 (P) Move CLI tests to `tests/adapters/cli/`
+- [x] 5.1 (P) Move CLI tests to `tests/adapters/cli/`
   - Move all files from `tests/cli/` into `tests/adapters/cli/`
   - Update any import paths within the moved test files to reflect the new source location
   - _Requirements: 6.1, 6.4_
 
-- [ ] 5.2 (P) Move adapter test files to their corresponding `tests/infra/` locations
+- [x] 5.2 (P) Move adapter test files to their corresponding `tests/infra/` locations
   - Move LLM-related test files (`claude-provider.test.ts`, `mock-llm-provider.test.ts`) to `tests/infra/llm/`
   - Move `tests/adapters/git/` test files to `tests/infra/git/`
   - Move `tests/adapters/sdd/` test files to `tests/infra/sdd/`
@@ -142,18 +142,18 @@ Migration executes in sequential phases; each phase ends with a typecheck gate b
   - Move `tests/adapters/safety/` test files to `tests/infra/safety/`
   - _Requirements: 6.2, 6.4, 6.5_
 
-- [ ] 5.3 (P) Move application service test files to mirror the new `services/` structure
+- [x] 5.3 (P) Move application service test files to mirror the new `services/` structure
   - Move `tests/application/agent/`, `context/`, `git/`, `implementation-loop/`, `planning/`, `self-healing-loop/`, `tools/`, `workflow/` into `tests/application/services/*/`
   - Move `tests/application/safety/` (service files) to `tests/application/services/safety/`
   - Move any safety port tests to `tests/application/ports/`
   - _Requirements: 6.3, 6.4_
 
-- [ ] 5.4 Update import paths in all moved test files
+- [x] 5.4 Update import paths in all moved test files
   - After moves in 5.1–5.3, update all import statements in moved test files to use the new source paths
   - Verify no test files remain under the old paths (`tests/cli/`, `tests/adapters/llm/`, `tests/adapters/git/`, etc.)
   - _Requirements: 6.4_
 
-- [ ] 5.5 Verify the codebase compiles cleanly after Phase 5
+- [x] 5.5 Verify the codebase compiles cleanly after Phase 5
   - Run `bun run typecheck` and confirm zero errors before proceeding to final validation
   - _Requirements: 7.3, 7.4_
 

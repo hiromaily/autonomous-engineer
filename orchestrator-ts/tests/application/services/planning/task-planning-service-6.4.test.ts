@@ -386,7 +386,7 @@ describe("TaskPlanningService — task 6.4: dynamic plan adjustment and observab
         makeSuccessResult(),
       ]);
 
-      const gateway: import("../../../src/application/ports/task-planning").IHumanReviewGateway = {
+      const gateway: import("../../../../src/application/ports/task-planning").IHumanReviewGateway = {
         async reviewPlan() {
           throw new Error("review timed out");
         },
