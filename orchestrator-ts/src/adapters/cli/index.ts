@@ -1,10 +1,9 @@
 #!/usr/bin/env bun
 import { ConfigValidationError } from "@/application/ports/config";
 import type { AesConfig } from "@/application/ports/config";
+import { createConfigureDependencies } from "@/infra/bootstrap/create-configure-dependencies";
 import { createRunDependencies } from "@/infra/bootstrap/create-run-dependencies";
-import { ConfigLoader } from "@/infra/config/config-loader";
-import { ConfigWriter } from "@/infra/config/config-writer";
-import { SddFrameworkChecker } from "@/infra/config/sdd-framework-checker";
+import { ConfigLoader } from "@/infra/bootstrap/load-config";
 import { defineCommand, runMain } from "citty";
 import { ConfigWizard } from "./config-wizard";
 import { ConfigureCommand } from "./configure-command";
@@ -129,10 +128,11 @@ const configureCommand = defineCommand({
     description: "Interactively configure aes settings",
   },
   async run() {
+    const { configWriter, frameworkChecker } = createConfigureDependencies();
     const cmd = new ConfigureCommand({
       wizard: new ConfigWizard(),
-      configWriter: new ConfigWriter(),
-      frameworkChecker: new SddFrameworkChecker(),
+      configWriter,
+      frameworkChecker,
     });
     await cmd.run();
   },

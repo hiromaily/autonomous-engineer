@@ -1,9 +1,13 @@
-import type { IQualityGate, QualityGateCheck, QualityGateConfig } from "@/application/ports/implementation-loop";
+import type {
+  IQualityGate,
+  QualityGateCheck,
+  QualityGateConfig,
+  RunCommandOutput,
+} from "@/application/ports/implementation-loop";
+import { RUN_COMMAND_TOOL_NAME } from "@/application/ports/implementation-loop";
 import type { IToolExecutor } from "@/application/services/tools/executor";
 import type { ReviewCheckResult } from "@/domain/implementation-loop/types";
 import type { ToolContext } from "@/domain/tools/types";
-import { runCommandTool } from "@/infra/tools/shell";
-import type { RunCommandOutput } from "@/infra/tools/shell";
 
 // ---------------------------------------------------------------------------
 // QualityGateRunner — stateless IQualityGate implementation
@@ -38,7 +42,7 @@ export class QualityGateRunner implements IQualityGate {
     };
 
     try {
-      const result = await this.#toolExecutor.invoke(runCommandTool.name, input, this.#context);
+      const result = await this.#toolExecutor.invoke(RUN_COMMAND_TOOL_NAME, input, this.#context);
 
       if (!result.ok) {
         return {

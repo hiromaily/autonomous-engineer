@@ -161,23 +161,23 @@ Migration executes in sequential phases; each phase ends with a typecheck gate b
 
 - [ ] 6. Final validation: confirm zero behavioral change and full compliance
 
-- [ ] 6.1 Run the full test suite and verify all tests pass
+- [x] 6.1 Run the full test suite and verify all tests pass
   - Execute `bun test` and confirm all existing tests pass without modification to test logic
   - Any failure indicates a missed import update or logic change — fix it without changing test assertions
   - _Requirements: 7.1, 7.2_
 
-- [ ] 6.2 Smoke test the CLI
+- [x] 6.2 Smoke test the CLI
   - Run `bun run aes --help` to confirm the `aes` command resolves and outputs correctly from its new path
   - _Requirements: 7.1_
 
-- [ ] 6.3 Verify no orphaned files remain in old directory paths
+- [x] 6.3 Verify no orphaned files remain in old directory paths
   - Confirm `src/cli/` no longer exists
   - Confirm `src/adapters/` contains only `cli/`
   - Confirm `tests/adapters/` contains only `cli/` (no LLM, git, SDD, tools, or safety test directories)
   - Confirm all 9 service directories exist under `src/application/services/` and under `tests/application/services/`
   - _Requirements: 1.2, 6.4, 6.5_
 
-- [ ] 6.4 Perform a dependency direction audit
+- [x] 6.4 Perform a dependency direction audit
   - Confirm `domain/` files have no imports from `application/`, `adapters/`, or `infra/`
   - Confirm `application/` files import only from `domain/` or within `application/`
   - Confirm `adapters/cli/` files (except `index.ts`) do not import from `infra/` directly
