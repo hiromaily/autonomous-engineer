@@ -112,7 +112,7 @@ Instead of starting with code, development begins with structured specifications
 
 Typical workflow:
 
-<!--@include: ../_partials/sdd-workflow-summary.md-->
+<!--@include: ./_partials/sdd-workflow-summary.md-->
 
 Each phase produces structured artifacts that guide the next phase.
 

@@ -112,7 +112,7 @@ AIが受動的なアシスタントとして機能するのではなく、シス
 
 典型的なワークフロー：
 
-<!--@include: ../../_partials/sdd-workflow-summary-ja.md-->
+<!--@include: ../_partials/sdd-workflow-summary-ja.md-->
 
 各フェーズは次のフェーズを導く構造化されたアーティファクトを生成します。
 
