@@ -35,27 +35,7 @@ The example below shows the phases for the **orchestrator-ts** implementation us
 
 <!--@include: ../_partials/workflow-core-flow.md-->
 
-1. spec-init *(llm slash command)*
-2. human interaction *(user input)*
-3. validate prerequisites met *(llm prompt)*
-4. requirements *(llm slash command)*
-5. validate-requirements *(llm prompt)*
-6. reflect on existing information *(llm prompt)*
-7. validate-gap *(llm slash command: optional)*
-8. **`/clear` slash command** — reset context before design
-9. design *(llm slash command)*
-10. validate-design *(llm slash command: optional)*
-11. reflect on existing information *(llm prompt)*
-12. **`/clear` slash command** — reset context before task generation
-13. tasks *(llm slash command)*
-14. validate-tasks *(llm prompt)*
-15. **`/clear` slash command** — reset context before implementation
-16. implementation loop *(repeat per task group)*:
-    - spec-impl *(llm slash command)*
-    - validate-impl *(llm prompt)*
-    - commit *(git command)*
-    - **`/clear` slash command** — reset context before next task group
-17. create PR *(git command)*
+<!--@include: ../_partials/sdd-workflow-summary.md-->
 
 Each phase produces structured artifacts that guide the next phase. Steps annotated with `(llm prompt)` run automatically within the orchestrator without human approval gates. Steps annotated with `(llm slash command: ...)` are invoked via CLI. Steps annotated with `(user input ...)` require manual input from the user. Steps marked `optional` may be skipped. `CLEAR_CONTEXT` steps reset the LLM context window to prevent token accumulation and reasoning degradation across phase boundaries.
 

@@ -94,10 +94,10 @@ The system manages the entire development lifecycle:
 3. System design
 4. Design validation
 5. Task generation
-6. Implementation
-7. Code review
-8. Improvement
-9. Git operations
+6. Task validation
+7. Implementation
+8. Code review
+9. Code Improvement
 10. Pull request creation
 
 This transforms software development from a **manual workflow** into an **autonomous pipeline**.
@@ -112,21 +112,7 @@ Instead of starting with code, development begins with structured specifications
 
 Typical workflow:
 
-```
-1.  spec-init
-2.  validate prerequisites met
-3.  requirements
-4.  validate-requirements (llm)
-5.  reflect on existing information (llm)
-6.  validate-gap (optional)
-7.  design
-8.  validate-design (optional)
-9.  reflect on existing information (llm)
-10. tasks
-11. validate-tasks
-12. implementation
-13. create PR
-```
+<!--@include: ../_partials/sdd-workflow-summary.md-->
 
 Each phase produces structured artifacts that guide the next phase.
 
@@ -161,9 +147,9 @@ A state-driven workflow engine coordinates development phases from specification
 AI models are used to perform engineering tasks such as:
 
 - generating specifications
+- refining designs
 - implementing features
 - reviewing code
-- refining designs
 
 ### Persistent Memory
 
