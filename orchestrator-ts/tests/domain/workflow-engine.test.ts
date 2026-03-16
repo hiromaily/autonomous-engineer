@@ -71,39 +71,45 @@ function makeSpyEventBus(): IWorkflowEventBus & { events: WorkflowEvent[] } {
 }
 
 function makeApprovalGate(): ApprovalGate {
+  const approved = mock(async () => ({ approved: true as const }));
   return {
-    check: mock(async () => ({ approved: true as const })),
+    check: approved,
+    checkResume: approved,
   } as unknown as ApprovalGate;
 }
 
 /** Approval gate where specified phases return pending; all others are approved. */
 function makePendingGate(pendingPhase: string): ApprovalGate & { checkedPhases: string[] } {
   const checkedPhases: string[] = [];
+  const checkFn = mock(async (_specDir: string, phase: string) => {
+    checkedPhases.push(phase);
+    if (phase === pendingPhase) {
+      return {
+        approved: false as const,
+        artifactPath: `spec-dir/${phase}.md`,
+        instruction: `Approve ${phase} in spec.json`,
+      };
+    }
+    return { approved: true as const };
+  });
   return {
     checkedPhases,
-    check: mock(async (_specDir: string, phase: string) => {
-      checkedPhases.push(phase);
-      if (phase === pendingPhase) {
-        return {
-          approved: false as const,
-          artifactPath: `spec-dir/${phase}.md`,
-          instruction: `Approve ${phase} in spec.json`,
-        };
-      }
-      return { approved: true as const };
-    }),
+    check: checkFn,
+    checkResume: checkFn,
   } as unknown as ApprovalGate & { checkedPhases: string[] };
 }
 
 /** Approval gate that tracks which phases were checked. */
 function makeTrackingGate(): ApprovalGate & { checkedPhases: string[] } {
   const checkedPhases: string[] = [];
+  const checkFn = mock(async (_specDir: string, phase: string) => {
+    checkedPhases.push(phase);
+    return { approved: true as const };
+  });
   return {
     checkedPhases,
-    check: mock(async (_specDir: string, phase: string) => {
-      checkedPhases.push(phase);
-      return { approved: true as const };
-    }),
+    check: checkFn,
+    checkResume: checkFn,
   } as unknown as ApprovalGate & { checkedPhases: string[] };
 }
 

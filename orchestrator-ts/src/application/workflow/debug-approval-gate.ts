@@ -1,14 +1,21 @@
 import type { IDebugEventSink } from "@/application/ports/debug";
 import { type ApprovalCheckResult, ApprovalGate, type ApprovalPhase } from "@/domain/workflow/approval-gate";
+import { join } from "node:path";
 
 /**
  * Approval gate used in --debug-flow mode.
  *
- * - `human_interaction` is NOT auto-approved: delegates to the real ApprovalGate
- *   so the workflow genuinely pauses after SPEC_INIT, giving the developer a chance
- *   to inspect the generated spec.json / requirements.md before continuing.
- * - All other phases (`requirements`, `design`, `tasks`) are auto-approved and
- *   emit one `approval:auto` debug event per check() call.
+ * The only behavioural difference from the base ApprovalGate is that the mock
+ * LLM is used instead of a real one. Approval logic follows the same rules:
+ *
+ * check() — called after a phase executes:
+ *   - `human_interaction`: returns not-approved so the workflow pauses after
+ *     SPEC_INIT. The user inspects the output, then re-runs to continue.
+ *   - all other phases: auto-approved (no human review required in debug mode).
+ *
+ * checkResume() — called when resuming from a paused state:
+ *   - inherited from ApprovalGate: auto-approves `human_interaction`, delegates
+ *     to check() for all other phases.
  */
 export class DebugApprovalGate extends ApprovalGate {
   readonly #sink: IDebugEventSink;
@@ -19,13 +26,14 @@ export class DebugApprovalGate extends ApprovalGate {
   }
 
   override async check(specDir: string, phase: ApprovalPhase): Promise<ApprovalCheckResult> {
-    // HUMAN_INTERACTION requires genuine human input — delegate to the real gate so
-    // the workflow pauses until approvals.human_interaction.approved is set to true.
     if (phase === "human_interaction") {
-      return super.check(specDir, phase);
+      return {
+        approved: false,
+        artifactPath: join(specDir, "requirements.md"),
+        instruction: "Paused after SPEC_INIT. Re-run to continue from the next phase.",
+      };
     }
 
-    // All other phases are auto-approved in debug-flow mode.
     this.#sink.emit({
       type: "approval:auto",
       phase: phase.toUpperCase(),
