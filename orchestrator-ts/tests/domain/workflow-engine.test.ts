@@ -92,10 +92,16 @@ function makePendingGate(pendingPhase: string): ApprovalGate & { checkedPhases: 
     }
     return { approved: true as const };
   });
+  const checkResumeFn = mock(async (specDir: string, phase: string) => {
+    if (phase === "human_interaction") {
+      return { approved: true as const };
+    }
+    return checkFn(specDir, phase);
+  });
   return {
     checkedPhases,
     check: checkFn,
-    checkResume: checkFn,
+    checkResume: checkResumeFn,
   } as unknown as ApprovalGate & { checkedPhases: string[] };
 }
 
@@ -106,10 +112,16 @@ function makeTrackingGate(): ApprovalGate & { checkedPhases: string[] } {
     checkedPhases.push(phase);
     return { approved: true as const };
   });
+  const checkResumeFn = mock(async (specDir: string, phase: string) => {
+    if (phase === "human_interaction") {
+      return { approved: true as const };
+    }
+    return checkFn(specDir, phase);
+  });
   return {
     checkedPhases,
     check: checkFn,
-    checkResume: checkFn,
+    checkResume: checkResumeFn,
   } as unknown as ApprovalGate & { checkedPhases: string[] };
 }
 
