@@ -94,35 +94,9 @@ Each phase corresponds to a specific development activity.
 
 Typical workflow:
 
-```
-SPEC_INIT
-    ↓
-VALIDATE_PREREQUISITES
-    ↓
-REQUIREMENTS
-    ↓
-VALIDATE_REQUIREMENTS (llm)
-    ↓
-REFLECT_ON_EXISTING_INFORMATION (llm)
-    ↓
-VALIDATE_GAP (optional)
-    ↓
-DESIGN
-    ↓
-VALIDATE_DESIGN (optional)
-    ↓
-REFLECT_ON_EXISTING_INFORMATION (llm)
-    ↓
-TASK_GENERATION
-    ↓
-VALIDATE_TASK
-    ↓
-IMPLEMENTATION
-    ↓
-PULL_REQUEST
-```
+<!--@include: ./_partials/workflow-core-flow.md-->
 
-Phases marked `(llm)` run automatically within the orchestrator without human approval gates. The `REFLECT_ON_EXISTING_INFORMATION` steps are post-phase reflections where the LLM reviews the completed phase and surfaces improvement hints for agent resources such as steering documents, rules, and commands.
+Steps annotated with `(llm prompt)` or `(llm slash command: ...)` run automatically within the orchestrator without human approval gates. Steps marked `(user input ...)` require manual input from the user. Steps marked `optional` may be skipped depending on the workflow configuration. The `REFLECT_ON_EXISTING_INFORMATION` steps are post-phase reflections where the LLM reviews the completed phase and surfaces improvement hints for agent resources such as steering documents, rules, and commands. `CLEAR_CONTEXT` steps reset the LLM context window to prevent context pollution between phases.
 
 The workflow engine is responsible for:
 

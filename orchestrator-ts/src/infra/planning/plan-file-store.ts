@@ -1,3 +1,4 @@
+import type { IPlanStore, SectionPersistenceStatus } from "@/application/ports/implementation-loop";
 import type { ITaskPlanStore } from "@/application/ports/task-planning";
 import { PlanValidator } from "@/domain/planning/plan-validator";
 import type { TaskPlan, TaskStatus } from "@/domain/planning/types";
@@ -181,5 +182,43 @@ export class PlanFileStore implements ITaskPlanStore {
     }
 
     return resumableIds;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// PlanFileStoreAdapter — adapts PlanFileStore to IPlanStore
+// ---------------------------------------------------------------------------
+
+/**
+ * Adapts `PlanFileStore` (ITaskPlanStore) to the `IPlanStore` interface consumed
+ * by `ImplementationLoopService`. Reads the plan, patches the target section's
+ * status, and writes back atomically via `PlanFileStore.save()`.
+ */
+export class PlanFileStoreAdapter implements IPlanStore {
+  readonly #store: PlanFileStore;
+
+  constructor(store: PlanFileStore) {
+    this.#store = store;
+  }
+
+  async loadPlan(planId: string): Promise<TaskPlan | null> {
+    return this.#store.load(planId);
+  }
+
+  async updateSectionStatus(
+    planId: string,
+    sectionId: string,
+    status: SectionPersistenceStatus,
+  ): Promise<void> {
+    const plan = await this.#store.load(planId);
+    if (plan === null) return;
+
+    const updatedTasks = plan.tasks.map((t) => t.id === sectionId ? { ...t, status } : t);
+
+    await this.#store.save({
+      ...plan,
+      tasks: updatedTasks,
+      updatedAt: new Date().toISOString(),
+    });
   }
 }

@@ -13,6 +13,7 @@ import { ConfigLoader } from "@/infra/config/config-loader";
 import { ConfigWriter } from "@/infra/config/config-writer";
 import { SddFrameworkChecker } from "@/infra/config/sdd-framework-checker";
 import { WorkflowEventBus } from "@/infra/events/workflow-event-bus";
+import { createImplementationLoopService } from "@/infra/implementation-loop/create-implementation-loop-service";
 import { FileMemoryStore } from "@/infra/memory/file-memory-store";
 import { WorkflowStateStore } from "@/infra/state/workflow-state-store";
 import { defineCommand, runMain } from "citty";
@@ -144,15 +145,30 @@ const runCommand = defineCommand({
 
     // Build use case with injected deps
     const memory = new FileMemoryStore({ baseDir: process.cwd() });
+
+    // Create implementation loop LLM (separate instance so the loop has its own context)
+    const implLlm: LlmProviderPort = debugFlow && debugWriter
+      ? new MockLlmProvider({
+        sink: debugWriter,
+        workflowEventBus: eventBus,
+      })
+      : new ClaudeProvider({ apiKey: config.llm.apiKey, modelName: config.llm.modelName });
+
+    const implementationLoop = createImplementationLoopService({
+      llm: implLlm,
+      workspaceRoot: process.cwd(),
+      noOpGit: debugFlow,
+    });
+
     const useCase = new RunSpecUseCase({
       stateStore: new WorkflowStateStore(),
       eventBus,
       sdd: debugFlow ? new MockSddAdapter() : new CcSddAdapter(),
       memory,
+      implementationLoop,
       createLlmProvider: (cfg: AesConfig, providerOverride?: string): LlmProviderPort => {
         if (debugFlow && debugWriter) {
           return new MockLlmProvider({
-            defaultResponse: "[MOCK LLM RESPONSE] Task completed successfully.",
             sink: debugWriter,
             workflowEventBus: eventBus,
           });

@@ -49,7 +49,7 @@ describe("DebugLogWriter — stderr mode (no file path)", () => {
     process.stderr.write = originalWrite;
   });
 
-  it("writes event as [DEBUG] prefixed JSON to stderr", async () => {
+  it("writes llm:call event as human-readable text to stderr", async () => {
     process.stderr.write = mock((chunk: string | Uint8Array) => {
       stderrWrites.push(typeof chunk === "string" ? chunk : new TextDecoder().decode(chunk));
       return true;
@@ -63,10 +63,10 @@ describe("DebugLogWriter — stderr mode (no file path)", () => {
     process.stderr.write = originalWrite;
 
     expect(stderrWrites).toHaveLength(1);
-    expect(stderrWrites[0]).toStartWith("[DEBUG] ");
+    expect(stderrWrites[0]).toContain("[LLM #1]");
+    expect(stderrWrites[0]).toContain("phase=REQUIREMENTS");
+    expect(stderrWrites[0]).toContain("test prompt");
     expect(stderrWrites[0]).toEndWith("\n");
-    const parsed = JSON.parse(stderrWrites[0]!.slice("[DEBUG] ".length));
-    expect(parsed).toEqual(event);
   });
 
   it("writes multiple events in order to stderr", async () => {
@@ -84,10 +84,8 @@ describe("DebugLogWriter — stderr mode (no file path)", () => {
     process.stderr.write = originalWrite;
 
     expect(writes).toHaveLength(2);
-    const parsed1 = JSON.parse(writes[0]!.slice("[DEBUG] ".length));
-    const parsed2 = JSON.parse(writes[1]!.slice("[DEBUG] ".length));
-    expect(parsed1.callIndex).toBe(1);
-    expect(parsed2.callIndex).toBe(2);
+    expect(writes[0]).toContain("[LLM #1]");
+    expect(writes[1]).toContain("[LLM #2]");
   });
 
   it("silently drops emit() calls after close()", async () => {
