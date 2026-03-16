@@ -19,6 +19,12 @@ function formatEventHuman(event: DebugEvent): string {
         : event.prompt;
       return `[LLM #${event.callIndex}] phase=${event.phase} ERROR category=${event.errorCategory}: ${event.errorMessage}\n  Prompt: ${promptPreview}`;
     }
+    case "sdd:operation": {
+      const resultLabel = event.outcome === "ok"
+        ? `→ ${event.artifactPath ?? "ok"}`
+        : "→ error";
+      return `[SDD] operation=${event.operation} spec=${event.specName} ${resultLabel}`;
+    }
     default:
       return `[DEBUG] ${JSON.stringify(event)}`;
   }

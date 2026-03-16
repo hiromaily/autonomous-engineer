@@ -26,6 +26,13 @@ ts-lint:
 debug-aes-flow:
 	$(MAKE) -C orchestrator-ts debug-aes-flow
 
+.PHONY: restart-debug-aes-flow
+restart-debug-aes-flow: rm-state debug-aes-flow
+
+.PHONY: debug-aes-flow
+rm-state:
+	rm -rf orchestrator-ts/.aes/state/
+
 # bun run aes run debug-test --debug-flow
 # bun run aes configure
 # claude-opus-4-6 -> claude-sonnet-4-5, claude-haiku-4-5

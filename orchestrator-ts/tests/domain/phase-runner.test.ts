@@ -17,6 +17,7 @@ const ctx: SpecContext = {
 
 function makeSddAdapter(result: SddOperationResult): SddFrameworkPort {
   return {
+    initSpec: mock(() => Promise.resolve(result)),
     generateRequirements: mock(() => Promise.resolve(result)),
     generateDesign: mock(() => Promise.resolve(result)),
     validateDesign: mock(() => Promise.resolve(result)),
@@ -148,13 +149,27 @@ describe("PhaseRunner", () => {
     });
   });
 
-  describe("execute - stub phases", () => {
-    it("returns success with empty artifacts for SPEC_INIT", async () => {
-      const runner = new PhaseRunner({ sdd: makeSddAdapter({ ok: true, artifactPath: "" }), llm: makeLlmProvider() });
+  describe("execute - SPEC_INIT phase", () => {
+    it("dispatches SPEC_INIT to sdd.initSpec and returns artifact path", async () => {
+      const sdd = makeSddAdapter({ ok: true, artifactPath: ".kiro/specs/my-spec/spec.json" });
+      const runner = new PhaseRunner({ sdd, llm: makeLlmProvider() });
       const result = await runner.execute("SPEC_INIT", ctx);
-      expect(result).toEqual({ ok: true, artifacts: [] });
+
+      expect(sdd.initSpec).toHaveBeenCalledWith(ctx);
+      expect(result).toEqual({ ok: true, artifacts: [".kiro/specs/my-spec/spec.json"] });
     });
 
+    it("propagates sdd.initSpec failure as phase failure", async () => {
+      const sdd = makeSddAdapter({ ok: false, error: { exitCode: 1, stderr: "init failed" } });
+      const runner = new PhaseRunner({ sdd, llm: makeLlmProvider() });
+      const result = await runner.execute("SPEC_INIT", ctx);
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.error).toContain("init failed");
+    });
+  });
+
+  describe("execute - stub phases", () => {
     it("returns success with empty artifacts for IMPLEMENTATION", async () => {
       const runner = new PhaseRunner({ sdd: makeSddAdapter({ ok: true, artifactPath: "" }), llm: makeLlmProvider() });
       const result = await runner.execute("IMPLEMENTATION", ctx);
@@ -173,15 +188,15 @@ describe("PhaseRunner", () => {
       expect(result).toEqual({ ok: true, artifacts: [] });
     });
 
-    it("does not call any SDD adapter method for stub phases", async () => {
+    it("does not call any SDD adapter method for HUMAN_INTERACTION, IMPLEMENTATION, PULL_REQUEST", async () => {
       const sdd = makeSddAdapter({ ok: true, artifactPath: "" });
       const runner = new PhaseRunner({ sdd, llm: makeLlmProvider() });
 
-      await runner.execute("SPEC_INIT", ctx);
       await runner.execute("HUMAN_INTERACTION", ctx);
       await runner.execute("IMPLEMENTATION", ctx);
       await runner.execute("PULL_REQUEST", ctx);
 
+      expect(sdd.initSpec).not.toHaveBeenCalled();
       expect(sdd.generateRequirements).not.toHaveBeenCalled();
       expect(sdd.generateDesign).not.toHaveBeenCalled();
       expect(sdd.validateDesign).not.toHaveBeenCalled();

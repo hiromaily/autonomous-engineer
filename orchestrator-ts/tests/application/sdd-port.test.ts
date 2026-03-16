@@ -67,6 +67,7 @@ describe("SpecContext", () => {
 describe("SddFrameworkPort contract (mock implementation)", () => {
   function makeAdapter(result: SddOperationResult): SddFrameworkPort {
     return {
+      initSpec: async (_ctx: SpecContext) => result,
       validatePrerequisites: async (_ctx: SpecContext) => result,
       generateRequirements: async (_ctx: SpecContext) => result,
       validateRequirements: async (_ctx: SpecContext) => result,
@@ -81,6 +82,13 @@ describe("SddFrameworkPort contract (mock implementation)", () => {
   }
 
   const ctx: SpecContext = { specName: "test", specDir: ".kiro/specs", language: "en" };
+
+  it("initSpec returns SddOperationResult", async () => {
+    const adapter = makeAdapter({ ok: true, artifactPath: "spec.json" });
+    const result = await adapter.initSpec(ctx);
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.artifactPath).toBe("spec.json");
+  });
 
   it("validatePrerequisites returns SddOperationResult", async () => {
     const adapter = makeAdapter({ ok: true, artifactPath: "requirements.md" });
@@ -151,6 +159,7 @@ describe("SddFrameworkPort contract (mock implementation)", () => {
 
     for (
       const op of [
+        adapter.initSpec(ctx),
         adapter.validatePrerequisites(ctx),
         adapter.generateRequirements(ctx),
         adapter.validateRequirements(ctx),

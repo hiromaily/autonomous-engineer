@@ -81,6 +81,7 @@ describe("CcSddAdapter — argument structure", () => {
 
 describe("CcSddAdapter — operation subcommands", () => {
   it.each([
+    ["initSpec", "spec-init"] as const,
     ["validatePrerequisites", "validate-prerequisites"] as const,
     ["generateRequirements", "requirements"] as const,
     ["validateRequirements", "validate-requirements"] as const,
@@ -104,6 +105,17 @@ describe("CcSddAdapter — operation subcommands", () => {
 // ---------------------------------------------------------------------------
 
 describe("CcSddAdapter — success (exit code 0)", () => {
+  it("initSpec returns ok: true with spec.json artifact", async () => {
+    const { fn } = makeSpawn(0);
+    const adapter = new CcSddAdapter(fn);
+    const result = await adapter.initSpec(ctx);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.artifactPath).toContain("spec.json");
+      expect(result.artifactPath).toContain("my-spec");
+    }
+  });
+
   it("generateRequirements returns ok: true with requirements.md artifact", async () => {
     const { fn } = makeSpawn(0);
     const adapter = new CcSddAdapter(fn);
@@ -181,6 +193,7 @@ describe("CcSddAdapter — failure (non-zero exit code)", () => {
 
   it("all ten operations propagate failure correctly", async () => {
     const ops = [
+      "initSpec",
       "validatePrerequisites",
       "generateRequirements",
       "validateRequirements",

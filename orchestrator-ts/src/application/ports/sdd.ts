@@ -9,6 +9,8 @@ export type SddOperationResult =
   | { readonly ok: false; readonly error: { readonly exitCode: number; readonly stderr: string } };
 
 export interface SddFrameworkPort {
+  /** Initialize a new spec: create spec.json and seed requirements.md. */
+  initSpec(ctx: SpecContext): Promise<SddOperationResult>;
   /** Validate that all prerequisites (e.g. requirements.md seed) exist before running SPEC_REQUIREMENTS. */
   validatePrerequisites(ctx: SpecContext): Promise<SddOperationResult>;
   /** Generate requirements document for the spec.

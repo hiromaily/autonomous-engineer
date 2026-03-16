@@ -39,4 +39,12 @@ export type DebugEvent =
     readonly approvalType: "human_interaction" | "requirements" | "design" | "tasks";
     readonly outcome: "approved";
     readonly timestamp: string;
+  }
+  | {
+    readonly type: "sdd:operation";
+    readonly operation: string;
+    readonly specName: string;
+    readonly outcome: "ok" | "error";
+    readonly artifactPath?: string;
+    readonly timestamp: string;
   };
