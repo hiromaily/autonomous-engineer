@@ -89,43 +89,53 @@ This improves reasoning quality and reduces token consumption.
 
 The system is organized into several layers.
 
-```
-┌───────────────────────────────┐
-│             CLI               │
-│        User Interface         │
-└───────────────┬───────────────┘
-                │
-                ▼
+```mermaid
+graph TD
+    CLI["adapters/cli<br/>(CLI entry point)"]
+    Bootstrap["infra/bootstrap<br/>(composition root)"]
+    Usecase["application/usecases<br/>(use case orchestration)"]
+    Services["application/services<br/>(application services)"]
+    Ports["application/ports<br/>(port interfaces)"]
+    Domain["domain<br/>(core business logic)"]
+    Infra["infra/*<br/>(implementations)"]
 
-┌───────────────────────────────┐
-│       Use Case Layer          │
-│  Application Business Rules   │
-│  & Development Orchestration  │
-└───────────────┬───────────────┘
-                │
-                ▼
-
-┌───────────────────────────────┐
-│        Domain Layer           │
-│      Core System Logic        │
-└───────────────┬───────────────┘
-                │
-                ▼
-
-┌───────────────────────────────┐
-│        Adapter Layer          │
-│     External System Bridges   │
-└───────────────┬───────────────┘
-                │
-                ▼
-
-┌───────────────────────────────┐
-│      Infrastructure Layer     │
-│  External Services & Tools    │
-└───────────────────────────────┘
+    CLI --> Bootstrap
+    CLI --> Usecase
+    Usecase --> Services
+    Usecase --> Ports
+    Services --> Ports
+    Services --> Domain
+    Ports --> Domain
+    Infra --> Ports
+    Infra --> Domain
+    Bootstrap --> Infra
+    Bootstrap --> Usecase
+    Bootstrap --> CLI
 ```
 
-Each layer has strict responsibilities.
+Arrows represent compile-time import dependencies. Each layer has strict responsibilities.
+
+### Dependency Inversion and Why Infra → Ports Is Not Circular
+
+`infra/*` (non-bootstrap) imports from `application/ports` to know **which interfaces to implement**. `application` never imports from `infra`. The dependency is strictly one-directional:
+
+```
+Compile-time:  usecase → ports ← infra   (both depend on ports; neither on the other)
+Runtime (DI):  usecase → [port] → infra-impl   (bootstrap wires them together)
+```
+
+`infra/bootstrap` is the only module that knows both sides and performs the wiring. This is the Dependency Inversion Principle: high-level policy (`usecases`) and low-level details (`infra`) both depend on the abstraction (`ports`), not on each other.
+
+### Application Layer: Usecases vs Services
+
+The `application/` layer has two distinct sub-layers:
+
+| Sub-layer | Role | Examples |
+|-----------|------|---------|
+| `usecases/` | Thin entry-point orchestrators for a specific user-facing operation | `RunSpecUseCase` |
+| `services/` | Reusable coordination logic supporting multiple usecases; encodes application-level policy but not domain rules | `AgentLoopService`, `ToolExecutor`, `SafetyGuardedToolExecutor`, `ContextEngineService` |
+
+Services contain logic that is too complex for a single use case class but does not belong in the domain (it is not domain logic — it depends on port abstractions such as `ILlmProvider` or `IToolRegistry`). Services may depend on ports and domain; usecases may depend on services and ports.
 
 ### Use Case Layer
 
@@ -142,11 +152,9 @@ Responsibilities:
 
 Examples:
 
-- `InitializeSpecUseCase` — drives the spec initialization flow
-- `ExecuteTaskUseCase` — manages the implement → review → improve → commit loop
-- `ValidateDesignUseCase` — coordinates design validation across reviewers
+- `RunSpecUseCase` — drives the full spec initialization → implementation workflow
 
-Use cases depend only on domain interfaces at the code level, never importing from adapter or infrastructure packages directly. At runtime, concrete adapter implementations are injected via dependency injection, allowing use cases to access infrastructure through those interfaces without coupling to specific implementations.
+Use cases depend only on port interfaces and application services at the code level, never importing from adapter or infrastructure packages directly. At runtime, concrete infrastructure implementations are injected via dependency injection through `infra/bootstrap`.
 
 ---
 
