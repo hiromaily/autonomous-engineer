@@ -2,10 +2,33 @@ import type { IDebugEventSink } from "@/application/ports/debug";
 import type { DebugEvent } from "@/domain/debug/types";
 import { type FileHandle, open } from "node:fs/promises";
 
+const PROMPT_PREVIEW_LENGTH = 500;
+
+function formatEventHuman(event: DebugEvent): string {
+  switch (event.type) {
+    case "llm:call": {
+      const iterLabel = event.iterationNumber !== null ? ` iter=${event.iterationNumber}` : "";
+      const promptPreview = event.prompt.length > PROMPT_PREVIEW_LENGTH
+        ? `${event.prompt.slice(0, PROMPT_PREVIEW_LENGTH)}… (${event.prompt.length} chars total)`
+        : event.prompt;
+      return `[LLM #${event.callIndex}] phase=${event.phase}${iterLabel}\n  Prompt: ${promptPreview}`;
+    }
+    case "llm:error": {
+      const promptPreview = event.prompt.length > PROMPT_PREVIEW_LENGTH
+        ? `${event.prompt.slice(0, PROMPT_PREVIEW_LENGTH)}… (${event.prompt.length} chars total)`
+        : event.prompt;
+      return `[LLM #${event.callIndex}] phase=${event.phase} ERROR category=${event.errorCategory}: ${event.errorMessage}\n  Prompt: ${promptPreview}`;
+    }
+    default:
+      return `[DEBUG] ${JSON.stringify(event)}`;
+  }
+}
+
 /**
  * Writes debug events to stderr (default) or as NDJSON to a file.
  *
- * - No file path: each event is written as `[DEBUG] <JSON>\n` to `process.stderr`.
+ * - No file path: `llm:call`/`llm:error` events are formatted as human-readable text;
+ *   all other events are written as `[DEBUG] <JSON>\n` to `process.stderr`.
  * - With file path: each event is written as `<JSON>\n` (NDJSON) to the file.
  * - File-open failure: warning emitted to stderr; all subsequent events fall back to stderr.
  * - `emit()` is synchronous — file writes are queued and resolved by `close()`.
@@ -34,10 +57,9 @@ export class DebugLogWriter implements IDebugEventSink {
   emit(event: DebugEvent): void {
     if (this.closed) return;
 
-    const json = JSON.stringify(event);
-
     if (this.fileHandlePromise) {
-      // Queue async write; order is preserved by chaining on the queue.
+      // File mode: write JSON for machine consumption.
+      const json = JSON.stringify(event);
       const fhPromise = this.fileHandlePromise;
       this.writeQueue = this.writeQueue.then(async () => {
         const fh = await fhPromise;
@@ -48,7 +70,8 @@ export class DebugLogWriter implements IDebugEventSink {
         }
       });
     } else {
-      process.stderr.write(`[DEBUG] ${json}\n`);
+      // Stderr mode: human-readable format.
+      process.stderr.write(`${formatEventHuman(event)}\n`);
     }
   }
 

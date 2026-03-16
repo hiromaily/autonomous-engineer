@@ -52,19 +52,28 @@ describe("MockLlmProvider.complete()", () => {
     sink = makeSink();
     bus = makeEventBus();
     provider = new MockLlmProvider({
-      defaultResponse: "[MOCK LLM RESPONSE] Task completed successfully.",
       sink,
       workflowEventBus: bus,
     });
   });
 
-  it("returns ok:true with the default response content", async () => {
+  it("returns ok:true with valid JSON content for a PLAN prompt", async () => {
     const result = await provider.complete("test prompt");
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.value.content).toBe(
-        "[MOCK LLM RESPONSE] Task completed successfully.",
-      );
+      const parsed = JSON.parse(result.value.content) as Record<string, unknown>;
+      expect(parsed.category).toBe("Exploration");
+      expect(parsed.toolName).toBe("list_directory");
+    }
+  });
+
+  it("returns ok:true with taskComplete:true for a REFLECT prompt", async () => {
+    const result = await provider.complete("respond with JSON: { \"taskComplete\": boolean }");
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      const parsed = JSON.parse(result.value.content) as Record<string, unknown>;
+      expect(parsed.taskComplete).toBe(true);
+      expect(parsed.assessment).toBe("expected");
     }
   });
 
@@ -76,7 +85,7 @@ describe("MockLlmProvider.complete()", () => {
     if (ev.type === "llm:call") {
       expect(ev.callIndex).toBe(1);
       expect(ev.prompt).toBe("hello world");
-      expect(ev.response).toBe("[MOCK LLM RESPONSE] Task completed successfully.");
+      expect(typeof ev.response).toBe("string");
       expect(ev.phase).toBe("UNKNOWN"); // no phase:start emitted yet
       expect(ev.iterationNumber).toBeNull();
       expect(typeof ev.durationMs).toBe("number");
@@ -162,7 +171,6 @@ describe("MockLlmProvider.clearContext()", () => {
     sink = makeSink();
     bus = makeEventBus();
     provider = new MockLlmProvider({
-      defaultResponse: "[MOCK LLM RESPONSE] done",
       sink,
       workflowEventBus: bus,
     });

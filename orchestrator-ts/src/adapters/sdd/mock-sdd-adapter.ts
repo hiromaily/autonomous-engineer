@@ -1,4 +1,5 @@
 import type { SddFrameworkPort, SddOperationResult, SpecContext } from "@/application/ports/sdd";
+import type { TaskPlan } from "@/domain/planning/types";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
@@ -25,8 +26,39 @@ export class MockSddAdapter implements SddFrameworkPort {
     if (result.ok) {
       // Set ready_for_implementation so IMPLEMENTATION phase can proceed without manual intervention.
       await this.setReadyForImplementation(ctx);
+      // Write a stub TaskPlan JSON so ImplementationLoopService can load and execute it.
+      await this.writeStubTaskPlan(ctx);
     }
     return result;
+  }
+
+  /**
+   * Writes a minimal stub TaskPlan JSON to `.memory/tasks/task_<specName>.json`
+   * under process.cwd() (the workspace root used by createImplementationLoopService).
+   * ImplementationLoopService.run() looks up the plan by specName as the planId.
+   */
+  private async writeStubTaskPlan(ctx: SpecContext): Promise<void> {
+    const workspaceRoot = process.cwd();
+
+    const now = new Date().toISOString();
+    const plan: TaskPlan = {
+      id: ctx.specName,
+      goal: `Implement spec: ${ctx.specName}`,
+      tasks: [
+        {
+          id: "task-1",
+          title: "Implement the feature described in tasks.md",
+          status: "pending",
+          steps: [],
+        },
+      ],
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    const planPath = join(workspaceRoot, ".memory", "tasks", `task_${ctx.specName}.json`);
+    await mkdir(dirname(planPath), { recursive: true });
+    await writeFile(planPath, JSON.stringify(plan, null, 2), "utf-8");
   }
 
   private async setReadyForImplementation(ctx: SpecContext): Promise<void> {

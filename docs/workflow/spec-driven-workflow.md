@@ -34,53 +34,63 @@ The workflow phases depend on the SDD framework being integrated. Each framework
 The example below shows the phases for the **orchestrator-ts** implementation using **cc-sdd** as the underlying SDD framework. The orchestrator extends the base cc-sdd phase structure with LLM-assisted steps that run automatically without human approval gates.
 
 ```
-SPEC_INIT
+SPEC_INIT (llm slash command: `/kiro:spec-init <spec-name>`)
     ↓
-VALIDATE_PREREQUISITES
-    ── /clear ──
-SPEC_REQUIREMENTS
+HUMAN_INTERACTION (user input minimum requirements on `requirements.md` manually)
     ↓
-VALIDATE_REQUIREMENTS (llm)
+VALIDATE_PREREQUISITES (llm prompt)
     ↓
-REFLECT_ON_EXISTING_INFORMATION (llm)
+SPEC_REQUIREMENTS (llm slash command: `/kiro:spec-requirements <spec-name>`)
     ↓
-VALIDATE_GAP (optional)
-    ── /clear ──
-SPEC_DESIGN
+VALIDATE_REQUIREMENTS (llm prompt)
     ↓
-VALIDATE_DESIGN (optional)
+REFLECT_ON_EXISTING_INFORMATION (llm prompt)
     ↓
-REFLECT_ON_EXISTING_INFORMATION (llm)
-    ── /clear ──
-SPEC_TASKS (TASK_GENERATION)
+VALIDATE_GAP (llm slash command: `/kiro:validate-gap <spec-name>` optional)
     ↓
-VALIDATE_TASKS
-    ── /clear ──
-SPEC_IMPL (IMPLEMENTATION)
-    ── /clear ──
-PULL_REQUEST
+CLEAR_CONTEXT (llm slash command: `/clear`)
+    ↓
+SPEC_DESIGN (llm slash command: `/kiro:spec-design -y <spec-name>`)
+    ↓
+VALIDATE_DESIGN (llm slash command: `/kiro:validate-design <spec-name>` optional)
+    ↓
+REFLECT_ON_EXISTING_INFORMATION (llm prompt)
+    ↓
+CLEAR_CONTEXT (llm slash command: `/clear`)
+    ↓
+SPEC_TASKS (TASK_GENERATION) (llm slash command: `/kiro:spec-tasks -y <spec-name>`)
+    ↓
+VALIDATE_TASK (llm prompt)
+    ↓
+CLEAR_CONTEXT (llm slash command: `/clear`)
+    ↓
+IMPLEMENTATION (llm slash command: `/kiro:spec-impl <spec-name> [task-ids]`)
+    ↓
+CLEAR_CONTEXT (llm slash command: `/clear`)
+    ↓
+PULL_REQUEST (git command)
 ```
 
-1. spec-init
-2. validate prerequisites met
-3. **`/clear`** — reset context before requirements
-4. requirements
-5. validate-requirements *(llm)*
-6. reflect on existing information *(llm)*
-7. validate-gap *(optional)*
-8. **`/clear`** — reset context before design
-9. design
-10. validate-design *(optional)*
-11. reflect on existing information *(llm)*
-12. **`/clear`** — reset context before task generation
-13. tasks
-14. validate-tasks
-15. **`/clear`** — reset context before implementation
-16. implementation
-17. **`/clear`** — reset context before pull request
-18. create PR
+1. spec-init *(llm slash command)*
+2. human interaction *(user input)*
+3. validate prerequisites met *(llm prompt)*
+4. requirements *(llm slash command)*
+5. validate-requirements *(llm prompt)*
+6. reflect on existing information *(llm prompt)*
+7. validate-gap *(llm slash command: optional)*
+8. **`/clear` slash command** — reset context before design
+9. design *(llm slash command)*
+10. validate-design *(llm slash command: optional)*
+11. reflect on existing information *(llm prompt)*
+12. **`/clear` slash command** — reset context before task generation
+13. tasks *(llm slash command)*
+14. validate-tasks *(llm prompt)*
+15. **`/clear` slash command** — reset context before implementation
+16. implementation *(llm slash command)*
+17. **`/clear` slash command** — reset context before pull request
+18. create PR *(git command)*
 
-Each phase produces structured artifacts that guide the next phase. LLM-assisted phases (`llm`) run automatically within the orchestrator. Additional LLM analysis steps may be introduced at other points in the flow as the system evolves.
+Each phase produces structured artifacts that guide the next phase. Steps annotated with `(llm prompt)` run automatically within the orchestrator without human approval gates. Steps annotated with `(llm slash command: ...)` are invoked via CLI. Steps annotated with `(user input ...)` require manual input from the user. Steps marked `optional` may be skipped. `CLEAR_CONTEXT` steps reset the LLM context window to prevent token accumulation and reasoning degradation across phase boundaries.
 
 > **`/clear` is required between phases.** Each phase accumulates significant context. Without clearing, token usage grows across phases and degrades reasoning quality. Running `/clear` at each phase boundary keeps the context focused on only what is needed for the current phase.
 
