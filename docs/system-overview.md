@@ -304,36 +304,62 @@ Examples:
 
 ---
 
-## 9. Self-Healing Mechanism
+## 9. Failure Escalation (Self-Healing)
 
-When the AI fails to solve a problem efficiently, the system performs automated analysis.
+When the implementation loop exhausts its per-section retry budget, the system escalates the section to the Self-Healing Loop.
 
-The process typically includes:
+The process includes:
 
 ```
-Execution Failure
+Retry budget exhausted on section
 ↓
-Root Cause Analysis
+Root-cause analysis (LLM: why did repeated attempts fail?)
 ↓
-Knowledge Gap Detection
+Gap identification (LLM: which rule file needs updating?)
 ↓
-Rule Update
+Write proposed change to rule file
+↓
+Persist failure record to memory
 ```
 
 Outputs may include updates to:
 
 ```
-rules/
-coding_rules.md
-review_rules.md
-implementation_patterns.md
+.kiro/steering/coding_rules.md
+.kiro/steering/review_rules.md
+.kiro/steering/implementation_patterns.md
+.kiro/steering/debugging_patterns.md
 ```
 
-This allows the system to improve over time.
+If no actionable gap is found, or the gap duplicates a previously recorded one, the section is marked `escalated-to-human` for manual intervention.
+
+This allows the system to update its own rules when it encounters a class of failure it cannot self-resolve within the retry budget.
 
 ---
 
-## 10. Context Management
+## 10. Phase Reflection
+
+After each workflow phase completes — including successful ones — the system runs a `REFLECT_ON_EXISTING_INFORMATION` step.
+
+The motivation is that success alone is insufficient: if information gathering was slow, context had to be rebuilt from scratch, or the agent worked around missing documentation, future runs will repeat the same inefficiency.
+
+The reflection step asks: **"What could have made this phase faster or clearer?"**
+
+```
+Phase Completes (success or partial success)
+↓
+Reflect on information gaps encountered
+↓
+Identify improvement opportunities
+↓
+Update agent resources (steering, rules, commands, docs)
+```
+
+Unlike the failure escalation path (Section 9), this step runs proactively — it is not triggered by failure, and its output improves future phases rather than retrying the current one.
+
+---
+
+## 11. Context Management
 
 LLM context must be carefully managed to avoid:
 

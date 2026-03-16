@@ -40,19 +40,7 @@ The agent executes a deterministic workflow.
 
 Typical execution flow:
 
-```
-spec-init
-requirements
-validate-requirements (llm)
-reflect-on-existing-information (llm)
-validate-gap (optional)
-design
-validate-design (optional)
-reflect-on-existing-information (llm)
-tasks
-implementation
-pull-request
-```
+<!--@include: ../_partials/workflow-core-flow.md-->
 
 Each stage produces structured artifacts that guide the next stage.
 

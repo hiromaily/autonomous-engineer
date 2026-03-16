@@ -1,6 +1,8 @@
 <!-- SSOT: canonical workflow flow definition.
-     Included by: docs/system-overview.md, docs/workflow/spec-driven-workflow.md,
-                  docs/ja/system-overview.md, docs/ja/workflow/spec-driven-workflow.md
+     Included by: 
+       docs/system-overview.md, docs/ja/system-overview.md,
+       docs/workflow/spec-driven-workflow.md, docs/ja/workflow/spec-driven-workflow.md,
+       docs/agent/dev-agent-v1.md, docs/ja/agent/dev-agent-v1.md          
      Edit only this file when workflow steps change. -->
 
 ```
