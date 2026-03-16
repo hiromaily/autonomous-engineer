@@ -213,9 +213,7 @@ export class PlanFileStoreAdapter implements IPlanStore {
     const plan = await this.#store.load(planId);
     if (plan === null) return;
 
-    const updatedTasks = plan.tasks.map((t) =>
-      t.id === sectionId ? { ...t, status: status as TaskPlan["tasks"][number]["status"] } : t
-    );
+    const updatedTasks = plan.tasks.map((t) => t.id === sectionId ? { ...t, status } : t);
 
     await this.#store.save({
       ...plan,

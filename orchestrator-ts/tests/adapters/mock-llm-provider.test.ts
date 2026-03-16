@@ -68,7 +68,9 @@ describe("MockLlmProvider.complete()", () => {
   });
 
   it("returns ok:true with taskComplete:true for a REFLECT prompt", async () => {
-    const result = await provider.complete("respond with JSON: { \"taskComplete\": boolean }");
+    const result = await provider.complete(
+      "respond with JSON: { \"planAdjustment\": \"continue\"|\"revise\"|\"stop\" }",
+    );
     expect(result.ok).toBe(true);
     if (result.ok) {
       const parsed = JSON.parse(result.value.content) as Record<string, unknown>;

@@ -72,10 +72,12 @@ export class MockLlmProvider implements LlmProviderPort {
     const phase = this.#currentPhase;
     const timestamp = new Date().toISOString();
 
-    // Route to the correct mock response based on the prompt's expected JSON schema.
-    const response = prompt.includes("\"taskComplete\": boolean")
+    // Route to the correct mock response based on unique structural markers in each prompt type.
+    // "planAdjustment" only appears in REFLECT step prompts (agent-loop-service.ts).
+    // "You are a code reviewer evaluating" only appears in LlmReviewEngineService prompts.
+    const response = prompt.includes("\"planAdjustment\"")
       ? MOCK_REFLECT_RESPONSE
-      : prompt.includes("\"passed\": true | false")
+      : prompt.includes("You are a code reviewer evaluating")
       ? MOCK_REVIEW_RESPONSE
       : MOCK_PLAN_RESPONSE;
     const durationMs = Date.now() - startMs;

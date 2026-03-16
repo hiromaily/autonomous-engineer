@@ -3,7 +3,7 @@
 // ---------------------------------------------------------------------------
 
 export type StepStatus = "pending" | "in_progress" | "completed" | "failed";
-export type TaskStatus = "pending" | "in_progress" | "completed" | "failed";
+export type TaskStatus = "pending" | "in_progress" | "completed" | "failed" | "escalated-to-human";
 
 /** Frozen tuple of all valid StepStatus values. */
 export const STEP_STATUSES = Object.freeze(
@@ -12,7 +12,7 @@ export const STEP_STATUSES = Object.freeze(
 
 /** Frozen tuple of all valid TaskStatus values. */
 export const TASK_STATUSES = Object.freeze(
-  ["pending", "in_progress", "completed", "failed"] as const satisfies ReadonlyArray<TaskStatus>,
+  ["pending", "in_progress", "completed", "failed", "escalated-to-human"] as const satisfies ReadonlyArray<TaskStatus>,
 );
 
 // ---------------------------------------------------------------------------

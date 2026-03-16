@@ -37,12 +37,12 @@ describe("StepStatus", () => {
 // TaskStatus
 // ---------------------------------------------------------------------------
 describe("TaskStatus", () => {
-  it("TASK_STATUSES contains exactly four statuses", () => {
-    expect(TASK_STATUSES).toHaveLength(4);
+  it("TASK_STATUSES contains exactly five statuses", () => {
+    expect(TASK_STATUSES).toHaveLength(5);
   });
 
   it("TASK_STATUSES contains all required values", () => {
-    const expected: TaskStatus[] = ["pending", "in_progress", "completed", "failed"];
+    const expected: TaskStatus[] = ["pending", "in_progress", "completed", "failed", "escalated-to-human"];
     for (const status of expected) {
       expect(TASK_STATUSES).toContain(status);
     }
@@ -543,6 +543,8 @@ const _exhaustiveTaskStatus = (s: TaskStatus): string => {
       return "completed";
     case "failed":
       return "failed";
+    case "escalated-to-human":
+      return "escalated-to-human";
   }
 };
 
