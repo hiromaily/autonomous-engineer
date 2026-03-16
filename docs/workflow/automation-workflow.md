@@ -243,3 +243,68 @@ Phase approvals are written to `spec.json` by the automation — no manual edits
 ```
 
 The `ready_for_implementation` flag is set to `true` once all three phases are approved, enabling the implementation loop to begin.
+
+---
+
+## Workflow Phase Reference
+
+Each phase in the workflow has a defined executor, execution behavior, and purpose. The table below maps every phase from the [canonical flow](../_partials/workflow-core-flow.md) to its role in the pipeline.
+
+| Phase | Executor | Execution stops? | Description |
+|-------|----------|-----------------|-------------|
+| `SPEC_INIT` | LLM (slash command) | No | Creates the spec directory structure and initial `spec.json`. Generates the scaffold that subsequent phases populate. |
+| `HUMAN_INTERACTION` | **Human** | **Yes — process halts here** | The workflow pauses so the user can review the generated scaffold and write the **Project Description** section in `requirements.md`. This is the only point where human input is required before the automated pipeline runs. Re-running the command after editing resumes automatically. |
+| `VALIDATE_PREREQUISITES` | LLM (prompt) | No | Checks that all inputs and prerequisites for the spec phase are in place before proceeding (e.g. steering docs loaded, spec directory valid). |
+| `SPEC_REQUIREMENTS` | LLM (slash command) | No | Generates a comprehensive `requirements.md` from the Project Description and project context. |
+| `VALIDATE_REQUIREMENTS` | LLM (prompt) | No | Reviews the generated requirements for completeness, consistency, and alignment with steering. Issues are fixed inline; `spec.json` is updated to `requirements.approved = true` on success. |
+| `REFLECT_ON_EXISTING_INFORMATION` | LLM (prompt) | No | Surveys the existing codebase and steering to identify relevant patterns, conventions, and constraints that should inform the next phase. Output is fed forward as context. |
+| `VALIDATE_GAP` | LLM (slash command, optional) | No | Analyzes the gap between the requirements and the current codebase: identifies reusable components, missing functionality, and integration points. Can be skipped for greenfield work. |
+| `CLEAR_CONTEXT` | System (`/clear`) | No | Resets the LLM context window. Required between phases to prevent token accumulation and reasoning degradation. Accumulated learnings are captured to steering/rules before each clear. |
+| `SPEC_DESIGN` | LLM (slash command) | No | Produces `design.md` — the technical design including architecture, data models, API contracts, and component interactions. |
+| `VALIDATE_DESIGN` | LLM (slash command, optional) | No | Reviews the design for technical correctness, alignment with requirements, and adherence to project conventions. Issues are fixed inline; `spec.json` updated to `design.approved = true`. |
+| `SPEC_TASKS` | LLM (slash command) | No | Breaks the design down into discrete, ordered implementation tasks in `tasks.md`. Tasks may be marked `(P)` to indicate they can be batched in a single `spec-impl` call. |
+| `VALIDATE_TASK` | LLM (prompt) | No | Reviews the task list for completeness, correct ordering, and traceability to design decisions. `spec.json` updated to `tasks.approved = true`. |
+| `SPEC_IMPL` | LLM (slash command) | No | Implements the specified task group following TDD: write tests first, then implement to pass. |
+| `VALIDATE_IMPL` | LLM (prompt) | No | Reviews the implementation against requirements, design, and tasks. Fixes issues inline. |
+| `COMMIT` | System (git) | No | Commits the implementation with a descriptive message. |
+| `PULL_REQUEST` | System (git) | No | Creates a pull request from the feature branch to main. This is the second and final human review point — the user reviews the PR. |
+
+### Execution stop points
+
+The workflow contains exactly two points where execution stops and waits for a human:
+
+1. **`HUMAN_INTERACTION`** — stops after `SPEC_INIT` so the user can fill in the Project Description before the automated pipeline starts.
+2. **`PULL_REQUEST`** — stops after all automation is complete so the user can review the output.
+
+All other phases run automatically without requiring any human input or approval.
+
+---
+
+## Workflow State & Resume
+
+The orchestrator persists workflow state to disk after each phase. This enables crash recovery and controlled resumption without restarting from scratch.
+
+**State file location**: `.aes/state/<spec-name>.json`
+
+### Behavior on re-run
+
+| Condition | Behavior |
+|-----------|----------|
+| No state file | Start from the beginning (SPEC_INIT) |
+| State file exists | Resume from the recorded phase |
+
+The state is restored automatically on every run — no flags or manual steps are required.
+
+### HUMAN_INTERACTION
+
+`HUMAN_INTERACTION` is the first pause point in the workflow. It follows `SPEC_INIT` and is designed to stop execution so the user can review the initial spec output and provide input (e.g. editing `requirements.md`) before the automated pipeline runs.
+
+**Behavior:**
+
+1. **First run** — `SPEC_INIT` executes, then the workflow pauses at `HUMAN_INTERACTION` and saves state.
+2. **User action** — inspect the generated artifacts, make any edits needed.
+3. **Re-run** — the saved state is restored; the workflow automatically advances past `HUMAN_INTERACTION` and continues with the remaining phases.
+
+No manual edits to `spec.json` are needed to resume. Simply re-running the command is sufficient.
+
+All subsequent approval gates (`requirements`, `design`, `tasks`) do require explicit approval in `spec.json` before the workflow will advance.

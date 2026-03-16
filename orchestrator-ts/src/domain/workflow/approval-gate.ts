@@ -8,6 +8,24 @@ export type ApprovalCheckResult =
   | { readonly approved: false; readonly artifactPath: string; readonly instruction: string };
 
 export class ApprovalGate {
+  /**
+   * Called when resuming from a previously paused state (advancePausedPhase).
+   *
+   * `human_interaction` is auto-approved on resume: simply re-running the
+   * command after the workflow paused is sufficient to continue. No manual
+   * spec.json edit is required.
+   *
+   * All other phases still delegate to check() — those gates represent genuine
+   * human review of generated artifacts and must be explicitly approved in
+   * spec.json before the workflow can advance.
+   */
+  async checkResume(specDir: string, phase: ApprovalPhase): Promise<ApprovalCheckResult> {
+    if (phase === "human_interaction") {
+      return { approved: true };
+    }
+    return this.check(specDir, phase);
+  }
+
   async check(specDir: string, phase: ApprovalPhase): Promise<ApprovalCheckResult> {
     const specJsonPath = join(specDir, "spec.json");
 

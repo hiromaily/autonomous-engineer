@@ -186,7 +186,7 @@ export class WorkflowEngine {
       return null;
     }
 
-    const gateResult = await approvalGate.check(specDir, approvalType);
+    const gateResult = await approvalGate.checkResume(specDir, approvalType);
     if (!gateResult.approved) {
       return await this.pauseAt(pausedPhase, gateResult.artifactPath, gateResult.instruction);
     }

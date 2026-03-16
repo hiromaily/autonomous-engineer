@@ -274,21 +274,21 @@ describe("WorkflowEngine integration — resume after HUMAN_INTERACTION approval
     expect(resumeRunner.executedPhases).toContain("VALIDATE_PREREQUISITES");
   });
 
-  it("approval:required event is re-emitted when spec.json still has not approved on resume", async () => {
+  it("human_interaction auto-approves on resume — re-running is sufficient, no spec.json edit needed", async () => {
     // First run: pauses at HUMAN_INTERACTION (no spec.json)
     await runInitialAndPause();
 
-    // Resume without updating spec.json
+    // Resume without updating spec.json — should advance past HUMAN_INTERACTION automatically.
+    // Create required artifacts so VALIDATE_PREREQUISITES can execute.
+    await writeFile(join(specDir, "requirements.md"), "# Requirements\n");
+
     const restoredState = await stateStore.restore(SPEC_NAME);
     if (!restoredState) return;
-    const resumeEvents: WorkflowEvent[] = [];
-    const resumeBus = new WorkflowEventBus();
-    resumeBus.on((e) => resumeEvents.push(e));
 
     const resumeRunner = makeStubPhaseRunner();
     const resumeEngine = new WorkflowEngine({
       stateStore,
-      eventBus: resumeBus,
+      eventBus: new WorkflowEventBus(),
       phaseRunner: resumeRunner,
       approvalGate: new ApprovalGate(),
       specDir,
@@ -297,10 +297,17 @@ describe("WorkflowEngine integration — resume after HUMAN_INTERACTION approval
 
     const result = await resumeEngine.execute(restoredState);
 
-    expect(result.status).toBe("paused");
-    expect(resumeEvents.some((e) => e.type === "approval:required")).toBe(true);
-    // Still should not execute SPEC_INIT on resume
+    // Workflow advanced past HUMAN_INTERACTION — it may pause later at a
+    // requirements/design/tasks gate, but NOT at HUMAN_INTERACTION.
+    if (result.status === "paused") {
+      expect(result.phase).not.toBe("HUMAN_INTERACTION");
+    }
+    // SPEC_INIT must not be re-executed
     expect(resumeRunner.executedPhases).not.toContain("SPEC_INIT");
+    // HUMAN_INTERACTION must not be re-executed (was already completed)
+    expect(resumeRunner.executedPhases).not.toContain("HUMAN_INTERACTION");
+    // Should have proceeded to the next phase
+    expect(resumeRunner.executedPhases).toContain("VALIDATE_PREREQUISITES");
   });
 
   it("workflow completes when all gates are approved and all phases succeed", async () => {

@@ -1,31 +1,20 @@
 import type { IDebugEventSink } from "@/application/ports/debug";
 import { DebugApprovalGate } from "@/application/workflow/debug-approval-gate";
 import type { DebugEvent } from "@/domain/debug/types";
-import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-
-// ---------------------------------------------------------------------------
-// Test double
-// ---------------------------------------------------------------------------
+import { beforeEach, describe, expect, it } from "bun:test";
 
 function makeSink(): IDebugEventSink & { events: DebugEvent[] } {
   const events: DebugEvent[] = [];
   return {
     events,
-    emit(event) {
-      events.push(event);
+    emit(e) {
+      events.push(e);
     },
     async close() {},
   };
 }
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
-describe("DebugApprovalGate", () => {
+describe("DebugApprovalGate.check()", () => {
   let sink: ReturnType<typeof makeSink>;
   let gate: DebugApprovalGate;
 
@@ -34,129 +23,43 @@ describe("DebugApprovalGate", () => {
     gate = new DebugApprovalGate(sink);
   });
 
-  it("returns { approved: true } for requirements phase", async () => {
-    const result = await gate.check("/any/spec/dir", "requirements");
-    expect(result).toEqual({ approved: true });
+  it("pauses at human_interaction — returns not-approved", async () => {
+    const result = await gate.check("/any", "human_interaction");
+    expect(result.approved).toBe(false);
   });
 
-  it("returns { approved: true } for design phase", async () => {
-    const result = await gate.check("/any/spec/dir", "design");
-    expect(result).toEqual({ approved: true });
+  it("does not emit approval:auto when pausing at human_interaction", async () => {
+    await gate.check("/any", "human_interaction");
+    expect(sink.events).toHaveLength(0);
   });
 
-  it("returns { approved: true } for tasks phase", async () => {
-    const result = await gate.check("/any/spec/dir", "tasks");
-    expect(result).toEqual({ approved: true });
+  it("auto-approves requirements", async () => {
+    expect(await gate.check("/any", "requirements")).toEqual({ approved: true });
   });
 
-  it("emits exactly one approval:auto event per check() call", async () => {
-    await gate.check("/spec", "requirements");
+  it("auto-approves design", async () => {
+    expect(await gate.check("/any", "design")).toEqual({ approved: true });
+  });
+
+  it("auto-approves tasks", async () => {
+    expect(await gate.check("/any", "tasks")).toEqual({ approved: true });
+  });
+
+  it("emits approval:auto event for each auto-approved phase", async () => {
+    await gate.check("/any", "requirements");
     expect(sink.events).toHaveLength(1);
-    expect(sink.events[0]?.type).toBe("approval:auto");
-  });
-
-  it("emits event with correct approvalType for requirements", async () => {
-    await gate.check("/spec", "requirements");
     const ev = sink.events[0];
-    expect(ev?.type).toBe("approval:auto");
     if (ev?.type === "approval:auto") {
       expect(ev.approvalType).toBe("requirements");
       expect(ev.outcome).toBe("approved");
     }
   });
-
-  it("emits event with correct approvalType for design", async () => {
-    await gate.check("/spec", "design");
-    const ev = sink.events[0];
-    if (ev?.type === "approval:auto") {
-      expect(ev.approvalType).toBe("design");
-    }
-  });
-
-  it("emits event with correct approvalType for tasks", async () => {
-    await gate.check("/spec", "tasks");
-    const ev = sink.events[0];
-    if (ev?.type === "approval:auto") {
-      expect(ev.approvalType).toBe("tasks");
-    }
-  });
-
-  it("emits events in call order for multiple check() calls", async () => {
-    await gate.check("/spec", "requirements");
-    await gate.check("/spec", "design");
-    await gate.check("/spec", "tasks");
-
-    expect(sink.events).toHaveLength(3);
-    const types = sink.events.map((e) => e.type === "approval:auto" ? e.approvalType : null);
-    expect(types).toEqual(["requirements", "design", "tasks"]);
-  });
-
-  it("emits approval:auto with a timestamp string", async () => {
-    await gate.check("/spec", "requirements");
-    const ev = sink.events[0];
-    if (ev?.type === "approval:auto") {
-      expect(typeof ev.timestamp).toBe("string");
-      expect(ev.timestamp.length).toBeGreaterThan(0);
-    }
-  });
 });
 
-// ---------------------------------------------------------------------------
-// human_interaction: delegates to real ApprovalGate (reads spec.json)
-// ---------------------------------------------------------------------------
-
-describe("DebugApprovalGate — human_interaction delegates to real gate", () => {
-  let tmpDir: string;
-  let sink: ReturnType<typeof makeSink>;
-  let gate: DebugApprovalGate;
-
-  beforeEach(async () => {
-    tmpDir = await mkdtemp(join(tmpdir(), "debug-gate-test-"));
-    sink = makeSink();
-    gate = new DebugApprovalGate(sink);
-  });
-
-  afterEach(async () => {
-    await rm(tmpDir, { recursive: true, force: true });
-  });
-
-  it("returns { approved: false } when spec.json is missing", async () => {
-    const result = await gate.check(tmpDir, "human_interaction");
-    expect(result.approved).toBe(false);
-  });
-
-  it("returns { approved: false } when human_interaction approval is not set", async () => {
-    await writeFile(join(tmpDir, "spec.json"), JSON.stringify({ approvals: {} }));
-    const result = await gate.check(tmpDir, "human_interaction");
-    expect(result.approved).toBe(false);
-  });
-
-  it("returns { approved: true } when human_interaction approval is set to true in spec.json", async () => {
-    await mkdir(tmpDir, { recursive: true });
-    await writeFile(
-      join(tmpDir, "spec.json"),
-      JSON.stringify({ approvals: { human_interaction: { approved: true } } }),
-    );
-    const result = await gate.check(tmpDir, "human_interaction");
-    expect(result.approved).toBe(true);
-  });
-
-  it("does NOT emit an approval:auto event for human_interaction", async () => {
-    await gate.check(tmpDir, "human_interaction");
-    expect(sink.events).toHaveLength(0);
-  });
-
-  it("auto-approves other phases independently of human_interaction delegation", async () => {
-    // human_interaction — real gate (no spec.json → not approved)
-    const hiResult = await gate.check(tmpDir, "human_interaction");
-    expect(hiResult.approved).toBe(false);
-
-    // requirements — auto-approved
-    const reqResult = await gate.check(tmpDir, "requirements");
-    expect(reqResult.approved).toBe(true);
-
-    // Only requirements emits an approval:auto event
-    expect(sink.events).toHaveLength(1);
-    expect(sink.events[0]?.type).toBe("approval:auto");
+describe("DebugApprovalGate.checkResume() — inherited from ApprovalGate", () => {
+  it("auto-approves human_interaction on resume (re-run is sufficient to continue)", async () => {
+    const gate = new DebugApprovalGate(makeSink());
+    const result = await gate.checkResume("/any", "human_interaction");
+    expect(result).toEqual({ approved: true });
   });
 });

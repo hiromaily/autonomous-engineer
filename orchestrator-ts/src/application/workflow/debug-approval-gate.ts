@@ -1,14 +1,23 @@
 import type { IDebugEventSink } from "@/application/ports/debug";
 import { type ApprovalCheckResult, ApprovalGate, type ApprovalPhase } from "@/domain/workflow/approval-gate";
+import { join } from "node:path";
 
 /**
  * Approval gate used in --debug-flow mode.
  *
- * - `human_interaction` is NOT auto-approved: delegates to the real ApprovalGate
- *   so the workflow genuinely pauses after SPEC_INIT, giving the developer a chance
- *   to inspect the generated spec.json / requirements.md before continuing.
- * - All other phases (`requirements`, `design`, `tasks`) are auto-approved and
- *   emit one `approval:auto` debug event per check() call.
+ * This gate simplifies the approval process for debugging by modifying the
+ * standard approval logic:
+ *
+ * **`check()`** (called on first execution of a phase):
+ *   - `human_interaction`: Always returns `approved: false` to pause the workflow
+ *     after `SPEC_INIT`, allowing the developer to inspect initial output.
+ *   - All other phases (`requirements`, `design`, `tasks`): Are auto-approved.
+ *
+ * **`checkResume()`** (called when resuming a paused workflow):
+ *   - Inherits from `ApprovalGate`, which auto-approves `human_interaction`.
+ *     This allows the workflow to continue simply by re-running the command.
+ *   - For other phases, it delegates to this class's `check()` method, which
+ *     results in them being auto-approved.
  */
 export class DebugApprovalGate extends ApprovalGate {
   readonly #sink: IDebugEventSink;
@@ -19,13 +28,14 @@ export class DebugApprovalGate extends ApprovalGate {
   }
 
   override async check(specDir: string, phase: ApprovalPhase): Promise<ApprovalCheckResult> {
-    // HUMAN_INTERACTION requires genuine human input — delegate to the real gate so
-    // the workflow pauses until approvals.human_interaction.approved is set to true.
     if (phase === "human_interaction") {
-      return super.check(specDir, phase);
+      return {
+        approved: false,
+        artifactPath: join(specDir, "requirements.md"),
+        instruction: "Paused after SPEC_INIT. Re-run to continue from the next phase.",
+      };
     }
 
-    // All other phases are auto-approved in debug-flow mode.
     this.#sink.emit({
       type: "approval:auto",
       phase: phase.toUpperCase(),
