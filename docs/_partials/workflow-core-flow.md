@@ -34,9 +34,14 @@ VALIDATE_TASK (llm prompt)
     ↓
 CLEAR_CONTEXT (llm slash command: `/clear`)
     ↓
-IMPLEMENTATION (llm slash command: `/kiro:spec-impl <spec-name> [task-ids]`)
-    ↓
-CLEAR_CONTEXT (llm slash command: `/clear`)
+IMPLEMENTATION LOOP (repeat per task group):
+    SPEC_IMPL (llm slash command: `/kiro:spec-impl <spec-name> [task-ids]`)
+        ↓
+    VALIDATE_IMPL (llm prompt)
+        ↓
+    COMMIT (git command)
+        ↓
+    CLEAR_CONTEXT (llm slash command: `/clear`)
     ↓
 PULL_REQUEST (git command)
 ```
