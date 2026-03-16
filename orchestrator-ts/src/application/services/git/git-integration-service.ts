@@ -10,7 +10,7 @@ import type { GitResult, IGitController } from "@/application/ports/git-controll
 import type { IGitEventBus } from "@/application/ports/git-event-bus";
 import type { LlmProviderPort } from "@/application/ports/llm";
 import type { IPullRequestProvider } from "@/application/ports/pr-provider";
-import type { IAuditLogger } from "@/application/safety/ports";
+import type { IAuditLogger } from "@/application/ports/safety";
 import type { IGitValidator } from "@/domain/git/git-validator";
 import type {
   BranchCreationResult,

@@ -10,11 +10,11 @@
  *
  * Requirements: 3.2, 3.3, 3.5, 3.6, 6.2, 6.3
  */
-import { LlmReviewEngineService } from "@/application/implementation-loop/llm-review-engine";
 import type { AgentLoopResult } from "@/application/ports/agent-loop";
 import type { QualityGateConfig } from "@/application/ports/implementation-loop";
 import type { IQualityGate } from "@/application/ports/implementation-loop";
 import type { LlmProviderPort, LlmResult } from "@/application/ports/llm";
+import { LlmReviewEngineService } from "@/application/services/implementation-loop/llm-review-engine";
 import type { ReviewCheckResult } from "@/domain/implementation-loop/types";
 import type { Task } from "@/domain/planning/types";
 import { describe, expect, it } from "bun:test";

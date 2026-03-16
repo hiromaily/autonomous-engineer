@@ -2,14 +2,14 @@
 // createImplementationLoopService — composition root for the implementation loop
 // ---------------------------------------------------------------------------
 
-import { AgentLoopService } from "@/application/agent/agent-loop-service";
-import { ImplementationLoopService } from "@/application/implementation-loop/implementation-loop-service";
-import { LlmReviewEngineService } from "@/application/implementation-loop/llm-review-engine";
-import { QualityGateRunner } from "@/application/implementation-loop/quality-gate-runner";
 import type { IGitController } from "@/application/ports/git-controller";
 import type { IImplementationLoop } from "@/application/ports/implementation-loop";
 import type { LlmProviderPort } from "@/application/ports/llm";
-import { ToolExecutor } from "@/application/tools/executor";
+import { AgentLoopService } from "@/application/services/agent/agent-loop-service";
+import { ImplementationLoopService } from "@/application/services/implementation-loop/implementation-loop-service";
+import { LlmReviewEngineService } from "@/application/services/implementation-loop/llm-review-engine";
+import { QualityGateRunner } from "@/application/services/implementation-loop/quality-gate-runner";
+import { ToolExecutor } from "@/application/services/tools/executor";
 import { GitValidator } from "@/domain/git/git-validator";
 import { PermissionSystem } from "@/domain/tools/permissions";
 import { ToolRegistry } from "@/domain/tools/registry";

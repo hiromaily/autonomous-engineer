@@ -1,4 +1,4 @@
-import type { AuditEntry, IAuditLogger } from "@/application/safety/ports";
+import type { AuditEntry, IAuditLogger } from "@/application/ports/safety";
 import { mkdir, open } from "node:fs/promises";
 import { dirname } from "node:path";
 

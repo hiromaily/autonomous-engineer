@@ -1,6 +1,6 @@
-import { SafetyGuardedToolExecutor } from "@/application/safety/guarded-executor";
-import type { AuditEntry, IApprovalGateway, IAuditLogger, ISandboxExecutor } from "@/application/safety/ports";
-import type { IToolExecutor } from "@/application/tools/executor";
+import type { AuditEntry, IApprovalGateway, IAuditLogger, ISandboxExecutor } from "@/application/ports/safety";
+import { SafetyGuardedToolExecutor } from "@/application/services/safety/guarded-executor";
+import type { IToolExecutor } from "@/application/services/tools/executor";
 import { createSafetyConfig, createSafetySession } from "@/domain/safety/types";
 import type { SafetyConfig, SafetySession } from "@/domain/safety/types";
 import type { PermissionSet, ToolContext, ToolInvocationLog, ToolResult } from "@/domain/tools/types";

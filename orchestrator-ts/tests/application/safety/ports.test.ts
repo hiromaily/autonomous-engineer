@@ -7,8 +7,8 @@ import type {
   ISandboxExecutor,
   SandboxExecutionRequest,
   SandboxExecutionResult,
-} from "@/application/safety/ports";
-import { APPROVAL_DECISIONS, AUDIT_OUTCOMES } from "@/application/safety/ports";
+} from "@/application/ports/safety";
+import { APPROVAL_DECISIONS, AUDIT_OUTCOMES } from "@/application/ports/safety";
 import type { ApprovalRequest } from "@/domain/safety/guards";
 import type { EmergencyStopSource, SafetySession } from "@/domain/safety/types";
 import { createSafetySession } from "@/domain/safety/types";

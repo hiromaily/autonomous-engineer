@@ -51,7 +51,6 @@
  * Requirements: 1.1, 1.2, 1.3, 1.4, 1.6, 2.1, 2.3, 2.4, 3.1, 4.1, 4.4, 4.5, 6.2, 6.5, 7.1, 7.2, 7.3, 7.4, 7.5, 8.1, 8.2, 8.3, 8.4
  */
 
-import { ImplementationLoopService } from "@/application/implementation-loop/implementation-loop-service";
 import type { AgentLoopResult, IAgentLoop } from "@/application/ports/agent-loop";
 import type { IContextEngine } from "@/application/ports/context";
 import type { IGitController } from "@/application/ports/git-controller";
@@ -65,6 +64,7 @@ import type {
   ReviewResult,
   SectionIterationLogEntry,
 } from "@/application/ports/implementation-loop";
+import { ImplementationLoopService } from "@/application/services/implementation-loop/implementation-loop-service";
 import type { AgentState, Observation, TerminationCondition } from "@/domain/agent/types";
 import type {
   ImplementationLoopEvent,

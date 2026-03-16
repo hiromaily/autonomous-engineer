@@ -1,7 +1,7 @@
-import { AgentLoopService } from "@/application/agent/agent-loop-service";
 import type { AgentLoopLogger, IAgentEventBus, IAgentLoop, IContextProvider } from "@/application/ports/agent-loop";
 import type { LlmProviderPort } from "@/application/ports/llm";
-import type { IToolExecutor } from "@/application/tools/executor";
+import { AgentLoopService } from "@/application/services/agent/agent-loop-service";
+import type { IToolExecutor } from "@/application/services/tools/executor";
 import type { AgentLoopEvent, AgentState, ReflectionOutput } from "@/domain/agent/types";
 import type { IToolRegistry } from "@/domain/tools/registry";
 import type { MemoryEntry, ToolContext } from "@/domain/tools/types";

@@ -1,4 +1,4 @@
-import { TaskPlanningService } from "@/application/planning/task-planning-service";
+import { TaskPlanningService } from "@/application/services/planning/task-planning-service";
 import { describe, expect, it } from "bun:test";
 import {
   makeAgentLoop,

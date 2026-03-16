@@ -1,5 +1,5 @@
 import type { IQualityGate, QualityGateCheck, QualityGateConfig } from "@/application/ports/implementation-loop";
-import type { IToolExecutor } from "@/application/tools/executor";
+import type { IToolExecutor } from "@/application/services/tools/executor";
 import type { ReviewCheckResult } from "@/domain/implementation-loop/types";
 import type { ToolContext } from "@/domain/tools/types";
 import { runCommandTool } from "@/infra/tools/shell";

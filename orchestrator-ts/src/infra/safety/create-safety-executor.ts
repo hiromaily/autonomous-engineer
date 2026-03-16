@@ -1,8 +1,8 @@
-import { EmergencyStopHandler } from "@/application/safety/emergency-stop-handler";
-import { SafetyGuardedToolExecutor } from "@/application/safety/guarded-executor";
-import type { IEmergencyStopHandler } from "@/application/safety/ports";
-import type { IApprovalGateway, IAuditLogger, ISandboxExecutor } from "@/application/safety/ports";
-import type { IToolExecutor } from "@/application/tools/executor";
+import type { IEmergencyStopHandler } from "@/application/ports/safety";
+import type { IApprovalGateway, IAuditLogger, ISandboxExecutor } from "@/application/ports/safety";
+import { EmergencyStopHandler } from "@/application/services/safety/emergency-stop-handler";
+import { SafetyGuardedToolExecutor } from "@/application/services/safety/guarded-executor";
+import type { IToolExecutor } from "@/application/services/tools/executor";
 import { createSafetyConfig, createSafetySession } from "@/domain/safety/types";
 import type { SafetyConfigOverrides, SafetySession } from "@/domain/safety/types";
 import { CliApprovalGateway } from "@/infra/safety/approval-gateway";

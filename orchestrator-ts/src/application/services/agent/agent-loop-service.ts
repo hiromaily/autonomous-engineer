@@ -1,6 +1,6 @@
 import type { AgentLoopOptions, AgentLoopResult, IAgentLoop, IContextProvider } from "@/application/ports/agent-loop";
 import type { LlmProviderPort } from "@/application/ports/llm";
-import type { IToolExecutor } from "@/application/tools/executor";
+import type { IToolExecutor } from "@/application/services/tools/executor";
 import type {
   ActionCategory,
   ActionPlan,

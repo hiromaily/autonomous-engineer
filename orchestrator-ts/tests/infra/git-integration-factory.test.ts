@@ -1,6 +1,6 @@
 import type { LlmProviderPort } from "@/application/ports/llm";
-import type { IAuditLogger } from "@/application/safety/ports";
-import type { IToolExecutor } from "@/application/tools/executor";
+import type { IAuditLogger } from "@/application/ports/safety";
+import type { IToolExecutor } from "@/application/services/tools/executor";
 import type { ToolContext, ToolResult } from "@/domain/tools/types";
 import { ConfigLoader } from "@/infra/config/config-loader";
 import { createGitIntegrationService } from "@/infra/git/create-git-integration-service";

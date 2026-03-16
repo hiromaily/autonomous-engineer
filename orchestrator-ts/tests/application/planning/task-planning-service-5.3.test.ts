@@ -1,6 +1,6 @@
-import { TaskPlanningService } from "@/application/planning/task-planning-service";
 import type { AgentLoopOptions, AgentLoopResult, IAgentLoop } from "@/application/ports/agent-loop";
 import type { ITaskPlanStore } from "@/application/ports/task-planning";
+import { TaskPlanningService } from "@/application/services/planning/task-planning-service";
 import type { AgentState } from "@/domain/agent/types";
 import type { TaskPlan } from "@/domain/planning/types";
 import { describe, expect, it } from "bun:test";

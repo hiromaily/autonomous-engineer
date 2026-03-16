@@ -1,4 +1,4 @@
-import type { ISandboxExecutor, SandboxExecutionRequest, SandboxExecutionResult } from "@/application/safety/ports";
+import type { ISandboxExecutor, SandboxExecutionRequest, SandboxExecutionResult } from "@/application/ports/safety";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

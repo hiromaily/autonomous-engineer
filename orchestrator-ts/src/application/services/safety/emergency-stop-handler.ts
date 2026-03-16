@@ -1,5 +1,5 @@
+import type { AuditEntry, IAuditLogger, IEmergencyStopHandler } from "@/application/ports/safety";
 import type { EmergencyStopSource, SafetySession } from "@/domain/safety/types";
-import type { AuditEntry, IAuditLogger, IEmergencyStopHandler } from "./ports";
 
 /**
  * EmergencyStopHandler implements IEmergencyStopHandler.

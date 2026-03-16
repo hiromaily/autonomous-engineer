@@ -21,13 +21,13 @@
  * - Requirements: 10.4
  */
 
-import { ImplementationLoopService } from "@/application/implementation-loop/implementation-loop-service";
 import type { IAgentLoop } from "@/application/ports/agent-loop";
 import type { AgentLoopResult } from "@/application/ports/agent-loop";
 import type { IContextEngine } from "@/application/ports/context";
 import type { IGitController } from "@/application/ports/git-controller";
 import type { GitResult } from "@/application/ports/git-controller";
 import type { IPlanStore, IReviewEngine, SectionPersistenceStatus } from "@/application/ports/implementation-loop";
+import { ImplementationLoopService } from "@/application/services/implementation-loop/implementation-loop-service";
 import type { AgentState } from "@/domain/agent/types";
 import type { BranchCreationResult, CommitResult, GitChangesResult, PushResult } from "@/domain/git/types";
 import type { ReviewResult, SectionExecutionRecord } from "@/domain/implementation-loop/types";

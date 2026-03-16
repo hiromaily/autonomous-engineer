@@ -1,4 +1,4 @@
-import type { ApprovalDecision, IApprovalGateway } from "@/application/safety/ports";
+import type { ApprovalDecision, IApprovalGateway } from "@/application/ports/safety";
 import type { ApprovalRequest } from "@/domain/safety/guards";
 import { createInterface } from "node:readline";
 

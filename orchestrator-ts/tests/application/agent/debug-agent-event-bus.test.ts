@@ -1,6 +1,6 @@
-import { DebugAgentEventBus } from "@/application/agent/debug-agent-event-bus";
 import type { IDebugEventSink } from "@/application/ports/debug";
 import type { IWorkflowEventBus, WorkflowEvent } from "@/application/ports/workflow";
+import { DebugAgentEventBus } from "@/application/services/agent/debug-agent-event-bus";
 import type { AgentLoopEvent } from "@/domain/agent/types";
 import type { DebugEvent } from "@/domain/debug/types";
 import { beforeEach, describe, expect, it } from "bun:test";

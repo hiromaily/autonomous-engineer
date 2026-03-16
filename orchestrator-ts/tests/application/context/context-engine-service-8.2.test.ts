@@ -1,4 +1,3 @@
-import { ContextEngineService } from "@/application/context/context-engine-service";
 import type {
   CachedEntry,
   ContextBuildRequest,
@@ -12,7 +11,8 @@ import type {
   PlannerDecision,
 } from "@/application/ports/context";
 import type { MemoryPort, RankedMemoryEntry } from "@/application/ports/memory";
-import type { IToolExecutor } from "@/application/tools/executor";
+import { ContextEngineService } from "@/application/services/context/context-engine-service";
+import type { IToolExecutor } from "@/application/services/tools/executor";
 import type { ToolResult } from "@/domain/tools/types";
 import { describe, expect, it } from "bun:test";
 

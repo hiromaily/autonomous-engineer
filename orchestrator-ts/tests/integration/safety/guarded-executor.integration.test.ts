@@ -14,9 +14,9 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { SafetyGuardedToolExecutor } from "@/application/safety/guarded-executor";
-import type { AuditEntry, IApprovalGateway, ISandboxExecutor } from "@/application/safety/ports";
-import type { IToolExecutor } from "@/application/tools/executor";
+import type { AuditEntry, IApprovalGateway, ISandboxExecutor } from "@/application/ports/safety";
+import { SafetyGuardedToolExecutor } from "@/application/services/safety/guarded-executor";
+import type { IToolExecutor } from "@/application/services/tools/executor";
 import { createSafetyConfig, createSafetySession } from "@/domain/safety/types";
 import type { SafetyConfig, SafetySession } from "@/domain/safety/types";
 import type { PermissionSet, ToolContext, ToolInvocationLog } from "@/domain/tools/types";

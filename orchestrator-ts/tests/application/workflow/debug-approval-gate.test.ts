@@ -1,5 +1,5 @@
 import type { IDebugEventSink } from "@/application/ports/debug";
-import { DebugApprovalGate } from "@/application/workflow/debug-approval-gate";
+import { DebugApprovalGate } from "@/application/services/workflow/debug-approval-gate";
 import type { DebugEvent } from "@/domain/debug/types";
 import { beforeEach, describe, expect, it } from "bun:test";
 

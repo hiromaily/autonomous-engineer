@@ -1,7 +1,7 @@
-import { TaskPlanningService } from "@/application/planning/task-planning-service";
 import type { IAgentLoop } from "@/application/ports/agent-loop";
 import type { LlmProviderPort } from "@/application/ports/llm";
 import type { IPlanContextBuilder, ITaskPlanStore } from "@/application/ports/task-planning";
+import { TaskPlanningService } from "@/application/services/planning/task-planning-service";
 import { beforeEach, describe, expect, it } from "bun:test";
 import {
   makeAgentLoop,

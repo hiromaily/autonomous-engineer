@@ -1,5 +1,5 @@
-import { ContextCache } from "@/application/context/context-cache";
 import type { CachedEntry } from "@/application/ports/context";
+import { ContextCache } from "@/application/services/context/context-cache";
 import { describe, expect, it } from "bun:test";
 
 // ---------------------------------------------------------------------------

@@ -17,12 +17,12 @@
 
 import { describe, expect, it } from "bun:test";
 
-import { GitIntegrationService } from "@/application/git/git-integration-service";
-import type { GitWorkflowParams } from "@/application/git/git-integration-service";
 import type { IGitController } from "@/application/ports/git-controller";
 import type { LlmProviderPort } from "@/application/ports/llm";
 import type { IPullRequestProvider } from "@/application/ports/pr-provider";
-import type { AuditEntry, IAuditLogger } from "@/application/safety/ports";
+import type { AuditEntry, IAuditLogger } from "@/application/ports/safety";
+import { GitIntegrationService } from "@/application/services/git/git-integration-service";
+import type { GitWorkflowParams } from "@/application/services/git/git-integration-service";
 import { GitValidator } from "@/domain/git/git-validator";
 import type { GitEvent, GitIntegrationConfig, PullRequestResult } from "@/domain/git/types";
 import { GitEventBus } from "@/infra/events/git-event-bus";

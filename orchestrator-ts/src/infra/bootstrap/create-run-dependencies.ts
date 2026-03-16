@@ -1,12 +1,12 @@
 import { DebugLogWriter } from "@/adapters/cli/debug-log-writer";
 import { JsonLogWriter } from "@/adapters/cli/json-log-writer";
-import { DebugAgentEventBus } from "@/application/agent/debug-agent-event-bus";
 import type { AesConfig } from "@/application/ports/config";
 import type { IDebugEventSink } from "@/application/ports/debug";
 import type { LlmProviderPort } from "@/application/ports/llm";
 import type { IJsonLogWriter } from "@/application/ports/logging";
+import { DebugAgentEventBus } from "@/application/services/agent/debug-agent-event-bus";
+import { DebugApprovalGate } from "@/application/services/workflow/debug-approval-gate";
 import { RunSpecUseCase } from "@/application/usecases/run-spec";
-import { DebugApprovalGate } from "@/application/workflow/debug-approval-gate";
 import { WorkflowEventBus } from "@/infra/events/workflow-event-bus";
 import { createImplementationLoopService } from "@/infra/implementation-loop/create-implementation-loop-service";
 import { ClaudeProvider } from "@/infra/llm/claude-provider";

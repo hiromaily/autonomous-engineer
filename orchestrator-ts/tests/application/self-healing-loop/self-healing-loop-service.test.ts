@@ -23,7 +23,7 @@ import type { ISelfHealingLoopLogger } from "@/application/ports/self-healing-lo
 import {
   type SelfHealingLoopConfig,
   SelfHealingLoopService,
-} from "@/application/self-healing-loop/self-healing-loop-service";
+} from "@/application/services/self-healing-loop/self-healing-loop-service";
 import type { SectionEscalation } from "@/domain/implementation-loop/types";
 import type { EscalationIntakeLogEntry, SelfHealingLogEntry } from "@/domain/self-healing/types";
 import { beforeEach, describe, expect, it, mock } from "bun:test";

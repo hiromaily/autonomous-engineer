@@ -10,7 +10,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 
-import { ToolExecutor } from "@/application/tools/executor";
+import { ToolExecutor } from "@/application/services/tools/executor";
 import { PermissionSystem } from "@/domain/tools/permissions";
 import { ToolRegistry } from "@/domain/tools/registry";
 import type { PermissionSet, ToolContext, ToolInvocationLog } from "@/domain/tools/types";

@@ -1,5 +1,5 @@
-import { TaskPlanningService } from "@/application/planning/task-planning-service";
 import type { AgentLoopResult } from "@/application/ports/agent-loop";
+import { TaskPlanningService } from "@/application/services/planning/task-planning-service";
 import { describe, expect, it } from "bun:test";
 import {
   makeContextBuilder,

@@ -1,10 +1,11 @@
+import type { IJsonLogWriter } from "@/application/ports/logging";
 import type { WorkflowEvent } from "@/application/ports/workflow";
 import { open } from "node:fs/promises";
 
 /**
  * Writes workflow events as newline-delimited JSON (NDJSON) to a file.
  */
-export class JsonLogWriter {
+export class JsonLogWriter implements IJsonLogWriter {
   private readonly openPromise: Promise<import("node:fs/promises").FileHandle>;
 
   constructor(filePath: string) {

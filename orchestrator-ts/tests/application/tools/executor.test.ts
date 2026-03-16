@@ -1,4 +1,4 @@
-import { ToolExecutor } from "@/application/tools/executor";
+import { ToolExecutor } from "@/application/services/tools/executor";
 import { PermissionSystem } from "@/domain/tools/permissions";
 import { ToolRegistry } from "@/domain/tools/registry";
 import type { PermissionSet, Tool, ToolContext, ToolInvocationLog } from "@/domain/tools/types";

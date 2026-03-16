@@ -3,13 +3,13 @@
 // tests/application/git/git-integration-service-5.4.test.ts
 // ---------------------------------------------------------------------------
 
-import { GitIntegrationService } from "@/application/git/git-integration-service";
-import type { GitWorkflowParams } from "@/application/git/git-integration-service";
 import type { IGitController } from "@/application/ports/git-controller";
 import type { IGitEventBus } from "@/application/ports/git-event-bus";
 import type { LlmProviderPort } from "@/application/ports/llm";
 import type { IPullRequestProvider, PrResult } from "@/application/ports/pr-provider";
-import type { AuditEntry, IAuditLogger } from "@/application/safety/ports";
+import type { AuditEntry, IAuditLogger } from "@/application/ports/safety";
+import { GitIntegrationService } from "@/application/services/git/git-integration-service";
+import type { GitWorkflowParams } from "@/application/services/git/git-integration-service";
 import type { IGitValidator } from "@/domain/git/git-validator";
 import type { GitEvent, GitIntegrationConfig, PullRequestParams, PullRequestResult } from "@/domain/git/types";
 import type { PermissionSet } from "@/domain/tools/types";

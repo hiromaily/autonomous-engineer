@@ -81,39 +81,39 @@ Migration executes in sequential phases; each phase ends with a typecheck gate b
 
 ---
 
-- [ ] 3. Reorganize the application layer into `usecases/`, `services/`, and `ports/` sub-directories
+- [x] 3. Reorganize the application layer into `usecases/`, `services/`, and `ports/` sub-directories
 
-- [ ] 3.1 Audit all `@/application/` import sites before making any moves
+- [x] 3.1 Audit all `@/application/` import sites before making any moves
   - Run a grep across `src/` and `tests/` for all TypeScript files importing from `@/application/` and record the full list and count
   - This list is the verification baseline — after moves, a re-run must show zero stale paths remaining
   - _Requirements: 3.5_
 
-- [ ] 3.2 Create `application/services/` sub-directories and move all orchestration service files
+- [x] 3.2 Create `application/services/` sub-directories and move all orchestration service files
   - Create `src/application/services/` with sub-directories: `agent/`, `context/`, `git/`, `implementation-loop/`, `planning/`, `self-healing-loop/`, `tools/`, `workflow/`
   - Move all files from the corresponding `src/application/<subdir>/` directories into `src/application/services/<subdir>/`
   - No files are renamed; only the path prefix changes
   - _Requirements: 3.1, 3.2_
 
-- [ ] 3.3 Move safety service and port files to their respective new locations
+- [x] 3.3 Move safety service and port files to their respective new locations
   - Create `src/application/services/safety/` and move `emergency-stop-handler.ts` and `guarded-executor.ts` into it
   - Move `src/application/safety/ports.ts` to `src/application/ports/safety.ts`
   - Remove the now-empty `src/application/safety/` directory
   - _Requirements: 3.3, 3.4_
 
-- [ ] 3.4 Create the logging port interface file
+- [x] 3.4 Create the logging port interface file
   - Add `src/application/ports/logging.ts` defining `IJsonLogWriter` (write + close for `WorkflowEvent`)
   - Update `src/adapters/cli/json-log-writer.ts` to implement `IJsonLogWriter` from this new port
   - Update `src/infra/bootstrap/create-run-dependencies.ts` to type `logWriter` as `IJsonLogWriter | null` using the port interface, not the concrete class
   - _Requirements: 3.5, 8.3, 8.4_
 
-- [ ] 3.5 Update all application import paths across the codebase
+- [x] 3.5 Update all application import paths across the codebase
   - Replace all `@/application/<subdir>/...` imports (for the 9 service directories) with `@/application/services/<subdir>/...`
   - Replace all `@/application/safety/ports` imports with `@/application/ports/safety`
   - Cover both `src/` and `tests/` directories
   - Re-run the grep from Task 3.1 to confirm zero remaining stale `@/application/` paths outside `ports/`, `usecases/`, and `services/`
   - _Requirements: 3.5, 8.2_
 
-- [ ] 3.6 Verify the codebase compiles cleanly after Phase 3
+- [x] 3.6 Verify the codebase compiles cleanly after Phase 3
   - Run `bun run typecheck` and confirm zero errors before proceeding
   - _Requirements: 7.3, 7.4_
 

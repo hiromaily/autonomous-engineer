@@ -1,4 +1,4 @@
-import type { SandboxExecutionRequest } from "@/application/safety/ports";
+import type { SandboxExecutionRequest } from "@/application/ports/safety";
 import { TempDirSandboxExecutor } from "@/infra/safety/sandbox-executor";
 import { describe, expect, it } from "bun:test";
 

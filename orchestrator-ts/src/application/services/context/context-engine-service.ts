@@ -18,7 +18,7 @@ import type {
   TokenBudgetConfig,
 } from "@/application/ports/context";
 import type { MemoryPort, RankedMemoryEntry } from "@/application/ports/memory";
-import type { IToolExecutor } from "@/application/tools/executor";
+import type { IToolExecutor } from "@/application/services/tools/executor";
 import { LAYER_REGISTRY } from "@/domain/context/layer-registry";
 import type { ToolContext } from "@/domain/tools/types";
 import { readFile, stat } from "node:fs/promises";

@@ -1,5 +1,3 @@
-import { ContextEngineService } from "@/application/context/context-engine-service";
-import type { ContextEngineServiceOptions } from "@/application/context/context-engine-service";
 import type {
   CachedEntry,
   ContextAssemblyResult,
@@ -13,7 +11,9 @@ import type {
   LayerId,
 } from "@/application/ports/context";
 import type { MemoryPort, RankedMemoryEntry } from "@/application/ports/memory";
-import type { IToolExecutor } from "@/application/tools/executor";
+import { ContextEngineService } from "@/application/services/context/context-engine-service";
+import type { ContextEngineServiceOptions } from "@/application/services/context/context-engine-service";
+import type { IToolExecutor } from "@/application/services/tools/executor";
 import { ContextPlanner } from "@/domain/context/context-planner";
 import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 

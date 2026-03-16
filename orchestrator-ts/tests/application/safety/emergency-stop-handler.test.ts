@@ -1,5 +1,5 @@
-import { EmergencyStopHandler } from "@/application/safety/emergency-stop-handler";
-import type { AuditEntry, IAuditLogger } from "@/application/safety/ports";
+import type { AuditEntry, IAuditLogger } from "@/application/ports/safety";
+import { EmergencyStopHandler } from "@/application/services/safety/emergency-stop-handler";
 import type { EmergencyStopSource } from "@/domain/safety/types";
 import { createSafetySession } from "@/domain/safety/types";
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";

@@ -1,4 +1,4 @@
-import type { IToolExecutor } from "@/application/tools/executor";
+import type { IToolExecutor } from "@/application/services/tools/executor";
 import type { IGitValidator } from "@/domain/git/git-validator";
 import type { ToolContext, ToolResult } from "@/domain/tools/types";
 import { GitControllerAdapter } from "@/infra/git/git-controller-adapter";

@@ -20,11 +20,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 
-import { GitIntegrationService } from "@/application/git/git-integration-service";
 import type { LlmProviderPort } from "@/application/ports/llm";
 import type { IPullRequestProvider } from "@/application/ports/pr-provider";
-import type { IAuditLogger } from "@/application/safety/ports";
-import { ToolExecutor } from "@/application/tools/executor";
+import type { IAuditLogger } from "@/application/ports/safety";
+import { GitIntegrationService } from "@/application/services/git/git-integration-service";
+import { ToolExecutor } from "@/application/services/tools/executor";
 import { GitValidator } from "@/domain/git/git-validator";
 import type { GitIntegrationConfig } from "@/domain/git/types";
 import { PermissionSystem } from "@/domain/tools/permissions";

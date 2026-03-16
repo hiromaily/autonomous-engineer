@@ -1,5 +1,5 @@
-import { TaskPlanningService } from "@/application/planning/task-planning-service";
 import type { IPlanContextBuilder } from "@/application/ports/task-planning";
+import { TaskPlanningService } from "@/application/services/planning/task-planning-service";
 import { describe, expect, it } from "bun:test";
 import {
   makeBooleanAgentLoop,

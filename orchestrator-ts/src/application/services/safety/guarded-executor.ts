@@ -1,4 +1,5 @@
-import type { IToolExecutor } from "@/application/tools/executor";
+import type { AuditEntry, IApprovalGateway, IAuditLogger, ISandboxExecutor } from "@/application/ports/safety";
+import type { IToolExecutor } from "@/application/services/tools/executor";
 import { API_REQUEST_TOOLS, REPO_WRITE_TOOLS } from "@/domain/safety/constants";
 import type { ISafetyGuard, SafetyContext } from "@/domain/safety/guards";
 import {
@@ -15,7 +16,6 @@ import {
 } from "@/domain/safety/stateless-guards";
 import type { SafetyConfig, SafetySession } from "@/domain/safety/types";
 import type { ToolContext, ToolResult } from "@/domain/tools/types";
-import type { AuditEntry, IApprovalGateway, IAuditLogger, ISandboxExecutor } from "./ports";
 
 // ---------------------------------------------------------------------------
 // Constants

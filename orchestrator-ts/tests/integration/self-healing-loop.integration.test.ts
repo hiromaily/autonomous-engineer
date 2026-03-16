@@ -40,7 +40,7 @@ import type {
 import {
   type SelfHealingLoopConfig,
   SelfHealingLoopService,
-} from "@/application/self-healing-loop/self-healing-loop-service";
+} from "@/application/services/self-healing-loop/self-healing-loop-service";
 import type { SectionEscalation } from "@/domain/implementation-loop/types";
 import { NdjsonSelfHealingLoopLogger } from "@/infra/self-healing/ndjson-logger";
 import { describe, expect, it } from "bun:test";

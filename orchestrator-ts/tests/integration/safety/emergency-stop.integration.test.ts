@@ -14,10 +14,10 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { EmergencyStopHandler } from "@/application/safety/emergency-stop-handler";
-import { SafetyGuardedToolExecutor } from "@/application/safety/guarded-executor";
-import type { AuditEntry, IApprovalGateway, ISandboxExecutor } from "@/application/safety/ports";
-import type { IToolExecutor } from "@/application/tools/executor";
+import type { AuditEntry, IApprovalGateway, ISandboxExecutor } from "@/application/ports/safety";
+import { EmergencyStopHandler } from "@/application/services/safety/emergency-stop-handler";
+import { SafetyGuardedToolExecutor } from "@/application/services/safety/guarded-executor";
+import type { IToolExecutor } from "@/application/services/tools/executor";
 import { createSafetyConfig, createSafetySession } from "@/domain/safety/types";
 import type { PermissionSet, ToolContext, ToolInvocationLog } from "@/domain/tools/types";
 import { AuditLogger } from "@/infra/safety/audit-logger";
