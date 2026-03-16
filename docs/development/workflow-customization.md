@@ -29,10 +29,17 @@ The phases are defined as a frozen const array. To add, remove, or reorder phase
 ```typescript
 export const WORKFLOW_PHASES = [
   "SPEC_INIT",
-  "REQUIREMENTS",
-  "DESIGN",
+  "HUMAN_INTERACTION",
+  "VALIDATE_PREREQUISITES",
+  "SPEC_REQUIREMENTS",
+  "VALIDATE_REQUIREMENTS",
+  "REFLECT_BEFORE_DESIGN",
+  "VALIDATE_GAP",
+  "SPEC_DESIGN",
   "VALIDATE_DESIGN",
-  "TASK_GENERATION",
+  "REFLECT_BEFORE_TASKS",
+  "SPEC_TASKS",
+  "VALIDATE_TASK",
   "IMPLEMENTATION",
   "PULL_REQUEST",
 ] as const;
@@ -53,17 +60,25 @@ Key constants to modify:
 ```typescript
 // Which files must exist before a phase can run
 REQUIRED_ARTIFACTS: Partial<Record<WorkflowPhase, readonly string[]>> = {
-  DESIGN:           ["requirements.md"],
-  VALIDATE_DESIGN:  ["design.md"],
-  TASK_GENERATION:  ["design.md"],
-  IMPLEMENTATION:   ["tasks.md"],
+  VALIDATE_PREREQUISITES: ["requirements.md"],
+  SPEC_REQUIREMENTS:      ["requirements.md"],
+  VALIDATE_REQUIREMENTS:  ["requirements.md"],
+  REFLECT_BEFORE_DESIGN:  ["requirements.md"],
+  VALIDATE_GAP:           ["requirements.md"],
+  SPEC_DESIGN:            ["requirements.md"],
+  VALIDATE_DESIGN:        ["design.md"],
+  REFLECT_BEFORE_TASKS:   ["design.md"],
+  SPEC_TASKS:             ["design.md"],
+  VALIDATE_TASK:          ["tasks.md"],
+  IMPLEMENTATION:         ["tasks.md"],
 }
 
 // Which phases trigger a human approval pause after completing
 APPROVAL_GATE_PHASES: Partial<Record<WorkflowPhase, ApprovalPhase>> = {
-  REQUIREMENTS:    "requirements",
-  VALIDATE_DESIGN: "design",
-  TASK_GENERATION: "tasks",
+  HUMAN_INTERACTION: "human_interaction",
+  SPEC_REQUIREMENTS: "requirements",
+  VALIDATE_DESIGN:   "design",
+  SPEC_TASKS:        "tasks",
 }
 ```
 
@@ -82,10 +97,17 @@ The `execute()` method switches on phase name:
 | Phase | Current behavior |
 |---|---|
 | `SPEC_INIT` | Stub — returns success immediately |
-| `REQUIREMENTS` | `sdd.generateRequirements(ctx)` |
-| `DESIGN` | `sdd.generateDesign(ctx)` |
+| `HUMAN_INTERACTION` | Stub — approval gate pauses for user to seed requirements.md |
+| `VALIDATE_PREREQUISITES` | `sdd.validatePrerequisites(ctx)` |
+| `SPEC_REQUIREMENTS` | `sdd.generateRequirements(ctx)` |
+| `VALIDATE_REQUIREMENTS` | `sdd.validateRequirements(ctx)` |
+| `REFLECT_BEFORE_DESIGN` | `sdd.reflectOnExistingInformation(ctx)` |
+| `VALIDATE_GAP` | `sdd.validateGap(ctx)` |
+| `SPEC_DESIGN` | `sdd.generateDesign(ctx)` |
 | `VALIDATE_DESIGN` | `sdd.validateDesign(ctx)` |
-| `TASK_GENERATION` | `sdd.generateTasks(ctx)` |
+| `REFLECT_BEFORE_TASKS` | `sdd.reflectOnExistingInformation(ctx)` |
+| `SPEC_TASKS` | `sdd.generateTasks(ctx)` |
+| `VALIDATE_TASK` | `sdd.validateTask(ctx)` |
 | `IMPLEMENTATION` | `implementationLoop.run(ctx.specName)` (stub if not wired) |
 | `PULL_REQUEST` | Stub — returns success immediately |
 
@@ -150,14 +172,28 @@ Event type definitions are in:
   ↓
 SPEC_INIT → (stub)
   ↓
-REQUIREMENTS → sdd.generateRequirements → [PAUSED if not approved]
+HUMAN_INTERACTION → (stub) → [PAUSED: user must seed requirements.md]
   ↓ (on approval)
-DESIGN → sdd.generateDesign → [PAUSED if not approved]
-  ↓ (on approval)
-VALIDATE_DESIGN → sdd.validateDesign
+VALIDATE_PREREQUISITES → sdd.validatePrerequisites
   ↓
-TASK_GENERATION → sdd.generateTasks → [PAUSED if not approved]
+SPEC_REQUIREMENTS → sdd.generateRequirements → [PAUSED if not approved]
+  ↓ (on approval)
+VALIDATE_REQUIREMENTS → sdd.validateRequirements
+  ↓
+REFLECT_BEFORE_DESIGN → sdd.reflectOnExistingInformation
+  ↓
+VALIDATE_GAP → sdd.validateGap
+  ↓
+SPEC_DESIGN → sdd.generateDesign
+  ↓
+VALIDATE_DESIGN → sdd.validateDesign → [PAUSED if not approved]
+  ↓ (on approval)
+REFLECT_BEFORE_TASKS → sdd.reflectOnExistingInformation
+  ↓
+SPEC_TASKS → sdd.generateTasks → [PAUSED if not approved]
   ↓ (on approval, + spec.json ready_for_implementation check)
+VALIDATE_TASK → sdd.validateTask
+  ↓
 IMPLEMENTATION → implementationLoop.run
   ↓
 PULL_REQUEST → (stub)

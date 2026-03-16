@@ -125,10 +125,16 @@ function makeMemoryPort(): MemoryPort {
 
 function makeStubSdd(): SddFrameworkPort {
   return {
+    validatePrerequisites: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
     generateRequirements: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
+    validateRequirements: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
+    reflectBeforeDesign: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
+    reflectBeforeTasks: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
+    validateGap: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
     generateDesign: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
     validateDesign: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
     generateTasks: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
+    validateTasks: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
   };
 }
 
@@ -261,7 +267,7 @@ describe("E2E: full 7-phase workflow", () => {
    * Uses stub SDD (no subprocess) with pre-created artifact files.
    * CcSddAdapter subprocess integration is covered in tests/integration/.
    */
-  it("completes all 7 phases when all approvals are pre-granted", async () => {
+  it("completes all 14 phases when all approvals are pre-granted", async () => {
     const env = await setupTestEnv();
     try {
       // Pre-approve all gates and set ready_for_implementation
@@ -269,6 +275,7 @@ describe("E2E: full 7-phase workflow", () => {
         join(env.specDir, "spec.json"),
         JSON.stringify({
           approvals: {
+            human_interaction: { approved: true },
             requirements: { approved: true },
             design: { approved: true },
             tasks: { approved: true },
@@ -296,10 +303,17 @@ describe("E2E: full 7-phase workflow", () => {
       if (result.status === "completed") {
         const phases = result.completedPhases;
         expect(phases).toContain("SPEC_INIT");
-        expect(phases).toContain("REQUIREMENTS");
-        expect(phases).toContain("DESIGN");
+        expect(phases).toContain("HUMAN_INTERACTION");
+        expect(phases).toContain("VALIDATE_PREREQUISITES");
+        expect(phases).toContain("SPEC_REQUIREMENTS");
+        expect(phases).toContain("VALIDATE_REQUIREMENTS");
+        expect(phases).toContain("REFLECT_BEFORE_DESIGN");
+        expect(phases).toContain("VALIDATE_GAP");
+        expect(phases).toContain("SPEC_DESIGN");
         expect(phases).toContain("VALIDATE_DESIGN");
-        expect(phases).toContain("TASK_GENERATION");
+        expect(phases).toContain("REFLECT_BEFORE_TASKS");
+        expect(phases).toContain("SPEC_TASKS");
+        expect(phases).toContain("VALIDATE_TASKS");
         expect(phases).toContain("IMPLEMENTATION");
         expect(phases).toContain("PULL_REQUEST");
       }
@@ -315,6 +329,7 @@ describe("E2E: full 7-phase workflow", () => {
         join(env.specDir, "spec.json"),
         JSON.stringify({
           approvals: {
+            human_interaction: { approved: true },
             requirements: { approved: true },
             design: { approved: true },
             tasks: { approved: true },
@@ -345,29 +360,35 @@ describe("E2E: full 7-phase workflow", () => {
 });
 
 // ---------------------------------------------------------------------------
-// --resume: SPEC_INIT not re-executed after interruption at REQUIREMENTS
+// --resume: SPEC_INIT not re-executed after interruption at SPEC_REQUIREMENTS
 // ---------------------------------------------------------------------------
 
-describe("E2E: --resume after simulated REQUIREMENTS interruption", () => {
-  it("SPEC_INIT is not re-executed when resuming from paused_for_approval at REQUIREMENTS", async () => {
+describe("E2E: --resume after simulated SPEC_REQUIREMENTS interruption", () => {
+  it("SPEC_INIT is not re-executed when resuming from paused_for_approval at SPEC_REQUIREMENTS", async () => {
     const env = await setupTestEnv();
     try {
-      // Persist a paused_for_approval state (simulating interruption after REQUIREMENTS ran)
+      // Persist a paused_for_approval state (simulating interruption after SPEC_REQUIREMENTS ran)
       const pausedState: WorkflowState = {
         specName: env.specName,
-        currentPhase: "REQUIREMENTS",
-        completedPhases: ["SPEC_INIT" /* REQUIREMENTS was executed but not yet completed in the paused state */],
+        currentPhase: "SPEC_REQUIREMENTS",
+        completedPhases: [
+          "SPEC_INIT",
+          "HUMAN_INTERACTION",
+          "VALIDATE_PREREQUISITES",
+          /* SPEC_REQUIREMENTS was executed but not yet completed in the paused state */
+        ],
         status: "paused_for_approval",
         startedAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
       await env.stateStore.persist(pausedState);
 
-      // Grant requirements approval
+      // Grant all approvals
       await writeFile(
         join(env.specDir, "spec.json"),
         JSON.stringify({
           approvals: {
+            human_interaction: { approved: true },
             requirements: { approved: true },
             design: { approved: true },
             tasks: { approved: true },
@@ -384,8 +405,28 @@ describe("E2E: --resume after simulated REQUIREMENTS interruption", () => {
       // Track SDD calls to verify SPEC_INIT is not re-executed
       const sddCalls: string[] = [];
       const trackingSdd: SddFrameworkPort = {
+        validatePrerequisites: mock(async () => {
+          sddCalls.push("validatePrerequisites");
+          return { ok: true as const, artifactPath: join(env.specDir, "requirements.md") };
+        }),
         generateRequirements: mock(async () => {
           sddCalls.push("generateRequirements");
+          return { ok: true as const, artifactPath: join(env.specDir, "requirements.md") };
+        }),
+        validateRequirements: mock(async () => {
+          sddCalls.push("validateRequirements");
+          return { ok: true as const, artifactPath: join(env.specDir, "requirements.md") };
+        }),
+        reflectBeforeDesign: mock(async () => {
+          sddCalls.push("reflectBeforeDesign");
+          return { ok: true as const, artifactPath: join(env.specDir, "requirements.md") };
+        }),
+        reflectBeforeTasks: mock(async () => {
+          sddCalls.push("reflectBeforeTasks");
+          return { ok: true as const, artifactPath: join(env.specDir, "design.md") };
+        }),
+        validateGap: mock(async () => {
+          sddCalls.push("validateGap");
           return { ok: true as const, artifactPath: join(env.specDir, "requirements.md") };
         }),
         generateDesign: mock(async () => {
@@ -398,6 +439,10 @@ describe("E2E: --resume after simulated REQUIREMENTS interruption", () => {
         }),
         generateTasks: mock(async () => {
           sddCalls.push("generateTasks");
+          return { ok: true as const, artifactPath: join(env.specDir, "tasks.md") };
+        }),
+        validateTasks: mock(async () => {
+          sddCalls.push("validateTasks");
           return { ok: true as const, artifactPath: join(env.specDir, "tasks.md") };
         }),
       };
@@ -415,10 +460,11 @@ describe("E2E: --resume after simulated REQUIREMENTS interruption", () => {
       expect(result.status).toBe("completed");
 
       // SPEC_INIT has no SDD call (it's a stub no-op); the key assertion is that
-      // generateRequirements is also NOT called (REQUIREMENTS was already completed)
-      // since SPEC_INIT was in completedPhases and REQUIREMENTS is the paused phase
+      // generateRequirements is also NOT called (SPEC_REQUIREMENTS was already completed)
+      // since SPEC_INIT/HUMAN_INTERACTION/VALIDATE_PREREQUISITES were in completedPhases
+      // and SPEC_REQUIREMENTS is the paused phase
       expect(sddCalls).not.toContain("generateRequirements");
-      // DESIGN and onwards should be executed
+      // SPEC_DESIGN and onwards should be executed
       expect(sddCalls).toContain("generateDesign");
     } finally {
       await env.cleanup();
@@ -434,10 +480,17 @@ describe("E2E: --resume after simulated REQUIREMENTS interruption", () => {
         currentPhase: "PULL_REQUEST",
         completedPhases: [
           "SPEC_INIT",
-          "REQUIREMENTS",
-          "DESIGN",
+          "HUMAN_INTERACTION",
+          "VALIDATE_PREREQUISITES",
+          "SPEC_REQUIREMENTS",
+          "VALIDATE_REQUIREMENTS",
+          "REFLECT_BEFORE_DESIGN",
+          "VALIDATE_GAP",
+          "SPEC_DESIGN",
           "VALIDATE_DESIGN",
-          "TASK_GENERATION",
+          "REFLECT_BEFORE_TASKS",
+          "SPEC_TASKS",
+          "VALIDATE_TASKS",
           "IMPLEMENTATION",
           "PULL_REQUEST",
         ],
@@ -452,6 +505,7 @@ describe("E2E: --resume after simulated REQUIREMENTS interruption", () => {
         join(env.specDir, "spec.json"),
         JSON.stringify({
           approvals: {
+            human_interaction: { approved: true },
             requirements: { approved: true },
             design: { approved: true },
             tasks: { approved: true },
@@ -467,8 +521,28 @@ describe("E2E: --resume after simulated REQUIREMENTS interruption", () => {
 
       const sddCalls: string[] = [];
       const trackingSdd: SddFrameworkPort = {
+        validatePrerequisites: mock(async () => {
+          sddCalls.push("validatePrerequisites");
+          return { ok: true as const, artifactPath: join(env.specDir, "requirements.md") };
+        }),
         generateRequirements: mock(async () => {
           sddCalls.push("generateRequirements");
+          return { ok: true as const, artifactPath: join(env.specDir, "requirements.md") };
+        }),
+        validateRequirements: mock(async () => {
+          sddCalls.push("validateRequirements");
+          return { ok: true as const, artifactPath: join(env.specDir, "requirements.md") };
+        }),
+        reflectBeforeDesign: mock(async () => {
+          sddCalls.push("reflectBeforeDesign");
+          return { ok: true as const, artifactPath: join(env.specDir, "requirements.md") };
+        }),
+        reflectBeforeTasks: mock(async () => {
+          sddCalls.push("reflectBeforeTasks");
+          return { ok: true as const, artifactPath: join(env.specDir, "design.md") };
+        }),
+        validateGap: mock(async () => {
+          sddCalls.push("validateGap");
           return { ok: true as const, artifactPath: join(env.specDir, "requirements.md") };
         }),
         generateDesign: mock(async () => {
@@ -481,6 +555,10 @@ describe("E2E: --resume after simulated REQUIREMENTS interruption", () => {
         }),
         generateTasks: mock(async () => {
           sddCalls.push("generateTasks");
+          return { ok: true as const, artifactPath: join(env.specDir, "tasks.md") };
+        }),
+        validateTasks: mock(async () => {
+          sddCalls.push("validateTasks");
           return { ok: true as const, artifactPath: join(env.specDir, "tasks.md") };
         }),
       };
@@ -520,6 +598,7 @@ describe("E2E: --log-json writes all events as newline-delimited JSON", () => {
         join(env.specDir, "spec.json"),
         JSON.stringify({
           approvals: {
+            human_interaction: { approved: true },
             requirements: { approved: true },
             design: { approved: true },
             tasks: { approved: true },
@@ -622,7 +701,7 @@ describe("E2E: --log-json writes all events as newline-delimited JSON", () => {
     }
   });
 
-  it("log file contains all 7 phase:start events for a complete workflow", async () => {
+  it("log file contains all 14 phase:start events for a complete workflow", async () => {
     const env = await setupTestEnv();
     try {
       const logFilePath = join(env.tmpDir, "events.ndjson");
@@ -631,6 +710,7 @@ describe("E2E: --log-json writes all events as newline-delimited JSON", () => {
         join(env.specDir, "spec.json"),
         JSON.stringify({
           approvals: {
+            human_interaction: { approved: true },
             requirements: { approved: true },
             design: { approved: true },
             tasks: { approved: true },
@@ -670,10 +750,17 @@ describe("E2E: --log-json writes all events as newline-delimited JSON", () => {
 
       const expectedPhases: WorkflowPhase[] = [
         "SPEC_INIT",
-        "REQUIREMENTS",
-        "DESIGN",
+        "HUMAN_INTERACTION",
+        "VALIDATE_PREREQUISITES",
+        "SPEC_REQUIREMENTS",
+        "VALIDATE_REQUIREMENTS",
+        "REFLECT_BEFORE_DESIGN",
+        "VALIDATE_GAP",
+        "SPEC_DESIGN",
         "VALIDATE_DESIGN",
-        "TASK_GENERATION",
+        "REFLECT_BEFORE_TASKS",
+        "SPEC_TASKS",
+        "VALIDATE_TASKS",
         "IMPLEMENTATION",
         "PULL_REQUEST",
       ];

@@ -152,14 +152,14 @@ describe("DebugAgentEventBus phase tracking", () => {
   it("updates phase on each subsequent phase:start event", () => {
     const { sink, workflowEventBus, bus } = makeBus();
 
-    workflowEventBus.emit({ type: "phase:start", phase: "REQUIREMENTS", timestamp: "t1" });
+    workflowEventBus.emit({ type: "phase:start", phase: "SPEC_REQUIREMENTS", timestamp: "t1" });
     bus.emit(makeIterationCompleteEvent(1));
 
     workflowEventBus.emit({ type: "phase:start", phase: "IMPLEMENTATION", timestamp: "t2" });
     bus.emit(makeIterationCompleteEvent(2));
 
     const phases = sink.events.map((e) => (e.type === "agent:iteration" ? e.phase : null));
-    expect(phases).toEqual(["REQUIREMENTS", "IMPLEMENTATION"]);
+    expect(phases).toEqual(["SPEC_REQUIREMENTS", "IMPLEMENTATION"]);
   });
 });
 

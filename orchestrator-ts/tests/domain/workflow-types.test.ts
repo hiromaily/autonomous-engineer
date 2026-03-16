@@ -3,15 +3,22 @@ import { WORKFLOW_PHASES, type WorkflowPhase, type WorkflowState, type WorkflowS
 import { describe, expect, it } from "bun:test";
 
 describe("WORKFLOW_PHASES", () => {
-  it("contains exactly 7 phases in the correct order", () => {
-    expect(WORKFLOW_PHASES).toHaveLength(7);
+  it("contains exactly 14 phases in the correct order", () => {
+    expect(WORKFLOW_PHASES).toHaveLength(14);
     expect(WORKFLOW_PHASES[0]).toBe("SPEC_INIT");
-    expect(WORKFLOW_PHASES[1]).toBe("REQUIREMENTS");
-    expect(WORKFLOW_PHASES[2]).toBe("DESIGN");
-    expect(WORKFLOW_PHASES[3]).toBe("VALIDATE_DESIGN");
-    expect(WORKFLOW_PHASES[4]).toBe("TASK_GENERATION");
-    expect(WORKFLOW_PHASES[5]).toBe("IMPLEMENTATION");
-    expect(WORKFLOW_PHASES[6]).toBe("PULL_REQUEST");
+    expect(WORKFLOW_PHASES[1]).toBe("HUMAN_INTERACTION");
+    expect(WORKFLOW_PHASES[2]).toBe("VALIDATE_PREREQUISITES");
+    expect(WORKFLOW_PHASES[3]).toBe("SPEC_REQUIREMENTS");
+    expect(WORKFLOW_PHASES[4]).toBe("VALIDATE_REQUIREMENTS");
+    expect(WORKFLOW_PHASES[5]).toBe("REFLECT_BEFORE_DESIGN");
+    expect(WORKFLOW_PHASES[6]).toBe("VALIDATE_GAP");
+    expect(WORKFLOW_PHASES[7]).toBe("SPEC_DESIGN");
+    expect(WORKFLOW_PHASES[8]).toBe("VALIDATE_DESIGN");
+    expect(WORKFLOW_PHASES[9]).toBe("REFLECT_BEFORE_TASKS");
+    expect(WORKFLOW_PHASES[10]).toBe("SPEC_TASKS");
+    expect(WORKFLOW_PHASES[11]).toBe("VALIDATE_TASKS");
+    expect(WORKFLOW_PHASES[12]).toBe("IMPLEMENTATION");
+    expect(WORKFLOW_PHASES[13]).toBe("PULL_REQUEST");
   });
 
   it("is frozen (runtime immutable)", () => {
@@ -42,31 +49,31 @@ describe("WorkflowState shape", () => {
     // Invariant: when paused_for_approval, currentPhase holds the phase that triggered the pause
     const state: WorkflowState = {
       specName: "my-feature",
-      currentPhase: "REQUIREMENTS",
-      completedPhases: ["SPEC_INIT", "REQUIREMENTS"],
+      currentPhase: "HUMAN_INTERACTION",
+      completedPhases: ["SPEC_INIT", "HUMAN_INTERACTION"],
       status: "paused_for_approval",
       startedAt: "2026-01-01T00:00:00Z",
       updatedAt: "2026-01-01T01:00:00Z",
     };
 
     expect(state.status).toBe("paused_for_approval");
-    expect(state.currentPhase).toBe("REQUIREMENTS");
-    expect(state.completedPhases).toContain("REQUIREMENTS");
+    expect(state.currentPhase).toBe("HUMAN_INTERACTION");
+    expect(state.completedPhases).toContain("HUMAN_INTERACTION");
   });
 
   it("accepts a failed state with failureDetail", () => {
     const state: WorkflowState = {
       specName: "my-feature",
-      currentPhase: "DESIGN",
-      completedPhases: ["SPEC_INIT", "REQUIREMENTS"],
+      currentPhase: "SPEC_DESIGN",
+      completedPhases: ["SPEC_INIT", "HUMAN_INTERACTION"],
       status: "failed",
-      failureDetail: { phase: "DESIGN", error: "LLM API error" },
+      failureDetail: { phase: "SPEC_DESIGN", error: "LLM API error" },
       startedAt: "2026-01-01T00:00:00Z",
       updatedAt: "2026-01-01T02:00:00Z",
     };
 
     expect(state.status).toBe("failed");
-    expect(state.failureDetail?.phase).toBe("DESIGN");
+    expect(state.failureDetail?.phase).toBe("SPEC_DESIGN");
     expect(state.failureDetail?.error).toBe("LLM API error");
   });
 
@@ -82,7 +89,7 @@ describe("WorkflowState shape", () => {
     };
 
     expect(state.status).toBe("completed");
-    expect(state.completedPhases).toHaveLength(7);
+    expect(state.completedPhases).toHaveLength(14);
   });
 });
 
@@ -90,12 +97,12 @@ describe("WorkflowEvent discriminated union", () => {
   it("narrows phase:start event correctly", () => {
     const event: WorkflowEvent = {
       type: "phase:start",
-      phase: "REQUIREMENTS",
+      phase: "SPEC_REQUIREMENTS",
       timestamp: "2026-01-01T00:00:00Z",
     };
 
     if (event.type === "phase:start") {
-      expect(event.phase).toBe("REQUIREMENTS");
+      expect(event.phase).toBe("SPEC_REQUIREMENTS");
       expect(event.timestamp).toBe("2026-01-01T00:00:00Z");
     } else {
       throw new Error("Expected phase:start event");
@@ -105,7 +112,7 @@ describe("WorkflowEvent discriminated union", () => {
   it("narrows phase:complete event correctly", () => {
     const event: WorkflowEvent = {
       type: "phase:complete",
-      phase: "REQUIREMENTS",
+      phase: "SPEC_REQUIREMENTS",
       durationMs: 5000,
       artifacts: ["requirements.md"],
     };
@@ -121,7 +128,7 @@ describe("WorkflowEvent discriminated union", () => {
   it("narrows phase:error event correctly", () => {
     const event: WorkflowEvent = {
       type: "phase:error",
-      phase: "DESIGN",
+      phase: "SPEC_DESIGN",
       operation: "generateDesign",
       error: "timeout",
     };
@@ -137,7 +144,7 @@ describe("WorkflowEvent discriminated union", () => {
   it("narrows approval:required event correctly", () => {
     const event: WorkflowEvent = {
       type: "approval:required",
-      phase: "REQUIREMENTS",
+      phase: "SPEC_REQUIREMENTS",
       artifactPath: ".kiro/specs/my-feature/requirements.md",
       instruction: "Review and set approvals.requirements.approved = true",
     };
@@ -153,7 +160,7 @@ describe("WorkflowEvent discriminated union", () => {
   it("narrows workflow:complete event correctly", () => {
     const event: WorkflowEvent = {
       type: "workflow:complete",
-      completedPhases: ["SPEC_INIT", "REQUIREMENTS"],
+      completedPhases: ["SPEC_INIT", "SPEC_REQUIREMENTS"],
     };
 
     if (event.type === "workflow:complete") {
@@ -166,12 +173,12 @@ describe("WorkflowEvent discriminated union", () => {
   it("narrows workflow:failed event correctly", () => {
     const event: WorkflowEvent = {
       type: "workflow:failed",
-      phase: "TASK_GENERATION",
+      phase: "SPEC_TASKS",
       error: "sdd binary not found",
     };
 
     if (event.type === "workflow:failed") {
-      expect(event.phase).toBe("TASK_GENERATION");
+      expect(event.phase).toBe("SPEC_TASKS");
       expect(event.error).toBe("sdd binary not found");
     } else {
       throw new Error("Expected workflow:failed event");

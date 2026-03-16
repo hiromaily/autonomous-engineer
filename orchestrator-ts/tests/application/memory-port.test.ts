@@ -39,10 +39,10 @@ describe("ShortTermState", () => {
   it("currentPhase is assignable from WorkflowPhase union", () => {
     const phases: WorkflowPhase[] = [
       "SPEC_INIT",
-      "REQUIREMENTS",
-      "DESIGN",
+      "SPEC_REQUIREMENTS",
+      "SPEC_DESIGN",
       "VALIDATE_DESIGN",
-      "TASK_GENERATION",
+      "SPEC_TASKS",
       "IMPLEMENTATION",
       "PULL_REQUEST",
     ];
@@ -124,12 +124,12 @@ describe("ShortTermMemoryPort contract (mock implementation)", () => {
   it("write() leaves unmentioned fields at their previous values", () => {
     const store = makeShortTermStore();
     store.write({ currentSpec: "spec-a", recentFiles: ["file.ts"] });
-    store.write({ currentPhase: "DESIGN" });
+    store.write({ currentPhase: "SPEC_DESIGN" });
     const state = store.read();
 
     expect(state.currentSpec).toBe("spec-a"); // preserved
     expect(state.recentFiles).toEqual(["file.ts"]); // preserved
-    expect(state.currentPhase).toBe("DESIGN"); // updated
+    expect(state.currentPhase).toBe("SPEC_DESIGN"); // updated
   });
 
   it("clear() resets all fields to empty initial state", () => {
@@ -174,14 +174,28 @@ const _exhaustivePhase = (phase: WorkflowPhase): string => {
   switch (phase) {
     case "SPEC_INIT":
       return "SPEC_INIT";
-    case "REQUIREMENTS":
-      return "REQUIREMENTS";
-    case "DESIGN":
-      return "DESIGN";
+    case "HUMAN_INTERACTION":
+      return "HUMAN_INTERACTION";
+    case "VALIDATE_PREREQUISITES":
+      return "VALIDATE_PREREQUISITES";
+    case "SPEC_REQUIREMENTS":
+      return "SPEC_REQUIREMENTS";
+    case "VALIDATE_REQUIREMENTS":
+      return "VALIDATE_REQUIREMENTS";
+    case "REFLECT_BEFORE_DESIGN":
+      return "REFLECT_BEFORE_DESIGN";
+    case "VALIDATE_GAP":
+      return "VALIDATE_GAP";
+    case "SPEC_DESIGN":
+      return "SPEC_DESIGN";
     case "VALIDATE_DESIGN":
       return "VALIDATE_DESIGN";
-    case "TASK_GENERATION":
-      return "TASK_GENERATION";
+    case "REFLECT_BEFORE_TASKS":
+      return "REFLECT_BEFORE_TASKS";
+    case "SPEC_TASKS":
+      return "SPEC_TASKS";
+    case "VALIDATE_TASKS":
+      return "VALIDATE_TASKS";
     case "IMPLEMENTATION":
       return "IMPLEMENTATION";
     case "PULL_REQUEST":

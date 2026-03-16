@@ -36,7 +36,7 @@ export type DebugEvent =
   | {
     readonly type: "approval:auto";
     readonly phase: string;
-    readonly approvalType: "requirements" | "design" | "tasks";
+    readonly approvalType: "human_interaction" | "requirements" | "design" | "tasks";
     readonly outcome: "approved";
     readonly timestamp: string;
   };

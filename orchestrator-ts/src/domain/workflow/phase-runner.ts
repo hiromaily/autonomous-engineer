@@ -32,11 +32,31 @@ export class PhaseRunner {
 
   async execute(phase: WorkflowPhase, ctx: SpecContext): Promise<PhaseResult> {
     switch (phase) {
-      case "REQUIREMENTS": {
+      case "VALIDATE_PREREQUISITES": {
+        const result = await this.sdd.validatePrerequisites(ctx);
+        return this.mapSddResult(result);
+      }
+      case "SPEC_REQUIREMENTS": {
         const result = await this.sdd.generateRequirements(ctx);
         return this.mapSddResult(result);
       }
-      case "DESIGN": {
+      case "VALIDATE_REQUIREMENTS": {
+        const result = await this.sdd.validateRequirements(ctx);
+        return this.mapSddResult(result);
+      }
+      case "REFLECT_BEFORE_DESIGN": {
+        const result = await this.sdd.reflectBeforeDesign(ctx);
+        return this.mapSddResult(result);
+      }
+      case "REFLECT_BEFORE_TASKS": {
+        const result = await this.sdd.reflectBeforeTasks(ctx);
+        return this.mapSddResult(result);
+      }
+      case "VALIDATE_GAP": {
+        const result = await this.sdd.validateGap(ctx);
+        return this.mapSddResult(result);
+      }
+      case "SPEC_DESIGN": {
         const result = await this.sdd.generateDesign(ctx);
         return this.mapSddResult(result);
       }
@@ -44,13 +64,19 @@ export class PhaseRunner {
         const result = await this.sdd.validateDesign(ctx);
         return this.mapSddResult(result);
       }
-      case "TASK_GENERATION": {
+      case "SPEC_TASKS": {
         const result = await this.sdd.generateTasks(ctx);
         return this.mapSddResult(result);
       }
+      case "VALIDATE_TASKS": {
+        const result = await this.sdd.validateTasks(ctx);
+        return this.mapSddResult(result);
+      }
       case "SPEC_INIT":
+      case "HUMAN_INTERACTION":
       case "PULL_REQUEST":
-        // Stubs: wired in spec4 and spec8; return success with no artifacts
+        // Stubs: SPEC_INIT and PULL_REQUEST wired in spec4 and spec8;
+        // HUMAN_INTERACTION is a pause point — the approval gate handles the wait
         return { ok: true, artifacts: [] };
       case "IMPLEMENTATION": {
         if (this.implementationLoop) {

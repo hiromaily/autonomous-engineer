@@ -14,9 +14,16 @@ export type WorkflowResult =
 
 /** Artifact filenames (relative to specDir) that must exist before entering each phase. */
 const REQUIRED_ARTIFACTS: Partial<Record<WorkflowPhase, readonly string[]>> = {
-  DESIGN: ["requirements.md"],
+  VALIDATE_PREREQUISITES: ["requirements.md"],
+  SPEC_REQUIREMENTS: ["requirements.md"],
+  VALIDATE_REQUIREMENTS: ["requirements.md"],
+  REFLECT_BEFORE_DESIGN: ["requirements.md"],
+  VALIDATE_GAP: ["requirements.md"],
+  SPEC_DESIGN: ["requirements.md"],
   VALIDATE_DESIGN: ["design.md"],
-  TASK_GENERATION: ["design.md"],
+  REFLECT_BEFORE_TASKS: ["design.md"],
+  SPEC_TASKS: ["design.md"],
+  VALIDATE_TASKS: ["tasks.md"],
   IMPLEMENTATION: ["tasks.md"],
 };
 
@@ -25,9 +32,10 @@ const REQUIRED_ARTIFACTS: Partial<Record<WorkflowPhase, readonly string[]>> = {
  * Maps workflow phase → approval gate key read from spec.json approvals object.
  */
 const APPROVAL_GATE_PHASES: Partial<Record<WorkflowPhase, ApprovalPhase>> = {
-  REQUIREMENTS: "requirements",
+  HUMAN_INTERACTION: "human_interaction",
+  SPEC_REQUIREMENTS: "requirements",
   VALIDATE_DESIGN: "design",
-  TASK_GENERATION: "tasks",
+  SPEC_TASKS: "tasks",
 };
 
 export interface WorkflowEngineDeps {
@@ -97,7 +105,7 @@ export class WorkflowEngine {
       if (phase === "IMPLEMENTATION") {
         const readyResult = await this.checkReadyForImplementation();
         if (!readyResult.ready) {
-          return await this.pauseAt("TASK_GENERATION", join(specDir, "spec.json"), readyResult.instruction);
+          return await this.pauseAt("SPEC_TASKS", join(specDir, "spec.json"), readyResult.instruction);
         }
       }
 
@@ -183,8 +191,8 @@ export class WorkflowEngine {
       return await this.pauseAt(pausedPhase, gateResult.artifactPath, gateResult.instruction);
     }
 
-    // Also check ready_for_implementation if the paused phase was TASK_GENERATION.
-    if (pausedPhase === "TASK_GENERATION") {
+    // Also check ready_for_implementation if the paused phase was SPEC_TASKS.
+    if (pausedPhase === "SPEC_TASKS") {
       const readyResult = await this.checkReadyForImplementation();
       if (!readyResult.ready) {
         return await this.pauseAt(pausedPhase, join(specDir, "spec.json"), readyResult.instruction);

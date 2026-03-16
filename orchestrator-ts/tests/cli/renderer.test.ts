@@ -18,19 +18,19 @@ describe("CliRenderer", () => {
       const writer = makeWriter();
       const renderer = new CliRenderer(writer.write);
 
-      renderer.handle({ type: "phase:start", phase: "REQUIREMENTS", timestamp: "2026-01-01T00:00:00.000Z" });
+      renderer.handle({ type: "phase:start", phase: "SPEC_REQUIREMENTS", timestamp: "2026-01-01T00:00:00.000Z" });
 
-      expect(writer.lines.some((l) => l.includes("REQUIREMENTS"))).toBe(true);
+      expect(writer.lines.some((l) => l.includes("SPEC_REQUIREMENTS"))).toBe(true);
     });
 
     it("includes timestamp in output", () => {
       const writer = makeWriter();
       const renderer = new CliRenderer(writer.write);
 
-      renderer.handle({ type: "phase:start", phase: "DESIGN", timestamp: "2026-01-01T12:34:56.000Z" });
+      renderer.handle({ type: "phase:start", phase: "SPEC_DESIGN", timestamp: "2026-01-01T12:34:56.000Z" });
 
       const output = writer.lines.join("");
-      expect(output.includes("DESIGN")).toBe(true);
+      expect(output.includes("SPEC_DESIGN")).toBe(true);
     });
   });
 
@@ -39,10 +39,10 @@ describe("CliRenderer", () => {
       const writer = makeWriter();
       const renderer = new CliRenderer(writer.write);
 
-      renderer.handle({ type: "phase:complete", phase: "REQUIREMENTS", durationMs: 1500, artifacts: [] });
+      renderer.handle({ type: "phase:complete", phase: "SPEC_REQUIREMENTS", durationMs: 1500, artifacts: [] });
 
       const output = writer.lines.join("");
-      expect(output.includes("REQUIREMENTS")).toBe(true);
+      expect(output.includes("SPEC_REQUIREMENTS")).toBe(true);
       expect(output.includes("1")).toBe(true); // some representation of 1500ms
     });
 
@@ -52,7 +52,7 @@ describe("CliRenderer", () => {
 
       renderer.handle({
         type: "phase:complete",
-        phase: "DESIGN",
+        phase: "SPEC_DESIGN",
         durationMs: 3000,
         artifacts: [".kiro/specs/my-spec/design.md"],
       });
@@ -79,7 +79,7 @@ describe("CliRenderer", () => {
 
       renderer.handle({
         type: "phase:error",
-        phase: "DESIGN",
+        phase: "SPEC_DESIGN",
         operation: "generateDesign",
         error: "cc-sdd: not found",
       });
@@ -92,10 +92,10 @@ describe("CliRenderer", () => {
       const writer = makeWriter();
       const renderer = new CliRenderer(writer.write);
 
-      renderer.handle({ type: "phase:error", phase: "TASK_GENERATION", operation: "generateTasks", error: "timeout" });
+      renderer.handle({ type: "phase:error", phase: "SPEC_TASKS", operation: "generateTasks", error: "timeout" });
 
       const output = writer.lines.join("");
-      expect(output.includes("TASK_GENERATION")).toBe(true);
+      expect(output.includes("SPEC_TASKS")).toBe(true);
     });
   });
 
@@ -106,7 +106,7 @@ describe("CliRenderer", () => {
 
       renderer.handle({
         type: "approval:required",
-        phase: "REQUIREMENTS",
+        phase: "SPEC_REQUIREMENTS",
         artifactPath: ".kiro/specs/my-spec/spec.json",
         instruction: "Set approvals.requirements.approved = true in spec.json",
       });
@@ -122,7 +122,7 @@ describe("CliRenderer", () => {
 
       renderer.handle({
         type: "approval:required",
-        phase: "DESIGN",
+        phase: "SPEC_DESIGN",
         artifactPath: ".kiro/specs/my-spec/spec.json",
         instruction: "Approve the design",
       });
@@ -139,13 +139,13 @@ describe("CliRenderer", () => {
 
       renderer.handle({
         type: "workflow:complete",
-        completedPhases: ["SPEC_INIT", "REQUIREMENTS", "DESIGN"],
+        completedPhases: ["SPEC_INIT", "SPEC_REQUIREMENTS", "SPEC_DESIGN"],
       });
 
       const output = writer.lines.join("");
       expect(output.includes("SPEC_INIT")).toBe(true);
-      expect(output.includes("REQUIREMENTS")).toBe(true);
-      expect(output.includes("DESIGN")).toBe(true);
+      expect(output.includes("SPEC_REQUIREMENTS")).toBe(true);
+      expect(output.includes("SPEC_DESIGN")).toBe(true);
     });
 
     it("indicates successful completion", () => {
@@ -164,7 +164,7 @@ describe("CliRenderer", () => {
       const writer = makeWriter();
       const renderer = new CliRenderer(writer.write);
 
-      renderer.handle({ type: "workflow:failed", phase: "DESIGN", error: "adapter crashed" });
+      renderer.handle({ type: "workflow:failed", phase: "SPEC_DESIGN", error: "adapter crashed" });
 
       const output = writer.lines.join("");
       expect(output.includes("adapter crashed")).toBe(true);
@@ -189,7 +189,7 @@ describe("CliRenderer", () => {
         { type: "phase:start", phase: "SPEC_INIT", timestamp: new Date().toISOString() },
         { type: "phase:complete", phase: "SPEC_INIT", durationMs: 10, artifacts: [] },
         { type: "phase:error", phase: "SPEC_INIT", operation: "op", error: "err" },
-        { type: "approval:required", phase: "REQUIREMENTS", artifactPath: "/path", instruction: "instr" },
+        { type: "approval:required", phase: "SPEC_REQUIREMENTS", artifactPath: "/path", instruction: "instr" },
         { type: "workflow:complete", completedPhases: ["SPEC_INIT"] },
         { type: "workflow:failed", phase: "SPEC_INIT", error: "err" },
       ];

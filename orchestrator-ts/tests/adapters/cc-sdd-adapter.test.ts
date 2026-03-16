@@ -81,10 +81,16 @@ describe("CcSddAdapter — argument structure", () => {
 
 describe("CcSddAdapter — operation subcommands", () => {
   it.each([
+    ["validatePrerequisites", "validate-prerequisites"] as const,
     ["generateRequirements", "requirements"] as const,
+    ["validateRequirements", "validate-requirements"] as const,
+    ["reflectBeforeDesign", "reflect"] as const,
+    ["reflectBeforeTasks", "reflect"] as const,
+    ["validateGap", "validate-gap"] as const,
     ["generateDesign", "design"] as const,
     ["validateDesign", "validate-design"] as const,
     ["generateTasks", "tasks"] as const,
+    ["validateTasks", "validate-task"] as const,
   ])("%s uses subcommand %s", async (method, subcommand) => {
     const { fn, argv } = makeSpawn(0);
     const adapter = new CcSddAdapter(fn);
@@ -173,8 +179,19 @@ describe("CcSddAdapter — failure (non-zero exit code)", () => {
     if (!result.ok) expect(result.error.exitCode).toBe(127);
   });
 
-  it("all four operations propagate failure correctly", async () => {
-    const ops = ["generateRequirements", "generateDesign", "validateDesign", "generateTasks"] as const;
+  it("all ten operations propagate failure correctly", async () => {
+    const ops = [
+      "validatePrerequisites",
+      "generateRequirements",
+      "validateRequirements",
+      "reflectBeforeDesign",
+      "reflectBeforeTasks",
+      "validateGap",
+      "generateDesign",
+      "validateDesign",
+      "generateTasks",
+      "validateTasks",
+    ] as const;
     for (const op of ops) {
       const { fn } = makeSpawn(2, `${op} failed`);
       const adapter = new CcSddAdapter(fn);

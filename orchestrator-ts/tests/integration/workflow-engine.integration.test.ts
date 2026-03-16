@@ -90,12 +90,12 @@ afterEach(async () => {
 });
 
 // ---------------------------------------------------------------------------
-// 3-phase sub-sequence: SPEC_INIT → REQUIREMENTS → paused_for_approval
+// 3-phase sub-sequence: SPEC_INIT → HUMAN_INTERACTION → paused_for_approval
 // ---------------------------------------------------------------------------
 
-describe("WorkflowEngine integration — SPEC_INIT → REQUIREMENTS → paused_for_approval", () => {
-  it("pauses at REQUIREMENTS when spec.json has requirements.approved=false", async () => {
-    // Spec directory has no spec.json → ApprovalGate fails closed → will pause after REQUIREMENTS
+describe("WorkflowEngine integration — SPEC_INIT → HUMAN_INTERACTION → paused_for_approval", () => {
+  it("pauses at HUMAN_INTERACTION when spec.json has human_interaction.approved=false", async () => {
+    // Spec directory has no spec.json → ApprovalGate fails closed → will pause after HUMAN_INTERACTION
     const phaseRunner = makeStubPhaseRunner();
     const engine = new WorkflowEngine({
       stateStore,
@@ -111,7 +111,7 @@ describe("WorkflowEngine integration — SPEC_INIT → REQUIREMENTS → paused_f
 
     expect(result.status).toBe("paused");
     if (result.status === "paused") {
-      expect(result.phase).toBe("REQUIREMENTS");
+      expect(result.phase).toBe("HUMAN_INTERACTION");
       expect(result.reason).toBe("approval_required");
     }
   });
@@ -132,10 +132,10 @@ describe("WorkflowEngine integration — SPEC_INIT → REQUIREMENTS → paused_f
     const persistedState = await stateStore.restore(SPEC_NAME);
     expect(persistedState).not.toBeNull();
     expect(persistedState?.status).toBe("paused_for_approval");
-    expect(persistedState?.currentPhase).toBe("REQUIREMENTS");
+    expect(persistedState?.currentPhase).toBe("HUMAN_INTERACTION");
   });
 
-  it("state file reflects paused_for_approval at REQUIREMENTS", async () => {
+  it("state file reflects paused_for_approval at HUMAN_INTERACTION", async () => {
     const phaseRunner = makeStubPhaseRunner();
     const engine = new WorkflowEngine({
       stateStore,
@@ -153,12 +153,12 @@ describe("WorkflowEngine integration — SPEC_INIT → REQUIREMENTS → paused_f
     const parsed = JSON.parse(raw) as WorkflowState;
 
     expect(parsed.status).toBe("paused_for_approval");
-    expect(parsed.currentPhase).toBe("REQUIREMENTS");
+    expect(parsed.currentPhase).toBe("HUMAN_INTERACTION");
     expect(parsed.completedPhases).toContain("SPEC_INIT");
-    expect(parsed.completedPhases).not.toContain("REQUIREMENTS");
+    expect(parsed.completedPhases).not.toContain("HUMAN_INTERACTION");
   });
 
-  it("emits phase:start and phase:complete for SPEC_INIT, then phase:start and phase:complete for REQUIREMENTS, then approval:required", async () => {
+  it("emits phase:start and phase:complete for SPEC_INIT, then phase:start and phase:complete for HUMAN_INTERACTION, then approval:required", async () => {
     const phaseRunner = makeStubPhaseRunner();
     const engine = new WorkflowEngine({
       stateStore,
@@ -176,21 +176,21 @@ describe("WorkflowEngine integration — SPEC_INIT → REQUIREMENTS → paused_f
     expect(types).toContain("phase:complete");
     expect(types).toContain("approval:required");
 
-    // SPEC_INIT events come before REQUIREMENTS events
+    // SPEC_INIT events come before HUMAN_INTERACTION events
     const specInitStartIdx = capturedEvents.findIndex((e) =>
       e.type === "phase:start" && "phase" in e && e.phase === "SPEC_INIT"
     );
-    const reqStartIdx = capturedEvents.findIndex((e) =>
-      e.type === "phase:start" && "phase" in e && e.phase === "REQUIREMENTS"
+    const humanStartIdx = capturedEvents.findIndex((e) =>
+      e.type === "phase:start" && "phase" in e && e.phase === "HUMAN_INTERACTION"
     );
     const approvalIdx = capturedEvents.findIndex((e) => e.type === "approval:required");
 
     expect(specInitStartIdx).toBeGreaterThanOrEqual(0);
-    expect(reqStartIdx).toBeGreaterThan(specInitStartIdx);
-    expect(approvalIdx).toBeGreaterThan(reqStartIdx);
+    expect(humanStartIdx).toBeGreaterThan(specInitStartIdx);
+    expect(approvalIdx).toBeGreaterThan(humanStartIdx);
   });
 
-  it("executes SPEC_INIT and REQUIREMENTS phases", async () => {
+  it("executes SPEC_INIT and HUMAN_INTERACTION phases", async () => {
     const phaseRunner = makeStubPhaseRunner();
     const engine = new WorkflowEngine({
       stateStore,
@@ -204,9 +204,9 @@ describe("WorkflowEngine integration — SPEC_INIT → REQUIREMENTS → paused_f
     await engine.execute(stateStore.init(SPEC_NAME));
 
     expect(phaseRunner.executedPhases).toContain("SPEC_INIT");
-    expect(phaseRunner.executedPhases).toContain("REQUIREMENTS");
-    // Should not have advanced past REQUIREMENTS without approval
-    expect(phaseRunner.executedPhases).not.toContain("DESIGN");
+    expect(phaseRunner.executedPhases).toContain("HUMAN_INTERACTION");
+    // Should not have advanced past HUMAN_INTERACTION without approval
+    expect(phaseRunner.executedPhases).not.toContain("VALIDATE_PREREQUISITES");
   });
 });
 
@@ -214,7 +214,7 @@ describe("WorkflowEngine integration — SPEC_INIT → REQUIREMENTS → paused_f
 // Resume: re-check approval gate, advance without re-executing REQUIREMENTS
 // ---------------------------------------------------------------------------
 
-describe("WorkflowEngine integration — resume after REQUIREMENTS approval", () => {
+describe("WorkflowEngine integration — resume after HUMAN_INTERACTION approval", () => {
   async function runInitialAndPause(): Promise<{ executedPhases: WorkflowPhase[] }> {
     const phaseRunner = makeStubPhaseRunner();
     const engine = new WorkflowEngine({
@@ -229,13 +229,18 @@ describe("WorkflowEngine integration — resume after REQUIREMENTS approval", ()
     return { executedPhases: [...phaseRunner.executedPhases] };
   }
 
-  it("SPEC_INIT is NOT re-executed on resume after REQUIREMENTS approval", async () => {
-    // First run: pauses at REQUIREMENTS
+  it("SPEC_INIT is NOT re-executed on resume after HUMAN_INTERACTION approval", async () => {
+    // First run: pauses at HUMAN_INTERACTION
     await runInitialAndPause();
 
-    // Update spec.json: grant requirements approval
+    // Update spec.json: grant all approvals
     await writeSpecJson({
-      approvals: { requirements: { approved: true }, design: { approved: true }, tasks: { approved: true } },
+      approvals: {
+        human_interaction: { approved: true },
+        requirements: { approved: true },
+        design: { approved: true },
+        tasks: { approved: true },
+      },
       ready_for_implementation: true,
     });
 
@@ -263,14 +268,14 @@ describe("WorkflowEngine integration — resume after REQUIREMENTS approval", ()
 
     // SPEC_INIT must NOT be re-executed
     expect(resumeRunner.executedPhases).not.toContain("SPEC_INIT");
-    // REQUIREMENTS must NOT be re-executed (was already completed)
-    expect(resumeRunner.executedPhases).not.toContain("REQUIREMENTS");
-    // DESIGN should be executed next
-    expect(resumeRunner.executedPhases).toContain("DESIGN");
+    // HUMAN_INTERACTION must NOT be re-executed (was already completed)
+    expect(resumeRunner.executedPhases).not.toContain("HUMAN_INTERACTION");
+    // VALIDATE_PREREQUISITES should be executed next
+    expect(resumeRunner.executedPhases).toContain("VALIDATE_PREREQUISITES");
   });
 
   it("approval:required event is re-emitted when spec.json still has not approved on resume", async () => {
-    // First run: pauses at REQUIREMENTS (no spec.json)
+    // First run: pauses at HUMAN_INTERACTION (no spec.json)
     await runInitialAndPause();
 
     // Resume without updating spec.json
@@ -298,10 +303,11 @@ describe("WorkflowEngine integration — resume after REQUIREMENTS approval", ()
     expect(resumeRunner.executedPhases).not.toContain("SPEC_INIT");
   });
 
-  it("workflow completes when all gates are approved and DESIGN/VALIDATE_DESIGN/TASK_GENERATION succeed", async () => {
+  it("workflow completes when all gates are approved and all phases succeed", async () => {
     // Set up spec.json with all approvals and required artifacts on disk
     await writeSpecJson({
       approvals: {
+        human_interaction: { approved: true },
         requirements: { approved: true },
         design: { approved: true },
         tasks: { approved: true },
@@ -329,9 +335,17 @@ describe("WorkflowEngine integration — resume after REQUIREMENTS approval", ()
     expect(result.status).toBe("completed");
     if (result.status === "completed") {
       expect(result.completedPhases).toContain("SPEC_INIT");
-      expect(result.completedPhases).toContain("REQUIREMENTS");
-      expect(result.completedPhases).toContain("DESIGN");
-      expect(result.completedPhases).toContain("TASK_GENERATION");
+      expect(result.completedPhases).toContain("HUMAN_INTERACTION");
+      expect(result.completedPhases).toContain("VALIDATE_PREREQUISITES");
+      expect(result.completedPhases).toContain("SPEC_REQUIREMENTS");
+      expect(result.completedPhases).toContain("VALIDATE_REQUIREMENTS");
+      expect(result.completedPhases).toContain("REFLECT_BEFORE_DESIGN");
+      expect(result.completedPhases).toContain("VALIDATE_GAP");
+      expect(result.completedPhases).toContain("SPEC_DESIGN");
+      expect(result.completedPhases).toContain("VALIDATE_DESIGN");
+      expect(result.completedPhases).toContain("REFLECT_BEFORE_TASKS");
+      expect(result.completedPhases).toContain("SPEC_TASKS");
+      expect(result.completedPhases).toContain("VALIDATE_TASKS");
       expect(result.completedPhases).toContain("IMPLEMENTATION");
       expect(result.completedPhases).toContain("PULL_REQUEST");
     }
@@ -347,7 +361,7 @@ describe("WorkflowStateStore integration — persist and restore cycle", () => {
     const variants: WorkflowState[] = [
       {
         specName: SPEC_NAME,
-        currentPhase: "REQUIREMENTS",
+        currentPhase: "HUMAN_INTERACTION",
         completedPhases: ["SPEC_INIT"],
         status: "running",
         startedAt: new Date().toISOString(),
@@ -355,7 +369,7 @@ describe("WorkflowStateStore integration — persist and restore cycle", () => {
       },
       {
         specName: SPEC_NAME,
-        currentPhase: "REQUIREMENTS",
+        currentPhase: "HUMAN_INTERACTION",
         completedPhases: ["SPEC_INIT"],
         status: "paused_for_approval",
         startedAt: new Date().toISOString(),
@@ -363,18 +377,18 @@ describe("WorkflowStateStore integration — persist and restore cycle", () => {
       },
       {
         specName: SPEC_NAME,
-        currentPhase: "DESIGN",
-        completedPhases: ["SPEC_INIT", "REQUIREMENTS"],
+        currentPhase: "SPEC_DESIGN",
+        completedPhases: ["SPEC_INIT", "HUMAN_INTERACTION", "VALIDATE_PREREQUISITES", "SPEC_REQUIREMENTS"],
         status: "completed",
         startedAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       },
       {
         specName: SPEC_NAME,
-        currentPhase: "DESIGN",
-        completedPhases: ["SPEC_INIT", "REQUIREMENTS"],
+        currentPhase: "SPEC_DESIGN",
+        completedPhases: ["SPEC_INIT", "HUMAN_INTERACTION", "VALIDATE_PREREQUISITES", "SPEC_REQUIREMENTS"],
         status: "failed",
-        failureDetail: { phase: "DESIGN", error: "SDD error" },
+        failureDetail: { phase: "SPEC_DESIGN", error: "SDD error" },
         startedAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       },
