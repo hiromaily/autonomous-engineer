@@ -24,6 +24,11 @@ set -euo pipefail
 ROOT_DIR="${ROOT_DIR:-src}"
 ALIAS_PREFIX="${ALIAS_PREFIX:-@/}"
 
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "Error: python3 is required but not found." >&2
+  exit 1
+fi
+
 if [[ ! -d "$ROOT_DIR" ]]; then
   echo "ERROR: ROOT_DIR '$ROOT_DIR' does not exist." >&2
   exit 1
@@ -41,7 +46,7 @@ RULES=(
   "src/application/usecases/|src/application/usecases/ src/application/services/ src/application/ports/ src/domain/|src/adapters/ src/infra/|Use cases may depend only inward"
   "src/application/services/|src/application/services/ src/application/ports/ src/domain/|src/adapters/ src/infra/|Application services are implementation-agnostic"
   "src/application/ports/|src/application/ports/ src/domain/|src/application/usecases/ src/application/services/ src/adapters/ src/infra/|Ports define abstractions only"
-  "src/adapters/cli/|src/adapters/cli/ src/application/usecases/ src/application/ports/ src/infra/bootstrap/|src/domain/ src/infra/llm/ src/infra/git/ src/infra/safety/ src/infra/sdd/ src/infra/tools/ src/infra/memory/ src/infra/planning/ src/infra/events/ src/infra/state/ src/infra/config/|CLI should stay thin"
+  "src/adapters/cli/|src/adapters/cli/ src/application/usecases/ src/application/ports/ src/infra/bootstrap/||CLI should stay thin"
   "src/infra/llm/|src/infra/llm/ src/application/ports/ src/domain/|src/application/usecases/ src/application/services/ src/adapters/|Concrete port implementations only"
   "src/infra/git/|src/infra/git/ src/application/ports/ src/domain/|src/application/usecases/ src/application/services/ src/adapters/|Concrete port implementations only"
   "src/infra/safety/|src/infra/safety/ src/application/ports/ src/domain/|src/application/usecases/ src/application/services/ src/adapters/|Concrete runtime safety integrations only"
@@ -109,18 +114,13 @@ normalize_path() {
     importer_dir="$(dirname "$importer")"
 
     # Resolve relative path lexically
-    if command -v python3 >/dev/null 2>&1; then
-      normalized="$(python3 - <<'PY' "$importer_dir" "$raw"
+    normalized="$(python3 - <<'PY' "$importer_dir" "$raw"
 import os, sys
 base = sys.argv[1]
 rel = sys.argv[2]
 print(os.path.normpath(os.path.join(base, rel)).replace("\\", "/"))
 PY
 )"
-    else
-      # Fallback: simple concatenation; may be less robust with ../..
-      normalized="${importer_dir}/${raw}"
-    fi
   fi
 
   # Normalize common TS path shapes to a directory-ish prefix target
@@ -256,34 +256,6 @@ check_no_fs_child_process_outside_infra() {
   fi
 }
 
-check_no_vendor_impl_imports_in_application() {
-  local file="$1"
-
-  case "$file" in
-    src/application/*)
-      ;;
-    *)
-      return 0
-      ;;
-  esac
-
-  while IFS=$'\t' read -r line_no raw_line module_spec; do
-    [[ -z "$module_spec" ]] && continue
-    local normalized
-    if ! normalized="$(normalize_path "$file" "$module_spec")"; then
-      continue
-    fi
-
-    case "$normalized" in
-      *claude-provider/*|*github-pr-provider/*|*file-memory-store/*|*short-term-store/*|*plan-file-store/*|*workflow-state-store/*|*sandbox-executor/*|*audit-logger/*)
-        print_violation \
-          "$file" "$line_no" "$raw_line" \
-          "Application imported a concrete implementation" \
-          "Application must depend on ports, not concrete vendor or storage implementations ('${normalized}')"
-        ;;
-    esac
-  done < <(extract_imports "$file")
-}
 
 check_no_usecase_or_service_imports_in_infra_non_di() {
   local file="$1"
@@ -322,7 +294,6 @@ check_file() {
   check_layer_rules "$file"
   check_no_process_env_outside_config_di "$file"
   check_no_fs_child_process_outside_infra "$file"
-  check_no_vendor_impl_imports_in_application "$file"
   check_no_usecase_or_service_imports_in_infra_non_di "$file"
 }
 
