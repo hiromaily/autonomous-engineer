@@ -1,3 +1,4 @@
+import type { LogLevel } from "@/application/ports/logger";
 import * as p from "@clack/prompts";
 
 export interface WizardDefaults {
@@ -5,6 +6,7 @@ export interface WizardDefaults {
   readonly modelName?: string;
   readonly sddFramework?: "cc-sdd" | "openspec" | "speckit";
   readonly specDir?: string;
+  readonly logLevel?: LogLevel;
 }
 
 export interface WizardInput {
@@ -12,6 +14,7 @@ export interface WizardInput {
   readonly modelName: string;
   readonly sddFramework: "cc-sdd" | "openspec" | "speckit";
   readonly specDir: string;
+  readonly logLevel: LogLevel;
 }
 
 export interface IConfigWizard {
@@ -49,6 +52,7 @@ const BUILTIN_DEFAULTS = {
   modelName: "claude-opus-4-6",
   sddFramework: "cc-sdd" as const,
   specDir: ".kiro/specs",
+  logLevel: "info" as LogLevel,
 };
 
 export class ConfigWizard implements IConfigWizard {
@@ -112,6 +116,19 @@ export class ConfigWizard implements IConfigWizard {
     });
     if (specDir === "cancelled") return "cancelled";
 
+    // Step 5: Log level
+    const logLevel = await this.prompts.select<LogLevel>({
+      message: "Log level",
+      options: [
+        { value: "debug", label: "debug" },
+        { value: "info", label: "info" },
+        { value: "warn", label: "warn" },
+        { value: "error", label: "error" },
+      ] as const,
+      initialValue: defaults?.logLevel ?? BUILTIN_DEFAULTS.logLevel,
+    });
+    if (this.prompts.isCancel(logLevel)) return "cancelled";
+
     // Req 3.6: Instruct user to set API key via environment variable
     this.prompts.note(
       "Set AES_LLM_API_KEY as an environment variable to provide your LLM API key.\n"
@@ -124,6 +141,7 @@ export class ConfigWizard implements IConfigWizard {
       modelName,
       sddFramework: sddFramework as "cc-sdd" | "openspec" | "speckit",
       specDir,
+      logLevel: logLevel as LogLevel,
     };
   }
 }

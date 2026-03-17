@@ -86,7 +86,7 @@
   - Never log the full prompt or response at `info` level or above
   - _Requirements: 7.1, 7.2, 7.3, 7.4_
 
-- [ ] 7. (P) Add log level selection to the aes configure wizard
+- [x] 7. (P) Add log level selection to the aes configure wizard
   - Add a `selectLogLevel()` interactive step to `ConfigWizard` presenting exactly the four valid log levels as selectable choices (no free-text input)
   - Persist the chosen level via `IConfigWriter.write()` with the `logLevel` field set
   - Verify that subsequent `aes run` invocations read and apply the persisted level without requiring a runtime flag

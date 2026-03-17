@@ -17,6 +17,7 @@ const HAPPY_WIZARD_RESULT: WizardInput = {
   modelName: "claude-opus-4-6",
   sddFramework: "cc-sdd",
   specDir: ".kiro/specs",
+  logLevel: "info",
 };
 
 function makeWizard(result: WizardInput | "cancelled" = "cancelled"): IConfigWizard {
@@ -244,6 +245,58 @@ describe("ConfigureCommand — wizard launch with defaults", () => {
 
     expect(defaults?.sddFramework).toBeUndefined();
     expect(defaults?.provider).toBe("claude");
+  });
+
+  it("pre-populates logLevel default from existing config", async () => {
+    const existingConfig = {
+      llm: { provider: "claude", modelName: "claude-opus-4-6" },
+      sddFramework: "cc-sdd",
+      specDir: ".kiro/specs",
+      logLevel: "warn",
+    };
+
+    const wizardRunMock = mock(async () => "cancelled" as const);
+    const wizard: IConfigWizard = { run: wizardRunMock };
+
+    const cmd = new ConfigureCommand({
+      isTTY: true,
+      wizard,
+      configWriter: makeConfigWriter(),
+      frameworkChecker: makeFrameworkChecker(),
+      readFile: mock(async () => JSON.stringify(existingConfig)),
+    });
+
+    await cmd.run();
+
+    const callArgs = (wizardRunMock.mock.calls as unknown as Array<[unknown]>)[0];
+    const defaults = callArgs?.[0] as { logLevel?: string } | undefined;
+    expect(defaults?.logLevel).toBe("warn");
+  });
+
+  it("ignores invalid logLevel values from existing config", async () => {
+    const existingConfig = {
+      llm: { provider: "claude", modelName: "claude-opus-4-6" },
+      sddFramework: "cc-sdd",
+      specDir: ".kiro/specs",
+      logLevel: "verbose", // invalid
+    };
+
+    const wizardRunMock = mock(async () => "cancelled" as const);
+    const wizard: IConfigWizard = { run: wizardRunMock };
+
+    const cmd = new ConfigureCommand({
+      isTTY: true,
+      wizard,
+      configWriter: makeConfigWriter(),
+      frameworkChecker: makeFrameworkChecker(),
+      readFile: mock(async () => JSON.stringify(existingConfig)),
+    });
+
+    await cmd.run();
+
+    const callArgs = (wizardRunMock.mock.calls as unknown as Array<[unknown]>)[0];
+    const defaults = callArgs?.[0] as { logLevel?: string } | undefined;
+    expect(defaults?.logLevel).toBeUndefined();
   });
 
   it("awaits and returns the wizard result", async () => {
@@ -481,6 +534,7 @@ describe("ConfigureCommand — config write", () => {
     expect(written?.llm.modelName).toBe("claude-opus-4-6");
     expect(written?.sddFramework).toBe("cc-sdd");
     expect(written?.specDir).toBe(".kiro/specs");
+    expect(written?.logLevel).toBe("info");
     // API key must not be present
     expect((written as unknown as Record<string, unknown>)?.apiKey).toBeUndefined();
     expect((written?.llm as unknown as Record<string, unknown>)?.apiKey).toBeUndefined();
