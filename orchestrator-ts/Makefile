@@ -12,6 +12,10 @@ ts-lint:
 	bun run fmt
 	bun run lint:fix
 
+.PHONY: ts-lint-arch
+ts-lint-arch:
+	./scripts/lint-ts-architecture.sh
+
 .PHONY: debug-aes-flow
 debug-aes-flow:
 	bun run aes run debug-aes-workflow --debug-flow
