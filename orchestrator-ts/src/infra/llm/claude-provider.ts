@@ -1,4 +1,5 @@
 import type { LlmCompleteOptions, LlmErrorCategory, LlmProviderPort, LlmResult } from "@/application/ports/llm";
+import { getErrorMessage } from "@/infra/utils/errors";
 import Anthropic from "@anthropic-ai/sdk";
 
 export interface ClaudeProviderConfig {
@@ -51,7 +52,7 @@ export class ClaudeProvider implements LlmProviderPort {
         ok: false,
         error: {
           category: categorize(err),
-          message: err instanceof Error ? err.message : String(err),
+          message: getErrorMessage(err),
           originalError: err,
         },
       };

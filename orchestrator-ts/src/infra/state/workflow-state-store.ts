@@ -1,6 +1,8 @@
 import type { IWorkflowStateStore } from "@/application/ports/workflow";
 import type { WorkflowState } from "@/domain/workflow/types";
-import { mkdir, open, readFile, rename } from "node:fs/promises";
+import { isNodeError } from "@/infra/utils/errors";
+import { atomicWrite } from "@/infra/utils/fs";
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
 export class WorkflowStateStore implements IWorkflowStateStore {
@@ -20,20 +22,8 @@ export class WorkflowStateStore implements IWorkflowStateStore {
 
   async persist(state: WorkflowState): Promise<void> {
     const destPath = this.statePath(state.specName);
-    const tmpPath = `${destPath}.tmp`;
-
-    await mkdir(join(this.cwd, ".aes", "state"), { recursive: true });
-
     const content = JSON.stringify(state, null, 2);
-    const fd = await open(tmpPath, "w");
-    try {
-      await fd.write(content);
-      await fd.datasync();
-    } finally {
-      await fd.close();
-    }
-
-    await rename(tmpPath, destPath);
+    await atomicWrite(destPath, content);
   }
 
   async restore(specName: string): Promise<WorkflowState | null> {
@@ -49,8 +39,4 @@ export class WorkflowStateStore implements IWorkflowStateStore {
   private statePath(specName: string): string {
     return join(this.cwd, ".aes", "state", `${specName}.json`);
   }
-}
-
-function isNodeError(err: unknown): err is NodeJS.ErrnoException {
-  return err instanceof Error && "code" in err;
 }

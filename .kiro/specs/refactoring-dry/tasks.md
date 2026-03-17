@@ -54,32 +54,32 @@
   - _Requirements: 7.6, 7.8_
 
 - [ ] 3. Replace duplicate utility code in infrastructure stores and modules
-- [ ] 3.1 (P) Update the workflow state store to use shared utilities
+- [x] 3.1 (P) Update the workflow state store to use shared utilities
   - Replace the inline atomic write implementation in `WorkflowStateStore` with the shared atomic write function (the separate directory-creation call is absorbed into the shared utility)
   - Replace the inline Node error type guard with an import from the shared error utilities module
   - Run existing store round-trip tests to confirm persist/restore behavior is unchanged
   - _Requirements: 1.1, 1.2, 1.7, 2.1, 2.2_
 
-- [ ] 3.2 (P) Update the plan file store to use shared utilities
+- [x] 3.2 (P) Update the plan file store to use shared utilities
   - Replace the private `atomicWrite` method in `PlanFileStore` with the shared atomic write function
   - Replace the private safe-read pattern in the `load` method with the shared safe-read function
   - Replace the private Node error type guard with an import from the shared error utilities module
   - Run existing plan store round-trip tests to confirm save/load behavior is unchanged
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.7, 2.1, 2.2_
 
-- [ ] 3.3 (P) Update the file memory store to use shared utilities
+- [x] 3.3 (P) Update the file memory store to use shared utilities
   - Replace the private `atomicWrite` method with the shared atomic write function
   - Replace the private safe-read helper with the shared safe-read function, coercing its `null` return to an empty string at the call site
   - Replace the private Node error type guard with an import from shared error utilities
   - Replace the inline error-message extraction expression with the shared extractor function
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.7, 2.1, 2.2, 3.1, 3.2_
 
-- [ ] 3.4 (P) Update the config loader to use the shared error type guard
+- [x] 3.4 (P) Update the config loader to use the shared error type guard
   - Replace the file-local `isNodeError` definition with an import from the shared error utilities module
   - Confirm ENOENT handling for missing config files remains correct after the change
   - _Requirements: 2.1, 2.2_
 
-- [ ] 3.5 (P) Update the Claude LLM provider to use the shared error extractor
+- [x] 3.5 (P) Update the Claude LLM provider to use the shared error extractor
   - Replace the inline error-message extraction expression in the provider with a call to the shared extractor
   - _Requirements: 3.1, 3.2_
 

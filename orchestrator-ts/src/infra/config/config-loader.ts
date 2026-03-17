@@ -1,5 +1,6 @@
 import { type AesConfig, ConfigValidationError, type IConfigLoader } from "@/application/ports/config";
 import type { GitIntegrationConfig } from "@/domain/git/types";
+import { isNodeError } from "@/infra/utils/errors";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -133,8 +134,4 @@ interface MergedConfig {
 
 function isValidSddFramework(value: string | undefined): value is "cc-sdd" | "openspec" | "speckit" {
   return value !== undefined && (VALID_SDD_FRAMEWORKS as readonly string[]).includes(value);
-}
-
-function isNodeError(err: unknown): err is NodeJS.ErrnoException {
-  return err instanceof Error && "code" in err;
 }
