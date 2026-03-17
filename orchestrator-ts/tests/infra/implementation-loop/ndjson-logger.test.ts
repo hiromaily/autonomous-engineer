@@ -36,11 +36,6 @@ function readLines(filePath: string): string[] {
     .filter((line) => line.trim().length > 0);
 }
 
-/** Wait for fire-and-forget async writes to settle. */
-function flush(): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, 50));
-}
-
 function makeIterationEntry(overrides: Partial<SectionIterationLogEntry> = {}): SectionIterationLogEntry {
   return {
     planId: "plan-abc",
@@ -95,7 +90,7 @@ describe("NdjsonImplementationLoopLogger — logIteration", () => {
     const entry = makeIterationEntry();
 
     logger.logIteration(entry);
-    await flush();
+    await logger.drain();
 
     const logPath = join(logDir, "implementation-loop-plan-abc.ndjson");
     expect(existsSync(logPath)).toBe(true);
@@ -104,7 +99,7 @@ describe("NdjsonImplementationLoopLogger — logIteration", () => {
   it("writes a valid JSON object containing type: iteration", async () => {
     const logger = new NdjsonImplementationLoopLogger("plan-abc", logDir);
     logger.logIteration(makeIterationEntry());
-    await flush();
+    await logger.drain();
 
     const logPath = join(logDir, "implementation-loop-plan-abc.ndjson");
     const lines = readLines(logPath);
@@ -123,7 +118,7 @@ describe("NdjsonImplementationLoopLogger — logIteration", () => {
     });
 
     logger.logIteration(entry);
-    await flush();
+    await logger.drain();
 
     const logPath = join(logDir, "implementation-loop-plan-abc.ndjson");
     const parsed = JSON.parse(readLines(logPath)[0] as string);
@@ -142,7 +137,7 @@ describe("NdjsonImplementationLoopLogger — logSectionComplete", () => {
   it("writes a valid JSON object containing type: section-complete", async () => {
     const logger = new NdjsonImplementationLoopLogger("plan-abc", logDir);
     logger.logSectionComplete(makeSectionCompleteRecord());
-    await flush();
+    await logger.drain();
 
     const logPath = join(logDir, "implementation-loop-plan-abc.ndjson");
     const lines = readLines(logPath);
@@ -154,7 +149,7 @@ describe("NdjsonImplementationLoopLogger — logSectionComplete", () => {
   it("includes sectionId and status in the section-complete log entry", async () => {
     const logger = new NdjsonImplementationLoopLogger("plan-abc", logDir);
     logger.logSectionComplete(makeSectionCompleteRecord({ sectionId: "section-2", status: "completed" }));
-    await flush();
+    await logger.drain();
 
     const logPath = join(logDir, "implementation-loop-plan-abc.ndjson");
     const parsed = JSON.parse(readLines(logPath)[0] as string);
@@ -178,7 +173,7 @@ describe("NdjsonImplementationLoopLogger — logHaltSummary", () => {
       reason: "Section failed after 3 retries",
       timestamp: new Date().toISOString(),
     });
-    await flush();
+    await logger.drain();
 
     const logPath = join(logDir, "implementation-loop-plan-abc.ndjson");
     const lines = readLines(logPath);
@@ -197,7 +192,7 @@ describe("NdjsonImplementationLoopLogger — logHaltSummary", () => {
       reason: "Max retries exceeded",
       timestamp: new Date().toISOString(),
     });
-    await flush();
+    await logger.drain();
 
     const logPath = join(logDir, "implementation-loop-plan-abc.ndjson");
     const parsed = JSON.parse(readLines(logPath)[0] as string);
@@ -217,7 +212,7 @@ describe("NdjsonImplementationLoopLogger — NDJSON append behavior", () => {
     logger.logIteration(makeIterationEntry({ iterationNumber: 1 }));
     logger.logIteration(makeIterationEntry({ iterationNumber: 2 }));
     logger.logSectionComplete(makeSectionCompleteRecord());
-    await flush();
+    await logger.drain();
 
     const logPath = join(logDir, "implementation-loop-plan-abc.ndjson");
     const lines = readLines(logPath);
@@ -229,7 +224,7 @@ describe("NdjsonImplementationLoopLogger — NDJSON append behavior", () => {
 
     logger.logIteration(makeIterationEntry({ iterationNumber: 1, reviewOutcome: "failed" }));
     logger.logIteration(makeIterationEntry({ iterationNumber: 2, reviewOutcome: "passed" }));
-    await flush();
+    await logger.drain();
 
     const logPath = join(logDir, "implementation-loop-plan-abc.ndjson");
     const lines = readLines(logPath);
@@ -246,7 +241,7 @@ describe("NdjsonImplementationLoopLogger — NDJSON append behavior", () => {
   it("log file name includes the planId", async () => {
     const logger = new NdjsonImplementationLoopLogger("my-plan-xyz", logDir);
     logger.logIteration(makeIterationEntry({ planId: "my-plan-xyz" }));
-    await flush();
+    await logger.drain();
 
     const logPath = join(logDir, "implementation-loop-my-plan-xyz.ndjson");
     expect(existsSync(logPath)).toBe(true);
@@ -264,7 +259,7 @@ describe("NdjsonImplementationLoopLogger — error resilience", () => {
 
     // Must not throw — async write creates the dir in the background
     expect(() => logger.logIteration(makeIterationEntry())).not.toThrow();
-    await flush();
+    await logger.drain();
   });
 
   it("log file is created even when logDir is a nested path", async () => {
@@ -272,7 +267,7 @@ describe("NdjsonImplementationLoopLogger — error resilience", () => {
     const logger = new NdjsonImplementationLoopLogger("plan-abc", nestedDir);
 
     logger.logIteration(makeIterationEntry());
-    await flush();
+    await logger.drain();
 
     const logPath = join(nestedDir, "implementation-loop-plan-abc.ndjson");
     expect(existsSync(logPath)).toBe(true);
