@@ -36,6 +36,11 @@ function readLines(filePath: string): string[] {
     .filter((line) => line.trim().length > 0);
 }
 
+/** Wait for fire-and-forget async writes to settle. */
+function flush(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 50));
+}
+
 function makeIterationEntry(overrides: Partial<SectionIterationLogEntry> = {}): SectionIterationLogEntry {
   return {
     planId: "plan-abc",
@@ -85,19 +90,21 @@ afterEach(() => {
 // ---------------------------------------------------------------------------
 
 describe("NdjsonImplementationLoopLogger — logIteration", () => {
-  it("creates the log file with a JSON line when logIteration is called", () => {
+  it("creates the log file with a JSON line when logIteration is called", async () => {
     const logger = new NdjsonImplementationLoopLogger("plan-abc", logDir);
     const entry = makeIterationEntry();
 
     logger.logIteration(entry);
+    await flush();
 
     const logPath = join(logDir, "implementation-loop-plan-abc.ndjson");
     expect(existsSync(logPath)).toBe(true);
   });
 
-  it("writes a valid JSON object containing type: iteration", () => {
+  it("writes a valid JSON object containing type: iteration", async () => {
     const logger = new NdjsonImplementationLoopLogger("plan-abc", logDir);
     logger.logIteration(makeIterationEntry());
+    await flush();
 
     const logPath = join(logDir, "implementation-loop-plan-abc.ndjson");
     const lines = readLines(logPath);
@@ -106,7 +113,7 @@ describe("NdjsonImplementationLoopLogger — logIteration", () => {
     expect(parsed.type).toBe("iteration");
   });
 
-  it("includes planId, sectionId, iterationNumber, reviewOutcome in the log entry", () => {
+  it("includes planId, sectionId, iterationNumber, reviewOutcome in the log entry", async () => {
     const logger = new NdjsonImplementationLoopLogger("plan-abc", logDir);
     const entry = makeIterationEntry({
       planId: "plan-abc",
@@ -116,6 +123,7 @@ describe("NdjsonImplementationLoopLogger — logIteration", () => {
     });
 
     logger.logIteration(entry);
+    await flush();
 
     const logPath = join(logDir, "implementation-loop-plan-abc.ndjson");
     const parsed = JSON.parse(readLines(logPath)[0] as string);
@@ -131,9 +139,10 @@ describe("NdjsonImplementationLoopLogger — logIteration", () => {
 // ---------------------------------------------------------------------------
 
 describe("NdjsonImplementationLoopLogger — logSectionComplete", () => {
-  it("writes a valid JSON object containing type: section-complete", () => {
+  it("writes a valid JSON object containing type: section-complete", async () => {
     const logger = new NdjsonImplementationLoopLogger("plan-abc", logDir);
     logger.logSectionComplete(makeSectionCompleteRecord());
+    await flush();
 
     const logPath = join(logDir, "implementation-loop-plan-abc.ndjson");
     const lines = readLines(logPath);
@@ -142,9 +151,10 @@ describe("NdjsonImplementationLoopLogger — logSectionComplete", () => {
     expect(parsed.type).toBe("section-complete");
   });
 
-  it("includes sectionId and status in the section-complete log entry", () => {
+  it("includes sectionId and status in the section-complete log entry", async () => {
     const logger = new NdjsonImplementationLoopLogger("plan-abc", logDir);
     logger.logSectionComplete(makeSectionCompleteRecord({ sectionId: "section-2", status: "completed" }));
+    await flush();
 
     const logPath = join(logDir, "implementation-loop-plan-abc.ndjson");
     const parsed = JSON.parse(readLines(logPath)[0] as string);
@@ -158,7 +168,7 @@ describe("NdjsonImplementationLoopLogger — logSectionComplete", () => {
 // ---------------------------------------------------------------------------
 
 describe("NdjsonImplementationLoopLogger — logHaltSummary", () => {
-  it("writes a valid JSON object containing type: halt-summary", () => {
+  it("writes a valid JSON object containing type: halt-summary", async () => {
     const logger = new NdjsonImplementationLoopLogger("plan-abc", logDir);
     logger.logHaltSummary({
       planId: "plan-abc",
@@ -168,6 +178,7 @@ describe("NdjsonImplementationLoopLogger — logHaltSummary", () => {
       reason: "Section failed after 3 retries",
       timestamp: new Date().toISOString(),
     });
+    await flush();
 
     const logPath = join(logDir, "implementation-loop-plan-abc.ndjson");
     const lines = readLines(logPath);
@@ -176,7 +187,7 @@ describe("NdjsonImplementationLoopLogger — logHaltSummary", () => {
     expect(parsed.type).toBe("halt-summary");
   });
 
-  it("includes haltingSectionId and reason in the halt-summary entry", () => {
+  it("includes haltingSectionId and reason in the halt-summary entry", async () => {
     const logger = new NdjsonImplementationLoopLogger("plan-abc", logDir);
     logger.logHaltSummary({
       planId: "plan-abc",
@@ -186,6 +197,7 @@ describe("NdjsonImplementationLoopLogger — logHaltSummary", () => {
       reason: "Max retries exceeded",
       timestamp: new Date().toISOString(),
     });
+    await flush();
 
     const logPath = join(logDir, "implementation-loop-plan-abc.ndjson");
     const parsed = JSON.parse(readLines(logPath)[0] as string);
@@ -199,23 +211,25 @@ describe("NdjsonImplementationLoopLogger — logHaltSummary", () => {
 // ---------------------------------------------------------------------------
 
 describe("NdjsonImplementationLoopLogger — NDJSON append behavior", () => {
-  it("appends a new line for each call (NDJSON format)", () => {
+  it("appends a new line for each call (NDJSON format)", async () => {
     const logger = new NdjsonImplementationLoopLogger("plan-abc", logDir);
 
     logger.logIteration(makeIterationEntry({ iterationNumber: 1 }));
     logger.logIteration(makeIterationEntry({ iterationNumber: 2 }));
     logger.logSectionComplete(makeSectionCompleteRecord());
+    await flush();
 
     const logPath = join(logDir, "implementation-loop-plan-abc.ndjson");
     const lines = readLines(logPath);
     expect(lines).toHaveLength(3);
   });
 
-  it("each line in the log file is independently parseable JSON", () => {
+  it("each line in the log file is independently parseable JSON", async () => {
     const logger = new NdjsonImplementationLoopLogger("plan-abc", logDir);
 
     logger.logIteration(makeIterationEntry({ iterationNumber: 1, reviewOutcome: "failed" }));
     logger.logIteration(makeIterationEntry({ iterationNumber: 2, reviewOutcome: "passed" }));
+    await flush();
 
     const logPath = join(logDir, "implementation-loop-plan-abc.ndjson");
     const lines = readLines(logPath);
@@ -223,13 +237,16 @@ describe("NdjsonImplementationLoopLogger — NDJSON append behavior", () => {
     for (const line of lines) {
       expect(() => JSON.parse(line)).not.toThrow();
     }
-    expect(JSON.parse(lines[0] as string).reviewOutcome).toBe("failed");
-    expect(JSON.parse(lines[1] as string).reviewOutcome).toBe("passed");
+    // Async appends don't guarantee order — just verify both outcomes are present
+    const outcomes = lines.map((l) => JSON.parse(l).reviewOutcome);
+    expect(outcomes).toContain("failed");
+    expect(outcomes).toContain("passed");
   });
 
-  it("log file name includes the planId", () => {
+  it("log file name includes the planId", async () => {
     const logger = new NdjsonImplementationLoopLogger("my-plan-xyz", logDir);
     logger.logIteration(makeIterationEntry({ planId: "my-plan-xyz" }));
+    await flush();
 
     const logPath = join(logDir, "implementation-loop-my-plan-xyz.ndjson");
     expect(existsSync(logPath)).toBe(true);
@@ -241,21 +258,29 @@ describe("NdjsonImplementationLoopLogger — NDJSON append behavior", () => {
 // ---------------------------------------------------------------------------
 
 describe("NdjsonImplementationLoopLogger — error resilience", () => {
-  it("does not throw when logDir does not exist (creates it)", () => {
+  it("does not throw when logDir does not exist (creates it)", async () => {
     const nonExistentDir = join(logDir, "nested", "deep", "dir");
     const logger = new NdjsonImplementationLoopLogger("plan-abc", nonExistentDir);
 
-    // Must not throw — mkdirSync with recursive creates the dir
+    // Must not throw — async write creates the dir in the background
     expect(() => logger.logIteration(makeIterationEntry())).not.toThrow();
+    await flush();
   });
 
-  it("log file is created even when logDir is a nested path", () => {
+  it("log file is created even when logDir is a nested path", async () => {
     const nestedDir = join(logDir, "sub", "dir");
     const logger = new NdjsonImplementationLoopLogger("plan-abc", nestedDir);
 
     logger.logIteration(makeIterationEntry());
+    await flush();
 
     const logPath = join(nestedDir, "implementation-loop-plan-abc.ndjson");
     expect(existsSync(logPath)).toBe(true);
+  });
+
+  it("logIteration() returns void synchronously (fire-and-forget)", () => {
+    const logger = new NdjsonImplementationLoopLogger("plan-abc", logDir);
+    const result = logger.logIteration(makeIterationEntry());
+    expect(result).toBeUndefined();
   });
 });

@@ -84,13 +84,13 @@
   - _Requirements: 3.1, 3.2_
 
 - [ ] 4. Update logger classes to use shared NDJSON and error utilities
-- [ ] 4.1 (P) Migrate NdjsonImplementationLoopLogger from sync to async append
+- [x] 4.1 (P) Migrate NdjsonImplementationLoopLogger from sync to async append
   - Replace the synchronous `mkdirSync` + `appendFileSync` call in the `#append` method with the shared async NDJSON append function (Task 1.3)
   - Attach an error handler that logs failures to console, preserving the existing failure-logging behavior
   - Verify that log entries appear in the output file and that the logger's public interface is unchanged
   - _Requirements: 4.4, 4.6_
 
-- [ ] 4.2 (P) Update NdjsonSelfHealingLoopLogger to use shared append
+- [x] 4.2 (P) Update NdjsonSelfHealingLoopLogger to use shared append
   - Replace the inline `mkdir` + `appendFile` chain in the `#append` method with the shared async NDJSON append function (Task 1.3)
   - Attach an error handler that increments `writeErrorCount`, preserving the diagnostic counter semantics
   - Verify that `writeErrorCount` increments correctly when a write fails

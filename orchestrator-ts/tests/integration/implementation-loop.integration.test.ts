@@ -389,6 +389,7 @@ describe("ImplementationLoop integration — full implement → review → commi
     );
 
     await service.run(planId, { logger });
+    await logger.drain();
 
     const logPath = join(logDir, `implementation-loop-${planId}.ndjson`);
     const raw = await readFile(logPath, "utf-8");
@@ -1270,6 +1271,7 @@ describe("ImplementationLoop integration — quality gate checks and commit bloc
     );
 
     await service.run(planId, { qualityGateConfig, logger });
+    await logger.drain();
 
     const logPath = join(logDir, `implementation-loop-${planId}.ndjson`);
     const raw = await readFile(logPath, "utf-8");

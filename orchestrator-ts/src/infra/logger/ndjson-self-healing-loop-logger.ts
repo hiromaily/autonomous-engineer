@@ -1,6 +1,6 @@
 import type { ISelfHealingLoopLogger } from "@/application/ports/self-healing-loop-logger";
 import type { SelfHealingLogEntry } from "@/domain/self-healing/types";
-import { appendFile, mkdir } from "node:fs/promises";
+import { appendNdjsonLine } from "@/infra/utils/ndjson";
 import { join } from "node:path";
 
 /**
@@ -49,11 +49,8 @@ export class NdjsonSelfHealingLoopLogger implements ISelfHealingLoopLogger {
   }
 
   #append(entry: object): void {
-    const line = `${JSON.stringify(entry)}\n`;
-    mkdir(this.#logDir, { recursive: true })
-      .then(() => appendFile(this.#logPath, line, "utf8"))
-      .catch(() => {
-        this.#writeErrorCount++;
-      });
+    appendNdjsonLine(this.#logPath, entry).catch(() => {
+      this.#writeErrorCount++;
+    });
   }
 }

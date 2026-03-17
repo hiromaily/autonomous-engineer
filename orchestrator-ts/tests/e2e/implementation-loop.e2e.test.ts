@@ -342,6 +342,7 @@ describe("E2E: implementation loop — minimal one-section plan (Task 7.1)", () 
       );
 
       await service.run(planId, { logger });
+      await logger.drain();
 
       // Assert NDJSON log file exists
       const logFilePath = join(logDir, `implementation-loop-${planId}.ndjson`);
