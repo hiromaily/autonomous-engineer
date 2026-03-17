@@ -546,41 +546,43 @@ Rustメモリエンジン
 autonomous-engineer/
 ├─ orchestrator-ts/          # ワークフローオーケストレーションエンジン + aes CLI（TypeScript/Bun）
 │  │
-│  ├─ cli/
-│  │  └─ index.ts
-│  │
-│  ├─ application/
-│  │  ├─ usecases/
-│  │  │  ├─ initialize-spec-usecase.ts
-│  │  │  ├─ execute-task-usecase.ts
-│  │  │  └─ validate-design-usecase.ts
+│  ├─ src/
+│  │  ├─ adapters/
+│  │  │  └─ cli/             # CLIエントリポイント（薄い層 — 引数解析、ユースケース呼び出し、出力）
 │  │  │
-│  │  ├─ facades/
-│  │  │  ├─ workflow-facade.ts
-│  │  │  └─ spec-facade.ts
+│  │  ├─ application/
+│  │  │  ├─ usecases/        # アプリケーションアクションのトップレベルエントリポイント（例：run-spec.ts）
+│  │  │  ├─ services/        # 再利用可能な調整ロジック（agent、context、git、safety、tools…）
+│  │  │  └─ ports/           # 抽象インターフェース定義（llm、memory、sdd、workflow…）
 │  │  │
-│  │  └─ ports/
-│  │     ├─ spec-engine-port.ts
-│  │     ├─ llm-provider-port.ts
-│  │     └─ git-controller-port.ts
-│  │
-│  ├─ domain/
-│  │  ├─ engines/
-│  │  │  ├─ spec/
-│  │  │  ├─ implementation/
-│  │  │  └─ review/
+│  │  ├─ domain/
+│  │  │  ├─ agent/
+│  │  │  ├─ context/
+│  │  │  ├─ debug/
+│  │  │  ├─ git/
+│  │  │  ├─ implementation-loop/
+│  │  │  ├─ planning/
+│  │  │  ├─ safety/
+│  │  │  ├─ self-healing/
+│  │  │  ├─ tools/
+│  │  │  └─ workflow/
 │  │  │
-│  │  ├─ workflow/
-│  │  ├─ memory/
-│  │  └─ self-healing/
-│  │
-│  ├─ adapters/
-│  │  ├─ sdd/
-│  │  └─ llm/
-│  │
-│  ├─ infra/
-│  │  ├─ git/
-│  │  └─ filesystem/
+│  │  └─ infra/
+│  │     ├─ bootstrap/       # コンポジションルート — オブジェクトグラフ全体を組み立てる
+│  │     ├─ config/          # 設定ファイルの読み込みとSDDフレームワーク検出
+│  │     ├─ events/          # 具体的なイベントバス実装
+│  │     ├─ git/             # Gitコントローラーアダプターと GitHub PRアダプター
+│  │     ├─ implementation-loop/
+│  │     ├─ logger/          # ロガークラス集約（DebugLogWriter、NdjsonLogger…）
+│  │     ├─ llm/             # Claudeプロバイダー、モックLLMプロバイダー
+│  │     ├─ memory/          # ファイルバックアップおよびインメモリストア
+│  │     ├─ planning/        # プランファイルストア
+│  │     ├─ safety/          # 承認ゲートウェイ、サンドボックスエグゼキューター
+│  │     ├─ sdd/             # Claude Code SDDアダプター、モックSDDアダプター
+│  │     ├─ self-healing/    # 自己修復ループサービスファクトリー
+│  │     ├─ state/           # ワークフロー状態ストア
+│  │     ├─ tools/           # シェル、ファイルシステム、git、コード解析ツール実装
+│  │     └─ utils/           # インフラ内で共有される低レベルユーティリティ（errors、fs、ndjson）
 │  │
 │  ├─ tests/
 │  ├─ package.json
@@ -602,16 +604,16 @@ autonomous-engineer/
 
 ### 構造の哲学
 
-各実装ディレクトリ（`*-ts`、`*-rs` など）は、独自のツールチェーン、依存関係、内部アーキテクチャを持つ自己完結したコンポーネントです。`orchestrator-ts/` 内では、ディレクトリ構造がクリーンアーキテクチャのレイヤーに直接対応します：
+各実装ディレクトリ（`*-ts`、`*-rs` など）は、独自のツールチェーン、依存関係、内部アーキテクチャを持つ自己完結したコンポーネントです。`orchestrator-ts/src/` 内では、ディレクトリ構造がクリーンアーキテクチャのレイヤーに直接対応します：
 
-- `cli/` はエントリーポイントであるユーザーインターフェースレイヤー
+- `adapters/cli/` は受信デリバリーアダプター — CLIエントリポイント
 - `application/` はアプリケーションレイヤーで、3つの関心事に分けられる：
   - `usecases/` — アプリケーションビジネスルールとワークフローのオーケストレーション
-  - `facades/` — 複雑なドメインサブシステムへのシンプルなインターフェース
+  - `services/` — 複数のユースケースを横断して再利用される調整ロジック
   - `ports/` — アプリケーションが必要とするインターフェース定義（入出力ポート）
 - `domain/` はすべての外部関心事から独立したコアドメインロジック
-- `adapters/` は `application/` で定義されたポートを実装し、外部システムへの橋渡しをする
-- `infra/` は具体的なインフラストラクチャの実装（git、ファイルシステム等）を提供する
+- `infra/` は具体的なインフラストラクチャの実装（git、LLM、ファイルシステム、ロギング等）とコンポジションルート（`infra/bootstrap/`）を提供する
+- `infra/utils/` はインフラサブディレクトリ間でのみ使用される共有低レベルユーティリティ
 - `docs/` は開発者とAIエージェントの両方のためのアーキテクチャ知識を提供する
 
 この構造により、コアロジックを外部依存関係から独立させながらシステムを進化させることができます。

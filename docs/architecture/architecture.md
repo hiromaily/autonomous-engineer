@@ -546,41 +546,43 @@ Examples:
 autonomous-engineer/
 ├─ orchestrator-ts/          # Workflow orchestration engine + aes CLI (TypeScript/Bun)
 │  │
-│  ├─ cli/
-│  │  └─ index.ts
-│  │
-│  ├─ application/
-│  │  ├─ usecases/
-│  │  │  ├─ initialize-spec-usecase.ts
-│  │  │  ├─ execute-task-usecase.ts
-│  │  │  └─ validate-design-usecase.ts
+│  ├─ src/
+│  │  ├─ adapters/
+│  │  │  └─ cli/             # CLI entry point (thin — parse args, call use case, render output)
 │  │  │
-│  │  ├─ facades/
-│  │  │  ├─ workflow-facade.ts
-│  │  │  └─ spec-facade.ts
+│  │  ├─ application/
+│  │  │  ├─ usecases/        # Top-level entrypoints for application actions (e.g. run-spec.ts)
+│  │  │  ├─ services/        # Reusable orchestration logic (agent, context, git, safety, tools…)
+│  │  │  └─ ports/           # Abstract interface definitions (llm, memory, sdd, workflow…)
 │  │  │
-│  │  └─ ports/
-│  │     ├─ spec-engine-port.ts
-│  │     ├─ llm-provider-port.ts
-│  │     └─ git-controller-port.ts
-│  │
-│  ├─ domain/
-│  │  ├─ engines/
-│  │  │  ├─ spec/
-│  │  │  ├─ implementation/
-│  │  │  └─ review/
+│  │  ├─ domain/
+│  │  │  ├─ agent/
+│  │  │  ├─ context/
+│  │  │  ├─ debug/
+│  │  │  ├─ git/
+│  │  │  ├─ implementation-loop/
+│  │  │  ├─ planning/
+│  │  │  ├─ safety/
+│  │  │  ├─ self-healing/
+│  │  │  ├─ tools/
+│  │  │  └─ workflow/
 │  │  │
-│  │  ├─ workflow/
-│  │  ├─ memory/
-│  │  └─ self-healing/
-│  │
-│  ├─ adapters/
-│  │  ├─ sdd/
-│  │  └─ llm/
-│  │
-│  ├─ infra/
-│  │  ├─ git/
-│  │  └─ filesystem/
+│  │  └─ infra/
+│  │     ├─ bootstrap/       # Composition root — wires the full object graph
+│  │     ├─ config/          # Config loading and SDD framework detection
+│  │     ├─ events/          # Concrete event bus implementations
+│  │     ├─ git/             # Git controller adapter and GitHub PR adapter
+│  │     ├─ implementation-loop/
+│  │     ├─ logger/          # Consolidated logger classes (DebugLogWriter, NdjsonLogger…)
+│  │     ├─ llm/             # Claude provider, mock LLM provider
+│  │     ├─ memory/          # File-backed and in-memory stores
+│  │     ├─ planning/        # Plan file store
+│  │     ├─ safety/          # Approval gateway, sandbox executor
+│  │     ├─ sdd/             # Claude Code SDD adapter, mock SDD adapter
+│  │     ├─ self-healing/    # Self-healing loop service factory
+│  │     ├─ state/           # Workflow state store
+│  │     ├─ tools/           # Shell, filesystem, git, code-analysis tool implementations
+│  │     └─ utils/           # Shared low-level utilities (errors, fs, ndjson)
 │  │
 │  ├─ tests/
 │  ├─ package.json
@@ -602,16 +604,16 @@ autonomous-engineer/
 
 ### Structure Philosophy
 
-Each implementation directory (`*-ts`, `*-rs`, etc.) is a self-contained component with its own toolchain, dependencies, and internal architecture. Within `orchestrator-ts/`, the directory structure maps directly to Clean Architecture layers:
+Each implementation directory (`*-ts`, `*-rs`, etc.) is a self-contained component with its own toolchain, dependencies, and internal architecture. Within `orchestrator-ts/src/`, the directory structure maps directly to Clean Architecture layers:
 
-- `cli/` is the entry point and user interface layer
+- `adapters/cli/` is the inbound delivery adapter — the CLI entry point
 - `application/` is the application layer, grouped into three concerns:
   - `usecases/` — application business rules and workflow orchestration
-  - `facades/` — simplified interfaces to complex domain subsystems
+  - `services/` — reusable coordination logic supporting multiple use cases
   - `ports/` — input/output port definitions (interfaces required by the application)
 - `domain/` contains core domain logic independent of all external concerns
-- `adapters/` implement the ports defined in `application/`, bridging to external systems
-- `infra/` provides concrete infrastructure implementations (git, filesystem, etc.)
+- `infra/` provides concrete infrastructure implementations (git, LLM, filesystem, logging, etc.) and the composition root (`infra/bootstrap/`)
+- `infra/utils/` holds shared low-level utilities used across infra sub-directories only
 - `docs/` provides architectural knowledge for both developers and AI agents
 
 This structure allows the system to evolve while keeping the core logic independent from external dependencies.
