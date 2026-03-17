@@ -69,7 +69,7 @@ import type {
   SelfHealingResult,
 } from "@/domain/implementation-loop/types";
 import type { TaskPlan } from "@/domain/planning/types";
-import { NdjsonImplementationLoopLogger } from "@/infra/implementation-loop/ndjson-logger";
+import { NdjsonImplementationLoopLogger } from "@/infra/logger/ndjson-implementation-loop-logger";
 import { PlanFileStore } from "@/infra/planning/plan-file-store";
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdtemp, readFile, rm } from "node:fs/promises";

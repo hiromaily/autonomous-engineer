@@ -5,8 +5,8 @@ import { SafetyGuardedToolExecutor } from "@/application/services/safety/guarded
 import type { IToolExecutor } from "@/application/services/tools/executor";
 import { createSafetyConfig, createSafetySession } from "@/domain/safety/types";
 import type { SafetyConfigOverrides, SafetySession } from "@/domain/safety/types";
+import { AuditLogger } from "@/infra/logger/audit-logger";
 import { CliApprovalGateway } from "@/infra/safety/approval-gateway";
-import { AuditLogger } from "@/infra/safety/audit-logger";
 import { TempDirSandboxExecutor } from "@/infra/safety/sandbox-executor";
 import { join } from "node:path";
 

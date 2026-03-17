@@ -1,5 +1,6 @@
 import type { IDebugEventSink } from "@/application/ports/debug";
 import type { DebugEvent } from "@/domain/debug/types";
+import { getErrorMessage } from "@/infra/utils/errors";
 import { type FileHandle, open } from "node:fs/promises";
 
 const PROMPT_PREVIEW_LENGTH = 500;
@@ -50,9 +51,8 @@ export class DebugLogWriter implements IDebugEventSink {
       this.fileHandlePromise = open(filePath, "w").then(
         (fh) => fh,
         (err) => {
-          const msg = err instanceof Error ? err.message : String(err);
           process.stderr.write(
-            `Warning: failed to open debug log file '${filePath}': ${msg}\n`,
+            `Warning: failed to open debug log file '${filePath}': ${getErrorMessage(err)}\n`,
           );
           return null;
         },

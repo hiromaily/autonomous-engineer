@@ -20,7 +20,7 @@ import { SafetyGuardedToolExecutor } from "@/application/services/safety/guarded
 import type { IToolExecutor } from "@/application/services/tools/executor";
 import { createSafetyConfig, createSafetySession } from "@/domain/safety/types";
 import type { PermissionSet, ToolContext, ToolInvocationLog } from "@/domain/tools/types";
-import { AuditLogger } from "@/infra/safety/audit-logger";
+import { AuditLogger } from "@/infra/logger/audit-logger";
 
 // ---------------------------------------------------------------------------
 // Helpers

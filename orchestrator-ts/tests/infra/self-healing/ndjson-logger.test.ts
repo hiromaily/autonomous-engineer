@@ -12,7 +12,7 @@
  * Requirements: 8.1, 8.3, 8.5
  */
 import type { SelfHealingLogEntry } from "@/domain/self-healing/types";
-import { NdjsonSelfHealingLoopLogger } from "@/infra/self-healing/ndjson-logger";
+import { NdjsonSelfHealingLoopLogger } from "@/infra/logger/ndjson-self-healing-loop-logger";
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";

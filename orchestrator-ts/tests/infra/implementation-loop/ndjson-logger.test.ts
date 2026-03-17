@@ -14,7 +14,7 @@
  */
 import type { SectionIterationLogEntry } from "@/application/ports/implementation-loop";
 import type { SectionExecutionRecord } from "@/domain/implementation-loop/types";
-import { NdjsonImplementationLoopLogger } from "@/infra/implementation-loop/ndjson-logger";
+import { NdjsonImplementationLoopLogger } from "@/infra/logger/ndjson-implementation-loop-logger";
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";

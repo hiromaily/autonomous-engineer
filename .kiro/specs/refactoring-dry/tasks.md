@@ -23,32 +23,32 @@
   - _Requirements: 4.1, 4.2, 4.3_
 
 - [ ] 2. Consolidate all logger classes under infra/logger/
-- [ ] 2.1 (P) Move DebugLogWriter from the CLI adapter layer to infra/logger/
+- [x] 2.1 (P) Move DebugLogWriter from the CLI adapter layer to infra/logger/
   - Create the `src/infra/logger/` directory and move `DebugLogWriter` into it as the first resident file
   - Update its internal error-handling expression to use the shared error-message extractor from the error utilities module (Task 1.1)
   - Update every import reference to `DebugLogWriter` across the codebase to point to the new location
   - Verify the file compiles cleanly and that debug-log write behavior is unchanged
   - _Requirements: 3.2, 7.1, 7.2, 7.6, 7.7_
 
-- [ ] 2.2 (P) Move NdjsonImplementationLoopLogger to infra/logger/
+- [x] 2.2 (P) Move NdjsonImplementationLoopLogger to infra/logger/
   - Relocate the implementation-loop NDJSON logger file into `src/infra/logger/`
   - Update every import reference to this logger across the codebase
   - The sync I/O methods (`mkdirSync`, `appendFileSync`) will be replaced in Task 4 — this step is a pure file move only
   - _Requirements: 7.3, 7.6, 7.7_
 
-- [ ] 2.3 (P) Move NdjsonSelfHealingLoopLogger to infra/logger/
+- [x] 2.3 (P) Move NdjsonSelfHealingLoopLogger to infra/logger/
   - Relocate the self-healing NDJSON logger file into `src/infra/logger/`
   - Update every import reference to this logger across the codebase
   - The async append logic will be updated in Task 4 — this step is a pure file move only
   - _Requirements: 7.4, 7.6, 7.7_
 
-- [ ] 2.4 (P) Move AuditLogger to infra/logger/
+- [x] 2.4 (P) Move AuditLogger to infra/logger/
   - Relocate the audit logger file from `infra/safety/` into `src/infra/logger/`
   - Update every import reference to `AuditLogger` (in `create-safety-executor.ts` and any other consumers)
   - `AuditLogger` uses append-open mode with datasync — its internal I/O logic is not changed by this move
   - _Requirements: 7.5, 7.6, 7.7_
 
-- [ ] 2.5 Update all consumer import paths after logger moves
+- [x] 2.5 Update all consumer import paths after logger moves
   - Verify every file that previously imported from `adapters/cli/debug-log-writer`, `infra/implementation-loop/ndjson-logger`, `infra/self-healing/ndjson-logger`, and `infra/safety/audit-logger` now imports from the corresponding `infra/logger/` paths
   - Run TypeScript compilation to confirm zero broken import errors
   - _Requirements: 7.6, 7.8_
