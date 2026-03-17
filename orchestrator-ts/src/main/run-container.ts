@@ -8,8 +8,8 @@ import { DebugAgentEventBus } from "@/application/services/agent/debug-agent-eve
 import { ToolContextLogger } from "@/application/services/tools/tool-context-logger";
 import { DebugApprovalGate } from "@/application/services/workflow/debug-approval-gate";
 import { RunSpecUseCase } from "@/application/usecases/run-spec";
+import { createImplementationLoopService } from "@/di/create-implementation-loop-service";
 import { WorkflowEventBus } from "@/infra/events/workflow-event-bus";
-import { createImplementationLoopService } from "@/infra/implementation-loop/create-implementation-loop-service";
 import { ClaudeProvider } from "@/infra/llm/claude-provider";
 import { MockLlmProvider } from "@/infra/llm/mock-llm-provider";
 import { ConsoleLogger } from "@/infra/logger/console-logger";

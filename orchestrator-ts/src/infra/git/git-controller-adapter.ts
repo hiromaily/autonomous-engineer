@@ -6,7 +6,7 @@
 // ---------------------------------------------------------------------------
 
 import type { GitResult, IGitController } from "@/application/ports/git-controller";
-import type { IToolExecutor } from "@/application/services/tools/executor";
+import type { IToolExecutor } from "@/application/ports/tool-executor";
 import type { IGitValidator } from "@/domain/git/git-validator";
 import type { BranchCreationResult, CommitResult, GitChangesResult, PushResult } from "@/domain/git/types";
 import type { ToolContext, ToolError, ToolResult } from "@/domain/tools/types";
