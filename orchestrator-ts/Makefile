@@ -18,4 +18,8 @@ ts-lint-arch:
 
 .PHONY: debug-aes-flow
 debug-aes-flow:
-	bun run aes run debug-aes-workflow --debug-flow
+	FORCE_COLOR=1 bun run aes run debug-aes-workflow --debug
+
+.PHONY: rm-state
+rm-state:
+	rm -rf .aes/state/

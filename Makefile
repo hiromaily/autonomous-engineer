@@ -35,7 +35,7 @@ restart-debug-aes-flow: rm-state debug-aes-flow
 
 .PHONY: rm-state
 rm-state:
-	rm -rf orchestrator-ts/.aes/state/
+	$(MAKE) -C orchestrator-ts rm-state
 
 # bun run aes run debug-test --debug-flow
 # bun run aes configure
