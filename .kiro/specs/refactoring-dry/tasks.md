@@ -109,12 +109,12 @@
   - _Requirements: 6.4, 6.6, 7.8_
 
 - [ ] 7. Integration verification
-- [ ] 7.1 Run the full test suite and fix regressions
+- [x] 7.1 Run the full test suite and fix regressions
   - Execute `bun test` from the `orchestrator-ts/` directory
   - Investigate and fix any test failures introduced by the refactoring before proceeding
   - _Requirements: 6.1, 6.3, 6.5_
 
-- [ ] 7.2 (P) Run TypeScript type checking and fix errors
+- [x] 7.2 (P) Run TypeScript type checking and fix errors
   - Execute `bun run typecheck` from the `orchestrator-ts/` directory
   - Resolve any type errors caused by changed import paths, coerced null returns, or updated function signatures
   - _Requirements: 6.2_
