@@ -1,0 +1,22 @@
+{
+  "feature_name": "refactoring-dry",
+  "created_at": "2026-03-17T00:56:00Z",
+  "updated_at": "2026-03-17T01:25:00Z",
+  "language": "en",
+  "phase": "tasks-generated",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true
+    },
+    "design": {
+      "generated": true,
+      "approved": true
+    },
+    "tasks": {
+      "generated": true,
+      "approved": false
+    }
+  },
+  "ready_for_implementation": false
+}
