@@ -78,6 +78,7 @@ const baseConfig: AesConfig = {
   llm: { provider: "claude", modelName: "claude-sonnet-4-6", apiKey: "test-key" },
   specDir: "/tmp/specs",
   sddFramework: "cc-sdd",
+  logLevel: "info",
 };
 
 const projectTarget: MemoryTarget = { type: "project", file: "project_rules" };

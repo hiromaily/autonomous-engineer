@@ -6,6 +6,7 @@ const stubConfig: AesConfig = {
   llm: { provider: "claude", modelName: "__test__", apiKey: "__test__" },
   specDir: ".kiro/specs",
   sddFramework: "cc-sdd",
+  logLevel: "info",
 };
 
 describe("createRunDependencies", () => {

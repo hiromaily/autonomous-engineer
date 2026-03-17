@@ -1,3 +1,5 @@
+import type { LogLevel } from "@/application/ports/logger";
+
 // Config shape written to aes.config.json — API key intentionally excluded
 export interface WritableConfig {
   readonly llm: {
@@ -6,6 +8,7 @@ export interface WritableConfig {
   };
   readonly specDir: string;
   readonly sddFramework: "cc-sdd" | "openspec" | "speckit";
+  readonly logLevel?: LogLevel;
 }
 
 export type FrameworkCheckResult =
@@ -31,6 +34,7 @@ export interface AesConfig {
   };
   readonly specDir: string;
   readonly sddFramework: "cc-sdd" | "openspec" | "speckit";
+  readonly logLevel: LogLevel;
 }
 
 export interface IConfigLoader {

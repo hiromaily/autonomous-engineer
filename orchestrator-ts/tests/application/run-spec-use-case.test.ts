@@ -91,6 +91,7 @@ const baseConfig: AesConfig = {
   llm: { provider: "claude", modelName: "claude-sonnet-4-6", apiKey: "test-key" },
   specDir: "/tmp/specs",
   sddFramework: "cc-sdd",
+  logLevel: "info",
 };
 
 // ─── Tests ───────────────────────────────────────────────────────────────────

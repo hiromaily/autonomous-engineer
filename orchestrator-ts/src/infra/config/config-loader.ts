@@ -1,4 +1,5 @@
 import { type AesConfig, ConfigValidationError, type IConfigLoader } from "@/application/ports/config";
+import { LOG_LEVEL_ORDER, type LogLevel } from "@/application/ports/logger";
 import type { GitIntegrationConfig } from "@/domain/git/types";
 import { isNodeError } from "@/infra/utils/errors";
 import { readFile } from "node:fs/promises";
@@ -38,6 +39,7 @@ export class ConfigLoader implements IConfigLoader {
       apiKey: this.env.AES_LLM_API_KEY ?? file.llm?.apiKey,
       specDir: this.env.AES_SPEC_DIR ?? file.specDir,
       sddFramework: this.env.AES_SDD_FRAMEWORK ?? file.sddFramework,
+      logLevel: file.logLevel,
     };
   }
 
@@ -47,6 +49,10 @@ export class ConfigLoader implements IConfigLoader {
     if (!merged.provider) missing.push("llm.provider");
     if (!merged.modelName) missing.push("llm.modelName");
     if (!merged.apiKey) missing.push("llm.apiKey");
+
+    if (merged.logLevel !== undefined && !isValidLogLevel(merged.logLevel)) {
+      missing.push("logLevel");
+    }
 
     if (missing.length > 0) {
       throw new ConfigValidationError(missing);
@@ -60,6 +66,7 @@ export class ConfigLoader implements IConfigLoader {
       },
       specDir: merged.specDir ?? ".kiro/specs",
       sddFramework: this.parseSddFramework(merged.sddFramework),
+      logLevel: isValidLogLevel(merged.logLevel) ? merged.logLevel : "info",
     };
   }
 
@@ -122,6 +129,7 @@ interface RawConfig {
   };
   specDir?: string;
   sddFramework?: string;
+  logLevel?: string;
 }
 
 interface MergedConfig {
@@ -130,8 +138,13 @@ interface MergedConfig {
   apiKey: string | undefined;
   specDir: string | undefined;
   sddFramework: string | undefined;
+  logLevel: string | undefined;
 }
 
 function isValidSddFramework(value: string | undefined): value is "cc-sdd" | "openspec" | "speckit" {
   return value !== undefined && (VALID_SDD_FRAMEWORKS as readonly string[]).includes(value);
+}
+
+function isValidLogLevel(value: string | undefined): value is LogLevel {
+  return value !== undefined && (LOG_LEVEL_ORDER as readonly string[]).includes(value);
 }

@@ -96,6 +96,7 @@ const BASE_CONFIG: AesConfig = {
   llm: { provider: "claude", modelName: "claude-sonnet-4-6", apiKey: "test-key" },
   specDir: "", // overridden per test
   sddFramework: "cc-sdd",
+  logLevel: "info",
 };
 
 function makeLlmProvider(): LlmProviderPort {

@@ -36,13 +36,13 @@
   - No changes are required to individual git or shell tool implementations — all logging already flows through `ToolExecutor`
   - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5_
 
-- [ ] 4. (P) Extend the configuration schema and loader to support log level
-- [ ] 4.1 (P) Add logLevel to the configuration type definitions
+- [x] 4. (P) Extend the configuration schema and loader to support log level
+- [x] 4.1 (P) Add logLevel to the configuration type definitions
   - Add a required `logLevel: LogLevel` field to `AesConfig` — always present after loading, defaulting to `"info"` when absent in the file
   - Add an optional `logLevel?: LogLevel` field to `WritableConfig` — optional so the field can be omitted from the written file
   - _Requirements: 4.1, 4.2, 4.3_
 
-- [ ] 4.2 (P) Update ConfigLoader to read and validate logLevel
+- [x] 4.2 (P) Update ConfigLoader to read and validate logLevel
   - Parse the `logLevel` field from `aes.config.json` when present; supply the default `"info"` when it is absent
   - Reject any value that is not one of the four valid `LogLevel` strings with a `ConfigValidationError` that lists `"logLevel"` in `missingFields`
   - _Requirements: 4.2, 4.3_
