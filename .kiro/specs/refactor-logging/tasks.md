@@ -1,14 +1,14 @@
 # Implementation Plan
 
-- [ ] 1. Define the unified logger port interface and log level types
-- [ ] 1.1 Add the ILogger port to the application layer
+- [x] 1. Define the unified logger port interface and log level types
+- [x] 1.1 Add the ILogger port to the application layer
   - Define the `ILogger` port in `application/ports/logger.ts` with four methods: `debug()`, `info()`, `warn()`, and `error()`
   - Each method accepts a message string and an optional plain-object context parameter
   - The interface must not expose any transport details (stderr, file path, third-party library)
   - All methods must be unconditionally safe — implementations must never throw
   - _Requirements: 1.1, 1.2_
 
-- [ ] 1.2 Add the LogLevel type and level comparison utility
+- [x] 1.2 Add the LogLevel type and level comparison utility
   - Define `LogLevel` as a discriminated union of four string literals: `"debug"`, `"info"`, `"warn"`, `"error"`
   - Export an ordered constant array `LOG_LEVEL_ORDER` to support severity comparison
   - Implement `isLevelEnabled(configured, candidate)` returning true when `candidate` is at or above `configured` severity
