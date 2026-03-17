@@ -35,9 +35,9 @@ export class ConsoleLogger implements ILogger {
     this.minLevelIndex = LOG_LEVEL_ORDER.indexOf(minLevel);
     if (isTTY !== undefined) {
       this.isTTY = isTTY;
-    } else if (process.env["NO_COLOR"] !== undefined) {
+    } else if (process.env.NO_COLOR !== undefined) {
       this.isTTY = false;
-    } else if (process.env["FORCE_COLOR"] !== undefined) {
+    } else if (process.env.FORCE_COLOR !== undefined) {
       this.isTTY = true;
     } else {
       this.isTTY = process.stderr.isTTY === true;

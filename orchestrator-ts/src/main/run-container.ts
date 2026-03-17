@@ -223,7 +223,7 @@ export class RunContainer {
 
     logger.debug("DI resolved", { dependency: "toolContextLogger", impl: "ToolContextLogger" });
 
-    const memory = this.memory;
+    const _memory = this.memory;
     logger.debug("DI resolved", { dependency: "memory", impl: "FileMemoryStore" });
 
     // Announce mock substitutions before the use case is constructed so that
