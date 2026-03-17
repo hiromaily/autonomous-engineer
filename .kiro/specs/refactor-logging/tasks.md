@@ -14,8 +14,8 @@
   - Implement `isLevelEnabled(configured, candidate)` returning true when `candidate` is at or above `configured` severity
   - _Requirements: 2.1, 2.2, 2.4, 5.2_
 
-- [ ] 2. (P) Implement the ConsoleLogger infrastructure component
-- [ ] 2.1 (P) Implement level filtering and TTY detection in ConsoleLogger
+- [x] 2. (P) Implement the ConsoleLogger infrastructure component
+- [x] 2.1 (P) Implement level filtering and TTY detection in ConsoleLogger
   - Build `ConsoleLogger` in `infra/logger/` implementing the `ILogger` interface
   - Accept `minLevel: LogLevel` and an optional `isTTY` flag in the constructor
   - Determine TTY status from `process.stderr.isTTY` when the flag is not explicitly provided
@@ -23,7 +23,7 @@
   - Default log level when none is configured must be `"info"`
   - _Requirements: 2.1, 2.2, 2.3, 2.4_
 
-- [ ] 2.2 (P) Implement TTY-aware ANSI color rendering in ConsoleLogger
+- [x] 2.2 (P) Implement TTY-aware ANSI color rendering in ConsoleLogger
   - When `isTTY` is true, prefix each output line with the correct ANSI escape code: gray for `debug`, reset/white for `info`, yellow for `warn`, red for `error`; reset color after each line
   - When `isTTY` is false, output plain text in the format `[LEVEL] message { ...context }` with no escape codes
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
