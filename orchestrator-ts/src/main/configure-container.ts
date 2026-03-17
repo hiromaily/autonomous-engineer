@@ -1,10 +1,13 @@
 import type { IConfigWriter, IFrameworkChecker } from "@/application/ports/config";
+import type { ILogger } from "@/application/ports/logger";
 import { ConfigWriter } from "@/infra/config/config-writer";
 import { SddFrameworkChecker } from "@/infra/config/sdd-framework-checker";
+import { ConsoleLogger } from "@/infra/logger/console-logger";
 
 export interface ConfigureDependencies {
   readonly configWriter: IConfigWriter;
   readonly frameworkChecker: IFrameworkChecker;
+  readonly logger: ILogger;
 }
 
 /**
@@ -16,6 +19,7 @@ export interface ConfigureDependencies {
 export class ConfigureContainer {
   private _configWriter?: IConfigWriter;
   private _frameworkChecker?: IFrameworkChecker;
+  private _logger?: ConsoleLogger;
 
   private get configWriter(): IConfigWriter {
     if (!this._configWriter) {
@@ -31,10 +35,18 @@ export class ConfigureContainer {
     return this._frameworkChecker;
   }
 
+  private get logger(): ConsoleLogger {
+    if (!this._logger) {
+      this._logger = new ConsoleLogger("info");
+    }
+    return this._logger;
+  }
+
   build(): ConfigureDependencies {
     return {
       configWriter: this.configWriter,
       frameworkChecker: this.frameworkChecker,
+      logger: this.logger,
     };
   }
 }

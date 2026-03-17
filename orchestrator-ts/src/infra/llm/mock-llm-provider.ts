@@ -1,11 +1,14 @@
 import type { IDebugEventSink } from "@/application/ports/debug";
 import type { LlmCompleteOptions, LlmProviderPort, LlmResult } from "@/application/ports/llm";
+import type { ILogger } from "@/application/ports/logger";
 import type { IWorkflowEventBus } from "@/application/ports/workflow";
 
 export interface MockLlmProviderConfig {
   readonly sink: IDebugEventSink;
   /** WorkflowEventBus to subscribe for `phase:start` events; used to track current phase. */
   readonly workflowEventBus: IWorkflowEventBus;
+  /** Optional operational logger for LLM interaction entries. */
+  readonly logger?: ILogger;
 }
 
 /**
@@ -53,11 +56,13 @@ const MOCK_REVIEW_RESPONSE = JSON.stringify({
  */
 export class MockLlmProvider implements LlmProviderPort {
   readonly #sink: IDebugEventSink;
+  readonly #logger: ILogger | undefined;
   #callIndex = 0;
   #currentPhase = "UNKNOWN";
 
   constructor(config: MockLlmProviderConfig) {
     this.#sink = config.sink;
+    this.#logger = config.logger;
     config.workflowEventBus.on((event) => {
       if (event.type === "phase:start") {
         this.#currentPhase = event.phase;
@@ -71,6 +76,9 @@ export class MockLlmProvider implements LlmProviderPort {
     const callIndex = this.#callIndex;
     const phase = this.#currentPhase;
     const timestamp = new Date().toISOString();
+    const promptPreview = prompt.slice(0, 500);
+
+    this.#logger?.debug("LLM call", { phase, callIndex, promptPreview });
 
     // Route to the correct mock response based on unique structural markers in each prompt type.
     // "planAdjustment" only appears in REFLECT step prompts (agent-loop-service.ts).
@@ -92,6 +100,8 @@ export class MockLlmProvider implements LlmProviderPort {
       durationMs,
       timestamp,
     });
+
+    this.#logger?.debug("LLM response", { callIndex, responseSummary: response.slice(0, 200) });
 
     return {
       ok: true,

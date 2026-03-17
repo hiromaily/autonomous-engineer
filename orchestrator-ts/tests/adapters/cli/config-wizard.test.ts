@@ -26,7 +26,7 @@ function makePrompts(overrides: {
 // ---------------------------------------------------------------------------
 
 describe("ConfigWizard — prompt sequence", () => {
-  it("returns WizardInput with all four fields on happy path", async () => {
+  it("returns WizardInput with all five fields on happy path", async () => {
     const selectMock = mock(async (opts: { initialValue?: string }) => opts.initialValue ?? "claude");
     const textMock = mock(async (opts: { defaultValue?: string }) => opts.defaultValue ?? "");
     const prompts = makePrompts({ select: selectMock, text: textMock });
@@ -40,10 +40,11 @@ describe("ConfigWizard — prompt sequence", () => {
       expect(result.modelName).toBe("claude-opus-4-6");
       expect(result.sddFramework).toBe("cc-sdd");
       expect(result.specDir).toBe(".kiro/specs");
+      expect(result.logLevel).toBe("info");
     }
   });
 
-  it("calls select twice (provider and sddFramework) and text twice (modelName and specDir)", async () => {
+  it("calls select three times (provider, sddFramework, logLevel) and text twice (modelName and specDir)", async () => {
     const selectMock = mock(async (opts: { initialValue?: string }) => opts.initialValue ?? "claude");
     const textMock = mock(async (opts: { defaultValue?: string }) => opts.defaultValue ?? "value");
     const prompts = makePrompts({ select: selectMock, text: textMock });
@@ -51,7 +52,7 @@ describe("ConfigWizard — prompt sequence", () => {
     const wizard = new ConfigWizard(prompts);
     await wizard.run();
 
-    expect(selectMock).toHaveBeenCalledTimes(2);
+    expect(selectMock).toHaveBeenCalledTimes(3);
     expect(textMock).toHaveBeenCalledTimes(2);
   });
 
@@ -243,6 +244,8 @@ describe("ConfigWizard — prompt ordering", () => {
     expect(callOrder[2]).toMatch(/framework|sdd/i);
     expect(callOrder[3]).toMatch(/text/);
     expect(callOrder[3]).toMatch(/spec|dir/i);
+    expect(callOrder[4]).toMatch(/select/);
+    expect(callOrder[4]).toMatch(/log.?level|level/i);
   });
 });
 
@@ -420,6 +423,93 @@ describe("ConfigWizard — cancellation handling", () => {
     await wizard.run();
 
     expect(textMock).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 7: Log level selection step
+// ---------------------------------------------------------------------------
+
+describe("ConfigWizard — logLevel selection", () => {
+  it("uses 'info' as the default logLevel", async () => {
+    const selectMock = mock(async (opts: { initialValue?: string }) => opts.initialValue ?? "claude");
+    const textMock = mock(async (opts: { defaultValue?: string }) => opts.defaultValue ?? "value");
+    const prompts = makePrompts({ select: selectMock, text: textMock });
+
+    const wizard = new ConfigWizard(prompts);
+    const result = await wizard.run();
+
+    // The third select call should have initialValue: 'info'
+    const thirdSelectCallArgs = (selectMock.mock.calls as Array<[{ initialValue?: string }]>)[2]?.[0];
+    expect(thirdSelectCallArgs?.initialValue).toBe("info");
+    if (result !== "cancelled") {
+      expect(result.logLevel).toBe("info");
+    }
+  });
+
+  it("presents exactly the four valid log levels as choices", async () => {
+    const selectMock = mock(async (opts: { options?: ReadonlyArray<{ value: string }> }) => {
+      return opts.options?.[0]?.value ?? "claude";
+    });
+    const textMock = mock(async (opts: { defaultValue?: string }) => opts.defaultValue ?? "value");
+    const prompts = makePrompts({ select: selectMock, text: textMock });
+
+    const wizard = new ConfigWizard(prompts);
+    await wizard.run();
+
+    // The third select call is the logLevel prompt
+    const thirdCallArgs = (selectMock.mock.calls as Array<[{ options?: ReadonlyArray<{ value: string }> }]>)[2]?.[0];
+    const values = thirdCallArgs?.options?.map((o) => o.value);
+    expect(values).toEqual(["debug", "info", "warn", "error"]);
+  });
+
+  it("uses defaults.logLevel as initialValue for the logLevel select", async () => {
+    const selectMock = mock(async (opts: { initialValue?: string }) => opts.initialValue ?? "claude");
+    const textMock = mock(async (opts: { defaultValue?: string }) => opts.defaultValue ?? "value");
+    const prompts = makePrompts({ select: selectMock, text: textMock });
+
+    const wizard = new ConfigWizard(prompts);
+    await wizard.run({ logLevel: "warn" });
+
+    const thirdSelectCallArgs = (selectMock.mock.calls as Array<[{ initialValue?: string }]>)[2]?.[0];
+    expect(thirdSelectCallArgs?.initialValue).toBe("warn");
+  });
+
+  it("reflects user-selected logLevel in the returned WizardInput", async () => {
+    let selectCallCount = 0;
+    const selectMock = mock(async (opts: { initialValue?: string }) => {
+      selectCallCount++;
+      if (selectCallCount === 3) return "debug"; // logLevel step
+      return opts.initialValue ?? "claude";
+    });
+    const textMock = mock(async (opts: { defaultValue?: string }) => opts.defaultValue ?? "value");
+    const prompts = makePrompts({ select: selectMock, text: textMock });
+
+    const wizard = new ConfigWizard(prompts);
+    const result = await wizard.run();
+
+    expect(result).not.toBe("cancelled");
+    if (result !== "cancelled") {
+      expect(result.logLevel).toBe("debug");
+    }
+  });
+
+  it("returns 'cancelled' when user cancels at the logLevel prompt", async () => {
+    let selectCallCount = 0;
+    const selectMock = mock(async (opts: { initialValue?: string }) => {
+      selectCallCount++;
+      if (selectCallCount === 3) return CANCEL_SYMBOL; // logLevel step: cancel
+      return opts.initialValue ?? "claude";
+    });
+    const textMock = mock(async (opts: { defaultValue?: string }) => opts.defaultValue ?? "value");
+    const isCancelMock = mock((v: unknown) => v === CANCEL_SYMBOL);
+    const prompts = makePrompts({ select: selectMock, text: textMock, isCancel: isCancelMock });
+
+    const wizard = new ConfigWizard(prompts);
+    const result = await wizard.run();
+
+    expect(result).toBe("cancelled");
+    expect(selectMock).toHaveBeenCalledTimes(3);
   });
 });
 

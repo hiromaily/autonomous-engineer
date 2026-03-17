@@ -1,3 +1,4 @@
+import type { ILogger } from "@/application/ports/logger";
 import { ClaudeProvider } from "@/infra/llm/claude-provider";
 import Anthropic from "@anthropic-ai/sdk";
 import { describe, expect, it, mock } from "bun:test";
@@ -160,5 +161,109 @@ describe("ClaudeProvider.clearContext()", () => {
       provider.clearContext();
       provider.clearContext();
     }).not.toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// logger integration (task 6.2)
+// ---------------------------------------------------------------------------
+
+function makeLogger(): ILogger {
+  return {
+    debug: mock(() => {}),
+    info: mock(() => {}),
+    warn: mock(() => {}),
+    error: mock(() => {}),
+  };
+}
+
+describe("ClaudeProvider logger integration", () => {
+  it("emits debug before the LLM call with callIndex and promptPreview", async () => {
+    const client = makeClient(() => Promise.resolve(makeSuccessResponse("ok")));
+    const logger = makeLogger();
+    const provider = new ClaudeProvider({ apiKey: "key", modelName: "claude-sonnet-4-6" }, client, logger);
+
+    await provider.complete("Hello world");
+
+    const debugCalls = (logger.debug as ReturnType<typeof mock>).mock.calls as [string, object?][];
+    const beforeCallEntry = debugCalls.find(([msg]) => msg === "LLM call");
+    expect(beforeCallEntry).toBeDefined();
+    expect(beforeCallEntry?.[1]).toMatchObject({ callIndex: 1, promptPreview: "Hello world" });
+  });
+
+  it("truncates promptPreview to 500 characters", async () => {
+    const client = makeClient(() => Promise.resolve(makeSuccessResponse("ok")));
+    const logger = makeLogger();
+    const provider = new ClaudeProvider({ apiKey: "key", modelName: "claude-sonnet-4-6" }, client, logger);
+    const longPrompt = "x".repeat(1000);
+
+    await provider.complete(longPrompt);
+
+    const debugCalls = (logger.debug as ReturnType<typeof mock>).mock.calls as [string, object?][];
+    const beforeCallEntry = debugCalls.find(([msg]) => msg === "LLM call");
+    const ctx = beforeCallEntry?.[1] as { promptPreview: string } | undefined;
+    expect(ctx?.promptPreview.length).toBe(500);
+  });
+
+  it("emits debug after a successful response with callIndex and responseSummary", async () => {
+    const client = makeClient(() => Promise.resolve(makeSuccessResponse("response text")));
+    const logger = makeLogger();
+    const provider = new ClaudeProvider({ apiKey: "key", modelName: "claude-sonnet-4-6" }, client, logger);
+
+    await provider.complete("prompt");
+
+    const debugCalls = (logger.debug as ReturnType<typeof mock>).mock.calls as [string, object?][];
+    const afterCallEntry = debugCalls.find(([msg]) => msg === "LLM response");
+    expect(afterCallEntry).toBeDefined();
+    expect(afterCallEntry?.[1]).toMatchObject({ callIndex: 1, responseSummary: "response text" });
+  });
+
+  it("emits error on LLM failure with callIndex, errorCategory, and errorMessage", async () => {
+    const client = makeClient(() => Promise.reject(new Error("api error")));
+    const logger = makeLogger();
+    const provider = new ClaudeProvider({ apiKey: "key", modelName: "claude-sonnet-4-6" }, client, logger);
+
+    await provider.complete("prompt");
+
+    const errorCalls = (logger.error as ReturnType<typeof mock>).mock.calls as [string, object?][];
+    const llmErrorEntry = errorCalls.find(([msg]) => msg === "LLM error");
+    expect(llmErrorEntry).toBeDefined();
+    expect(llmErrorEntry?.[1]).toMatchObject({
+      callIndex: 1,
+      errorCategory: "api_error",
+      errorMessage: "api error",
+    });
+  });
+
+  it("increments callIndex monotonically across calls", async () => {
+    const client = makeClient(() => Promise.resolve(makeSuccessResponse("ok")));
+    const logger = makeLogger();
+    const provider = new ClaudeProvider({ apiKey: "key", modelName: "claude-sonnet-4-6" }, client, logger);
+
+    await provider.complete("first");
+    await provider.complete("second");
+
+    const debugCalls = (logger.debug as ReturnType<typeof mock>).mock.calls as [string, object?][];
+    const callEntries = debugCalls.filter(([msg]) => msg === "LLM call");
+    expect(callEntries[0]?.[1]).toMatchObject({ callIndex: 1 });
+    expect(callEntries[1]?.[1]).toMatchObject({ callIndex: 2 });
+  });
+
+  it("never logs at info or warn level during LLM interactions", async () => {
+    const client = makeClient(() => Promise.resolve(makeSuccessResponse("ok")));
+    const logger = makeLogger();
+    const provider = new ClaudeProvider({ apiKey: "key", modelName: "claude-sonnet-4-6" }, client, logger);
+
+    await provider.complete("prompt");
+
+    expect(logger.info).not.toHaveBeenCalled();
+    expect(logger.warn).not.toHaveBeenCalled();
+  });
+
+  it("does not throw when no logger is provided", async () => {
+    const client = makeClient(() => Promise.resolve(makeSuccessResponse("ok")));
+    const provider = new ClaudeProvider({ apiKey: "key", modelName: "claude-sonnet-4-6" }, client);
+
+    await expect(provider.complete("prompt")).resolves.toBeDefined();
   });
 });

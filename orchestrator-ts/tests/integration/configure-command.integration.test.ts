@@ -61,6 +61,7 @@ describe("aes configure integration: writes aes.config.json", () => {
       modelName: "claude-opus-4-6",
       sddFramework: "cc-sdd",
       specDir: ".kiro/specs",
+      logLevel: "info",
     };
 
     const cmd = new ConfigureCommand({
@@ -85,6 +86,7 @@ describe("aes configure integration: writes aes.config.json", () => {
       modelName: "claude-opus-4-6",
       sddFramework: "cc-sdd",
       specDir: ".kiro/specs",
+      logLevel: "info",
     };
 
     const cmd = new ConfigureCommand({
@@ -115,6 +117,7 @@ describe("aes configure integration: writes aes.config.json", () => {
       modelName: "claude-sonnet-4-6",
       sddFramework: "cc-sdd",
       specDir: "custom/spec/dir",
+      logLevel: "info",
     };
 
     const cmd = new ConfigureCommand({
@@ -156,6 +159,7 @@ describe("aes configure integration: apiKey is absent from written file", () => 
       modelName: "claude-opus-4-6",
       sddFramework: "cc-sdd",
       specDir: ".kiro/specs",
+      logLevel: "info",
     };
 
     const cmd = new ConfigureCommand({
@@ -185,6 +189,7 @@ describe("aes configure integration: apiKey is absent from written file", () => 
       modelName: "claude-opus-4-6",
       sddFramework: "cc-sdd",
       specDir: ".kiro/specs",
+      logLevel: "info",
     };
 
     const cmd = new ConfigureCommand({

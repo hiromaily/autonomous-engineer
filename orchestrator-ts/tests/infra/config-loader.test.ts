@@ -161,5 +161,68 @@ describe("ConfigLoader", () => {
       const frameworks: Array<"cc-sdd" | "openspec" | "speckit"> = ["cc-sdd", "openspec", "speckit"];
       expect(frameworks).toContain(config.sddFramework);
     });
+
+    describe("logLevel", () => {
+      it("parses logLevel from aes.config.json", async () => {
+        const raw = {
+          llm: { provider: "anthropic", modelName: "claude-sonnet-4-6", apiKey: "sk-test" },
+          logLevel: "warn",
+        };
+        await writeFile(join(tmpDir, "aes.config.json"), JSON.stringify(raw));
+
+        const loader = new ConfigLoader(tmpDir, {});
+        const config = await loader.load();
+
+        expect(config.logLevel).toBe("warn");
+      });
+
+      it("defaults logLevel to info when absent from file and env", async () => {
+        const raw = {
+          llm: { provider: "anthropic", modelName: "claude-sonnet-4-6", apiKey: "sk-test" },
+        };
+        await writeFile(join(tmpDir, "aes.config.json"), JSON.stringify(raw));
+
+        const loader = new ConfigLoader(tmpDir, {});
+        const config = await loader.load();
+
+        expect(config.logLevel).toBe("info");
+      });
+
+      it("throws ConfigValidationError with logLevel in missingFields for invalid value", async () => {
+        const raw = {
+          llm: { provider: "anthropic", modelName: "claude-sonnet-4-6", apiKey: "sk-test" },
+          logLevel: "verbose",
+        };
+        await writeFile(join(tmpDir, "aes.config.json"), JSON.stringify(raw));
+
+        const loader = new ConfigLoader(tmpDir, {});
+
+        let caught: unknown;
+        try {
+          await loader.load();
+        } catch (err) {
+          caught = err;
+        }
+
+        expect(caught).toBeInstanceOf(ConfigValidationError);
+        const err = caught as ConfigValidationError;
+        expect(err.missingFields).toContain("logLevel");
+      });
+
+      it("accepts all four valid logLevel values", async () => {
+        for (const level of ["debug", "info", "warn", "error"] as const) {
+          const raw = {
+            llm: { provider: "anthropic", modelName: "claude-sonnet-4-6", apiKey: "sk-test" },
+            logLevel: level,
+          };
+          await writeFile(join(tmpDir, "aes.config.json"), JSON.stringify(raw));
+
+          const loader = new ConfigLoader(tmpDir, {});
+          const config = await loader.load();
+
+          expect(config.logLevel).toBe(level);
+        }
+      });
+    });
   });
 });

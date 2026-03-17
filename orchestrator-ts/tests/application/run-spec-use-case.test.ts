@@ -5,6 +5,7 @@ import type {
   ImplementationLoopResult,
 } from "@/application/ports/implementation-loop";
 import type { LlmProviderPort } from "@/application/ports/llm";
+import type { ILogger } from "@/application/ports/logger";
 import type { MemoryPort, ShortTermMemoryPort } from "@/application/ports/memory";
 import type { SddFrameworkPort } from "@/application/ports/sdd";
 import type { IWorkflowEventBus, IWorkflowStateStore, WorkflowEvent } from "@/application/ports/workflow";
@@ -91,6 +92,7 @@ const baseConfig: AesConfig = {
   llm: { provider: "claude", modelName: "claude-sonnet-4-6", apiKey: "test-key" },
   specDir: "/tmp/specs",
   sddFramework: "cc-sdd",
+  logLevel: "info",
 };
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
@@ -482,6 +484,136 @@ describe("RunSpecUseCase", () => {
       });
 
       expect(result.status).toBe("completed");
+    });
+  });
+
+  describe("phase lifecycle logging", () => {
+    function makeRealEventBus(): IWorkflowEventBus {
+      const handlers: Array<(event: WorkflowEvent) => void> = [];
+      return {
+        emit(event) {
+          for (const h of handlers) h(event);
+        },
+        on(handler) {
+          handlers.push(handler);
+        },
+        off(handler) {
+          const idx = handlers.indexOf(handler);
+          if (idx !== -1) handlers.splice(idx, 1);
+        },
+      };
+    }
+
+    function makeLogger(): ILogger {
+      return {
+        debug: mock(() => {}),
+        info: mock(() => {}),
+        warn: mock(() => {}),
+        error: mock(() => {}),
+      };
+    }
+
+    async function setupSpecDir(parent: string, specName: string): Promise<void> {
+      const specSubDir = join(parent, specName);
+      await mkdir(specSubDir, { recursive: true });
+      await writeFile(
+        join(specSubDir, "spec.json"),
+        JSON.stringify({
+          approvals: {
+            human_interaction: { approved: true },
+            requirements: { approved: true },
+            design: { approved: true },
+            tasks: { approved: true },
+          },
+          ready_for_implementation: true,
+        }),
+      );
+      await writeFile(join(specSubDir, "requirements.md"), "# Requirements");
+      await writeFile(join(specSubDir, "design.md"), "# Design");
+      await writeFile(join(specSubDir, "tasks.md"), "# Tasks");
+    }
+
+    it("emits info log with { phase, specName } when a phase begins", async () => {
+      await setupSpecDir(tmpDir, "test-spec");
+      const logger = makeLogger();
+      const useCase = new RunSpecUseCase({
+        stateStore: makeStateStore({ persist: mock(() => Promise.resolve()) }),
+        eventBus: makeRealEventBus(),
+        sdd: makeSdd(),
+        createLlmProvider: () => makeLlm(),
+        memory: makeMemoryPort(),
+        logger,
+      });
+
+      await useCase.run("test-spec", { ...baseConfig, specDir: tmpDir }, { dryRun: false });
+
+      const infoCalls = (logger.info as ReturnType<typeof mock>).mock.calls as [string, object?][];
+      const phaseStartCalls = infoCalls.filter(([msg]) => msg === "Phase started");
+      expect(phaseStartCalls.length).toBeGreaterThan(0);
+      expect(phaseStartCalls[0]?.[1]).toMatchObject({ phase: expect.any(String), specName: "test-spec" });
+    });
+
+    it("emits info log with { phase, outcome } when a phase completes", async () => {
+      await setupSpecDir(tmpDir, "test-spec");
+      const logger = makeLogger();
+      const useCase = new RunSpecUseCase({
+        stateStore: makeStateStore({ persist: mock(() => Promise.resolve()) }),
+        eventBus: makeRealEventBus(),
+        sdd: makeSdd(),
+        createLlmProvider: () => makeLlm(),
+        memory: makeMemoryPort(),
+        logger,
+      });
+
+      await useCase.run("test-spec", { ...baseConfig, specDir: tmpDir }, { dryRun: false });
+
+      const infoCalls = (logger.info as ReturnType<typeof mock>).mock.calls as [string, object?][];
+      const phaseCompleteCalls = infoCalls.filter(([msg]) => msg === "Phase completed");
+      expect(phaseCompleteCalls.length).toBeGreaterThan(0);
+      expect(phaseCompleteCalls[0]?.[1]).toMatchObject({
+        phase: expect.any(String),
+        outcome: "completed",
+        durationMs: expect.any(Number),
+      });
+    });
+
+    it("emits error log with { phase, reason } when a phase fails", async () => {
+      const failingSdd = makeSdd();
+      (failingSdd.initSpec as ReturnType<typeof mock>) = mock(() =>
+        Promise.resolve({ ok: false as const, error: { exitCode: 1, stderr: "init failed" } })
+      );
+      const logger = makeLogger();
+      const useCase = new RunSpecUseCase({
+        stateStore: makeStateStore({ persist: mock(() => Promise.resolve()) }),
+        eventBus: makeRealEventBus(),
+        sdd: failingSdd,
+        createLlmProvider: () => makeLlm(),
+        memory: makeMemoryPort(),
+        logger,
+      });
+
+      const result = await useCase.run("test-spec", { ...baseConfig, specDir: tmpDir }, { dryRun: false });
+
+      expect(result.status).toBe("failed");
+      const errorCalls = (logger.error as ReturnType<typeof mock>).mock.calls as [string, object?][];
+      const phaseErrorCalls = errorCalls.filter(([msg]) => msg === "Phase failed");
+      expect(phaseErrorCalls.length).toBeGreaterThan(0);
+      expect(phaseErrorCalls[0]?.[1]).toMatchObject({ phase: expect.any(String), reason: expect.any(String) });
+    });
+
+    it("does not crash when no logger is provided", async () => {
+      await setupSpecDir(tmpDir, "test-spec");
+      const useCase = new RunSpecUseCase({
+        stateStore: makeStateStore({ persist: mock(() => Promise.resolve()) }),
+        eventBus: makeRealEventBus(),
+        sdd: makeSdd(),
+        createLlmProvider: () => makeLlm(),
+        memory: makeMemoryPort(),
+      });
+
+      await expect(
+        useCase.run("test-spec", { ...baseConfig, specDir: tmpDir }, { dryRun: false }),
+      ).resolves.toBeDefined();
     });
   });
 

@@ -33,14 +33,14 @@ const runCommand = defineCommand({
       type: "string",
       description: "Write workflow events as NDJSON to this file",
     },
-    "debug-flow": {
+    "debug": {
       type: "boolean",
       description: "Run with a mock LLM, auto-approve gates, and emit debug logs",
       default: false,
     },
-    "debug-flow-log": {
+    "debug-log": {
       type: "string",
-      description: "Write debug events as NDJSON to this file (default: stderr)",
+      description: "Route ILogger debug-level output to this file",
     },
   },
   async run({ args }) {
@@ -51,8 +51,8 @@ const runCommand = defineCommand({
       process.exit(1);
     }
 
-    const debugFlow = Boolean(args["debug-flow"]);
-    const debugFlowLog = args["debug-flow-log"] as string | undefined;
+    const debug = Boolean(args["debug"]);
+    const debugLog = args["debug-log"] as string | undefined;
 
     // Load configuration
     const configLoader = new ConfigLoader();
@@ -60,14 +60,14 @@ const runCommand = defineCommand({
     try {
       config = await configLoader.load();
     } catch (err) {
-      if (err instanceof ConfigValidationError && debugFlow) {
+      if (err instanceof ConfigValidationError && debug) {
         const nonLlmMissingFields = err.missingFields.filter((f) => !f.startsWith("llm."));
         if (nonLlmMissingFields.length > 0) {
           process.stderr.write(`Error: configuration missing required fields: ${nonLlmMissingFields.join(", ")}\n`);
           process.exit(1);
         }
         process.stderr.write(
-          "[DEBUG-FLOW] Config validation for LLM fields skipped; using placeholder values.\n",
+          "[DEBUG] Config validation for LLM fields skipped; using placeholder values.\n",
         );
         config = await new ConfigLoader(process.cwd(), {
           ...process.env,
@@ -90,19 +90,20 @@ const runCommand = defineCommand({
       }
     }
 
-    if (debugFlow) {
-      process.stderr.write("[DEBUG-FLOW MODE] Running with mock LLM and auto-approved gates.\n");
-    }
-
     // Wire dependencies via composition root
     const logJsonPath = args["log-json"] as string | undefined;
     const providerOverride = args.provider as string | undefined;
-    const { useCase, eventBus, logWriter, debugWriter } = new RunContainer(config, {
-      debugFlow,
-      ...(debugFlowLog !== undefined ? { debugFlowLog } : {}),
+    const container = new RunContainer(config, {
+      debug,
+      ...(debugLog !== undefined ? { debugLog } : {}),
       ...(logJsonPath !== undefined ? { logJsonPath } : {}),
       ...(providerOverride !== undefined ? { providerOverride } : {}),
-    }).build();
+    });
+    const { useCase, eventBus, logWriter, debugWriter, logger } = container.build();
+
+    if (debug) {
+      logger.info("Running with mock LLM and auto-approved gates.");
+    }
 
     // Attach renderer
     const renderer = new CliRenderer((text) => process.stdout.write(text));
@@ -128,11 +129,12 @@ const configureCommand = defineCommand({
     description: "Interactively configure aes settings",
   },
   async run() {
-    const { configWriter, frameworkChecker } = new ConfigureContainer().build();
+    const { configWriter, frameworkChecker, logger } = new ConfigureContainer().build();
     const cmd = new ConfigureCommand({
       wizard: new ConfigWizard(),
       configWriter,
       frameworkChecker,
+      logger,
     });
     await cmd.run();
   },

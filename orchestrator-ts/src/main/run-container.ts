@@ -2,16 +2,20 @@ import type { AesConfig } from "@/application/ports/config";
 import type { IDebugEventSink } from "@/application/ports/debug";
 import type { IImplementationLoop } from "@/application/ports/implementation-loop";
 import type { LlmProviderPort } from "@/application/ports/llm";
+import type { ILogger } from "@/application/ports/logger";
 import type { IJsonLogWriter } from "@/application/ports/logging";
 import { DebugAgentEventBus } from "@/application/services/agent/debug-agent-event-bus";
+import { ToolContextLogger } from "@/application/services/tools/tool-context-logger";
 import { DebugApprovalGate } from "@/application/services/workflow/debug-approval-gate";
 import { RunSpecUseCase } from "@/application/usecases/run-spec";
 import { WorkflowEventBus } from "@/infra/events/workflow-event-bus";
 import { createImplementationLoopService } from "@/infra/implementation-loop/create-implementation-loop-service";
 import { ClaudeProvider } from "@/infra/llm/claude-provider";
 import { MockLlmProvider } from "@/infra/llm/mock-llm-provider";
+import { ConsoleLogger } from "@/infra/logger/console-logger";
 import { DebugLogWriter } from "@/infra/logger/debug-log-writer";
 import { JsonLogWriter } from "@/infra/logger/json-log-writer";
+import { NdjsonFileLogger } from "@/infra/logger/ndjson-file-logger";
 import { FileMemoryStore } from "@/infra/memory/file-memory-store";
 import { CcSddAdapter } from "@/infra/sdd/cc-sdd-adapter";
 import { MockSddAdapter } from "@/infra/sdd/mock-sdd-adapter";
@@ -23,11 +27,12 @@ export interface RunDependencies {
   readonly eventBus: WorkflowEventBus;
   readonly logWriter: IJsonLogWriter | null;
   readonly debugWriter: IDebugEventSink | null;
+  readonly logger: ILogger;
 }
 
 export interface RunOptions {
-  readonly debugFlow: boolean;
-  readonly debugFlowLog?: string;
+  readonly debug: boolean;
+  readonly debugLog?: string;
   readonly logJsonPath?: string;
   readonly providerOverride?: string;
 }
@@ -58,6 +63,8 @@ export class RunContainer {
   private _implementationLoop?: IImplementationLoop;
   private _memory?: FileMemoryStore;
   private _useCase?: RunSpecUseCase;
+  private _logger?: ILogger;
+  private _toolContextLogger?: ToolContextLogger;
 
   // --------------------------------------------------------------------------
   // Private lazy getters
@@ -81,8 +88,8 @@ export class RunContainer {
 
   private get debugWriter(): IDebugEventSink | null {
     if (this._debugWriter === undefined) {
-      this._debugWriter = this.options.debugFlow
-        ? new DebugLogWriter(this.options.debugFlowLog)
+      this._debugWriter = this.options.debug
+        ? new DebugLogWriter()
         : null;
     }
     return this._debugWriter;
@@ -106,12 +113,30 @@ export class RunContainer {
     return this._debugAgentEventBus;
   }
 
+  private get logger(): ILogger {
+    if (!this._logger) {
+      const minLevel = this.options.debug ? "debug" : this.config.logLevel;
+      this._logger = this.options.debugLog !== undefined
+        ? new NdjsonFileLogger(this.options.debugLog, minLevel)
+        : new ConsoleLogger(minLevel);
+    }
+    return this._logger;
+  }
+
+  private get toolContextLogger(): ToolContextLogger {
+    if (!this._toolContextLogger) {
+      this._toolContextLogger = new ToolContextLogger(this.logger);
+    }
+    return this._toolContextLogger;
+  }
+
   private get implementationLoop(): IImplementationLoop {
     if (!this._implementationLoop) {
       this._implementationLoop = createImplementationLoopService({
         llm: this.newLlmProvider(),
         workspaceRoot: process.cwd(),
-        noOpGit: this.options.debugFlow,
+        noOpGit: this.options.debug,
+        logger: this.toolContextLogger,
       });
     }
     return this._implementationLoop;
@@ -131,10 +156,11 @@ export class RunContainer {
       this._useCase = new RunSpecUseCase({
         stateStore: new WorkflowStateStore(),
         eventBus: this.eventBus,
-        sdd: this.options.debugFlow ? new MockSddAdapter(this.debugWriter ?? undefined) : new CcSddAdapter(),
+        sdd: this.options.debug ? new MockSddAdapter(this.debugWriter ?? undefined) : new CcSddAdapter(),
         memory: this.memory,
         implementationLoop: this.implementationLoop,
         createLlmProvider: (_cfg, override) => this.newLlmProvider(override),
+        logger: this.logger,
         ...(debugApprovalGate !== null ? { approvalGate: debugApprovalGate } : {}),
         ...(debugAgentEventBus !== null ? { implementationLoopOptions: { agentEventBus: debugAgentEventBus } } : {}),
       });
@@ -150,13 +176,17 @@ export class RunContainer {
 
   private newLlmProvider(providerOverride?: string): LlmProviderPort {
     const writer = this.debugWriter;
-    if (this.options.debugFlow && writer !== null) {
-      return new MockLlmProvider({ sink: writer, workflowEventBus: this.eventBus });
+    if (this.options.debug && writer !== null) {
+      return new MockLlmProvider({ sink: writer, workflowEventBus: this.eventBus, logger: this.logger });
     }
     const provider = providerOverride ?? this.options.providerOverride ?? this.config.llm.provider;
     switch (provider) {
       case "claude":
-        return new ClaudeProvider({ apiKey: this.config.llm.apiKey, modelName: this.config.llm.modelName });
+        return new ClaudeProvider(
+          { apiKey: this.config.llm.apiKey, modelName: this.config.llm.modelName },
+          undefined,
+          this.logger,
+        );
       default:
         throw new Error(`Unsupported LLM provider: '${provider}'`);
     }
@@ -171,20 +201,59 @@ export class RunContainer {
    * RunDependencies. Should be called exactly once per container instance.
    */
   build(): RunDependencies {
+    // Resolve logger first — required for all subsequent DI log entries.
+    const logger = this.logger;
+    logger.debug("DI resolved", { dependency: "logger", impl: "ConsoleLogger" });
+
+    // Resolve and log each infrastructure dependency.
+    const eventBus = this.eventBus;
+    logger.debug("DI resolved", { dependency: "eventBus", impl: "WorkflowEventBus" });
+
     const logWriter = this.logWriter;
+    logger.debug("DI resolved", {
+      dependency: "logWriter",
+      impl: logWriter !== null ? "JsonLogWriter" : "null",
+    });
+
+    const debugWriter = this.debugWriter;
+    logger.debug("DI resolved", {
+      dependency: "debugWriter",
+      impl: debugWriter !== null ? "DebugLogWriter" : "null",
+    });
+
+    logger.debug("DI resolved", { dependency: "toolContextLogger", impl: "ToolContextLogger" });
+
+    const memory = this.memory;
+    logger.debug("DI resolved", { dependency: "memory", impl: "FileMemoryStore" });
+
+    // Announce mock substitutions before the use case is constructed so that
+    // operators see the active stub list at the top of the debug output.
+    if (this.options.debug) {
+      logger.info("Mock substitution active", {
+        dependency: "llmProvider",
+        impl: "MockLlmProvider",
+        reason: "debug mode",
+      });
+      logger.info("Mock substitution active", {
+        dependency: "sdd",
+        impl: "MockSddAdapter",
+        reason: "debug mode",
+      });
+    }
+
+    // Resolve the use case last — its construction pulls in the remaining deps.
+    const useCase = this.useCase;
+    logger.debug("DI resolved", { dependency: "useCase", impl: "RunSpecUseCase" });
+
+    // Wire side-effects (event-bus → log writer).
     if (logWriter !== null) {
-      this.eventBus.on((event) => {
+      eventBus.on((event) => {
         logWriter.write(event).catch((err) => {
-          process.stderr.write(`Warning: failed to write to log file: ${getErrorMessage(err)}\n`);
+          logger.warn("Failed to write to log file", { error: getErrorMessage(err) });
         });
       });
     }
 
-    return {
-      useCase: this.useCase,
-      eventBus: this.eventBus,
-      logWriter: this.logWriter,
-      debugWriter: this.debugWriter,
-    };
+    return { useCase, eventBus, logWriter, debugWriter, logger };
   }
 }

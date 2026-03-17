@@ -1,5 +1,6 @@
 import type { IConfigWizard, WizardDefaults, WizardInput } from "@/adapters/cli/config-wizard";
 import type { IConfigWriter, IFrameworkChecker, WritableConfig } from "@/application/ports/config";
+import { type ILogger, LOG_LEVEL_ORDER, type LogLevel } from "@/application/ports/logger";
 import { readFile as fsReadFile } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -7,6 +8,7 @@ export interface ConfigureCommandOptions {
   readonly wizard: IConfigWizard;
   readonly configWriter: IConfigWriter;
   readonly frameworkChecker: IFrameworkChecker;
+  readonly logger?: ILogger;
   readonly cwd?: string;
   /** Override the TTY check; defaults to `process.stdin.isTTY`. */
   readonly isTTY?: boolean;
@@ -104,6 +106,7 @@ export class ConfigureCommand {
         ...(typeof llm?.modelName === "string" ? { modelName: llm.modelName } : {}),
         ...(isValidSddFramework(raw.sddFramework) ? { sddFramework: raw.sddFramework } : {}),
         ...(typeof raw.specDir === "string" ? { specDir: raw.specDir } : {}),
+        ...(isValidLogLevel(raw.logLevel) ? { logLevel: raw.logLevel } : {}),
       };
     } catch {
       // Missing or malformed config file: treat as no defaults (Req 2.2)
@@ -116,6 +119,10 @@ function isValidSddFramework(value: unknown): value is "cc-sdd" | "openspec" | "
   return value === "cc-sdd" || value === "openspec" || value === "speckit";
 }
 
+function isValidLogLevel(value: unknown): value is LogLevel {
+  return typeof value === "string" && (LOG_LEVEL_ORDER as readonly string[]).includes(value);
+}
+
 function toWritableConfig(input: WizardInput): WritableConfig {
   return {
     llm: {
@@ -124,5 +131,6 @@ function toWritableConfig(input: WizardInput): WritableConfig {
     },
     specDir: input.specDir,
     sddFramework: input.sddFramework,
+    logLevel: input.logLevel,
   };
 }

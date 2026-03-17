@@ -12,6 +12,7 @@ export class ConfigWriter implements IConfigWriter {
       },
       specDir: config.specDir,
       sddFramework: config.sddFramework,
+      ...(config.logLevel !== undefined ? { logLevel: config.logLevel } : {}),
     };
     await writeFile(configPath, JSON.stringify(output, null, 2), "utf-8");
   }

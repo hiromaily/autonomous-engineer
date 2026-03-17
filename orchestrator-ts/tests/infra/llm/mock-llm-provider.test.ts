@@ -1,9 +1,10 @@
 import type { IDebugEventSink } from "@/application/ports/debug";
+import type { ILogger } from "@/application/ports/logger";
 import type { IWorkflowEventBus } from "@/application/ports/workflow";
 import type { WorkflowEvent } from "@/application/ports/workflow";
 import type { DebugEvent } from "@/domain/debug/types";
 import { MockLlmProvider } from "@/infra/llm/mock-llm-provider";
-import { beforeEach, describe, expect, it } from "bun:test";
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 
 // ---------------------------------------------------------------------------
 // Test doubles
@@ -195,5 +196,89 @@ describe("MockLlmProvider.clearContext()", () => {
 
     const phases = sink.events.map((e) => (e.type === "llm:call" ? e.phase : ""));
     expect(phases).toEqual(["SPEC_DESIGN", "SPEC_DESIGN"]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// logger integration (task 6.2)
+// ---------------------------------------------------------------------------
+
+function makeLogger(): ILogger {
+  return {
+    debug: mock(() => {}),
+    info: mock(() => {}),
+    warn: mock(() => {}),
+    error: mock(() => {}),
+  };
+}
+
+describe("MockLlmProvider logger integration", () => {
+  it("emits debug before the LLM call with phase, callIndex, and promptPreview", async () => {
+    const sink = makeSink();
+    const bus = makeEventBus();
+    const logger = makeLogger();
+    const provider = new MockLlmProvider({ sink, workflowEventBus: bus, logger });
+    bus.emit({ type: "phase:start", phase: "SPEC_REQUIREMENTS", timestamp: "t" });
+
+    await provider.complete("Hello world");
+
+    const debugCalls = (logger.debug as ReturnType<typeof mock>).mock.calls as [string, object?][];
+    const beforeCallEntry = debugCalls.find(([msg]) => msg === "LLM call");
+    expect(beforeCallEntry).toBeDefined();
+    expect(beforeCallEntry?.[1]).toMatchObject({
+      phase: "SPEC_REQUIREMENTS",
+      callIndex: 1,
+      promptPreview: "Hello world",
+    });
+  });
+
+  it("truncates promptPreview to 500 characters", async () => {
+    const sink = makeSink();
+    const bus = makeEventBus();
+    const logger = makeLogger();
+    const provider = new MockLlmProvider({ sink, workflowEventBus: bus, logger });
+    const longPrompt = "y".repeat(1000);
+
+    await provider.complete(longPrompt);
+
+    const debugCalls = (logger.debug as ReturnType<typeof mock>).mock.calls as [string, object?][];
+    const beforeCallEntry = debugCalls.find(([msg]) => msg === "LLM call");
+    const ctx = beforeCallEntry?.[1] as { promptPreview: string } | undefined;
+    expect(ctx?.promptPreview.length).toBe(500);
+  });
+
+  it("emits debug after a successful response with callIndex and responseSummary", async () => {
+    const sink = makeSink();
+    const bus = makeEventBus();
+    const logger = makeLogger();
+    const provider = new MockLlmProvider({ sink, workflowEventBus: bus, logger });
+
+    await provider.complete("prompt");
+
+    const debugCalls = (logger.debug as ReturnType<typeof mock>).mock.calls as [string, object?][];
+    const afterCallEntry = debugCalls.find(([msg]) => msg === "LLM response");
+    expect(afterCallEntry).toBeDefined();
+    expect(afterCallEntry?.[1]).toMatchObject({ callIndex: 1, responseSummary: expect.any(String) });
+  });
+
+  it("never logs at info, warn, or error level", async () => {
+    const sink = makeSink();
+    const bus = makeEventBus();
+    const logger = makeLogger();
+    const provider = new MockLlmProvider({ sink, workflowEventBus: bus, logger });
+
+    await provider.complete("prompt");
+
+    expect(logger.info).not.toHaveBeenCalled();
+    expect(logger.warn).not.toHaveBeenCalled();
+    expect(logger.error).not.toHaveBeenCalled();
+  });
+
+  it("does not throw when no logger is provided", async () => {
+    const sink = makeSink();
+    const bus = makeEventBus();
+    const provider = new MockLlmProvider({ sink, workflowEventBus: bus });
+
+    await expect(provider.complete("prompt")).resolves.toBeDefined();
   });
 });
