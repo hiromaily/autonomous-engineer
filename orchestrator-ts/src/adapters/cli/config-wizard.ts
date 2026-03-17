@@ -1,5 +1,7 @@
-import type { LogLevel } from "@/application/ports/logger";
+import { LOG_LEVEL_ORDER, type LogLevel } from "@/application/ports/logger";
 import * as p from "@clack/prompts";
+
+const LOG_LEVEL_OPTIONS = LOG_LEVEL_ORDER.map((level) => ({ value: level, label: level }));
 
 export interface WizardDefaults {
   readonly provider?: string;
@@ -119,12 +121,7 @@ export class ConfigWizard implements IConfigWizard {
     // Step 5: Log level
     const logLevel = await this.prompts.select<LogLevel>({
       message: "Log level",
-      options: [
-        { value: "debug", label: "debug" },
-        { value: "info", label: "info" },
-        { value: "warn", label: "warn" },
-        { value: "error", label: "error" },
-      ] as const,
+      options: LOG_LEVEL_OPTIONS,
       initialValue: defaults?.logLevel ?? BUILTIN_DEFAULTS.logLevel,
     });
     if (this.prompts.isCancel(logLevel)) return "cancelled";

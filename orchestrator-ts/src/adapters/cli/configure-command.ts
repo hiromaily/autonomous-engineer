@@ -1,6 +1,6 @@
 import type { IConfigWizard, WizardDefaults, WizardInput } from "@/adapters/cli/config-wizard";
 import type { IConfigWriter, IFrameworkChecker, WritableConfig } from "@/application/ports/config";
-import type { ILogger, LogLevel } from "@/application/ports/logger";
+import { type ILogger, LOG_LEVEL_ORDER, type LogLevel } from "@/application/ports/logger";
 import { readFile as fsReadFile } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -120,7 +120,7 @@ function isValidSddFramework(value: unknown): value is "cc-sdd" | "openspec" | "
 }
 
 function isValidLogLevel(value: unknown): value is LogLevel {
-  return value === "debug" || value === "info" || value === "warn" || value === "error";
+  return typeof value === "string" && (LOG_LEVEL_ORDER as readonly string[]).includes(value);
 }
 
 function toWritableConfig(input: WizardInput): WritableConfig {
