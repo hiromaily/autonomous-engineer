@@ -91,7 +91,7 @@ export class RunSpecUseCase {
         if (event.type === "phase:start") {
           logger.info("Phase started", { phase: event.phase, specName });
         } else if (event.type === "phase:complete") {
-          logger.info("Phase completed", { phase: event.phase, outcome: "completed" });
+          logger.info("Phase completed", { phase: event.phase, outcome: "completed", durationMs: event.durationMs });
         } else if (event.type === "phase:error") {
           logger.error("Phase failed", { phase: event.phase, reason: event.error });
         }

@@ -570,7 +570,11 @@ describe("RunSpecUseCase", () => {
       const infoCalls = (logger.info as ReturnType<typeof mock>).mock.calls as [string, object?][];
       const phaseCompleteCalls = infoCalls.filter(([msg]) => msg === "Phase completed");
       expect(phaseCompleteCalls.length).toBeGreaterThan(0);
-      expect(phaseCompleteCalls[0]?.[1]).toMatchObject({ phase: expect.any(String), outcome: "completed" });
+      expect(phaseCompleteCalls[0]?.[1]).toMatchObject({
+        phase: expect.any(String),
+        outcome: "completed",
+        durationMs: expect.any(Number),
+      });
     });
 
     it("emits error log with { phase, reason } when a phase fails", async () => {
