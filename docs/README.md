@@ -79,6 +79,14 @@ Memory system design — short-term memory (single workflow execution), project 
 
 ---
 
+## `orchestrator-ts/src/` Dependency Rules
+
+The following rules govern which layers may import from which. See [architecture/architecture.md](architecture/architecture.md) for the full directory layout.
+
+@include: ./_partials/src-dependency-direction.md
+
+---
+
 ## Development (`development/`)
 
 ### [development/development-environment.md](development/development-environment.md)

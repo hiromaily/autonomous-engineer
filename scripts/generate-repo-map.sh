@@ -18,10 +18,10 @@ read -r -d '' PATH_DESCRIPTIONS <<'EOF' || true
 .claude	Claude Code configuration, rules, and helper assets
 .claude/commands	Custom Claude Code command definitions
 .claude/rules	Project rules, architecture notes, and coding guidance
-.kiro	Kiro-specific project configuration
+.kiro	Spec-driven development (SDD) workspace: specs, steering, and settings used by the orchestrator (populated by the cc-sdd adapter); an essential runtime artifact directory for this system
 .kiro/settings	Kiro settings, templates, and rule configuration
-.kiro/specs	Feature specifications and structured design artifacts
-.kiro/steering	Product, structure, and technical steering documents
+.kiro/specs	Feature specifications (requirements, design, tasks) — generated and consumed by the orchestrator's spec engine
+.kiro/steering	Product, structure, and technical steering documents — loaded as persistent AI context
 docs	Project documentation
 docs/.vitepress	VitePress site configuration
 docs/agent	Agent-related specifications and reference docs
@@ -33,28 +33,19 @@ docs/memory	Memory system documentation
 docs/workflow	Process and workflow documentation
 orchestrator-ts	TypeScript implementation of the orchestrator (aes CLI)
 orchestrator-ts/src	Production source code (Clean Architecture layers)
-orchestrator-ts/src/adapters	Outbound adapters: LLM providers, Git, tools, safety
-orchestrator-ts/src/adapters/git	Git and GitHub PR adapters
-orchestrator-ts/src/adapters/llm	LLM provider adapters
-orchestrator-ts/src/adapters/safety	Safety audit and approval adapters
-orchestrator-ts/src/adapters/tools	Tool implementation adapters (shell, filesystem, etc.)
+orchestrator-ts/src/main	Entry point + top-level DI container (outside Clean Architecture layers)
+orchestrator-ts/src/main/di	Sub-system DI factories (only callable from main/)
+orchestrator-ts/src/adapters	Inbound delivery adapters (CLI only)
+orchestrator-ts/src/adapters/cli	Thin CLI handler: parse args, call use case, render output
 orchestrator-ts/src/application	Application layer: use cases, services, port interfaces
-orchestrator-ts/src/application/ports	Application port (interface) definitions
-orchestrator-ts/src/application/tools	Application-level tool orchestration
-orchestrator-ts/src/application/usecases	Primary use case implementations
-orchestrator-ts/src/cli	CLI entrypoint (aes command) and terminal rendering
+orchestrator-ts/src/application/usecases	Top-level entrypoints for application actions (e.g. run-spec.ts)
+orchestrator-ts/src/application/services	Reusable coordination logic (agent, context, git, safety, tools)
+orchestrator-ts/src/application/ports	Abstract interface definitions (llm, memory, sdd, workflow)
 orchestrator-ts/src/domain	Core domain models and business logic (no external dependencies)
-orchestrator-ts/src/domain/tools	Domain logic for tool behavior
-orchestrator-ts/src/domain/workflow	Domain workflow logic
-orchestrator-ts/src/infra	Infrastructure implementations and runtime services
-orchestrator-ts/src/infra/config	Runtime configuration handling
-orchestrator-ts/src/infra/events	Event buses and event handling infrastructure
-orchestrator-ts/src/infra/memory	Memory-related infrastructure
-orchestrator-ts/src/infra/state	State persistence and state management
+orchestrator-ts/src/infra	Concrete port implementations and technical infrastructure
 orchestrator-ts/tests	Test suites mirroring src/ structure (unit, integration, e2e)
 orchestrator-ts/tests/adapters	Tests for adapters
 orchestrator-ts/tests/application	Tests for application-layer behavior
-orchestrator-ts/tests/cli	Tests for CLI behavior
 orchestrator-ts/tests/domain	Tests for domain logic
 orchestrator-ts/tests/e2e	End-to-end tests
 orchestrator-ts/tests/infra	Tests for infrastructure components
@@ -216,6 +207,18 @@ list_important_files() {
 
     if [ "$has_children" -eq 0 ]; then
       echo "- No major subdirectories detected within depth 2"
+    fi
+
+    # Embed the canonical src/ directory structure from the SSOT partial
+    if [ "$root" = "orchestrator-ts" ]; then
+      PARTIAL="docs/_partials/src-directory-structure.md"
+      if [ -f "$PARTIAL" ]; then
+        echo
+        echo "#### \`orchestrator-ts/src/\` Layout"
+        echo
+        # Strip the HTML comment block at the top of the partial, then include the rest
+        sed '/^<!--/,/^.*-->$/d' "$PARTIAL"
+      fi
     fi
   done < <(list_top_level_dirs)
 

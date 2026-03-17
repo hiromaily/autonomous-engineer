@@ -89,47 +89,20 @@ AIとのやり取りは最小限の必要なコンテキストのみを受け取
 
 システムはいくつかのレイヤーに整理されています。
 
-```mermaid
-graph TD
-    Main["main/<br/>(エントリポイント + トップレベルDIコンテナ)"]
-    DI["di/<br/>(サブシステムDIファクトリー)"]
-    CLI["adapters/cli<br/>(CLIアダプター — 引数解析・描画)"]
-    Usecase["application/usecases<br/>(ユースケース調整)"]
-    Services["application/services<br/>(アプリケーションサービス)"]
-    Ports["application/ports<br/>(ポートインターフェース)"]
-    Domain["domain<br/>(コアビジネスロジック)"]
-    Infra["infra/*<br/>(実装)"]
-
-    Main --> CLI
-    Main --> DI
-    Main --> Usecase
-    DI --> Services
-    DI --> Infra
-    DI --> Ports
-    CLI --> Usecase
-    Usecase --> Services
-    Usecase --> Ports
-    Services --> Ports
-    Services --> Domain
-    Ports --> Domain
-    Infra --> Ports
-    Infra --> Domain
-```
-
-矢印はコンパイル時のインポート依存関係を表します。各レイヤーは厳格な責務を持ちます。
+@include: ../../_partials/clean-architecture-diagram-ja.md
 
 ### main/ — エントリポイントとトップレベルDIコンテナ
 
-`main/` はクリーンアーキテクチャのレイヤーの**外側**に位置します。バイナリのエントリポイントであり、`di/` ファクトリーを呼び出して完全な依存グラフを組み立てる唯一のモジュールです。以下を含みます：
+`main/` はクリーンアーキテクチャのレイヤーの**外側**に位置します。バイナリのエントリポイントであり、`main/di/` ファクトリーを呼び出して完全な依存グラフを組み立てる唯一のモジュールです。以下を含みます：
 
 - `index.ts` — プロセスエントリポイント；CLIアダプターに委譲する
 - `run-container.ts` / `configure-container.ts` — 遅延初期化された依存関係を持つDIコンテナクラス
 
 他のモジュールは `main/` をインポートしません。
 
-### di/ — サブシステムDIファクトリー
+### main/di/ — サブシステムDIファクトリー
 
-`di/` には、各サブシステム（実装ループ、Git統合、安全実行器など）の具体的なサービスとインフラオブジェクトをインスタンス化して配線するファクトリー関数が含まれます。各ファクトリーは `application/services` と `infra/*` のコンストラクターを呼び出し、ポートインターフェースを返します。`di/` は **`main/` からのみ呼び出されます** — 他のモジュールはインポートしません。
+`main/di/` には、各サブシステム（実装ループ、Git統合、安全実行器など）の具体的なサービスとインフラオブジェクトをインスタンス化して配線するファクトリー関数とDIコンテナが含まれます。各ファクトリーは `application/services` と `infra/*` のコンストラクターを呼び出し、ポートインターフェースを返します。`main/di/` は **`main/` からのみ呼び出されます** — 他のモジュールはインポートしません。
 
 ### 依存性の逆転と「infra → ports が循環参照でない」理由
 
@@ -141,6 +114,10 @@ graph TD
 ```
 
 `main/` のみが両側を知っており、依存性注入の配線を行います。これが依存性逆転の原則です：高レベルポリシー（`usecases`）と低レベル詳細（`infra`）の両方が抽象（`ports`）に依存し、互いには依存しません。
+
+### レイヤー依存ルール
+
+@include: ../../_partials/src-dependency-direction-ja.md
 
 ### アプリケーションレイヤー：Usecases と Services の違い
 
@@ -558,57 +535,12 @@ Rustメモリエンジン
 
 ### 現在の構造
 
+トップレベルのプロジェクト構成：
+
 ```
 autonomous-engineer/
 ├─ orchestrator-ts/          # ワークフローオーケストレーションエンジン + aes CLI（TypeScript/Bun）
-│  │
-│  ├─ src/
-│  │  ├─ main/               # エントリポイント + トップレベルDIコンテナ（クリーンアーキテクチャのレイヤー外）
-│  │  │  ├─ index.ts                         # プロセスエントリポイント — CLIアダプターに委譲
-│  │  │  ├─ run-container.ts                 # runコマンド用DIコンテナ（遅延初期化）
-│  │  │  └─ configure-container.ts           # configureコマンド用DIコンテナ（遅延初期化）
-│  │  │
-│  │  ├─ di/                 # サブシステムDIファクトリー（main/からのみ呼び出される）
-│  │  │  ├─ create-implementation-loop-service.ts
-│  │  │  ├─ create-git-integration-service.ts
-│  │  │  └─ create-safety-executor.ts
-│  │  │
-│  │  ├─ adapters/
-│  │  │  └─ cli/             # CLIアダプター（薄い層 — 引数解析、ユースケース呼び出し、出力）
-│  │  │
-│  │  ├─ application/
-│  │  │  ├─ usecases/        # アプリケーションアクションのトップレベルエントリポイント（例：run-spec.ts）
-│  │  │  ├─ services/        # 再利用可能な調整ロジック（agent、context、git、safety、tools…）
-│  │  │  └─ ports/           # 抽象インターフェース定義（llm、memory、sdd、workflow…）
-│  │  │
-│  │  ├─ domain/
-│  │  │  ├─ agent/
-│  │  │  ├─ context/
-│  │  │  ├─ debug/
-│  │  │  ├─ git/
-│  │  │  ├─ implementation-loop/
-│  │  │  ├─ planning/
-│  │  │  ├─ safety/
-│  │  │  ├─ self-healing/
-│  │  │  ├─ tools/
-│  │  │  └─ workflow/
-│  │  │
-│  │  └─ infra/
-│  │     ├─ config/          # 設定ファイルの読み込みとSDDフレームワーク検出
-│  │     ├─ events/          # 具体的なイベントバス実装
-│  │     ├─ git/             # Gitコントローラーアダプターと GitHub PRアダプター
-│  │     ├─ implementation-loop/ # 実装ループ用プランファイルストアアダプター
-│  │     ├─ logger/          # ロガークラス（ConsoleLogger、NdjsonFileLogger、AuditLogger…）
-│  │     ├─ llm/             # Claudeプロバイダー、モックLLMプロバイダー
-│  │     ├─ memory/          # ファイルバックアップおよびインメモリストア
-│  │     ├─ planning/        # プランファイルストア
-│  │     ├─ safety/          # 承認ゲートウェイ、サンドボックスエグゼキューター
-│  │     ├─ sdd/             # Claude Code SDDアダプター、モックSDDアダプター
-│  │     ├─ self-healing/    # 自己修復ループサービス実装
-│  │     ├─ state/           # ワークフロー状態ストア
-│  │     ├─ tools/           # シェル、ファイルシステム、git、コード解析ツール実装
-│  │     └─ utils/           # インフラ内で共有される低レベルユーティリティ（errors、fs、ndjson）
-│  │
+│  ├─ src/                   # プロダクションソース — 詳細は下記を参照
 │  ├─ tests/
 │  ├─ package.json
 │  └─ tsconfig.json
@@ -627,12 +559,16 @@ autonomous-engineer/
 └─ README.md
 ```
 
+#### `orchestrator-ts/src/` のレイアウト
+
+@include: ../../_partials/src-directory-structure-ja.md
+
 ### 構造の哲学
 
 各実装ディレクトリ（`*-ts`、`*-rs` など）は、独自のツールチェーン、依存関係、内部アーキテクチャを持つ自己完結したコンポーネントです。`orchestrator-ts/src/` 内では、ディレクトリ構造がクリーンアーキテクチャのレイヤーに直接対応します：
 
-- `main/` は**プロセスエントリポイントとトップレベルDIコンテナ** — クリーンアーキテクチャのレイヤー外に位置し、`di/` ファクトリーを呼び出して最終的な依存グラフを組み立てる
-- `di/` は**サブシステムDIファクトリー** — 各ファクトリーが1つのサブシステムのサービスとインフラオブジェクトをインスタンス化して接続する；`main/` からのみ呼び出し可能
+- `main/` は**プロセスエントリポイントとトップレベルDIコンテナ** — クリーンアーキテクチャのレイヤー外に位置し、`main/di/` ファクトリーを呼び出して最終的な依存グラフを組み立てる
+- `main/di/` は**サブシステムDIファクトリー** — 各ファクトリーが1つのサブシステムのサービスとインフラオブジェクトをインスタンス化して接続する；`main/` からのみ呼び出し可能
 - `adapters/cli/` は受信デリバリーアダプター — CLI引数を解析し、ユースケースを呼び出し、出力を描画する
 - `application/` はアプリケーションレイヤーで、3つの関心事に分けられる：
   - `usecases/` — アプリケーションビジネスルールとワークフローのオーケストレーション

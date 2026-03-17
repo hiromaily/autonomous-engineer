@@ -89,47 +89,20 @@ This improves reasoning quality and reduces token consumption.
 
 The system is organized into several layers.
 
-```mermaid
-graph TD
-    Main["main/<br/>(entry point + top-level DI container)"]
-    DI["di/<br/>(sub-system DI factories)"]
-    CLI["adapters/cli<br/>(CLI adapter — args, rendering)"]
-    Usecase["application/usecases<br/>(use case orchestration)"]
-    Services["application/services<br/>(application services)"]
-    Ports["application/ports<br/>(port interfaces)"]
-    Domain["domain<br/>(core business logic)"]
-    Infra["infra/*<br/>(implementations)"]
-
-    Main --> CLI
-    Main --> DI
-    Main --> Usecase
-    DI --> Services
-    DI --> Infra
-    DI --> Ports
-    CLI --> Usecase
-    Usecase --> Services
-    Usecase --> Ports
-    Services --> Ports
-    Services --> Domain
-    Ports --> Domain
-    Infra --> Ports
-    Infra --> Domain
-```
-
-Arrows represent compile-time import dependencies. Each layer has strict responsibilities.
+@include: ../_partials/clean-architecture-diagram.md
 
 ### main/ — Entry Point and Top-Level DI Container
 
-`main/` sits **outside** the Clean Architecture layers. It is the binary entry point and the only module that calls `di/` factories to assemble the full dependency graph. It contains:
+`main/` sits **outside** the Clean Architecture layers. It is the binary entry point and the only module that calls `main/di/` factories to assemble the full dependency graph. It contains:
 
 - `index.ts` — the process entry point; delegates to CLI adapter
 - `run-container.ts` / `configure-container.ts` — DI container classes with lazy-initialized dependencies
 
 No other module imports from `main/`.
 
-### di/ — Sub-System DI Factories
+### main/di/ — Sub-System DI Factories
 
-`di/` contains factory functions that instantiate and wire concrete service and infra objects for each sub-system (e.g., the implementation loop, git integration, safety executor). Each factory calls constructors from `application/services` and `infra/*` and returns a port interface. `di/` is **only called from `main/`** — nothing else imports from it.
+`main/di/` contains factory functions and DI containers that instantiate and wire concrete service and infra objects for each sub-system (e.g., the implementation loop, git integration, safety executor). Each factory calls constructors from `application/services` and `infra/*` and returns a port interface. `main/di/` is **only called from `main/`** — nothing else imports from it.
 
 ### Dependency Inversion and Why Infra → Ports Is Not Circular
 
@@ -141,6 +114,10 @@ Runtime (DI):  usecase → [port] → infra-impl   (main/ wires them together)
 ```
 
 `main/` is the only module that knows both sides and performs the wiring. This is the Dependency Inversion Principle: high-level policy (`usecases`) and low-level details (`infra`) both depend on the abstraction (`ports`), not on each other.
+
+### Layer Dependency Rules
+
+@include: ../_partials/src-dependency-direction.md
 
 ### Application Layer: Usecases vs Services
 
@@ -558,57 +535,12 @@ Examples:
 
 ### Current Structure
 
+Top-level project layout:
+
 ```
 autonomous-engineer/
 ├─ orchestrator-ts/          # Workflow orchestration engine + aes CLI (TypeScript/Bun)
-│  │
-│  ├─ src/
-│  │  ├─ main/               # Entry point + top-level DI container (outside Clean Architecture layers)
-│  │  │  ├─ index.ts                         # Process entry point — delegates to CLI adapter
-│  │  │  ├─ run-container.ts                 # DI container for the run command (lazy-initialized)
-│  │  │  └─ configure-container.ts           # DI container for the configure command (lazy-initialized)
-│  │  │
-│  │  ├─ di/                 # Sub-system DI factories (only called from main/)
-│  │  │  ├─ create-implementation-loop-service.ts
-│  │  │  ├─ create-git-integration-service.ts
-│  │  │  └─ create-safety-executor.ts
-│  │  │
-│  │  ├─ adapters/
-│  │  │  └─ cli/             # CLI adapter (thin — parse args, call use case, render output)
-│  │  │
-│  │  ├─ application/
-│  │  │  ├─ usecases/        # Top-level entrypoints for application actions (e.g. run-spec.ts)
-│  │  │  ├─ services/        # Reusable orchestration logic (agent, context, git, safety, tools…)
-│  │  │  └─ ports/           # Abstract interface definitions (llm, memory, sdd, workflow…)
-│  │  │
-│  │  ├─ domain/
-│  │  │  ├─ agent/
-│  │  │  ├─ context/
-│  │  │  ├─ debug/
-│  │  │  ├─ git/
-│  │  │  ├─ implementation-loop/
-│  │  │  ├─ planning/
-│  │  │  ├─ safety/
-│  │  │  ├─ self-healing/
-│  │  │  ├─ tools/
-│  │  │  └─ workflow/
-│  │  │
-│  │  └─ infra/
-│  │     ├─ config/          # Config loading and SDD framework detection
-│  │     ├─ events/          # Concrete event bus implementations
-│  │     ├─ git/             # Git controller adapter and GitHub PR adapter
-│  │     ├─ implementation-loop/ # Plan file store adapter for the implementation loop
-│  │     ├─ logger/          # Logger classes (ConsoleLogger, NdjsonFileLogger, AuditLogger…)
-│  │     ├─ llm/             # Claude provider, mock LLM provider
-│  │     ├─ memory/          # File-backed and in-memory stores
-│  │     ├─ planning/        # Plan file store
-│  │     ├─ safety/          # Approval gateway, sandbox executor
-│  │     ├─ sdd/             # Claude Code SDD adapter, mock SDD adapter
-│  │     ├─ self-healing/    # Self-healing loop service implementation
-│  │     ├─ state/           # Workflow state store
-│  │     ├─ tools/           # Shell, filesystem, git, code-analysis tool implementations
-│  │     └─ utils/           # Shared low-level utilities (errors, fs, ndjson)
-│  │
+│  ├─ src/                   # Production source — see layout below
 │  ├─ tests/
 │  ├─ package.json
 │  └─ tsconfig.json
@@ -627,12 +559,16 @@ autonomous-engineer/
 └─ README.md
 ```
 
+#### `orchestrator-ts/src/` Layout
+
+@include: ../_partials/src-directory-structure.md
+
 ### Structure Philosophy
 
 Each implementation directory (`*-ts`, `*-rs`, etc.) is a self-contained component with its own toolchain, dependencies, and internal architecture. Within `orchestrator-ts/src/`, the directory structure maps directly to Clean Architecture layers:
 
-- `main/` is the **process entry point and top-level DI container** — it sits outside the Clean Architecture layers; it calls `di/` factories and wires the final dependency graph
-- `di/` contains **sub-system DI factories** — each factory instantiates and connects services and infra objects for one subsystem; only callable from `main/`
+- `main/` is the **process entry point and top-level DI container** — it sits outside the Clean Architecture layers; it calls `main/di/` factories and wires the final dependency graph
+- `main/di/` contains **sub-system DI factories** — each factory instantiates and connects services and infra objects for one subsystem; only callable from `main/`
 - `adapters/cli/` is the inbound delivery adapter — parses CLI arguments, invokes use cases, and renders output
 - `application/` is the application layer, grouped into three concerns:
   - `usecases/` — application business rules and workflow orchestration
