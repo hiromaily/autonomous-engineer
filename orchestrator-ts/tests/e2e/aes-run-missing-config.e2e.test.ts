@@ -138,3 +138,31 @@ describe("aes run: missing-configuration error messages", () => {
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// Task 9.3 / Req 5.1: --debug-flow is an unrecognized flag (removed in rename)
+// ---------------------------------------------------------------------------
+
+describe("aes run: --debug-flow is no longer a valid flag", () => {
+  let tmpDir: string;
+
+  beforeEach(async () => {
+    tmpDir = await mkdtemp(join(tmpdir(), "aes-debug-flow-"));
+  });
+
+  afterEach(async () => {
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it("exits with non-zero code when --debug-flow is passed", async () => {
+    const { exitCode } = await runCli(["run", "my-spec", "--debug-flow"], {
+      cwd: tmpDir,
+      env: {
+        PATH: process.env.PATH,
+        HOME: process.env.HOME,
+      },
+    });
+
+    expect(exitCode).not.toBe(0);
+  });
+});

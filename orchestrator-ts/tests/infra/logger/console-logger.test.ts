@@ -1,3 +1,4 @@
+import { isLevelEnabled, type LogLevel } from "@/application/ports/logger";
 import { ConsoleLogger } from "@/infra/logger/console-logger";
 import { afterEach, beforeEach, describe, expect, it, type Mock, spyOn } from "bun:test";
 
@@ -222,4 +223,49 @@ describe("ConsoleLogger — ANSI color output (isTTY=true)", () => {
     expect(output).toContain("important message");
     expect(output).toContain("[DEBUG]");
   });
+});
+
+// ---------------------------------------------------------------------------
+// Task 9.1 — isLevelEnabled: all 16 (configured × candidate) combinations
+// ---------------------------------------------------------------------------
+
+describe("isLevelEnabled — all 16 level pair combinations", () => {
+  // Truth table: isLevelEnabled(configured, candidate)
+  // candidate must be >= configured severity to return true.
+  //
+  //               candidate →  debug   info   warn   error
+  // configured ↓
+  //   debug                      T      T      T      T
+  //   info                       F      T      T      T
+  //   warn                       F      F      T      T
+  //   error                      F      F      F      T
+
+  const cases: Array<[LogLevel, LogLevel, boolean]> = [
+    // configured=debug: all candidates enabled
+    ["debug", "debug", true],
+    ["debug", "info", true],
+    ["debug", "warn", true],
+    ["debug", "error", true],
+    // configured=info: debug suppressed, rest enabled
+    ["info", "debug", false],
+    ["info", "info", true],
+    ["info", "warn", true],
+    ["info", "error", true],
+    // configured=warn: debug+info suppressed, warn+error enabled
+    ["warn", "debug", false],
+    ["warn", "info", false],
+    ["warn", "warn", true],
+    ["warn", "error", true],
+    // configured=error: only error enabled
+    ["error", "debug", false],
+    ["error", "info", false],
+    ["error", "warn", false],
+    ["error", "error", true],
+  ];
+
+  for (const [configured, candidate, expected] of cases) {
+    it(`isLevelEnabled("${configured}", "${candidate}") === ${String(expected)}`, () => {
+      expect(isLevelEnabled(configured, candidate)).toBe(expected);
+    });
+  }
 });

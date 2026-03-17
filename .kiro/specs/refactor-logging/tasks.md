@@ -99,21 +99,21 @@
   - Ensure all DI resolution entries are emitted before the use case is invoked so they appear at the top of the log output for each run
   - _Requirements: 9.1, 9.2, 9.3, 9.4_
 
-- [ ] 9. Write unit and integration tests
-- [ ] 9.1 (P) Unit tests for ConsoleLogger and isLevelEnabled
+- [x] 9. Write unit and integration tests
+- [x] 9.1 (P) Unit tests for ConsoleLogger and isLevelEnabled
   - Verify that entries below `minLevel` are suppressed and entries at or above are emitted
   - Verify all 16 combinations of `(configured, candidate)` level pairs in `isLevelEnabled`
   - Verify ANSI escape codes are present when `isTTY` is true and absent when `isTTY` is false
   - Verify the correct color code is applied for each log level (`debug` → gray, `info` → reset, `warn` → yellow, `error` → red)
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 3.1, 3.2, 3.3, 3.4, 3.5_
 
-- [ ] 9.2 (P) Unit tests for ConfigLoader log level handling
+- [x] 9.2 (P) Unit tests for ConfigLoader log level handling
   - Verify that `logLevel` is parsed and returned correctly from `aes.config.json`
   - Verify the default value `"info"` is returned when the `logLevel` field is absent from the file
   - Verify that a `ConfigValidationError` is thrown when `logLevel` contains an invalid string value
   - _Requirements: 4.2, 4.3_
 
-- [ ] 9.3 Integration tests for the full logging pipeline
+- [x] 9.3 Integration tests for the full logging pipeline
   - Verify `RunContainer.build()` returns a `ConsoleLogger` instance as `RunDependencies.logger`
   - Verify that when `debug: true` the effective log level is `"debug"` and the mock LLM provider is active
   - Verify DI resolution log entries are emitted before the use case is invoked
