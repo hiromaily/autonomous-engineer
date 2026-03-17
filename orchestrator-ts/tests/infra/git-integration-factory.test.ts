@@ -1,9 +1,9 @@
 import type { LlmProviderPort } from "@/application/ports/llm";
 import type { IAuditLogger } from "@/application/ports/safety";
 import type { IToolExecutor } from "@/application/services/tools/executor";
-import { createGitIntegrationService } from "@/di/create-git-integration-service";
 import type { ToolContext, ToolResult } from "@/domain/tools/types";
 import { ConfigLoader } from "@/infra/config/config-loader";
+import { createGitIntegrationService } from "@/main/di/create-git-integration-service";
 import { beforeEach, describe, expect, it } from "bun:test";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

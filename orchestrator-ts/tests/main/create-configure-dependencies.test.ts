@@ -1,4 +1,4 @@
-import { createConfigureDependencies } from "@/main/create-configure-dependencies";
+import { createConfigureDependencies } from "@/main/di/factories";
 import { describe, expect, it } from "bun:test";
 
 describe("createConfigureDependencies", () => {

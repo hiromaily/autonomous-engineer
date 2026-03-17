@@ -14,7 +14,7 @@ import type { LogLevel } from "@/application/ports/logger";
 import { ConfigLoader } from "@/infra/config/config-loader";
 import { ConfigWriter } from "@/infra/config/config-writer";
 import { ConsoleLogger } from "@/infra/logger/console-logger";
-import { RunContainer } from "@/main/run-container";
+import { RunContainer } from "@/main/di/run-container";
 import { afterEach, beforeEach, describe, expect, it, type Mock, spyOn } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";

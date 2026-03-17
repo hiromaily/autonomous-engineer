@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// createGitIntegrationService — di/create-git-integration-service.ts
+// createGitIntegrationService — main/di/create-git-integration-service.ts
 //
 // Composition root factory for the git-integration feature.
 // Constructs all components and wires them together.

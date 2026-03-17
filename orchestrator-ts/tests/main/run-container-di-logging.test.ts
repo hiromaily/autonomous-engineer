@@ -1,5 +1,5 @@
 import type { AesConfig } from "@/application/ports/config";
-import { RunContainer } from "@/main/run-container";
+import { RunContainer } from "@/main/di/run-container";
 import { afterEach, beforeEach, describe, expect, it, type Mock, spyOn } from "bun:test";
 
 const stubConfig: AesConfig = {

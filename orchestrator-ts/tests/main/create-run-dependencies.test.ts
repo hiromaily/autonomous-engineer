@@ -1,6 +1,6 @@
 import type { AesConfig } from "@/application/ports/config";
 import { ConsoleLogger } from "@/infra/logger/console-logger";
-import { createRunDependencies } from "@/main/create-run-dependencies";
+import { createRunDependencies } from "@/main/di/factories";
 import { describe, expect, it } from "bun:test";
 
 const stubConfig: AesConfig = {
