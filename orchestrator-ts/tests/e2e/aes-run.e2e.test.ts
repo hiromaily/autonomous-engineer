@@ -13,7 +13,6 @@
  *
  * Task 9.2 — Requirements: 1.1, 1.6, 1.7, 1.8, 3.6, 5.1, 5.5
  */
-import { JsonLogWriter } from "@/adapters/cli/json-log-writer";
 import type { AesConfig } from "@/application/ports/config";
 import type { LlmProviderPort } from "@/application/ports/llm";
 import type { MemoryPort, ShortTermMemoryPort } from "@/application/ports/memory";
@@ -22,6 +21,7 @@ import type { WorkflowEvent } from "@/application/ports/workflow";
 import { RunSpecUseCase } from "@/application/usecases/run-spec";
 import type { WorkflowPhase, WorkflowState } from "@/domain/workflow/types";
 import { WorkflowEventBus } from "@/infra/events/workflow-event-bus";
+import { JsonLogWriter } from "@/infra/logger/json-log-writer";
 import type { SpawnFn } from "@/infra/sdd/cc-sdd-adapter";
 import { WorkflowStateStore } from "@/infra/state/workflow-state-store";
 import { afterAll, beforeAll, describe, expect, it, mock } from "bun:test";

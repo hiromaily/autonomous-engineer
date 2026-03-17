@@ -146,7 +146,6 @@ Handles command-line input/output, argument parsing, command definitions, and ou
 | `configure-command.ts` | `configure` command handler                               |
 | `config-wizard.ts`     | Interactive configuration wizard                          |
 | `renderer.ts`          | Terminal output rendering                                 |
-| `json-log-writer.ts`   | JSON-oriented log output adapter                          |
 
 ---
 
@@ -161,7 +160,7 @@ Concrete technical implementations. All application port implementations live he
 | `events/`              | Concrete event bus implementations (`git-event-bus.ts`, `workflow-event-bus.ts`)                                                                          |
 | `git/`                 | Git controller adapter, GitHub PR adapter, git integration service factory                                                                                |
 | `implementation-loop/` | Implementation loop service factory                                                                                                                       |
-| `logger/`              | Consolidated logger classes: `DebugLogWriter`, `NdjsonImplementationLoopLogger`, `NdjsonSelfHealingLoopLogger`, `AuditLogger`                             |
+| `logger/`              | Consolidated logger classes: `DebugLogWriter`, `JsonLogWriter`, `NdjsonImplementationLoopLogger`, `NdjsonSelfHealingLoopLogger`, `AuditLogger`            |
 | `llm/`                 | Claude provider, mock LLM provider                                                                                                                        |
 | `memory/`              | File-backed memory store, short-term in-memory store                                                                                                      |
 | `planning/`            | Plan file store (persistence for task plans)                                                                                                              |

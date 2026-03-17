@@ -1,4 +1,3 @@
-import { JsonLogWriter } from "@/adapters/cli/json-log-writer";
 import type { AesConfig } from "@/application/ports/config";
 import type { IDebugEventSink } from "@/application/ports/debug";
 import type { IImplementationLoop } from "@/application/ports/implementation-loop";
@@ -12,6 +11,7 @@ import { createImplementationLoopService } from "@/infra/implementation-loop/cre
 import { ClaudeProvider } from "@/infra/llm/claude-provider";
 import { MockLlmProvider } from "@/infra/llm/mock-llm-provider";
 import { DebugLogWriter } from "@/infra/logger/debug-log-writer";
+import { JsonLogWriter } from "@/infra/logger/json-log-writer";
 import { FileMemoryStore } from "@/infra/memory/file-memory-store";
 import { CcSddAdapter } from "@/infra/sdd/cc-sdd-adapter";
 import { MockSddAdapter } from "@/infra/sdd/mock-sdd-adapter";

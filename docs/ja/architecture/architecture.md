@@ -91,15 +91,17 @@ AIとのやり取りは最小限の必要なコンテキストのみを受け取
 
 ```mermaid
 graph TD
-    CLI["adapters/cli<br/>(CLIエントリポイント)"]
-    Bootstrap["infra/bootstrap<br/>(コンポジションルート)"]
+    Main["main/<br/>(エントリポイント + コンポジションルート)"]
+    CLI["adapters/cli<br/>(CLIアダプター — 引数解析・描画)"]
     Usecase["application/usecases<br/>(ユースケース調整)"]
     Services["application/services<br/>(アプリケーションサービス)"]
     Ports["application/ports<br/>(ポートインターフェース)"]
     Domain["domain<br/>(コアビジネスロジック)"]
     Infra["infra/*<br/>(実装)"]
 
-    CLI --> Bootstrap
+    Main --> CLI
+    Main --> Infra
+    Main --> Usecase
     CLI --> Usecase
     Usecase --> Services
     Usecase --> Ports
@@ -108,12 +110,19 @@ graph TD
     Ports --> Domain
     Infra --> Ports
     Infra --> Domain
-    Bootstrap --> Infra
-    Bootstrap --> Usecase
-    Bootstrap --> CLI
 ```
 
 矢印はコンパイル時のインポート依存関係を表します。各レイヤーは厳格な責務を持ちます。
+
+### main/ — エントリポイントとコンポジションルート
+
+`main/` はクリーンアーキテクチャのレイヤーの**外側**に位置します。バイナリのエントリポイントであり、依存グラフを組み立てるためにすべてのレイヤーから同時にインポートする唯一のモジュールです。以下を含みます：
+
+- `index.ts` — プロセスエントリポイント；CLIアダプターに委譲する
+- `run-container.ts` / `configure-container.ts` — 遅延初期化された依存関係を持つDIコンテナクラス
+- `create-run-dependencies.ts` / `create-configure-dependencies.ts` — コンテナに委譲するファクトリー関数
+
+他のモジュールは `main/` をインポートしません。
 
 ### 依存性の逆転と「infra → ports が循環参照でない」理由
 
@@ -121,10 +130,10 @@ graph TD
 
 ```
 コンパイル時：  usecase → ports ← infra   （どちらもports に依存。互いには依存しない）
-実行時（DI）：  usecase → [ポート] → infra実装   （bootstrapが両者を接続する）
+実行時（DI）：  usecase → [ポート] → infra実装   （main/が両者を接続する）
 ```
 
-`infra/bootstrap` のみが両側を知っており、依存性注入の配線を行います。これが依存性逆転の原則です：高レベルポリシー（`usecases`）と低レベル詳細（`infra`）の両方が抽象（`ports`）に依存し、互いには依存しません。
+`main/` のみが両側を知っており、依存性注入の配線を行います。これが依存性逆転の原則です：高レベルポリシー（`usecases`）と低レベル詳細（`infra`）の両方が抽象（`ports`）に依存し、互いには依存しません。
 
 ### アプリケーションレイヤー：Usecases と Services の違い
 
@@ -154,7 +163,7 @@ graph TD
 
 - `RunSpecUseCase` — 仕様初期化から実装までのフルワークフローを主導する
 
-ユースケースはコードレベルではポートインターフェースとアプリケーションサービスのみに依存し、アダプターやインフラストラクチャのパッケージを直接インポートすることはありません。実行時には、`infra/bootstrap` による依存性注入（DI）によって具体的なインフラストラクチャ実装が注入されます。
+ユースケースはコードレベルではポートインターフェースとアプリケーションサービスのみに依存し、アダプターやインフラストラクチャのパッケージを直接インポートすることはありません。実行時には、`main/` による依存性注入（DI）によって具体的なインフラストラクチャ実装が注入されます。
 
 ---
 
@@ -547,8 +556,15 @@ autonomous-engineer/
 ├─ orchestrator-ts/          # ワークフローオーケストレーションエンジン + aes CLI（TypeScript/Bun）
 │  │
 │  ├─ src/
+│  │  ├─ main/               # エントリポイント + コンポジションルート（クリーンアーキテクチャのレイヤー外）
+│  │  │  ├─ index.ts         # プロセスエントリポイント — CLIアダプターに委譲
+│  │  │  ├─ run-container.ts         # runコマンド用DIコンテナ（遅延初期化）
+│  │  │  ├─ configure-container.ts   # configureコマンド用DIコンテナ（遅延初期化）
+│  │  │  ├─ create-run-dependencies.ts       # RunContainerに委譲するファクトリー
+│  │  │  └─ create-configure-dependencies.ts # ConfigureContainerに委譲するファクトリー
+│  │  │
 │  │  ├─ adapters/
-│  │  │  └─ cli/             # CLIエントリポイント（薄い層 — 引数解析、ユースケース呼び出し、出力）
+│  │  │  └─ cli/             # CLIアダプター（薄い層 — 引数解析、ユースケース呼び出し、出力）
 │  │  │
 │  │  ├─ application/
 │  │  │  ├─ usecases/        # アプリケーションアクションのトップレベルエントリポイント（例：run-spec.ts）
@@ -568,7 +584,6 @@ autonomous-engineer/
 │  │  │  └─ workflow/
 │  │  │
 │  │  └─ infra/
-│  │     ├─ bootstrap/       # コンポジションルート — オブジェクトグラフ全体を組み立てる
 │  │     ├─ config/          # 設定ファイルの読み込みとSDDフレームワーク検出
 │  │     ├─ events/          # 具体的なイベントバス実装
 │  │     ├─ git/             # Gitコントローラーアダプターと GitHub PRアダプター
@@ -606,13 +621,14 @@ autonomous-engineer/
 
 各実装ディレクトリ（`*-ts`、`*-rs` など）は、独自のツールチェーン、依存関係、内部アーキテクチャを持つ自己完結したコンポーネントです。`orchestrator-ts/src/` 内では、ディレクトリ構造がクリーンアーキテクチャのレイヤーに直接対応します：
 
-- `adapters/cli/` は受信デリバリーアダプター — CLIエントリポイント
+- `main/` は**コンポジションルートとプロセスエントリポイント** — クリーンアーキテクチャのレイヤー外に位置し、依存グラフを組み立てるためにすべてのレイヤーから同時にインポートする唯一の場所
+- `adapters/cli/` は受信デリバリーアダプター — CLI引数を解析し、ユースケースを呼び出し、出力を描画する
 - `application/` はアプリケーションレイヤーで、3つの関心事に分けられる：
   - `usecases/` — アプリケーションビジネスルールとワークフローのオーケストレーション
   - `services/` — 複数のユースケースを横断して再利用される調整ロジック
   - `ports/` — アプリケーションが必要とするインターフェース定義（入出力ポート）
 - `domain/` はすべての外部関心事から独立したコアドメインロジック
-- `infra/` は具体的なインフラストラクチャの実装（git、LLM、ファイルシステム、ロギング等）とコンポジションルート（`infra/bootstrap/`）を提供する
+- `infra/` は具体的なインフラストラクチャの実装（git、LLM、ファイルシステム、ロギング等）を提供する
 - `infra/utils/` はインフラサブディレクトリ間でのみ使用される共有低レベルユーティリティ
 - `docs/` は開発者とAIエージェントの両方のためのアーキテクチャ知識を提供する
 

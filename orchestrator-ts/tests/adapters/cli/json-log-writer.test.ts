@@ -1,5 +1,5 @@
-import { JsonLogWriter } from "@/adapters/cli/json-log-writer";
 import type { WorkflowEvent } from "@/application/ports/workflow";
+import { JsonLogWriter } from "@/infra/logger/json-log-writer";
 import { beforeEach, describe, expect, it } from "bun:test";
 import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
