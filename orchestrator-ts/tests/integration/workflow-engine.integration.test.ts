@@ -13,10 +13,10 @@
  * Task 9.1 — Requirements: 3.1, 3.2, 3.3, 3.6, 6.1, 6.4
  */
 import type { WorkflowEvent } from "@/application/ports/workflow";
+import type { PhaseResult, PhaseRunner } from "@/application/services/workflow/phase-runner";
+import { WorkflowEngine } from "@/application/services/workflow/workflow-engine";
 import { ApprovalGate } from "@/domain/workflow/approval-gate";
-import type { PhaseResult, PhaseRunner } from "@/domain/workflow/phase-runner";
 import type { WorkflowPhase, WorkflowState } from "@/domain/workflow/types";
-import { WorkflowEngine } from "@/domain/workflow/workflow-engine";
 import { WorkflowEventBus } from "@/infra/events/workflow-event-bus";
 import { WorkflowStateStore } from "@/infra/state/workflow-state-store";
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";

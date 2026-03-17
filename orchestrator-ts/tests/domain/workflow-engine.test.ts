@@ -1,9 +1,9 @@
 import type { IWorkflowEventBus, IWorkflowStateStore, WorkflowEvent } from "@/application/ports/workflow";
+import type { PhaseResult, PhaseRunner } from "@/application/services/workflow/phase-runner";
+import { WorkflowEngine } from "@/application/services/workflow/workflow-engine";
 import type { ApprovalGate } from "@/domain/workflow/approval-gate";
-import type { PhaseResult, PhaseRunner } from "@/domain/workflow/phase-runner";
 import { WORKFLOW_PHASES } from "@/domain/workflow/types";
 import type { WorkflowPhase, WorkflowState } from "@/domain/workflow/types";
-import { WorkflowEngine } from "@/domain/workflow/workflow-engine";
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";

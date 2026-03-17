@@ -1,4 +1,4 @@
-import type { LayerId } from "@/application/ports/context";
+import type { LayerId } from "./types";
 
 export interface LayerEntry {
   readonly id: LayerId;

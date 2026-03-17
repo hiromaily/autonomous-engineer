@@ -14,6 +14,7 @@ import {
   ShellRestrictionGuard,
   WorkspaceIsolationGuard,
 } from "@/domain/safety/stateless-guards";
+import type { GitRunner } from "@/domain/safety/stateless-guards";
 import type { SafetyConfig, SafetySession } from "@/domain/safety/types";
 import type { ToolContext, ToolResult } from "@/domain/tools/types";
 
@@ -75,6 +76,7 @@ export class SafetyGuardedToolExecutor implements IToolExecutor {
     auditLogger: IAuditLogger,
     approvalGateway: IApprovalGateway,
     sandboxExecutor: ISandboxExecutor,
+    gitRunner?: GitRunner,
   ) {
     this.#inner = inner;
     this.#session = session;
@@ -87,7 +89,7 @@ export class SafetyGuardedToolExecutor implements IToolExecutor {
     this.#failureGuard = new FailureDetectionGuard();
     this.#workspaceGuard = new WorkspaceIsolationGuard();
     this.#filesystemGuard = new FilesystemGuard();
-    this.#gitGuard = new GitSafetyGuard();
+    this.#gitGuard = new GitSafetyGuard(gitRunner ?? (async () => ""));
     this.#shellGuard = new ShellRestrictionGuard(config);
     this.#destructiveGuard = new DestructiveActionGuard();
     this.#rateLimitGuard = new RateLimitGuard();

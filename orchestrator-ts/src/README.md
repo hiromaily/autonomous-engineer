@@ -80,16 +80,16 @@ adapters ──┐
 infra    ──┘
 ```
 
-| Layer                  | May depend on                                                               |
-| ---------------------- | --------------------------------------------------------------------------- |
-| `domain`               | `domain` only                                                               |
-| `application/ports`    | `domain`, other `application/ports`                                         |
-| `application/services` | `application/ports`, `application/services`, `domain`                       |
-| `application/usecases` | `application/services`, `application/ports`, `domain`                       |
-| `adapters/cli`         | `application/usecases`, `application/ports`                                 |
-| `infra/*`              | `application/ports`, `domain`                                               |
-| `main/di/`             | `application/usecases`, `application/services`, `adapters/cli`, `infra/*`, `domain`         |
-| `main/`                | `main/di/`, `adapters/cli`, `application/ports`, `infra/*`.                 |
+| Layer                  | May depend on                                                                       |
+| ---------------------- | ----------------------------------------------------------------------------------- |
+| `domain`               | `domain` only                                                                       |
+| `application/ports`    | `domain`, other `application/ports`                                                 |
+| `application/services` | `application/ports`, `application/services`, `domain`                               |
+| `application/usecases` | `application/services`, `application/ports`, `domain`                               |
+| `adapters/cli`         | `application/usecases`, `application/ports`                                         |
+| `infra/*`              | `application/ports`, `domain`                                                       |
+| `main/di/`             | `application/usecases`, `application/services`, `adapters/cli`, `infra/*`, `domain` |
+| `main/`                | `main/di/`, `adapters/cli`, `application/ports`, `infra/*`.                         |
 
 ---
 
@@ -167,21 +167,21 @@ Handles command-line input/output, argument parsing, command definitions, and ou
 
 Process entry point and top-level DI container. Sits outside the Clean Architecture layers. The only module that calls `main/di/` factories to assemble the full dependency graph.
 
-| File         | Role                                                      |
-| ------------ | --------------------------------------------------------- |
-| `index.ts`   | Process entry point — delegates to CLI adapter            |
+| File       | Role                                           |
+| ---------- | ---------------------------------------------- |
+| `index.ts` | Process entry point — delegates to CLI adapter |
 
 ### `main/di/`
 
 Sub-system DI factories. Each file wires a specific subsystem by instantiating concrete service and infra classes and returning a port interface. May import from `application/services`, `application/ports`, `infra/*`, and `domain`. **Only called from `main/`** — nothing else imports from `main/di/`.
 
-| File                                | Role                                                                    |
-| ----------------------------------- | ----------------------------------------------------------------------- |
-| `run-container.ts`                  | DI container for the `run` command (lazy-initialized getters)           |
-| `configure-container.ts`            | DI container for the `configure` command (lazy-initialized getters)     |
-| `factories.ts`                      | Consolidated subsystem factory functions                                |
-| `create-git-integration-service.ts` | Wires `GitIntegrationService` with its infra dependencies               |
-| `create-safety-executor.ts`         | Wires `SafetyGuardedToolExecutor` around a bare `ToolExecutor`          |
+| File                                | Role                                                                |
+| ----------------------------------- | ------------------------------------------------------------------- |
+| `run-container.ts`                  | DI container for the `run` command (lazy-initialized getters)       |
+| `configure-container.ts`            | DI container for the `configure` command (lazy-initialized getters) |
+| `factories.ts`                      | Consolidated subsystem factory functions                            |
+| `create-git-integration-service.ts` | Wires `GitIntegrationService` with its infra dependencies           |
+| `create-safety-executor.ts`         | Wires `SafetyGuardedToolExecutor` around a bare `ToolExecutor`      |
 
 ---
 
@@ -189,17 +189,17 @@ Sub-system DI factories. Each file wires a specific subsystem by instantiating c
 
 Concrete port implementations and technical infrastructure. Each sub-directory implements one or more `application/ports` interfaces using external SDKs, file I/O, or process environment. Must not depend on `application/services`, `adapters`, or `di/`.
 
-| Directory  | Role                                                                                                                             |
-| ---------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `config/`  | Config file loading (`config-loader.ts`), writing (`config-writer.ts`), and SDD framework detection (`sdd-framework-checker.ts`) |
-| `events/`  | Concrete event bus implementations (`git-event-bus.ts`, `workflow-event-bus.ts`)                                                 |
-| `git/`     | Git controller adapter, GitHub PR adapter                                                                                        |
-| `logger/`  | Logger classes: `ConsoleLogger`, `NdjsonFileLogger`, `JsonLogWriter`, `NdjsonImplementationLoopLogger`, `AuditLogger`            |
-| `llm/`     | Claude provider, mock LLM provider                                                                                               |
-| `memory/`  | File-backed memory store, short-term in-memory store                                                                             |
-| `planning/`| Plan file store (persistence for task plans)                                                                                     |
-| `safety/`  | Approval gateway, sandbox executor                                                                                               |
-| `sdd/`     | Claude Code SDD adapter, mock SDD adapter                                                                                        |
-| `state/`   | Workflow state store                                                                                                             |
-| `tools/`   | Shell, filesystem, git, code-analysis, knowledge tool implementations                                                            |
-| `utils/`   | Shared low-level utilities used within infra only (`errors.ts`, `fs.ts`, `ndjson.ts`)                                            |
+| Directory   | Role                                                                                                                             |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `config/`   | Config file loading (`config-loader.ts`), writing (`config-writer.ts`), and SDD framework detection (`sdd-framework-checker.ts`) |
+| `events/`   | Concrete event bus implementations (`git-event-bus.ts`, `workflow-event-bus.ts`)                                                 |
+| `git/`      | Git controller adapter, GitHub PR adapter                                                                                        |
+| `logger/`   | Logger classes: `ConsoleLogger`, `NdjsonFileLogger`, `JsonLogWriter`, `NdjsonImplementationLoopLogger`, `AuditLogger`            |
+| `llm/`      | Claude provider, mock LLM provider                                                                                               |
+| `memory/`   | File-backed memory store, short-term in-memory store                                                                             |
+| `planning/` | Plan file store (persistence for task plans)                                                                                     |
+| `safety/`   | Approval gateway, sandbox executor                                                                                               |
+| `sdd/`      | Claude Code SDD adapter, mock SDD adapter                                                                                        |
+| `state/`    | Workflow state store                                                                                                             |
+| `tools/`    | Shell, filesystem, git, code-analysis, knowledge tool implementations                                                            |
+| `utils/`    | Shared low-level utilities used within infra only (`errors.ts`, `fs.ts`, `ndjson.ts`)                                            |

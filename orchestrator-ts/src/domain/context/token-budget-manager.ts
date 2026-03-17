@@ -1,6 +1,6 @@
-import type { ITokenBudgetManager, LayerBudgetMap, LayerId, TokenBudgetConfig } from "@/application/ports/context";
 import { getEncoding, type Tiktoken } from "js-tiktoken";
 import { LAYER_REGISTRY } from "./layer-registry";
+import type { ITokenBudgetManager, LayerBudgetMap, LayerId, TokenBudgetConfig } from "./types";
 
 // Initialized once at module load; reused across all TokenBudgetManager instances.
 const DEFAULT_ENCODER = getEncoding("cl100k_base");
