@@ -96,7 +96,7 @@
   - Verify that `writeErrorCount` increments correctly when a write fails
   - _Requirements: 4.5, 4.6_
 
-- [ ] 5. (P) Refactor the bootstrap dependency factory
+- [x] 5. (P) Refactor the bootstrap dependency factory
   - Define the LLM provider factory closure once in the `createRunDependencies` function, before the implementation-loop LLM is assigned
   - Assign the implementation-loop LLM by calling the factory with no provider override, removing the second inline debug-condition ternary
   - Replace the inline error-message extraction expression in the event-bus error handler with the shared extractor from the error utilities module

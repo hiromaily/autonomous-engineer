@@ -160,8 +160,8 @@ Concrete technical implementations. All application port implementations live he
 | `config/`              | Config file loading (`config-loader.ts`), writing (`config-writer.ts`), and SDD framework detection (`sdd-framework-checker.ts`)                          |
 | `events/`              | Concrete event bus implementations (`git-event-bus.ts`, `workflow-event-bus.ts`)                                                                          |
 | `git/`                 | Git controller adapter, GitHub PR adapter, git integration service factory                                                                                |
-| `implementation-loop/` | Implementation loop service factory                                                                                                                        |
-| `logger/`              | Consolidated logger classes: `DebugLogWriter`, `NdjsonImplementationLoopLogger`, `NdjsonSelfHealingLoopLogger`, `AuditLogger`                              |
+| `implementation-loop/` | Implementation loop service factory                                                                                                                       |
+| `logger/`              | Consolidated logger classes: `DebugLogWriter`, `NdjsonImplementationLoopLogger`, `NdjsonSelfHealingLoopLogger`, `AuditLogger`                             |
 | `llm/`                 | Claude provider, mock LLM provider                                                                                                                        |
 | `memory/`              | File-backed memory store, short-term in-memory store                                                                                                      |
 | `planning/`            | Plan file store (persistence for task plans)                                                                                                              |

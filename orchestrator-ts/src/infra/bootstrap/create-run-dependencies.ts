@@ -15,6 +15,7 @@ import { FileMemoryStore } from "@/infra/memory/file-memory-store";
 import { CcSddAdapter } from "@/infra/sdd/cc-sdd-adapter";
 import { MockSddAdapter } from "@/infra/sdd/mock-sdd-adapter";
 import { WorkflowStateStore } from "@/infra/state/workflow-state-store";
+import { getErrorMessage } from "@/infra/utils/errors";
 
 export interface RunDependencies {
   readonly useCase: RunSpecUseCase;
@@ -48,7 +49,7 @@ export function createRunDependencies(
     eventBus.on((event) => {
       writer.write(event).catch((err) => {
         process.stderr.write(
-          `Warning: failed to write to log file: ${err instanceof Error ? err.message : String(err)}\n`,
+          `Warning: failed to write to log file: ${getErrorMessage(err)}\n`,
         );
       });
     });
@@ -65,10 +66,22 @@ export function createRunDependencies(
     debugAgentEventBus = new DebugAgentEventBus({ sink: debugWriter, workflowEventBus: eventBus });
   }
 
+  // LLM provider factory — defined once, used for both implLlm and RunSpecUseCase
+  const createLlmProvider = (cfg: AesConfig, providerOverride?: string): LlmProviderPort => {
+    if (debugFlow && debugWriter !== null) {
+      return new MockLlmProvider({ sink: debugWriter, workflowEventBus: eventBus });
+    }
+    const provider = providerOverride ?? cfg.llm.provider;
+    switch (provider) {
+      case "claude":
+        return new ClaudeProvider({ apiKey: cfg.llm.apiKey, modelName: cfg.llm.modelName });
+      default:
+        throw new Error(`Unsupported LLM provider: '${provider}'`);
+    }
+  };
+
   // Implementation loop LLM
-  const implLlm: LlmProviderPort = debugFlow && debugWriter !== null
-    ? new MockLlmProvider({ sink: debugWriter, workflowEventBus: eventBus })
-    : new ClaudeProvider({ apiKey: config.llm.apiKey, modelName: config.llm.modelName });
+  const implLlm: LlmProviderPort = createLlmProvider(config);
 
   const implementationLoop = createImplementationLoopService({
     llm: implLlm,
@@ -84,18 +97,7 @@ export function createRunDependencies(
     sdd: debugFlow ? new MockSddAdapter(debugWriter ?? undefined) : new CcSddAdapter(),
     memory,
     implementationLoop,
-    createLlmProvider: (cfg: AesConfig, providerOverride?: string): LlmProviderPort => {
-      if (debugFlow && debugWriter !== null) {
-        return new MockLlmProvider({ sink: debugWriter, workflowEventBus: eventBus });
-      }
-      const provider = providerOverride ?? cfg.llm.provider;
-      switch (provider) {
-        case "claude":
-          return new ClaudeProvider({ apiKey: cfg.llm.apiKey, modelName: cfg.llm.modelName });
-        default:
-          throw new Error(`Unsupported LLM provider: '${provider}'`);
-      }
-    },
+    createLlmProvider,
     ...(debugApprovalGate !== null ? { approvalGate: debugApprovalGate } : {}),
     ...(debugAgentEventBus !== null ? { implementationLoopOptions: { agentEventBus: debugAgentEventBus } } : {}),
   });
