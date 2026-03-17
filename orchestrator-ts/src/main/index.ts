@@ -5,8 +5,8 @@ import { CliRenderer } from "@/adapters/cli/renderer";
 import { ConfigValidationError } from "@/application/ports/config";
 import type { AesConfig } from "@/application/ports/config";
 import { ConfigLoader } from "@/infra/config/config-loader";
-import { ConfigureContainer } from "@/main/configure-container";
-import { RunContainer } from "@/main/run-container";
+import { ConfigureContainer } from "@/main/di/configure-container";
+import { RunContainer } from "@/main/di/run-container";
 import { defineCommand, runMain } from "citty";
 
 const runCommand = defineCommand({

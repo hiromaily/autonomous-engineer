@@ -1,7 +1,7 @@
 import type { AuditEntry, IAuditLogger } from "@/application/ports/safety";
 import type { IToolExecutor } from "@/application/services/tools/executor";
-import { createSafetyExecutor } from "@/di/create-safety-executor";
 import type { PermissionSet, ToolContext, ToolInvocationLog } from "@/domain/tools/types";
+import { createSafetyExecutor } from "@/main/di/create-safety-executor";
 import { describe, expect, it, mock } from "bun:test";
 
 // ---------------------------------------------------------------------------

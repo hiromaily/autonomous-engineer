@@ -1,15 +1,25 @@
 import type { AesConfig } from "@/application/ports/config";
 import type { IDebugEventSink } from "@/application/ports/debug";
+import type { IGitController } from "@/application/ports/git-controller";
 import type { IImplementationLoop } from "@/application/ports/implementation-loop";
 import type { LlmProviderPort } from "@/application/ports/llm";
 import type { ILogger } from "@/application/ports/logger";
 import type { IJsonLogWriter } from "@/application/ports/logging";
+import { AgentLoopService } from "@/application/services/agent/agent-loop-service";
 import { DebugAgentEventBus } from "@/application/services/agent/debug-agent-event-bus";
+import { ImplementationLoopService } from "@/application/services/implementation-loop/implementation-loop-service";
+import { LlmReviewEngineService } from "@/application/services/implementation-loop/llm-review-engine";
+import { QualityGateRunner } from "@/application/services/implementation-loop/quality-gate-runner";
+import { ToolExecutor } from "@/application/services/tools/executor";
 import { ToolContextLogger } from "@/application/services/tools/tool-context-logger";
 import { DebugApprovalGate } from "@/application/services/workflow/debug-approval-gate";
 import { RunSpecUseCase } from "@/application/usecases/run-spec";
-import { createImplementationLoopService } from "@/di/create-implementation-loop-service";
+import { GitValidator } from "@/domain/git/git-validator";
+import { PermissionSystem } from "@/domain/tools/permissions";
+import { ToolRegistry } from "@/domain/tools/registry";
+import type { ToolContext } from "@/domain/tools/types";
 import { WorkflowEventBus } from "@/infra/events/workflow-event-bus";
+import { GitControllerAdapter } from "@/infra/git/git-controller-adapter";
 import { ClaudeProvider } from "@/infra/llm/claude-provider";
 import { MockLlmProvider } from "@/infra/llm/mock-llm-provider";
 import { ConsoleLogger } from "@/infra/logger/console-logger";
@@ -17,9 +27,29 @@ import { DebugLogWriter } from "@/infra/logger/debug-log-writer";
 import { JsonLogWriter } from "@/infra/logger/json-log-writer";
 import { NdjsonFileLogger } from "@/infra/logger/ndjson-file-logger";
 import { FileMemoryStore } from "@/infra/memory/file-memory-store";
+import { PlanFileStore, PlanFileStoreAdapter } from "@/infra/planning/plan-file-store";
 import { CcSddAdapter } from "@/infra/sdd/cc-sdd-adapter";
 import { MockSddAdapter } from "@/infra/sdd/mock-sdd-adapter";
 import { WorkflowStateStore } from "@/infra/state/workflow-state-store";
+import {
+  dependencyGraphTool,
+  findReferencesTool,
+  findSymbolDefinitionTool,
+  parseTsAstTool,
+} from "@/infra/tools/code-analysis";
+import { listDirectoryTool, readFileTool, searchFilesTool, writeFileTool } from "@/infra/tools/filesystem";
+import {
+  gitAddTool,
+  gitBranchCreateTool,
+  gitBranchListTool,
+  gitBranchSwitchTool,
+  gitCommitTool,
+  gitDiffTool,
+  gitPushTool,
+  gitStatusTool,
+} from "@/infra/tools/git";
+import { retrieveDesignDocTool, retrieveSpecTool, searchMemoryTool } from "@/infra/tools/knowledge";
+import { installDependenciesTool, runCommandTool, runTestSuiteTool } from "@/infra/tools/shell";
 import { getErrorMessage } from "@/infra/utils/errors";
 
 export interface RunDependencies {
@@ -60,11 +90,18 @@ export class RunContainer {
   private _debugWriter?: IDebugEventSink | null;
   private _debugApprovalGate?: DebugApprovalGate | null;
   private _debugAgentEventBus?: DebugAgentEventBus | null;
+  private _logger?: ILogger;
+  private _toolContextLogger?: ToolContextLogger;
+  private _toolRegistry?: ToolRegistry;
+  private _permissionSystem?: PermissionSystem;
+  private _toolContext?: ToolContext;
+  private _toolExecutor?: ToolExecutor;
+  private _agentLoop?: AgentLoopService;
+  private _gitController?: IGitController;
+  private _planStore?: PlanFileStoreAdapter;
   private _implementationLoop?: IImplementationLoop;
   private _memory?: FileMemoryStore;
   private _useCase?: RunSpecUseCase;
-  private _logger?: ILogger;
-  private _toolContextLogger?: ToolContextLogger;
 
   // --------------------------------------------------------------------------
   // Private lazy getters
@@ -130,14 +167,129 @@ export class RunContainer {
     return this._toolContextLogger;
   }
 
+  private get toolRegistry(): ToolRegistry {
+    if (!this._toolRegistry) {
+      const registry = new ToolRegistry();
+      for (
+        const tool of [
+          readFileTool,
+          writeFileTool,
+          listDirectoryTool,
+          searchFilesTool,
+          runCommandTool,
+          runTestSuiteTool,
+          installDependenciesTool,
+          gitStatusTool,
+          gitDiffTool,
+          gitCommitTool,
+          gitBranchListTool,
+          gitBranchCreateTool,
+          gitBranchSwitchTool,
+          gitAddTool,
+          gitPushTool,
+          searchMemoryTool,
+          retrieveSpecTool,
+          retrieveDesignDocTool,
+          parseTsAstTool,
+          findSymbolDefinitionTool,
+          findReferencesTool,
+          dependencyGraphTool,
+        ]
+      ) {
+        registry.register(tool);
+      }
+      this._toolRegistry = registry;
+    }
+    return this._toolRegistry;
+  }
+
+  private get permissionSystem(): PermissionSystem {
+    if (!this._permissionSystem) {
+      this._permissionSystem = new PermissionSystem();
+    }
+    return this._permissionSystem;
+  }
+
+  private get toolContext(): ToolContext {
+    if (!this._toolContext) {
+      this._toolContext = {
+        workspaceRoot: process.cwd(),
+        workingDirectory: process.cwd(),
+        permissions: this.permissionSystem.resolvePermissionSet("Full"),
+        memory: {
+          async search() {
+            return [];
+          },
+        },
+        logger: this.toolContextLogger,
+      };
+    }
+    return this._toolContext;
+  }
+
+  private get toolExecutor(): ToolExecutor {
+    if (!this._toolExecutor) {
+      this._toolExecutor = new ToolExecutor(this.toolRegistry, this.permissionSystem, {
+        defaultTimeoutMs: 60_000,
+        logMaxInputBytes: 1024,
+      });
+    }
+    return this._toolExecutor;
+  }
+
+  private get agentLoop(): AgentLoopService {
+    if (!this._agentLoop) {
+      this._agentLoop = new AgentLoopService(
+        this.toolExecutor,
+        this.toolRegistry,
+        this.newLlmProvider(),
+        this.toolContext,
+      );
+    }
+    return this._agentLoop;
+  }
+
+  private get gitController(): IGitController {
+    if (!this._gitController) {
+      this._gitController = this.options.debug
+        ? {
+          listBranches: async () => ({ ok: true, value: [] }),
+          detectChanges: async () => ({ ok: true, value: { staged: [], unstaged: [], untracked: [] } }),
+          createAndCheckoutBranch: async (_name, _base) => ({
+            ok: true,
+            value: { branchName: _name, baseBranch: _base, conflictResolved: false },
+          }),
+          stageAndCommit: async (_files, _msg) => ({
+            ok: true,
+            value: { hash: "mock-sha-0000000", message: _msg, fileCount: 0 },
+          }),
+          push: async (_name: string, _remote: string) => ({
+            ok: true,
+            value: { branchName: _name, remote: _remote, commitHash: "mock-sha-0000000" },
+          }),
+        }
+        : new GitControllerAdapter(this.toolExecutor, new GitValidator(), this.toolContext, []);
+    }
+    return this._gitController;
+  }
+
+  private get planStore(): PlanFileStoreAdapter {
+    if (!this._planStore) {
+      this._planStore = new PlanFileStoreAdapter(new PlanFileStore({ baseDir: process.cwd() }));
+    }
+    return this._planStore;
+  }
+
   private get implementationLoop(): IImplementationLoop {
     if (!this._implementationLoop) {
-      this._implementationLoop = createImplementationLoopService({
-        llm: this.newLlmProvider(),
-        workspaceRoot: process.cwd(),
-        noOpGit: this.options.debug,
-        logger: this.toolContextLogger,
-      });
+      const qualityGate = new QualityGateRunner(this.toolExecutor, this.toolContext);
+      const reviewEngine = new LlmReviewEngineService(this.newLlmProvider(), qualityGate);
+      this._implementationLoop = new ImplementationLoopService(
+        this.planStore,
+        this.agentLoop,
+        reviewEngine,
+        this.gitController,
+      );
     }
     return this._implementationLoop;
   }
