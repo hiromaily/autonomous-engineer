@@ -2,8 +2,11 @@
 set -euo pipefail
 
 # Clean Architecture import checker
-# - orchestrator-ts/src/README.md
-# Enforces these boundaries:
+#
+# SSOT for dependency rules: docs/_partials/src-dependency-direction.md
+# If that file changes, update the RULES array below to match.
+#
+# Enforces these boundaries (derived from src-dependency-direction.md):
 # - domain is independent
 # - application depends only on domain and application abstractions
 # - adapters/cli calls use cases and stays thin
