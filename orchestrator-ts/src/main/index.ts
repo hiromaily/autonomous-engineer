@@ -102,7 +102,7 @@ const runCommand = defineCommand({
     const { useCase, eventBus, logWriter, debugWriter, logger } = container.build();
 
     if (debug) {
-      logger.info("[DEBUG] Running with mock LLM and auto-approved gates.");
+      logger.info("Running with mock LLM and auto-approved gates.");
     }
 
     // Attach renderer

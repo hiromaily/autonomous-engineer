@@ -202,7 +202,7 @@ export class RunContainer {
     if (logWriter !== null) {
       this.eventBus.on((event) => {
         logWriter.write(event).catch((err) => {
-          process.stderr.write(`Warning: failed to write to log file: ${getErrorMessage(err)}\n`);
+          this.logger.warn("Failed to write to log file", { error: getErrorMessage(err) });
         });
       });
     }
