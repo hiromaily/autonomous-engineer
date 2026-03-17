@@ -1,3 +1,4 @@
+// biome-ignore lint/correctness/noUnusedImports: LogContext is used in inline parameter type annotations; biome false positive
 import type { ILogger, LogContext, LogLevel } from "@/application/ports/logger";
 import { isLevelEnabled, LOG_LEVEL_ORDER } from "@/application/ports/logger";
 import { describe, expect, it } from "bun:test";

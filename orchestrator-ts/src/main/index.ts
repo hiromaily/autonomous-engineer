@@ -51,7 +51,7 @@ const runCommand = defineCommand({
       process.exit(1);
     }
 
-    const debug = Boolean(args["debug"]);
+    const debug = Boolean(args.debug);
     const debugLog = args["debug-log"] as string | undefined;
 
     // Load configuration

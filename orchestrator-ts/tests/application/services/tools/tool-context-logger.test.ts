@@ -113,7 +113,7 @@ describe("ToolContextLogger", () => {
     it("includes resultStatus 'permission' in context", () => {
       toolContextLogger.error(makeEntry({ resultStatus: "permission", errorMessage: "access denied" }));
       const ctx = (logger.warn as ReturnType<typeof mock>).mock.calls[0]?.[1] as Record<string, unknown>;
-      expect(ctx["resultStatus"]).toBe("permission");
+      expect(ctx.resultStatus).toBe("permission");
     });
 
     it("never calls error when resultStatus is 'permission'", () => {
@@ -134,7 +134,7 @@ describe("ToolContextLogger", () => {
     it("includes resultStatus 'validation' in context", () => {
       toolContextLogger.error(makeEntry({ resultStatus: "validation" }));
       const ctx = (logger.warn as ReturnType<typeof mock>).mock.calls[0]?.[1] as Record<string, unknown>;
-      expect(ctx["resultStatus"]).toBe("validation");
+      expect(ctx.resultStatus).toBe("validation");
     });
 
     it("never calls error when resultStatus is 'validation'", () => {
