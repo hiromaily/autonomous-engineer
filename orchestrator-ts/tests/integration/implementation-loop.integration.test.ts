@@ -69,7 +69,7 @@ import type {
   SelfHealingResult,
 } from "@/domain/implementation-loop/types";
 import type { TaskPlan } from "@/domain/planning/types";
-import { NdjsonImplementationLoopLogger } from "@/infra/implementation-loop/ndjson-logger";
+import { NdjsonImplementationLoopLogger } from "@/infra/logger/ndjson-implementation-loop-logger";
 import { PlanFileStore } from "@/infra/planning/plan-file-store";
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
@@ -389,6 +389,7 @@ describe("ImplementationLoop integration — full implement → review → commi
     );
 
     await service.run(planId, { logger });
+    await logger.drain();
 
     const logPath = join(logDir, `implementation-loop-${planId}.ndjson`);
     const raw = await readFile(logPath, "utf-8");
@@ -1270,6 +1271,7 @@ describe("ImplementationLoop integration — quality gate checks and commit bloc
     );
 
     await service.run(planId, { qualityGateConfig, logger });
+    await logger.drain();
 
     const logPath = join(logDir, `implementation-loop-${planId}.ndjson`);
     const raw = await readFile(logPath, "utf-8");

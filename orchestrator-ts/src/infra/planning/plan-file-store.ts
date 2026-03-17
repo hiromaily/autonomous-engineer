@@ -2,8 +2,10 @@ import type { IPlanStore, SectionPersistenceStatus } from "@/application/ports/i
 import type { ITaskPlanStore } from "@/application/ports/task-planning";
 import { PlanValidator } from "@/domain/planning/plan-validator";
 import type { TaskPlan, TaskStatus } from "@/domain/planning/types";
-import { mkdir, open, readdir, readFile, rename } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { isNodeError } from "@/infra/utils/errors";
+import { atomicWrite, readFileSafe } from "@/infra/utils/fs";
+import { readdir, readFile } from "node:fs/promises";
+import { join } from "node:path";
 
 // ---------------------------------------------------------------------------
 // PlanStoreError — structured error thrown on invalid plan load
@@ -45,14 +47,6 @@ export interface PlanFileStoreOptions {
 const TERMINAL_STATUSES = new Set<TaskStatus>(["completed", "failed"]);
 
 // ---------------------------------------------------------------------------
-// Helper
-// ---------------------------------------------------------------------------
-
-function isNodeError(err: unknown): err is NodeJS.ErrnoException {
-  return err instanceof Error && "code" in err;
-}
-
-// ---------------------------------------------------------------------------
 // PlanFileStore — implements ITaskPlanStore with atomic JSON persistence
 // ---------------------------------------------------------------------------
 
@@ -88,31 +82,13 @@ export class PlanFileStore implements ITaskPlanStore {
   }
 
   // -------------------------------------------------------------------------
-  // Atomic write helper (mirrors FileMemoryStore.atomicWrite)
-  // -------------------------------------------------------------------------
-
-  private async atomicWrite(destPath: string, content: string): Promise<void> {
-    await mkdir(dirname(destPath), { recursive: true });
-
-    const tmpPath = `${destPath}.tmp`;
-    const fd = await open(tmpPath, "w");
-    try {
-      await fd.write(content);
-      await fd.datasync();
-    } finally {
-      await fd.close();
-    }
-    await rename(tmpPath, destPath);
-  }
-
-  // -------------------------------------------------------------------------
   // save() — atomic JSON write (Req 8.1)
   // -------------------------------------------------------------------------
 
   async save(plan: TaskPlan): Promise<void> {
     const destPath = this.resolvePlanPath(plan.id);
     const content = JSON.stringify(plan, null, 2);
-    await this.atomicWrite(destPath, content);
+    await atomicWrite(destPath, content);
   }
 
   // -------------------------------------------------------------------------
@@ -122,13 +98,8 @@ export class PlanFileStore implements ITaskPlanStore {
   async load(planId: string): Promise<TaskPlan | null> {
     const filePath = this.resolvePlanPath(planId);
 
-    let raw: string;
-    try {
-      raw = await readFile(filePath, "utf-8");
-    } catch (err) {
-      if (isNodeError(err) && err.code === "ENOENT") return null;
-      throw err;
-    }
+    const raw = await readFileSafe(filePath);
+    if (raw === null) return null;
 
     // Parse JSON — let parse errors propagate as-is
     const plan = JSON.parse(raw) as TaskPlan;

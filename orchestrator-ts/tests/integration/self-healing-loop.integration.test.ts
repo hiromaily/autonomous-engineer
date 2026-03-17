@@ -42,7 +42,7 @@ import {
   SelfHealingLoopService,
 } from "@/application/services/self-healing-loop/self-healing-loop-service";
 import type { SectionEscalation } from "@/domain/implementation-loop/types";
-import { NdjsonSelfHealingLoopLogger } from "@/infra/self-healing/ndjson-logger";
+import { NdjsonSelfHealingLoopLogger } from "@/infra/logger/ndjson-self-healing-loop-logger";
 import { describe, expect, it } from "bun:test";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";

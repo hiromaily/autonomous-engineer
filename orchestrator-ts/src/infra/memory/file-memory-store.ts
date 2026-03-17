@@ -13,8 +13,10 @@ import type {
   RankedMemoryEntry,
   ShortTermMemoryPort,
 } from "@/application/ports/memory";
-import { mkdir, open, readdir, readFile, rename } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { getErrorMessage, isNodeError } from "@/infra/utils/errors";
+import { atomicWrite, readFileSafe } from "@/infra/utils/fs";
+import { readdir, readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { InProcessShortTermStore } from "./short-term-store";
 
 // ---------------------------------------------------------------------------
@@ -42,14 +44,6 @@ const KNOWLEDGE_FILES: readonly KnowledgeMemoryFile[] = [
   "implementation_patterns",
   "debugging_patterns",
 ];
-
-// ---------------------------------------------------------------------------
-// Helper
-// ---------------------------------------------------------------------------
-
-function isNodeError(err: unknown): err is NodeJS.ErrnoException {
-  return err instanceof Error && "code" in err;
-}
 
 // ---------------------------------------------------------------------------
 // FileMemoryStore
@@ -95,16 +89,6 @@ export class FileMemoryStore implements MemoryPort {
   // -------------------------------------------------------------------------
   // File I/O helpers
   // -------------------------------------------------------------------------
-
-  /** Read a file, returning an empty string if the file does not exist. */
-  private async readFileSafe(filePath: string): Promise<string> {
-    try {
-      return await readFile(filePath, "utf-8");
-    } catch (err) {
-      if (isNodeError(err) && err.code === "ENOENT") return "";
-      throw err;
-    }
-  }
 
   // -------------------------------------------------------------------------
   // Markdown formatting (task 3.1)
@@ -210,7 +194,7 @@ export class FileMemoryStore implements MemoryPort {
 
     if (memoryTypes.includes("project")) {
       for (const file of PROJECT_FILES) {
-        const content = await this.readFileSafe(this.resolveProjectPath(file));
+        const content = (await readFileSafe(this.resolveProjectPath(file))) ?? "";
         for (const entry of this.parseEntries(content)) {
           allCandidates.push({ entry, sourceFile: file, relevanceScore: 0 });
         }
@@ -219,7 +203,7 @@ export class FileMemoryStore implements MemoryPort {
 
     if (memoryTypes.includes("knowledge")) {
       for (const file of KNOWLEDGE_FILES) {
-        const content = await this.readFileSafe(this.resolveKnowledgePath(file));
+        const content = (await readFileSafe(this.resolveKnowledgePath(file))) ?? "";
         for (const entry of this.parseEntries(content)) {
           allCandidates.push({ entry, sourceFile: file, relevanceScore: 0 });
         }
@@ -264,29 +248,6 @@ export class FileMemoryStore implements MemoryPort {
   }
 
   // -------------------------------------------------------------------------
-  // Atomic file write helper
-  // -------------------------------------------------------------------------
-
-  /**
-   * Write `content` to `destPath` atomically using a sibling `.tmp` file.
-   * Ensures the parent directory exists before writing.
-   */
-  private async atomicWrite(destPath: string, content: string): Promise<void> {
-    const dir = dirname(destPath);
-    await mkdir(dir, { recursive: true });
-
-    const tmpPath = `${destPath}.tmp`;
-    const fd = await open(tmpPath, "w");
-    try {
-      await fd.write(content);
-      await fd.datasync();
-    } finally {
-      await fd.close();
-    }
-    await rename(tmpPath, destPath);
-  }
-
-  // -------------------------------------------------------------------------
   // append() — task 3.2
   // -------------------------------------------------------------------------
 
@@ -304,7 +265,7 @@ export class FileMemoryStore implements MemoryPort {
     }
 
     const targetPath = this.resolveTargetPath(target);
-    const existing = await this.readFileSafe(targetPath);
+    const existing = (await readFileSafe(targetPath)) ?? "";
     const existingEntries = this.parseEntries(existing);
 
     // Deduplication: case-insensitive title match
@@ -319,7 +280,7 @@ export class FileMemoryStore implements MemoryPort {
       ? `${existing.trimEnd()}\n\n---\n\n${newEntryMd}`
       : newEntryMd;
 
-    await this.atomicWrite(targetPath, updated);
+    await atomicWrite(targetPath, updated);
     return { ok: true, action: "appended" };
   }
 
@@ -333,7 +294,7 @@ export class FileMemoryStore implements MemoryPort {
     entry: MemoryEntry,
   ): Promise<MemoryWriteResult> {
     const targetPath = this.resolveTargetPath(target);
-    const existing = await this.readFileSafe(targetPath);
+    const existing = (await readFileSafe(targetPath)) ?? "";
     const entries = this.parseEntries(existing);
 
     // Find entry by title (case-insensitive)
@@ -351,7 +312,7 @@ export class FileMemoryStore implements MemoryPort {
 
     // Serialize all entries back to Markdown, separated by ---
     const content = updated.map(e => this.formatEntry(e)).join("\n---\n\n");
-    await this.atomicWrite(targetPath, content);
+    await atomicWrite(targetPath, content);
     return { ok: true, action: "updated" };
   }
 
@@ -369,20 +330,10 @@ export class FileMemoryStore implements MemoryPort {
     const destPath = join(failuresDir, filename);
 
     try {
-      await mkdir(failuresDir, { recursive: true });
-
       const content = JSON.stringify(record, null, 2);
-      const tmpPath = `${destPath}.tmp`;
-      const fd = await open(tmpPath, "w");
-      try {
-        await fd.write(content);
-        await fd.datasync();
-      } finally {
-        await fd.close();
-      }
-      await rename(tmpPath, destPath);
+      await atomicWrite(destPath, content);
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
+      const message = getErrorMessage(err);
       return { ok: false, error: { category: "io_error", message } };
     }
 

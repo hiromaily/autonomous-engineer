@@ -32,7 +32,7 @@ import type { AgentState } from "@/domain/agent/types";
 import type { BranchCreationResult, CommitResult, GitChangesResult, PushResult } from "@/domain/git/types";
 import type { ReviewResult, SectionExecutionRecord } from "@/domain/implementation-loop/types";
 import type { Task, TaskPlan } from "@/domain/planning/types";
-import { NdjsonImplementationLoopLogger } from "@/infra/implementation-loop/ndjson-logger";
+import { NdjsonImplementationLoopLogger } from "@/infra/logger/ndjson-implementation-loop-logger";
 import { describe, expect, it, mock } from "bun:test";
 import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -342,6 +342,7 @@ describe("E2E: implementation loop — minimal one-section plan (Task 7.1)", () 
       );
 
       await service.run(planId, { logger });
+      await logger.drain();
 
       // Assert NDJSON log file exists
       const logFilePath = join(logDir, `implementation-loop-${planId}.ndjson`);

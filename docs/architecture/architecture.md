@@ -91,15 +91,17 @@ The system is organized into several layers.
 
 ```mermaid
 graph TD
-    CLI["adapters/cli<br/>(CLI entry point)"]
-    Bootstrap["infra/bootstrap<br/>(composition root)"]
+    Main["main/<br/>(entry point + composition root)"]
+    CLI["adapters/cli<br/>(CLI adapter — args, rendering)"]
     Usecase["application/usecases<br/>(use case orchestration)"]
     Services["application/services<br/>(application services)"]
     Ports["application/ports<br/>(port interfaces)"]
     Domain["domain<br/>(core business logic)"]
     Infra["infra/*<br/>(implementations)"]
 
-    CLI --> Bootstrap
+    Main --> CLI
+    Main --> Infra
+    Main --> Usecase
     CLI --> Usecase
     Usecase --> Services
     Usecase --> Ports
@@ -108,23 +110,30 @@ graph TD
     Ports --> Domain
     Infra --> Ports
     Infra --> Domain
-    Bootstrap --> Infra
-    Bootstrap --> Usecase
-    Bootstrap --> CLI
 ```
 
 Arrows represent compile-time import dependencies. Each layer has strict responsibilities.
 
+### main/ — Entry Point and Composition Root
+
+`main/` sits **outside** the Clean Architecture layers. It is the binary entry point and the only module that imports from all layers simultaneously in order to wire the dependency graph. It contains:
+
+- `index.ts` — the process entry point; delegates to CLI adapter
+- `run-container.ts` / `configure-container.ts` — DI container classes with lazy-initialized dependencies
+- `create-run-dependencies.ts` / `create-configure-dependencies.ts` — factory functions that delegate to the containers
+
+No other module imports from `main/`.
+
 ### Dependency Inversion and Why Infra → Ports Is Not Circular
 
-`infra/*` (non-bootstrap) imports from `application/ports` to know **which interfaces to implement**. `application` never imports from `infra`. The dependency is strictly one-directional:
+`infra/*` imports from `application/ports` to know **which interfaces to implement**. `application` never imports from `infra`. The dependency is strictly one-directional:
 
 ```
 Compile-time:  usecase → ports ← infra   (both depend on ports; neither on the other)
-Runtime (DI):  usecase → [port] → infra-impl   (bootstrap wires them together)
+Runtime (DI):  usecase → [port] → infra-impl   (main/ wires them together)
 ```
 
-`infra/bootstrap` is the only module that knows both sides and performs the wiring. This is the Dependency Inversion Principle: high-level policy (`usecases`) and low-level details (`infra`) both depend on the abstraction (`ports`), not on each other.
+`main/` is the only module that knows both sides and performs the wiring. This is the Dependency Inversion Principle: high-level policy (`usecases`) and low-level details (`infra`) both depend on the abstraction (`ports`), not on each other.
 
 ### Application Layer: Usecases vs Services
 
@@ -154,7 +163,7 @@ Examples:
 
 - `RunSpecUseCase` — drives the full spec initialization → implementation workflow
 
-Use cases depend only on port interfaces and application services at the code level, never importing from adapter or infrastructure packages directly. At runtime, concrete infrastructure implementations are injected via dependency injection through `infra/bootstrap`.
+Use cases depend only on port interfaces and application services at the code level, never importing from adapter or infrastructure packages directly. At runtime, concrete infrastructure implementations are injected via dependency injection through `main/`.
 
 ---
 
@@ -546,41 +555,49 @@ Examples:
 autonomous-engineer/
 ├─ orchestrator-ts/          # Workflow orchestration engine + aes CLI (TypeScript/Bun)
 │  │
-│  ├─ cli/
-│  │  └─ index.ts
-│  │
-│  ├─ application/
-│  │  ├─ usecases/
-│  │  │  ├─ initialize-spec-usecase.ts
-│  │  │  ├─ execute-task-usecase.ts
-│  │  │  └─ validate-design-usecase.ts
+│  ├─ src/
+│  │  ├─ main/               # Entry point + composition root (outside Clean Architecture layers)
+│  │  │  ├─ index.ts         # Process entry point — delegates to CLI adapter
+│  │  │  ├─ run-container.ts         # DI container for the run command (lazy-initialized)
+│  │  │  ├─ configure-container.ts   # DI container for the configure command (lazy-initialized)
+│  │  │  ├─ create-run-dependencies.ts       # Factory delegating to RunContainer
+│  │  │  └─ create-configure-dependencies.ts # Factory delegating to ConfigureContainer
 │  │  │
-│  │  ├─ facades/
-│  │  │  ├─ workflow-facade.ts
-│  │  │  └─ spec-facade.ts
+│  │  ├─ adapters/
+│  │  │  └─ cli/             # CLI adapter (thin — parse args, call use case, render output)
 │  │  │
-│  │  └─ ports/
-│  │     ├─ spec-engine-port.ts
-│  │     ├─ llm-provider-port.ts
-│  │     └─ git-controller-port.ts
-│  │
-│  ├─ domain/
-│  │  ├─ engines/
-│  │  │  ├─ spec/
-│  │  │  ├─ implementation/
-│  │  │  └─ review/
+│  │  ├─ application/
+│  │  │  ├─ usecases/        # Top-level entrypoints for application actions (e.g. run-spec.ts)
+│  │  │  ├─ services/        # Reusable orchestration logic (agent, context, git, safety, tools…)
+│  │  │  └─ ports/           # Abstract interface definitions (llm, memory, sdd, workflow…)
 │  │  │
-│  │  ├─ workflow/
-│  │  ├─ memory/
-│  │  └─ self-healing/
-│  │
-│  ├─ adapters/
-│  │  ├─ sdd/
-│  │  └─ llm/
-│  │
-│  ├─ infra/
-│  │  ├─ git/
-│  │  └─ filesystem/
+│  │  ├─ domain/
+│  │  │  ├─ agent/
+│  │  │  ├─ context/
+│  │  │  ├─ debug/
+│  │  │  ├─ git/
+│  │  │  ├─ implementation-loop/
+│  │  │  ├─ planning/
+│  │  │  ├─ safety/
+│  │  │  ├─ self-healing/
+│  │  │  ├─ tools/
+│  │  │  └─ workflow/
+│  │  │
+│  │  └─ infra/
+│  │     ├─ config/          # Config loading and SDD framework detection
+│  │     ├─ events/          # Concrete event bus implementations
+│  │     ├─ git/             # Git controller adapter and GitHub PR adapter
+│  │     ├─ implementation-loop/
+│  │     ├─ logger/          # Consolidated logger classes (DebugLogWriter, NdjsonLogger…)
+│  │     ├─ llm/             # Claude provider, mock LLM provider
+│  │     ├─ memory/          # File-backed and in-memory stores
+│  │     ├─ planning/        # Plan file store
+│  │     ├─ safety/          # Approval gateway, sandbox executor
+│  │     ├─ sdd/             # Claude Code SDD adapter, mock SDD adapter
+│  │     ├─ self-healing/    # Self-healing loop service factory
+│  │     ├─ state/           # Workflow state store
+│  │     ├─ tools/           # Shell, filesystem, git, code-analysis tool implementations
+│  │     └─ utils/           # Shared low-level utilities (errors, fs, ndjson)
 │  │
 │  ├─ tests/
 │  ├─ package.json
@@ -602,16 +619,17 @@ autonomous-engineer/
 
 ### Structure Philosophy
 
-Each implementation directory (`*-ts`, `*-rs`, etc.) is a self-contained component with its own toolchain, dependencies, and internal architecture. Within `orchestrator-ts/`, the directory structure maps directly to Clean Architecture layers:
+Each implementation directory (`*-ts`, `*-rs`, etc.) is a self-contained component with its own toolchain, dependencies, and internal architecture. Within `orchestrator-ts/src/`, the directory structure maps directly to Clean Architecture layers:
 
-- `cli/` is the entry point and user interface layer
+- `main/` is the **composition root and process entry point** — it sits outside the Clean Architecture layers and is the only place that imports from all layers simultaneously to wire the dependency graph
+- `adapters/cli/` is the inbound delivery adapter — parses CLI arguments, invokes use cases, and renders output
 - `application/` is the application layer, grouped into three concerns:
   - `usecases/` — application business rules and workflow orchestration
-  - `facades/` — simplified interfaces to complex domain subsystems
+  - `services/` — reusable coordination logic supporting multiple use cases
   - `ports/` — input/output port definitions (interfaces required by the application)
 - `domain/` contains core domain logic independent of all external concerns
-- `adapters/` implement the ports defined in `application/`, bridging to external systems
-- `infra/` provides concrete infrastructure implementations (git, filesystem, etc.)
+- `infra/` provides concrete infrastructure implementations (git, LLM, filesystem, logging, etc.)
+- `infra/utils/` holds shared low-level utilities used across infra sub-directories only
 - `docs/` provides architectural knowledge for both developers and AI agents
 
 This structure allows the system to evolve while keeping the core logic independent from external dependencies.

@@ -1,5 +1,5 @@
 import type { AesConfig } from "@/application/ports/config";
-import { createRunDependencies } from "@/infra/bootstrap/create-run-dependencies";
+import { createRunDependencies } from "@/main/create-run-dependencies";
 import { describe, expect, it } from "bun:test";
 
 const stubConfig: AesConfig = {

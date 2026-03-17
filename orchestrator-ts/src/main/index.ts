@@ -1,13 +1,13 @@
 #!/usr/bin/env bun
+import { ConfigWizard } from "@/adapters/cli/config-wizard";
+import { ConfigureCommand } from "@/adapters/cli/configure-command";
+import { CliRenderer } from "@/adapters/cli/renderer";
 import { ConfigValidationError } from "@/application/ports/config";
 import type { AesConfig } from "@/application/ports/config";
-import { createConfigureDependencies } from "@/infra/bootstrap/create-configure-dependencies";
-import { createRunDependencies } from "@/infra/bootstrap/create-run-dependencies";
-import { ConfigLoader } from "@/infra/bootstrap/load-config";
+import { ConfigLoader } from "@/infra/config/config-loader";
+import { ConfigureContainer } from "@/main/configure-container";
+import { RunContainer } from "@/main/run-container";
 import { defineCommand, runMain } from "citty";
-import { ConfigWizard } from "./config-wizard";
-import { ConfigureCommand } from "./configure-command";
-import { CliRenderer } from "./renderer";
 
 const runCommand = defineCommand({
   meta: {
@@ -94,15 +94,15 @@ const runCommand = defineCommand({
       process.stderr.write("[DEBUG-FLOW MODE] Running with mock LLM and auto-approved gates.\n");
     }
 
-    // Wire dependencies via bootstrap
+    // Wire dependencies via composition root
     const logJsonPath = args["log-json"] as string | undefined;
     const providerOverride = args.provider as string | undefined;
-    const { useCase, eventBus, logWriter, debugWriter } = createRunDependencies(config, {
+    const { useCase, eventBus, logWriter, debugWriter } = new RunContainer(config, {
       debugFlow,
       ...(debugFlowLog !== undefined ? { debugFlowLog } : {}),
       ...(logJsonPath !== undefined ? { logJsonPath } : {}),
       ...(providerOverride !== undefined ? { providerOverride } : {}),
-    });
+    }).build();
 
     // Attach renderer
     const renderer = new CliRenderer((text) => process.stdout.write(text));
@@ -128,7 +128,7 @@ const configureCommand = defineCommand({
     description: "Interactively configure aes settings",
   },
   async run() {
-    const { configWriter, frameworkChecker } = createConfigureDependencies();
+    const { configWriter, frameworkChecker } = new ConfigureContainer().build();
     const cmd = new ConfigureCommand({
       wizard: new ConfigWizard(),
       configWriter,

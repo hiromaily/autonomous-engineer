@@ -4,7 +4,7 @@ import type {
   SectionIterationLogEntry,
 } from "@/application/ports/implementation-loop";
 import type { SectionExecutionRecord } from "@/domain/implementation-loop/types";
-import { appendFileSync, mkdirSync } from "node:fs";
+import { appendNdjsonLine } from "@/infra/utils/ndjson";
 import { join } from "node:path";
 
 /**
@@ -20,10 +20,16 @@ import { join } from "node:path";
 export class NdjsonImplementationLoopLogger implements IImplementationLoopLogger {
   readonly #logDir: string;
   readonly #planId: string;
+  readonly #pendingWrites = new Set<Promise<void>>();
 
   constructor(planId: string, logDir = ".aes/logs") {
     this.#planId = planId;
     this.#logDir = logDir;
+  }
+
+  /** Waits for all in-flight log writes to settle. Useful in tests and teardown. */
+  drain(): Promise<void> {
+    return Promise.allSettled([...this.#pendingWrites]).then(() => undefined);
   }
 
   get #logPath(): string {
@@ -43,12 +49,11 @@ export class NdjsonImplementationLoopLogger implements IImplementationLoopLogger
   }
 
   #append(entry: object): void {
-    try {
-      mkdirSync(this.#logDir, { recursive: true });
-      appendFileSync(this.#logPath, `${JSON.stringify(entry)}\n`, "utf8");
-    } catch (err) {
+    const write = appendNdjsonLine(this.#logPath, entry).catch((err) => {
       // Never throw — log failures must not disrupt the implementation loop.
       console.error("Failed to write to NDJSON log:", err);
-    }
+    });
+    this.#pendingWrites.add(write);
+    write.finally(() => this.#pendingWrites.delete(write));
   }
 }
