@@ -1,5 +1,6 @@
 import type { IConfigWizard, WizardDefaults, WizardInput } from "@/adapters/cli/config-wizard";
 import type { IConfigWriter, IFrameworkChecker, WritableConfig } from "@/application/ports/config";
+import type { ILogger } from "@/application/ports/logger";
 import { readFile as fsReadFile } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -7,6 +8,7 @@ export interface ConfigureCommandOptions {
   readonly wizard: IConfigWizard;
   readonly configWriter: IConfigWriter;
   readonly frameworkChecker: IFrameworkChecker;
+  readonly logger?: ILogger;
   readonly cwd?: string;
   /** Override the TTY check; defaults to `process.stdin.isTTY`. */
   readonly isTTY?: boolean;

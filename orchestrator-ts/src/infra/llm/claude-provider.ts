@@ -1,4 +1,5 @@
 import type { LlmCompleteOptions, LlmErrorCategory, LlmProviderPort, LlmResult } from "@/application/ports/llm";
+import type { ILogger } from "@/application/ports/logger";
 import { getErrorMessage } from "@/infra/utils/errors";
 import Anthropic from "@anthropic-ai/sdk";
 
@@ -14,11 +15,13 @@ const DEFAULT_MAX_TOKENS = 8192;
 export class ClaudeProvider implements LlmProviderPort {
   private readonly client: Anthropic;
   private readonly modelName: string;
+  private readonly logger: ILogger | undefined;
   private messages: HistoryEntry[] = [];
 
-  constructor(config: ClaudeProviderConfig, client?: Anthropic) {
+  constructor(config: ClaudeProviderConfig, client?: Anthropic, logger?: ILogger) {
     this.modelName = config.modelName;
     this.client = client ?? new Anthropic({ apiKey: config.apiKey });
+    this.logger = logger;
   }
 
   async complete(prompt: string, options?: LlmCompleteOptions): Promise<LlmResult> {

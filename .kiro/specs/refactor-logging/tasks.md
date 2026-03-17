@@ -47,14 +47,14 @@
   - Reject any value that is not one of the four valid `LogLevel` strings with a `ConfigValidationError` that lists `"logLevel"` in `missingFields`
   - _Requirements: 4.2, 4.3_
 
-- [ ] 5. Wire ILogger through the DI containers and rename the debug CLI flags
-- [ ] 5.1 Update RunOptions and DebugLogWriter for the renamed debug fields
+- [x] 5. Wire ILogger through the DI containers and rename the debug CLI flags
+- [x] 5.1 Update RunOptions and DebugLogWriter for the renamed debug fields
   - Rename `debugFlow` → `debug` and `debugFlowLog` → `debugLog` in the `RunOptions` interface
   - Remove the optional `filePath` parameter from `DebugLogWriter`'s constructor; it must always write to `process.stderr` from now on
   - `debugLog` now exclusively routes `ILogger` debug-level output to an NDJSON file, not domain debug events
   - _Requirements: 5.1, 5.5, 5.6_
 
-- [ ] 5.2 Wire ILogger into RunContainer and inject it into all consumers
+- [x] 5.2 Wire ILogger into RunContainer and inject it into all consumers
   - Create exactly one `ConsoleLogger` instance per container, using `"debug"` when the `debug` option is true, otherwise using `config.logLevel`
   - Create exactly one `ToolContextLogger` wrapping the `ConsoleLogger` and supply it as `context.logger` in `ToolContext`
   - Add `logger: ILogger` to the `RunDependencies` return value
@@ -62,7 +62,7 @@
   - Update `ConfigureContainer` in `main/` to inject `ILogger` into `ConfigureCommand`
   - _Requirements: 1.3, 1.4, 1.5, 5.3_
 
-- [ ] 5.3 Rename the debug flags in main/index.ts
+- [x] 5.3 Rename the debug flags in main/index.ts
   - Remove `--debug-flow`; add `--debug` (boolean, default false)
   - Remove `--debug-flow-log`; add `--debug-log` (string) for routing `ILogger` output to a file
   - Passing `--debug-flow` must produce an unrecognized-flag error via citty

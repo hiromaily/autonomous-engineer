@@ -1,6 +1,7 @@
 import type { AesConfig } from "@/application/ports/config";
 import type { IImplementationLoop, ImplementationLoopOptions } from "@/application/ports/implementation-loop";
 import type { LlmProviderPort } from "@/application/ports/llm";
+import type { ILogger } from "@/application/ports/logger";
 import type { MemoryPort } from "@/application/ports/memory";
 import type { SddFrameworkPort } from "@/application/ports/sdd";
 import type { IWorkflowEventBus, IWorkflowStateStore } from "@/application/ports/workflow";
@@ -29,6 +30,8 @@ export interface RunSpecUseCaseDeps {
   readonly approvalGate?: ApprovalGate;
   /** Optional options forwarded to the implementation loop (e.g. agentEventBus for debug-flow). */
   readonly implementationLoopOptions?: Partial<ImplementationLoopOptions>;
+  /** Optional operational logger injected for phase lifecycle events. */
+  readonly logger?: ILogger;
 }
 
 export class RunSpecUseCase {

@@ -13,6 +13,7 @@ import { ToolExecutor } from "@/application/services/tools/executor";
 import { GitValidator } from "@/domain/git/git-validator";
 import { PermissionSystem } from "@/domain/tools/permissions";
 import { ToolRegistry } from "@/domain/tools/registry";
+import type { Logger } from "@/domain/tools/types";
 import type { ToolContext } from "@/domain/tools/types";
 import { GitControllerAdapter } from "@/infra/git/git-controller-adapter";
 import { PlanFileStore, PlanFileStoreAdapter } from "@/infra/planning/plan-file-store";
@@ -41,10 +42,12 @@ export interface ImplementationLoopServiceOptions {
   readonly workspaceRoot: string;
   /**
    * When true, replaces the real GitControllerAdapter with a no-op stub that
-   * reports no changes and returns a synthetic commit SHA. Used in --debug-flow
-   * so the implementation loop completes without touching the actual git repo.
+   * reports no changes and returns a synthetic commit SHA. Used in --debug
+   * mode so the implementation loop completes without touching the actual git repo.
    */
   readonly noOpGit?: boolean;
+  /** Optional tool context logger. When provided, replaces the default stderr logger. */
+  readonly logger?: Logger;
 }
 
 /**
@@ -60,7 +63,7 @@ export interface ImplementationLoopServiceOptions {
 export function createImplementationLoopService(
   options: ImplementationLoopServiceOptions,
 ): IImplementationLoop {
-  const { llm, workspaceRoot, noOpGit = false } = options;
+  const { llm, workspaceRoot, noOpGit = false, logger } = options;
 
   // 1. Tool registry — all available tools registered once
   const registry = new ToolRegistry();
@@ -98,6 +101,12 @@ export function createImplementationLoopService(
   const permissionSet = permSystem.resolvePermissionSet("Full");
 
   // 3. Tool context
+  const defaultLogger: ToolContext["logger"] = {
+    info() {},
+    error(entry) {
+      process.stderr.write(`[TOOL ERROR] ${entry.toolName}: ${entry.errorMessage ?? "error"}\n`);
+    },
+  };
   const toolContext: ToolContext = {
     workspaceRoot,
     workingDirectory: workspaceRoot,
@@ -107,12 +116,7 @@ export function createImplementationLoopService(
         return [];
       },
     },
-    logger: {
-      info() {},
-      error(entry) {
-        process.stderr.write(`[TOOL ERROR] ${entry.toolName}: ${entry.errorMessage ?? "error"}\n`);
-      },
-    },
+    logger: logger ?? defaultLogger,
   };
 
   // 4. Tool executor

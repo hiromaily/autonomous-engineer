@@ -1,11 +1,14 @@
 import type { IDebugEventSink } from "@/application/ports/debug";
 import type { LlmCompleteOptions, LlmProviderPort, LlmResult } from "@/application/ports/llm";
+import type { ILogger } from "@/application/ports/logger";
 import type { IWorkflowEventBus } from "@/application/ports/workflow";
 
 export interface MockLlmProviderConfig {
   readonly sink: IDebugEventSink;
   /** WorkflowEventBus to subscribe for `phase:start` events; used to track current phase. */
   readonly workflowEventBus: IWorkflowEventBus;
+  /** Optional operational logger for LLM interaction entries. */
+  readonly logger?: ILogger;
 }
 
 /**
@@ -53,11 +56,13 @@ const MOCK_REVIEW_RESPONSE = JSON.stringify({
  */
 export class MockLlmProvider implements LlmProviderPort {
   readonly #sink: IDebugEventSink;
+  readonly #logger: ILogger | undefined;
   #callIndex = 0;
   #currentPhase = "UNKNOWN";
 
   constructor(config: MockLlmProviderConfig) {
     this.#sink = config.sink;
+    this.#logger = config.logger;
     config.workflowEventBus.on((event) => {
       if (event.type === "phase:start") {
         this.#currentPhase = event.phase;
