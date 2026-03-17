@@ -92,7 +92,7 @@
   - Verify that subsequent `aes run` invocations read and apply the persisted level without requiring a runtime flag
   - _Requirements: 4.1, 4.4_
 
-- [ ] 8. (P) Emit DI resolution log entries from RunContainer.build()
+- [x] 8. (P) Emit DI resolution log entries from RunContainer.build()
   - Emit a `debug`-level entry for each resolved dependency naming the type and its concrete implementation
   - Emit an `info`-level entry whenever a mock or stub is substituted for a production dependency (e.g., mock LLM provider active in `--debug` mode)
   - Emit an `error`-level entry if a required dependency resolves to null or undefined where that is not expected

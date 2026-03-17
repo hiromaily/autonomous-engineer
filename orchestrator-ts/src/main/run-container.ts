@@ -198,21 +198,59 @@ export class RunContainer {
    * RunDependencies. Should be called exactly once per container instance.
    */
   build(): RunDependencies {
+    // Resolve logger first — required for all subsequent DI log entries.
+    const logger = this.logger;
+    logger.debug("DI resolved", { dependency: "logger", impl: "ConsoleLogger" });
+
+    // Resolve and log each infrastructure dependency.
+    const eventBus = this.eventBus;
+    logger.debug("DI resolved", { dependency: "eventBus", impl: "WorkflowEventBus" });
+
     const logWriter = this.logWriter;
+    logger.debug("DI resolved", {
+      dependency: "logWriter",
+      impl: logWriter !== null ? "JsonLogWriter" : "null",
+    });
+
+    const debugWriter = this.debugWriter;
+    logger.debug("DI resolved", {
+      dependency: "debugWriter",
+      impl: debugWriter !== null ? "DebugLogWriter" : "null",
+    });
+
+    logger.debug("DI resolved", { dependency: "toolContextLogger", impl: "ToolContextLogger" });
+
+    const memory = this.memory;
+    logger.debug("DI resolved", { dependency: "memory", impl: "FileMemoryStore" });
+
+    // Announce mock substitutions before the use case is constructed so that
+    // operators see the active stub list at the top of the debug output.
+    if (this.options.debug) {
+      logger.info("Mock substitution active", {
+        dependency: "llmProvider",
+        impl: "MockLlmProvider",
+        reason: "debug mode",
+      });
+      logger.info("Mock substitution active", {
+        dependency: "sdd",
+        impl: "MockSddAdapter",
+        reason: "debug mode",
+      });
+    }
+
+    // Resolve the use case last — its construction pulls in the remaining deps.
+    const useCase = this.useCase;
+    logger.debug("DI resolved", { dependency: "useCase", impl: "RunSpecUseCase" });
+
+    // Wire side-effects (event-bus → log writer).
     if (logWriter !== null) {
-      this.eventBus.on((event) => {
+      eventBus.on((event) => {
         logWriter.write(event).catch((err) => {
-          this.logger.warn("Failed to write to log file", { error: getErrorMessage(err) });
+          logger.warn("Failed to write to log file", { error: getErrorMessage(err) });
         });
       });
     }
 
-    return {
-      useCase: this.useCase,
-      eventBus: this.eventBus,
-      logWriter: this.logWriter,
-      debugWriter: this.debugWriter,
-      logger: this.logger,
-    };
+    return { useCase, eventBus, logWriter, debugWriter, logger };
   }
 }
