@@ -4,7 +4,7 @@ import type { LlmProviderPort } from "@/application/ports/llm";
 import type { ILogger } from "@/application/ports/logger";
 import type { MemoryPort } from "@/application/ports/memory";
 import type { SddFrameworkPort } from "@/application/ports/sdd";
-import type { IWorkflowEventBus, IWorkflowStateStore } from "@/application/ports/workflow";
+import type { IWorkflowEventBus, IWorkflowStateStore, WorkflowEvent } from "@/application/ports/workflow";
 import { ApprovalGate } from "@/domain/workflow/approval-gate";
 import { PhaseRunner } from "@/domain/workflow/phase-runner";
 import type { WorkflowPhase } from "@/domain/workflow/types";
@@ -84,6 +84,27 @@ export class RunSpecUseCase {
       language: "en",
     });
 
-    return engine.execute(state);
+    const logger = this.deps.logger;
+    let phaseLogHandler: ((event: WorkflowEvent) => void) | undefined;
+    if (logger) {
+      phaseLogHandler = (event) => {
+        if (event.type === "phase:start") {
+          logger.info("Phase started", { phase: event.phase, specName });
+        } else if (event.type === "phase:complete") {
+          logger.info("Phase completed", { phase: event.phase, outcome: "completed" });
+        } else if (event.type === "phase:error") {
+          logger.error("Phase failed", { phase: event.phase, reason: event.error });
+        }
+      };
+      eventBus.on(phaseLogHandler);
+    }
+
+    try {
+      return await engine.execute(state);
+    } finally {
+      if (phaseLogHandler) {
+        eventBus.off(phaseLogHandler);
+      }
+    }
   }
 }

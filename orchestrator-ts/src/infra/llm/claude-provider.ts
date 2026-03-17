@@ -17,6 +17,7 @@ export class ClaudeProvider implements LlmProviderPort {
   private readonly modelName: string;
   private readonly logger: ILogger | undefined;
   private messages: HistoryEntry[] = [];
+  private callIndex = 0;
 
   constructor(config: ClaudeProviderConfig, client?: Anthropic, logger?: ILogger) {
     this.modelName = config.modelName;
@@ -25,6 +26,11 @@ export class ClaudeProvider implements LlmProviderPort {
   }
 
   async complete(prompt: string, options?: LlmCompleteOptions): Promise<LlmResult> {
+    this.callIndex++;
+    const callIndex = this.callIndex;
+    const promptPreview = prompt.slice(0, 500);
+    this.logger?.debug("LLM call", { callIndex, promptPreview });
+
     this.messages.push({ role: "user", content: prompt });
 
     try {
@@ -40,6 +46,8 @@ export class ClaudeProvider implements LlmProviderPort {
         .join("");
       this.messages.push({ role: "assistant", content: text });
 
+      this.logger?.debug("LLM response", { callIndex, responseSummary: text.slice(0, 200) });
+
       return {
         ok: true,
         value: {
@@ -51,11 +59,14 @@ export class ClaudeProvider implements LlmProviderPort {
         },
       };
     } catch (err) {
+      const errorCategory = categorize(err);
+      const errorMessage = getErrorMessage(err);
+      this.logger?.error("LLM error", { callIndex, errorCategory, errorMessage });
       return {
         ok: false,
         error: {
-          category: categorize(err),
-          message: getErrorMessage(err),
+          category: errorCategory,
+          message: errorMessage,
           originalError: err,
         },
       };

@@ -76,6 +76,9 @@ export class MockLlmProvider implements LlmProviderPort {
     const callIndex = this.#callIndex;
     const phase = this.#currentPhase;
     const timestamp = new Date().toISOString();
+    const promptPreview = prompt.slice(0, 500);
+
+    this.#logger?.debug("LLM call", { phase, callIndex, promptPreview });
 
     // Route to the correct mock response based on unique structural markers in each prompt type.
     // "planAdjustment" only appears in REFLECT step prompts (agent-loop-service.ts).
@@ -97,6 +100,8 @@ export class MockLlmProvider implements LlmProviderPort {
       durationMs,
       timestamp,
     });
+
+    this.#logger?.debug("LLM response", { callIndex, responseSummary: response.slice(0, 200) });
 
     return {
       ok: true,

@@ -70,15 +70,15 @@
   - Replace `process.stderr.write` calls for operational messages with `ILogger` method calls; retain `process.stderr.write` only for pre-logger errors that occur before `ConfigLoader.load()` succeeds
   - _Requirements: 5.1, 5.2, 5.4, 5.6_
 
-- [ ] 6. (P) Instrument operational log call sites
-- [ ] 6.1 (P) Add phase lifecycle logging to RunSpecUseCase
+- [x] 6. (P) Instrument operational log call sites
+- [x] 6.1 (P) Add phase lifecycle logging to RunSpecUseCase
   - Inject `ILogger` into `RunSpecUseCase`'s constructor options alongside existing ports
   - Emit an `info`-level entry when a workflow phase begins, with `{ phase, specName }` in the context object
   - Emit an `info`-level entry when a phase completes successfully, with `{ phase, outcome }` in the context
   - Emit an `error`-level entry when a phase fails, with `{ phase, reason }` in the context
   - _Requirements: 6.1, 6.2, 6.3_
 
-- [ ] 6.2 (P) Add LLM interaction logging to ClaudeProvider and MockLlmProvider
+- [x] 6.2 (P) Add LLM interaction logging to ClaudeProvider and MockLlmProvider
   - Inject `ILogger` via the constructor in both providers
   - Emit a `debug`-level entry before each LLM call with `{ phase, callIndex, promptPreview }` where the prompt preview is truncated to the first 500 characters
   - Emit a `debug`-level entry after each successful response with `{ callIndex, responseSummary }`
