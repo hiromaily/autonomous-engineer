@@ -28,7 +28,7 @@
   - When `isTTY` is false, output plain text in the format `[LEVEL] message { ...context }` with no escape codes
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
 
-- [ ] 3. (P) Implement the ToolContextLogger adapter
+- [x] 3. (P) Implement the ToolContextLogger adapter
   - Create `ToolContextLogger` in `application/services/tools/` implementing the `Logger` interface from `domain/tools/types.ts`
   - Forward successful tool invocations (`Logger.info`) as `ILogger.debug` entries including tool name, input summary, duration, and output size
   - Forward failed invocations with a non-zero exit code or permission denial (`Logger.error`, non-runtime status) as `ILogger.warn`
