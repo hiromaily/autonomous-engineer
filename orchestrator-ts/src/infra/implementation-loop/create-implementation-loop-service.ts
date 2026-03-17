@@ -103,9 +103,7 @@ export function createImplementationLoopService(
   // 3. Tool context
   const defaultLogger: ToolContext["logger"] = {
     info() {},
-    error(entry) {
-      process.stderr.write(`[TOOL ERROR] ${entry.toolName}: ${entry.errorMessage ?? "error"}\n`);
-    },
+    error() {},
   };
   const toolContext: ToolContext = {
     workspaceRoot,

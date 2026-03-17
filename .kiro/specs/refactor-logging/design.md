@@ -611,7 +611,7 @@ No new aggregates or entities. `LogLevel` is a value type (`"debug" | "info" | "
 
 - `aes run <spec> --debug`: debug-level entries appear in stderr output
 - `aes run <spec>` with `logLevel: "warn"` in config: only `warn` and `error` entries appear
-- `aes run <spec> --debug --debug-log /tmp/debug.ndjson`: debug events written to file; operational log still on stderr
+- `aes run <spec> --debug --debug-log /tmp/debug.ndjson`: `ILogger` output written to NDJSON file; `DebugLogWriter` domain events still appear on stderr
 
 ---
 

@@ -55,16 +55,16 @@ export class ConsoleLogger implements ILogger {
   private write(level: LogLevel, message: string, context?: LogContext): void {
     if (LOG_LEVEL_ORDER.indexOf(level) < this.minLevelIndex) return;
 
-    const contextStr = context !== undefined ? ` ${JSON.stringify(context)}` : "";
-    const body = `${LEVEL_LABEL[level]} ${message}${contextStr}`;
-    const line = this.isTTY
-      ? `${ANSI_PREFIX[level]}${body}${ANSI_RESET}\n`
-      : `${body}\n`;
-
     try {
+      const contextStr = context !== undefined ? ` ${JSON.stringify(context)}` : "";
+      const body = `${LEVEL_LABEL[level]} ${message}${contextStr}`;
+      const line = this.isTTY
+        ? `${ANSI_PREFIX[level]}${body}${ANSI_RESET}\n`
+        : `${body}\n`;
+
       process.stderr.write(line);
     } catch {
-      // Silently swallow write errors — logging must never crash the application
+      // Silently swallow all errors — logging must never crash the application
     }
   }
 }

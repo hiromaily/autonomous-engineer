@@ -15,6 +15,7 @@ import { MockLlmProvider } from "@/infra/llm/mock-llm-provider";
 import { ConsoleLogger } from "@/infra/logger/console-logger";
 import { DebugLogWriter } from "@/infra/logger/debug-log-writer";
 import { JsonLogWriter } from "@/infra/logger/json-log-writer";
+import { NdjsonFileLogger } from "@/infra/logger/ndjson-file-logger";
 import { FileMemoryStore } from "@/infra/memory/file-memory-store";
 import { CcSddAdapter } from "@/infra/sdd/cc-sdd-adapter";
 import { MockSddAdapter } from "@/infra/sdd/mock-sdd-adapter";
@@ -62,7 +63,7 @@ export class RunContainer {
   private _implementationLoop?: IImplementationLoop;
   private _memory?: FileMemoryStore;
   private _useCase?: RunSpecUseCase;
-  private _logger?: ConsoleLogger;
+  private _logger?: ILogger;
   private _toolContextLogger?: ToolContextLogger;
 
   // --------------------------------------------------------------------------
@@ -112,10 +113,12 @@ export class RunContainer {
     return this._debugAgentEventBus;
   }
 
-  private get logger(): ConsoleLogger {
+  private get logger(): ILogger {
     if (!this._logger) {
       const minLevel = this.options.debug ? "debug" : this.config.logLevel;
-      this._logger = new ConsoleLogger(minLevel);
+      this._logger = this.options.debugLog !== undefined
+        ? new NdjsonFileLogger(this.options.debugLog, minLevel)
+        : new ConsoleLogger(minLevel);
     }
     return this._logger;
   }
