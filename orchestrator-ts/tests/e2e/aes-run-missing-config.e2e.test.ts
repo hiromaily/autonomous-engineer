@@ -13,7 +13,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const CLI_PATH = join(import.meta.dir, "../../src/adapters/cli/index.ts");
+const CLI_PATH = join(import.meta.dir, "../../src/main/index.ts");
 
 async function runCli(args: string[], opts: { cwd: string; env?: Record<string, string | undefined> }): Promise<{
   exitCode: number;

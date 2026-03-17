@@ -779,7 +779,7 @@ describe("E2E: CLI subprocess dry-run exit code", () => {
         }),
       );
 
-      const cliPath = join(import.meta.dir, "../../src/adapters/cli/index.ts");
+      const cliPath = join(import.meta.dir, "../../src/main/index.ts");
       const proc = Bun.spawn(
         ["bun", cliPath, "run", env.specName, "--dry-run"],
         { cwd: env.tmpDir, stderr: "pipe", stdout: "pipe" },
@@ -804,7 +804,7 @@ describe("E2E: CLI subprocess dry-run exit code", () => {
         }),
       );
 
-      const cliPath = join(import.meta.dir, "../../src/adapters/cli/index.ts");
+      const cliPath = join(import.meta.dir, "../../src/main/index.ts");
       const proc = Bun.spawn(
         ["bun", cliPath, "run", "nonexistent-spec", "--dry-run"],
         { cwd: env.tmpDir, stderr: "pipe", stdout: "pipe" },

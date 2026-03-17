@@ -1,4 +1,4 @@
-import { createConfigureDependencies } from "@/infra/bootstrap/create-configure-dependencies";
+import { createConfigureDependencies } from "@/main/create-configure-dependencies";
 import { describe, expect, it } from "bun:test";
 
 describe("createConfigureDependencies", () => {

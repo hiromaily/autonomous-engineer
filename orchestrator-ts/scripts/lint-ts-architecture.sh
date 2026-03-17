@@ -46,7 +46,7 @@ RULES=(
   "src/application/usecases/|src/application/usecases/ src/application/services/ src/application/ports/ src/domain/|src/adapters/ src/infra/|Use cases may depend only inward"
   "src/application/services/|src/application/services/ src/application/ports/ src/domain/|src/adapters/ src/infra/|Application services are implementation-agnostic"
   "src/application/ports/|src/application/ports/ src/domain/|src/application/usecases/ src/application/services/ src/adapters/ src/infra/|Ports define abstractions only"
-  "src/adapters/cli/|src/adapters/cli/ src/application/usecases/ src/application/ports/ src/infra/bootstrap/||CLI should stay thin"
+  "src/adapters/cli/|src/adapters/cli/ src/application/ports/||CLI should stay thin"
   "src/infra/llm/|src/infra/llm/ src/application/ports/ src/domain/|src/application/usecases/ src/application/services/ src/adapters/|Concrete port implementations only"
   "src/infra/git/|src/infra/git/ src/application/ports/ src/domain/|src/application/usecases/ src/application/services/ src/adapters/|Concrete port implementations only"
   "src/infra/safety/|src/infra/safety/ src/application/ports/ src/domain/|src/application/usecases/ src/application/services/ src/adapters/|Concrete runtime safety integrations only"
@@ -57,7 +57,7 @@ RULES=(
   "src/infra/events/|src/infra/events/ src/application/ports/ src/domain/|src/application/usecases/ src/application/services/ src/adapters/|Event transport implementation only"
   "src/infra/state/|src/infra/state/ src/application/ports/ src/domain/|src/application/usecases/ src/application/services/ src/adapters/|Workflow state persistence only"
   "src/infra/config/|src/infra/config/ src/application/ports/ src/domain/|src/application/usecases/ src/application/services/ src/adapters/|Runtime config loading only"
-  "src/infra/bootstrap/|src/domain/ src/application/ src/adapters/ src/infra/||Composition root"
+  "src/main/|src/domain/ src/application/ src/adapters/ src/infra/ src/main/||Composition root and entry point"
 )
 
 print_violation() {
@@ -222,7 +222,7 @@ check_no_process_env_outside_config_di() {
   local file="$1"
 
   case "$file" in
-    src/infra/config/*|src/infra/bootstrap/*|src/adapters/cli/*)
+    src/infra/config/*|src/main/*|src/adapters/cli/*)
       return 0
       ;;
   esac
@@ -261,7 +261,7 @@ check_no_usecase_or_service_imports_in_infra_non_di() {
   local file="$1"
 
   case "$file" in
-    src/infra/bootstrap/*)
+    src/main/*)
       return 0
       ;;
     src/infra/*)
@@ -283,7 +283,7 @@ check_no_usecase_or_service_imports_in_infra_non_di() {
         print_violation \
           "$file" "$line_no" "$raw_line" \
           "Infra implementation depends on application orchestration" \
-          "Only infra/bootstrap may wire usecases/services; infra implementations should depend on ports instead"
+          "Only src/main may wire usecases/services; infra implementations should depend on ports instead"
         ;;
     esac
   done < <(extract_imports "$file")
