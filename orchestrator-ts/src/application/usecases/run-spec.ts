@@ -5,11 +5,11 @@ import type { ILogger } from "@/application/ports/logger";
 import type { MemoryPort } from "@/application/ports/memory";
 import type { SddFrameworkPort } from "@/application/ports/sdd";
 import type { IWorkflowEventBus, IWorkflowStateStore, WorkflowEvent } from "@/application/ports/workflow";
+import { PhaseRunner } from "@/application/services/workflow/phase-runner";
+import type { WorkflowResult } from "@/application/services/workflow/workflow-engine";
+import { WorkflowEngine } from "@/application/services/workflow/workflow-engine";
 import { ApprovalGate } from "@/domain/workflow/approval-gate";
-import { PhaseRunner } from "@/domain/workflow/phase-runner";
 import type { WorkflowPhase } from "@/domain/workflow/types";
-import type { WorkflowResult } from "@/domain/workflow/workflow-engine";
-import { WorkflowEngine } from "@/domain/workflow/workflow-engine";
 import { access } from "node:fs/promises";
 import { join } from "node:path";
 

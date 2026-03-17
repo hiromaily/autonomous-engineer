@@ -7,6 +7,7 @@ import { createSafetyConfig, createSafetySession } from "@/domain/safety/types";
 import type { SafetyConfigOverrides, SafetySession } from "@/domain/safety/types";
 import { AuditLogger } from "@/infra/logger/audit-logger";
 import { CliApprovalGateway } from "@/infra/safety/approval-gateway";
+import { defaultGitRunner } from "@/infra/safety/git-runner";
 import { TempDirSandboxExecutor } from "@/infra/safety/sandbox-executor";
 import { join } from "node:path";
 
@@ -101,6 +102,7 @@ export function createSafetyExecutor(options: SafetyExecutorOptions): SafetyExec
     auditLogger,
     approvalGateway,
     sandboxExecutor,
+    defaultGitRunner,
   );
 
   // 5. EmergencyStopHandler — registered immediately after construction

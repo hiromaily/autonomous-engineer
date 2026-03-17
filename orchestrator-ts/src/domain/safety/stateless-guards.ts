@@ -1,11 +1,7 @@
-import { execFile as execFileCb } from "node:child_process";
 import { basename, resolve } from "node:path";
-import { promisify } from "node:util";
 import type { ISafetyGuard, SafetyCheckResult, SafetyContext } from "./guards";
 import { allowedResult, blockedResult } from "./guards";
 import type { SafetyConfig } from "./types";
-
-const execFile = promisify(execFileCb);
 
 // ---------------------------------------------------------------------------
 // 2.1 WorkspaceIsolationGuard
@@ -106,16 +102,11 @@ export class FilesystemGuard implements ISafetyGuard {
 
 export type GitRunner = (args: string[], cwd: string) => Promise<string>;
 
-const defaultGitRunner: GitRunner = async (args, cwd) => {
-  const { stdout } = await execFile("git", args, { cwd });
-  return stdout;
-};
-
 export class GitSafetyGuard implements ISafetyGuard {
   readonly name = "git-safety";
   private readonly gitRunner: GitRunner;
 
-  constructor(gitRunner: GitRunner = defaultGitRunner) {
+  constructor(gitRunner: GitRunner) {
     this.gitRunner = gitRunner;
   }
 

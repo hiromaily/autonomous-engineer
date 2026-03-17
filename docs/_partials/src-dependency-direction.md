@@ -22,6 +22,6 @@ infra ──► adapters ──► application ──► domain
 | `application/services` | `application/ports`, `application/services`, `domain`                       |
 | `application/usecases` | `application/services`, `application/ports`, `domain`                       |
 | `adapters/cli`         | `application/usecases`, `application/ports`                                 |
-| `infra/*`              | `application/ports`, `domain`                                               |
-| `main/di/`             | `application/usecases`, `application/services`, `adapters/cli`, `infra/*`, `domain`         |
+| `infra/*`              | `application/ports`, `domain`, `infra/utils`                                |
+| `main/di/`             | `application/usecases`, `application/services`, `application/ports`, `adapters/cli`, `infra/*`, `domain` |
 | `main/`                | `main/di/`, `adapters/cli`, `application/ports`, `infra/*`.                 |

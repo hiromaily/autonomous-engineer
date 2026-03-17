@@ -1,11 +1,11 @@
 import type { SpecContext } from "@/application/ports/sdd";
 import type { IWorkflowEventBus, IWorkflowStateStore } from "@/application/ports/workflow";
+import type { ApprovalGate, ApprovalPhase } from "@/domain/workflow/approval-gate";
+import { WORKFLOW_PHASES } from "@/domain/workflow/types";
+import type { WorkflowPhase, WorkflowState } from "@/domain/workflow/types";
 import { access, readFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { ApprovalGate, ApprovalPhase } from "./approval-gate";
 import type { PhaseRunner } from "./phase-runner";
-import { WORKFLOW_PHASES } from "./types";
-import type { WorkflowPhase, WorkflowState } from "./types";
 
 export type WorkflowResult =
   | { readonly status: "completed"; readonly completedPhases: readonly WorkflowPhase[] }

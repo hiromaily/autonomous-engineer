@@ -1,4 +1,4 @@
-import type { IContextPlanner, LayerId, PlannerDecision, StepType, ToolResultEntry } from "@/application/ports/context";
+import type { IContextPlanner, LayerId, PlannerDecision, StepType, ToolResultEntry } from "./types";
 
 /** Pre-computed, frozen layer lists per step type. */
 const STEP_LAYERS: Readonly<Record<StepType, ReadonlyArray<LayerId>>> = Object.freeze({

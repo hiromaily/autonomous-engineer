@@ -153,9 +153,16 @@ export class RunContainer {
   private get logger(): ILogger {
     if (!this._logger) {
       const minLevel = this.options.debug ? "debug" : this.config.logLevel;
-      this._logger = this.options.debugLog !== undefined
-        ? new NdjsonFileLogger(this.options.debugLog, minLevel)
-        : new ConsoleLogger(minLevel);
+      if (this.options.debugLog !== undefined) {
+        this._logger = new NdjsonFileLogger(this.options.debugLog, minLevel);
+      } else {
+        const isTTY = process.env.NO_COLOR !== undefined
+          ? false
+          : process.env.FORCE_COLOR !== undefined
+          ? true
+          : process.stderr.isTTY === true;
+        this._logger = new ConsoleLogger(minLevel, isTTY);
+      }
     }
     return this._logger;
   }

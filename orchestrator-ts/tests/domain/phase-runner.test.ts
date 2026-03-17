@@ -5,7 +5,7 @@ import type {
 } from "@/application/ports/implementation-loop";
 import type { LlmProviderPort } from "@/application/ports/llm";
 import type { SddFrameworkPort, SddOperationResult, SpecContext } from "@/application/ports/sdd";
-import { PhaseRunner } from "@/domain/workflow/phase-runner";
+import { PhaseRunner } from "@/application/services/workflow/phase-runner";
 import type { WorkflowPhase } from "@/domain/workflow/types";
 import { describe, expect, it, mock } from "bun:test";
 

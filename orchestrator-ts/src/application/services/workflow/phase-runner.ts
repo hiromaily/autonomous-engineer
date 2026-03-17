@@ -1,7 +1,7 @@
 import type { IImplementationLoop, ImplementationLoopOptions } from "@/application/ports/implementation-loop";
 import type { LlmProviderPort } from "@/application/ports/llm";
 import type { SddFrameworkPort, SpecContext } from "@/application/ports/sdd";
-import type { WorkflowPhase } from "./types";
+import type { WorkflowPhase } from "@/domain/workflow/types";
 
 export type PhaseResult =
   | { readonly ok: true; readonly artifacts: readonly string[] }

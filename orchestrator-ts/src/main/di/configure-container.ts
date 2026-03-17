@@ -37,7 +37,12 @@ export class ConfigureContainer {
 
   private get logger(): ConsoleLogger {
     if (!this._logger) {
-      this._logger = new ConsoleLogger("info");
+      const isTTY = process.env.NO_COLOR !== undefined
+        ? false
+        : process.env.FORCE_COLOR !== undefined
+        ? true
+        : process.stderr.isTTY === true;
+      this._logger = new ConsoleLogger("info", isTTY);
     }
     return this._logger;
   }
