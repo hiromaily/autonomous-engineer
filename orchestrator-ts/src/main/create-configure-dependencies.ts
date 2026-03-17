@@ -1,15 +1,8 @@
-import type { IConfigWriter, IFrameworkChecker } from "@/application/ports/config";
-import { ConfigWriter } from "@/infra/config/config-writer";
-import { SddFrameworkChecker } from "@/infra/config/sdd-framework-checker";
+import { ConfigureContainer } from "@/main/configure-container";
+import type { ConfigureDependencies } from "@/main/configure-container";
 
-export interface ConfigureDependencies {
-  readonly configWriter: IConfigWriter;
-  readonly frameworkChecker: IFrameworkChecker;
-}
+export type { ConfigureDependencies };
 
 export function createConfigureDependencies(): ConfigureDependencies {
-  return {
-    configWriter: new ConfigWriter(),
-    frameworkChecker: new SddFrameworkChecker(),
-  };
+  return new ConfigureContainer().build();
 }

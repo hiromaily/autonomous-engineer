@@ -5,8 +5,8 @@ import { CliRenderer } from "@/adapters/cli/renderer";
 import { ConfigValidationError } from "@/application/ports/config";
 import type { AesConfig } from "@/application/ports/config";
 import { ConfigLoader } from "@/infra/config/config-loader";
-import { createConfigureDependencies } from "@/main/create-configure-dependencies";
-import { createRunDependencies } from "@/main/create-run-dependencies";
+import { ConfigureContainer } from "@/main/configure-container";
+import { RunContainer } from "@/main/run-container";
 import { defineCommand, runMain } from "citty";
 
 const runCommand = defineCommand({
@@ -97,12 +97,12 @@ const runCommand = defineCommand({
     // Wire dependencies via composition root
     const logJsonPath = args["log-json"] as string | undefined;
     const providerOverride = args.provider as string | undefined;
-    const { useCase, eventBus, logWriter, debugWriter } = createRunDependencies(config, {
+    const { useCase, eventBus, logWriter, debugWriter } = new RunContainer(config, {
       debugFlow,
       ...(debugFlowLog !== undefined ? { debugFlowLog } : {}),
       ...(logJsonPath !== undefined ? { logJsonPath } : {}),
       ...(providerOverride !== undefined ? { providerOverride } : {}),
-    });
+    }).build();
 
     // Attach renderer
     const renderer = new CliRenderer((text) => process.stdout.write(text));
@@ -128,7 +128,7 @@ const configureCommand = defineCommand({
     description: "Interactively configure aes settings",
   },
   async run() {
-    const { configWriter, frameworkChecker } = createConfigureDependencies();
+    const { configWriter, frameworkChecker } = new ConfigureContainer().build();
     const cmd = new ConfigureCommand({
       wizard: new ConfigWizard(),
       configWriter,
