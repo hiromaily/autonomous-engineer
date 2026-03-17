@@ -86,10 +86,10 @@ infra    ──┘
 | `application/ports`    | `domain`, other `application/ports`                                         |
 | `application/services` | `application/ports`, `application/services`, `domain`                       |
 | `application/usecases` | `application/services`, `application/ports`, `domain`                       |
-| `adapters/cli`         | `application/ports`                                                         |
+| `adapters/cli`         | `application/usecases`, `application/ports`                                 |
 | `infra/*`              | `application/ports`, `domain`                                               |
-| `main/di/`             | `application/services`, `application/ports`, `infra/*`, `domain`            |
-| `main/`                | all layers — top-level composition root; the only caller of `main/di/`      |
+| `main/di/`             | `application/usecases`, `application/services`, `adapters/cli`, `infra/*`, `domain`         |
+| `main/`                | `main/di/`, `adapters/cli`, `application/ports`, `infra/*`.                 |
 
 ---
 

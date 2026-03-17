@@ -50,7 +50,7 @@ RULES=(
   "src/application/usecases/|src/application/usecases/ src/application/services/ src/application/ports/ src/domain/|src/adapters/ src/infra/ src/main/di/|Use cases may depend only inward"
   "src/application/services/|src/application/services/ src/application/ports/ src/domain/|src/adapters/ src/infra/ src/main/di/|Application services are implementation-agnostic"
   "src/application/ports/|src/application/ports/ src/domain/|src/application/usecases/ src/application/services/ src/adapters/ src/infra/ src/main/di/|Ports define abstractions only"
-  "src/adapters/cli/|src/adapters/cli/ src/application/ports/||CLI should stay thin"
+  "src/adapters/cli/|src/adapters/cli/ src/application/usecases/ src/application/ports/||CLI should stay thin"
   "src/infra/llm/|src/infra/llm/ src/application/ports/ src/domain/|src/application/usecases/ src/application/services/ src/adapters/ src/main/di/|Concrete port implementations only"
   "src/infra/git/|src/infra/git/ src/application/ports/ src/domain/|src/application/usecases/ src/application/services/ src/adapters/ src/main/di/|Concrete port implementations only"
   "src/infra/safety/|src/infra/safety/ src/application/ports/ src/domain/|src/application/usecases/ src/application/services/ src/adapters/ src/main/di/|Concrete runtime safety integrations only"
@@ -64,8 +64,8 @@ RULES=(
   "src/infra/implementation-loop/|src/infra/implementation-loop/ src/application/ports/ src/domain/|src/application/usecases/ src/application/services/ src/adapters/ src/main/di/|Implementation loop persistence only"
   "src/infra/logger/|src/infra/logger/ src/application/ports/ src/domain/|src/application/usecases/ src/application/services/ src/adapters/ src/main/di/|Logger implementations only"
   "src/infra/utils/|src/infra/utils/ src/domain/|src/application/ src/adapters/ src/main/di/|Shared infra utilities only"
-  "src/main/di/|src/main/di/ src/domain/ src/application/ src/adapters/ src/infra/||DI wires services and infra; never calls back into main"
-  "src/main/|src/domain/ src/application/ src/adapters/ src/infra/ src/main/||Top-level entry point and DI container"
+  "src/main/di/|src/main/di/ src/application/usecases/ src/application/services/ src/adapters/cli/ src/infra/ src/domain/||DI wires services and infra; never calls back into main"
+  "src/main/|src/main/ src/main/di/ src/adapters/cli/ src/application/ports/ src/infra/||Top-level entry point and DI container"
 )
 
 print_violation() {

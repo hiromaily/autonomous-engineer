@@ -14,9 +14,9 @@ infra ──► adapters ──► application ──► domain
 | ------------------------ | -------------------------------------------------------------------------------- |
 | `domain`                 | `domain` only                                                                    |
 | `application/ports`      | `domain`, other `application/ports`                                              |
-| `application/services`.  | `application/ports`, `application/services`, `domain`                            |
+| `application/services`   | `application/ports`, `application/services`, `domain`                            |
 | `application/usecases`   | `application/services`, `application/ports`, `domain`                            |
 | `adapters/cli`           | `application/usecases`, `application/ports`                                      |
 | `infra/*`                | `application/ports`, `domain`                                                   |
 | `main/di/`               | `application/usecases`, `application/services`, `adapters/cli`, `infra/*`, `domain`         |
-| `main/`                  | `main/di/`, `application/ports`, `infra/*`.                                     |
+| `main/`                  | `main/di/`, `adapters/cli`, `application/ports`, `infra/*`.                     |
