@@ -1,3 +1,4 @@
+import type { IToolExecutor } from "@/application/ports/tool-executor";
 import type { IPermissionSystem } from "@/domain/tools/permissions";
 import type { IToolRegistry } from "@/domain/tools/registry";
 import type { Tool } from "@/domain/tools/types";
@@ -10,21 +11,15 @@ import {
 } from "@/domain/tools/types";
 import Ajv, { type ValidateFunction as AjvValidateFunction } from "ajv";
 
+export type { IToolExecutor } from "@/application/ports/tool-executor";
+
 // ---------------------------------------------------------------------------
-// IToolExecutor port interface
+// ToolExecutor configuration
 // ---------------------------------------------------------------------------
 
 export interface ToolExecutorConfig {
   readonly defaultTimeoutMs: number;
   readonly logMaxInputBytes: number;
-}
-
-export interface IToolExecutor {
-  invoke(
-    name: string,
-    rawInput: unknown,
-    context: ToolContext,
-  ): Promise<ToolResult<unknown>>;
 }
 
 // ---------------------------------------------------------------------------

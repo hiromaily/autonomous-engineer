@@ -91,7 +91,8 @@ AIとのやり取りは最小限の必要なコンテキストのみを受け取
 
 ```mermaid
 graph TD
-    Main["main/<br/>(エントリポイント + コンポジションルート)"]
+    Main["main/<br/>(エントリポイント + トップレベルDIコンテナ)"]
+    DI["di/<br/>(サブシステムDIファクトリー)"]
     CLI["adapters/cli<br/>(CLIアダプター — 引数解析・描画)"]
     Usecase["application/usecases<br/>(ユースケース調整)"]
     Services["application/services<br/>(アプリケーションサービス)"]
@@ -100,8 +101,11 @@ graph TD
     Infra["infra/*<br/>(実装)"]
 
     Main --> CLI
-    Main --> Infra
+    Main --> DI
     Main --> Usecase
+    DI --> Services
+    DI --> Infra
+    DI --> Ports
     CLI --> Usecase
     Usecase --> Services
     Usecase --> Ports
@@ -114,15 +118,18 @@ graph TD
 
 矢印はコンパイル時のインポート依存関係を表します。各レイヤーは厳格な責務を持ちます。
 
-### main/ — エントリポイントとコンポジションルート
+### main/ — エントリポイントとトップレベルDIコンテナ
 
-`main/` はクリーンアーキテクチャのレイヤーの**外側**に位置します。バイナリのエントリポイントであり、依存グラフを組み立てるためにすべてのレイヤーから同時にインポートする唯一のモジュールです。以下を含みます：
+`main/` はクリーンアーキテクチャのレイヤーの**外側**に位置します。バイナリのエントリポイントであり、`di/` ファクトリーを呼び出して完全な依存グラフを組み立てる唯一のモジュールです。以下を含みます：
 
 - `index.ts` — プロセスエントリポイント；CLIアダプターに委譲する
 - `run-container.ts` / `configure-container.ts` — 遅延初期化された依存関係を持つDIコンテナクラス
-- `create-run-dependencies.ts` / `create-configure-dependencies.ts` — コンテナに委譲するファクトリー関数
 
 他のモジュールは `main/` をインポートしません。
+
+### di/ — サブシステムDIファクトリー
+
+`di/` には、各サブシステム（実装ループ、Git統合、安全実行器など）の具体的なサービスとインフラオブジェクトをインスタンス化して配線するファクトリー関数が含まれます。各ファクトリーは `application/services` と `infra/*` のコンストラクターを呼び出し、ポートインターフェースを返します。`di/` は **`main/` からのみ呼び出されます** — 他のモジュールはインポートしません。
 
 ### 依存性の逆転と「infra → ports が循環参照でない」理由
 
@@ -556,12 +563,15 @@ autonomous-engineer/
 ├─ orchestrator-ts/          # ワークフローオーケストレーションエンジン + aes CLI（TypeScript/Bun）
 │  │
 │  ├─ src/
-│  │  ├─ main/               # エントリポイント + コンポジションルート（クリーンアーキテクチャのレイヤー外）
-│  │  │  ├─ index.ts         # プロセスエントリポイント — CLIアダプターに委譲
-│  │  │  ├─ run-container.ts         # runコマンド用DIコンテナ（遅延初期化）
-│  │  │  ├─ configure-container.ts   # configureコマンド用DIコンテナ（遅延初期化）
-│  │  │  ├─ create-run-dependencies.ts       # RunContainerに委譲するファクトリー
-│  │  │  └─ create-configure-dependencies.ts # ConfigureContainerに委譲するファクトリー
+│  │  ├─ main/               # エントリポイント + トップレベルDIコンテナ（クリーンアーキテクチャのレイヤー外）
+│  │  │  ├─ index.ts                         # プロセスエントリポイント — CLIアダプターに委譲
+│  │  │  ├─ run-container.ts                 # runコマンド用DIコンテナ（遅延初期化）
+│  │  │  └─ configure-container.ts           # configureコマンド用DIコンテナ（遅延初期化）
+│  │  │
+│  │  ├─ di/                 # サブシステムDIファクトリー（main/からのみ呼び出される）
+│  │  │  ├─ create-implementation-loop-service.ts
+│  │  │  ├─ create-git-integration-service.ts
+│  │  │  └─ create-safety-executor.ts
 │  │  │
 │  │  ├─ adapters/
 │  │  │  └─ cli/             # CLIアダプター（薄い層 — 引数解析、ユースケース呼び出し、出力）
@@ -587,14 +597,14 @@ autonomous-engineer/
 │  │     ├─ config/          # 設定ファイルの読み込みとSDDフレームワーク検出
 │  │     ├─ events/          # 具体的なイベントバス実装
 │  │     ├─ git/             # Gitコントローラーアダプターと GitHub PRアダプター
-│  │     ├─ implementation-loop/
-│  │     ├─ logger/          # ロガークラス集約（DebugLogWriter、NdjsonLogger…）
+│  │     ├─ implementation-loop/ # 実装ループ用プランファイルストアアダプター
+│  │     ├─ logger/          # ロガークラス（ConsoleLogger、NdjsonFileLogger、AuditLogger…）
 │  │     ├─ llm/             # Claudeプロバイダー、モックLLMプロバイダー
 │  │     ├─ memory/          # ファイルバックアップおよびインメモリストア
 │  │     ├─ planning/        # プランファイルストア
 │  │     ├─ safety/          # 承認ゲートウェイ、サンドボックスエグゼキューター
 │  │     ├─ sdd/             # Claude Code SDDアダプター、モックSDDアダプター
-│  │     ├─ self-healing/    # 自己修復ループサービスファクトリー
+│  │     ├─ self-healing/    # 自己修復ループサービス実装
 │  │     ├─ state/           # ワークフロー状態ストア
 │  │     ├─ tools/           # シェル、ファイルシステム、git、コード解析ツール実装
 │  │     └─ utils/           # インフラ内で共有される低レベルユーティリティ（errors、fs、ndjson）
@@ -621,7 +631,8 @@ autonomous-engineer/
 
 各実装ディレクトリ（`*-ts`、`*-rs` など）は、独自のツールチェーン、依存関係、内部アーキテクチャを持つ自己完結したコンポーネントです。`orchestrator-ts/src/` 内では、ディレクトリ構造がクリーンアーキテクチャのレイヤーに直接対応します：
 
-- `main/` は**コンポジションルートとプロセスエントリポイント** — クリーンアーキテクチャのレイヤー外に位置し、依存グラフを組み立てるためにすべてのレイヤーから同時にインポートする唯一の場所
+- `main/` は**プロセスエントリポイントとトップレベルDIコンテナ** — クリーンアーキテクチャのレイヤー外に位置し、`di/` ファクトリーを呼び出して最終的な依存グラフを組み立てる
+- `di/` は**サブシステムDIファクトリー** — 各ファクトリーが1つのサブシステムのサービスとインフラオブジェクトをインスタンス化して接続する；`main/` からのみ呼び出し可能
 - `adapters/cli/` は受信デリバリーアダプター — CLI引数を解析し、ユースケースを呼び出し、出力を描画する
 - `application/` はアプリケーションレイヤーで、3つの関心事に分けられる：
   - `usecases/` — アプリケーションビジネスルールとワークフローのオーケストレーション

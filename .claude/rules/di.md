@@ -1,6 +1,7 @@
 ---
 paths:
   - "orchestrator-ts/src/main/**/*.ts"
+  - "orchestrator-ts/src/di/**/*.ts"
 ---
 
 # Dependency Injection

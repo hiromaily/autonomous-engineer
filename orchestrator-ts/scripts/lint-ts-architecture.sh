@@ -8,7 +8,8 @@ set -euo pipefail
 # - application depends only on domain and application abstractions
 # - adapters/cli calls use cases and stays thin
 # - infra implements ports and owns technical details
-# - infra/di is the composition root and may wire everything together
+# - di/ is the sub-system composition root; wires services+infra; only called from main
+# - main/ is the top-level entry point and DI container; calls di/ only
 #
 # Usage:
 #   bash scripts/check-architecture.sh
@@ -42,22 +43,26 @@ GREEN=$'\033[32m'
 RESET=$'\033[0m'
 
 RULES=(
-  "src/domain/|src/domain/|src/application/ src/adapters/ src/infra/|Domain must be fully independent"
-  "src/application/usecases/|src/application/usecases/ src/application/services/ src/application/ports/ src/domain/|src/adapters/ src/infra/|Use cases may depend only inward"
-  "src/application/services/|src/application/services/ src/application/ports/ src/domain/|src/adapters/ src/infra/|Application services are implementation-agnostic"
-  "src/application/ports/|src/application/ports/ src/domain/|src/application/usecases/ src/application/services/ src/adapters/ src/infra/|Ports define abstractions only"
+  "src/domain/|src/domain/|src/application/ src/adapters/ src/infra/ src/di/|Domain must be fully independent"
+  "src/application/usecases/|src/application/usecases/ src/application/services/ src/application/ports/ src/domain/|src/adapters/ src/infra/ src/di/|Use cases may depend only inward"
+  "src/application/services/|src/application/services/ src/application/ports/ src/domain/|src/adapters/ src/infra/ src/di/|Application services are implementation-agnostic"
+  "src/application/ports/|src/application/ports/ src/domain/|src/application/usecases/ src/application/services/ src/adapters/ src/infra/ src/di/|Ports define abstractions only"
   "src/adapters/cli/|src/adapters/cli/ src/application/ports/||CLI should stay thin"
-  "src/infra/llm/|src/infra/llm/ src/application/ports/ src/domain/|src/application/usecases/ src/application/services/ src/adapters/|Concrete port implementations only"
-  "src/infra/git/|src/infra/git/ src/application/ports/ src/domain/|src/application/usecases/ src/application/services/ src/adapters/|Concrete port implementations only"
-  "src/infra/safety/|src/infra/safety/ src/application/ports/ src/domain/|src/application/usecases/ src/application/services/ src/adapters/|Concrete runtime safety integrations only"
-  "src/infra/sdd/|src/infra/sdd/ src/application/ports/ src/domain/|src/application/usecases/ src/application/services/ src/adapters/|Concrete port implementations only"
-  "src/infra/tools/|src/infra/tools/ src/application/ports/ src/domain/|src/application/usecases/ src/application/services/ src/adapters/|Tool execution implementation only"
-  "src/infra/memory/|src/infra/memory/ src/application/ports/ src/domain/|src/application/usecases/ src/application/services/ src/adapters/|Persistence implementation only"
-  "src/infra/planning/|src/infra/planning/ src/application/ports/ src/domain/|src/application/usecases/ src/application/services/ src/adapters/|Planning persistence implementation only"
-  "src/infra/events/|src/infra/events/ src/application/ports/ src/domain/|src/application/usecases/ src/application/services/ src/adapters/|Event transport implementation only"
-  "src/infra/state/|src/infra/state/ src/application/ports/ src/domain/|src/application/usecases/ src/application/services/ src/adapters/|Workflow state persistence only"
-  "src/infra/config/|src/infra/config/ src/application/ports/ src/domain/|src/application/usecases/ src/application/services/ src/adapters/|Runtime config loading only"
-  "src/main/|src/domain/ src/application/ src/adapters/ src/infra/ src/main/||Composition root and entry point"
+  "src/infra/llm/|src/infra/llm/ src/application/ports/ src/domain/|src/application/usecases/ src/application/services/ src/adapters/ src/di/|Concrete port implementations only"
+  "src/infra/git/|src/infra/git/ src/application/ports/ src/domain/|src/application/usecases/ src/application/services/ src/adapters/ src/di/|Concrete port implementations only"
+  "src/infra/safety/|src/infra/safety/ src/application/ports/ src/domain/|src/application/usecases/ src/application/services/ src/adapters/ src/di/|Concrete runtime safety integrations only"
+  "src/infra/sdd/|src/infra/sdd/ src/application/ports/ src/domain/|src/application/usecases/ src/application/services/ src/adapters/ src/di/|Concrete port implementations only"
+  "src/infra/tools/|src/infra/tools/ src/application/ports/ src/domain/|src/application/usecases/ src/application/services/ src/adapters/ src/di/|Tool execution implementation only"
+  "src/infra/memory/|src/infra/memory/ src/application/ports/ src/domain/|src/application/usecases/ src/application/services/ src/adapters/ src/di/|Persistence implementation only"
+  "src/infra/planning/|src/infra/planning/ src/application/ports/ src/domain/|src/application/usecases/ src/application/services/ src/adapters/ src/di/|Planning persistence implementation only"
+  "src/infra/events/|src/infra/events/ src/application/ports/ src/domain/|src/application/usecases/ src/application/services/ src/adapters/ src/di/|Event transport implementation only"
+  "src/infra/state/|src/infra/state/ src/application/ports/ src/domain/|src/application/usecases/ src/application/services/ src/adapters/ src/di/|Workflow state persistence only"
+  "src/infra/config/|src/infra/config/ src/application/ports/ src/domain/|src/application/usecases/ src/application/services/ src/adapters/ src/di/|Runtime config loading only"
+  "src/infra/implementation-loop/|src/infra/implementation-loop/ src/application/ports/ src/domain/|src/application/usecases/ src/application/services/ src/adapters/ src/di/|Implementation loop persistence only"
+  "src/infra/logger/|src/infra/logger/ src/application/ports/ src/domain/|src/application/usecases/ src/application/services/ src/adapters/ src/di/|Logger implementations only"
+  "src/infra/utils/|src/infra/utils/ src/domain/|src/application/ src/adapters/ src/di/|Shared infra utilities only"
+  "src/di/|src/di/ src/domain/ src/application/ src/adapters/ src/infra/|src/main/|DI wires services and infra; never calls back into main"
+  "src/main/|src/domain/ src/application/ src/adapters/ src/infra/ src/di/ src/main/||Top-level entry point and DI container"
 )
 
 print_violation() {
@@ -261,7 +266,7 @@ check_no_usecase_or_service_imports_in_infra_non_di() {
   local file="$1"
 
   case "$file" in
-    src/main/*)
+    src/main/*|src/di/*)
       return 0
       ;;
     src/infra/*)
@@ -283,7 +288,36 @@ check_no_usecase_or_service_imports_in_infra_non_di() {
         print_violation \
           "$file" "$line_no" "$raw_line" \
           "Infra implementation depends on application orchestration" \
-          "Only src/main may wire usecases/services; infra implementations should depend on ports instead"
+          "Only src/di may wire usecases/services; infra implementations should depend on ports instead"
+        ;;
+    esac
+  done < <(extract_imports "$file")
+}
+
+check_no_di_imports_outside_main() {
+  local file="$1"
+
+  case "$file" in
+    src/main/*)
+      return 0
+      ;;
+    *)
+      ;;
+  esac
+
+  while IFS=$'\t' read -r line_no raw_line module_spec; do
+    [[ -z "$module_spec" ]] && continue
+    local normalized
+    if ! normalized="$(normalize_path "$file" "$module_spec")"; then
+      continue
+    fi
+
+    case "$normalized" in
+      src/di/*)
+        print_violation \
+          "$file" "$line_no" "$raw_line" \
+          "Only src/main may import from src/di" \
+          "src/di is the DI wiring layer; it must only be called from the composition root in src/main"
         ;;
     esac
   done < <(extract_imports "$file")
@@ -295,6 +329,7 @@ check_file() {
   check_no_process_env_outside_config_di "$file"
   check_no_fs_child_process_outside_infra "$file"
   check_no_usecase_or_service_imports_in_infra_non_di "$file"
+  check_no_di_imports_outside_main "$file"
 }
 
 echo "Checking architecture boundaries under ${ROOT_DIR} ..."

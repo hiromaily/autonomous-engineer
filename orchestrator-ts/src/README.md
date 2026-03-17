@@ -39,20 +39,23 @@ src/
 ├── adapters/                        # Inbound delivery adapters (CLI only)
 │   └── cli/
 │
-└── infra/                           # Concrete implementations, config, and dependency injection
-    ├── bootstrap/
+├── di/                              # Sub-system DI factories (wires services + infra; only called from main)
+│
+└── infra/                           # Concrete port implementations and technical infrastructure
     ├── config/
     ├── events/
     ├── git/
     ├── implementation-loop/
     ├── llm/
+    ├── logger/
     ├── memory/
     ├── planning/
     ├── safety/
     ├── sdd/
     ├── self-healing/
     ├── state/
-    └── tools/
+    ├── tools/
+    └── utils/
 ```
 
 ---
@@ -67,15 +70,16 @@ adapters ──┐
 infra    ──┘
 ```
 
-| Layer                  | May depend on                                                   |
-| ---------------------- | --------------------------------------------------------------- |
-| `domain`               | `domain` only                                                   |
-| `application/ports`    | `domain`, other `application/ports`                             |
-| `application/services` | `application/ports`, `application/services`, `domain`           |
-| `application/usecases` | `application/services`, `application/ports`, `domain`           |
-| `adapters/cli`         | `application/usecases`, `infra/bootstrap` (startup wiring only) |
-| `infra/*`              | `application/ports`, `domain`                                   |
-| `infra/bootstrap`      | all layers (composition root)                                   |
+| Layer                  | May depend on                                                          |
+| ---------------------- | ---------------------------------------------------------------------- |
+| `domain`               | `domain` only                                                          |
+| `application/ports`    | `domain`, other `application/ports`                                    |
+| `application/services` | `application/ports`, `application/services`, `domain`                  |
+| `application/usecases` | `application/services`, `application/ports`, `domain`                  |
+| `adapters/cli`         | `application/ports`                                                    |
+| `infra/*`              | `application/ports`, `domain`                                          |
+| `di/`                  | `application/services`, `application/ports`, `infra/*`, `domain`       |
+| `main/`                | all layers — top-level composition root; the only caller of `di/`      |
 
 ---
 
@@ -149,34 +153,35 @@ Handles command-line input/output, argument parsing, command definitions, and ou
 
 ---
 
+### `di/`
+
+Sub-system DI factories. Each file wires a specific subsystem by instantiating concrete service and infra classes and returning a port interface. May import from `application/services`, `application/ports`, `infra/*`, and `domain`. **Only called from `main/`** — nothing else imports from `di/`.
+
+| File                                    | Role                                                         |
+| --------------------------------------- | ------------------------------------------------------------ |
+| `create-implementation-loop-service.ts` | Wires `ImplementationLoopService` with its infra dependencies |
+| `create-git-integration-service.ts`     | Wires `GitIntegrationService` with its infra dependencies     |
+| `create-safety-executor.ts`             | Wires `SafetyGuardedToolExecutor` around a bare `ToolExecutor` |
+
+---
+
 ### `infra/`
 
-Concrete technical implementations. All application port implementations live here, alongside configuration loading and dependency injection. This is the only layer that knows about SDKs, file formats, external APIs, and process environment.
+Concrete port implementations and technical infrastructure. Each sub-directory implements one or more `application/ports` interfaces using external SDKs, file I/O, or process environment. Must not depend on `application/services`, `adapters`, or `di/`.
 
-| Directory              | Role                                                                                                                                                      |
-| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `bootstrap/`           | Composition roots — assembles the full object graph for each command (`create-run-dependencies.ts`, `create-configure-dependencies.ts`, `load-config.ts`) |
-| `config/`              | Config file loading (`config-loader.ts`), writing (`config-writer.ts`), and SDD framework detection (`sdd-framework-checker.ts`)                          |
-| `events/`              | Concrete event bus implementations (`git-event-bus.ts`, `workflow-event-bus.ts`)                                                                          |
-| `git/`                 | Git controller adapter, GitHub PR adapter, git integration service factory                                                                                |
-| `implementation-loop/` | Implementation loop service factory                                                                                                                       |
-| `logger/`              | Consolidated logger classes: `DebugLogWriter`, `JsonLogWriter`, `NdjsonImplementationLoopLogger`, `NdjsonSelfHealingLoopLogger`, `AuditLogger`            |
-| `llm/`                 | Claude provider, mock LLM provider                                                                                                                        |
-| `memory/`              | File-backed memory store, short-term in-memory store                                                                                                      |
-| `planning/`            | Plan file store (persistence for task plans)                                                                                                              |
-| `safety/`              | Approval gateway, sandbox executor, safety executor factory                                                                                               |
-| `sdd/`                 | Claude Code SDD adapter, mock SDD adapter                                                                                                                 |
-| `self-healing/`        | Self-healing loop service factory                                                                                                                         |
-| `state/`               | Workflow state store                                                                                                                                      |
-| `tools/`               | Shell, filesystem, git, code-analysis, knowledge tool implementations                                                                                     |
-
-#### `infra/bootstrap/` — Composition Root
-
-`infra/bootstrap` is the only place where all layers are wired together. It may import from `application`, `infra`, and `domain` simultaneously. This is intentional — it is the composition root.
-
-```text
-adapters/cli/index.ts
-  └─► infra/bootstrap/create-run-dependencies.ts
-        └─► wires: infra/* → application/ports
-                  application/services + usecases
-```
+| Directory              | Role                                                                                                                              |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `config/`              | Config file loading (`config-loader.ts`), writing (`config-writer.ts`), and SDD framework detection (`sdd-framework-checker.ts`) |
+| `events/`              | Concrete event bus implementations (`git-event-bus.ts`, `workflow-event-bus.ts`)                                                  |
+| `git/`                 | Git controller adapter, GitHub PR adapter                                                                                         |
+| `implementation-loop/` | Plan file store adapter for the implementation loop                                                                               |
+| `logger/`              | Logger classes: `ConsoleLogger`, `NdjsonFileLogger`, `JsonLogWriter`, `NdjsonImplementationLoopLogger`, `AuditLogger`             |
+| `llm/`                 | Claude provider, mock LLM provider                                                                                                |
+| `memory/`              | File-backed memory store, short-term in-memory store                                                                              |
+| `planning/`            | Plan file store (persistence for task plans)                                                                                      |
+| `safety/`              | Approval gateway, sandbox executor                                                                                                |
+| `sdd/`                 | Claude Code SDD adapter, mock SDD adapter                                                                                         |
+| `self-healing/`        | Self-healing loop service implementation                                                                                          |
+| `state/`               | Workflow state store                                                                                                               |
+| `tools/`               | Shell, filesystem, git, code-analysis, knowledge tool implementations                                                             |
+| `utils/`               | Shared low-level utilities used within infra only (`errors.ts`, `fs.ts`, `ndjson.ts`)                                             |
