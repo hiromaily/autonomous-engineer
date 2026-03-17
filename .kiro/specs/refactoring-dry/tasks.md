@@ -1,21 +1,21 @@
 # Implementation Plan
 
 - [ ] 1. Create shared infrastructure utility modules
-- [ ] 1.1 (P) Implement shared error utility functions
+- [x] 1.1 (P) Implement shared error utility functions
   - Create the `infra/utils/errors.ts` module with zero external dependencies
   - Implement a type guard that narrows an unknown caught value to a Node.js errno exception — identical behavior to the four existing private copies
   - Implement an error-message extractor that returns the `.message` string for Error instances and falls back to `String()` for all other values
   - Write unit tests: verify correct narrowing for errno errors, plain errors, and non-error values; verify message extraction for both branches
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 3.1, 3.2, 3.3, 3.4_
 
-- [ ] 1.2 (P) Implement shared file I/O utility functions
+- [x] 1.2 (P) Implement shared file I/O utility functions
   - Create the `infra/utils/fs.ts` module importing only Node.js built-in fs/promises
   - Implement an atomic write operation: write content to a temp sibling file, call datasync, close the file descriptor, then rename to the destination — creating parent directories automatically
   - Implement a safe file read that returns null for missing files (ENOENT) and re-throws all other errors
   - Write unit tests: verify atomic write produces correct content and removes the temp file; verify safe read returns null when file is absent and re-throws on permission errors
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7_
 
-- [ ] 1.3 (P) Implement shared NDJSON append utility
+- [x] 1.3 (P) Implement shared NDJSON append utility
   - Create the `infra/utils/ndjson.ts` module importing only Node.js built-in fs/promises
   - Implement an async function that accepts a log path and an object entry, creates the parent directory if it does not exist, and appends a JSON-serialized line followed by a newline
   - The function propagates filesystem errors to the caller rather than swallowing them; each logger installs its own error handler
