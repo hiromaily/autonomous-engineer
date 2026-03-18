@@ -33,7 +33,7 @@
   - Mirror `requiredArtifacts` and `approvalGate` values from the existing `REQUIRED_ARTIFACTS` and `APPROVAL_GATE_PHASES` constants in `workflow-engine.ts`
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9_
 
-- [ ] 3. Implement the framework definition loader
+- [x] 3. Implement the framework definition loader
   - Create `TypeScriptFrameworkDefinitionLoader` in the infrastructure config directory, implementing `FrameworkDefinitionPort`
   - Build an internal registry `Map` keyed by framework identifier string; register `"cc-sdd"` pointing to `CC_SDD_FRAMEWORK_DEFINITION`
   - In `load()`, look up the identifier; if not found, throw with a message listing all available framework names
