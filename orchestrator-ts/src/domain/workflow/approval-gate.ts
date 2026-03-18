@@ -19,14 +19,14 @@ export class ApprovalGate {
    * human review of generated artifacts and must be explicitly approved in
    * spec.json before the workflow can advance.
    */
-  async checkResume(specDir: string, phase: ApprovalPhase): Promise<ApprovalCheckResult> {
+  async checkResume(specDir: string, phase: ApprovalPhase, approvalArtifact?: string): Promise<ApprovalCheckResult> {
     if (phase === "human_interaction") {
       return { approved: true };
     }
-    return this.check(specDir, phase);
+    return this.check(specDir, phase, approvalArtifact);
   }
 
-  async check(specDir: string, phase: ApprovalPhase): Promise<ApprovalCheckResult> {
+  async check(specDir: string, phase: ApprovalPhase, approvalArtifact?: string): Promise<ApprovalCheckResult> {
     const specJsonPath = join(specDir, "spec.json");
 
     let parsed: unknown;
@@ -35,18 +35,18 @@ export class ApprovalGate {
       parsed = JSON.parse(raw);
     } catch {
       // Missing file or malformed JSON → fail closed
-      return this.pending(specDir, phase, specJsonPath);
+      return this.pending(specDir, phase, specJsonPath, approvalArtifact);
     }
 
     if (getApprovalField(parsed, phase) !== true) {
-      return this.pending(specDir, phase, specJsonPath);
+      return this.pending(specDir, phase, specJsonPath, approvalArtifact);
     }
 
     return { approved: true };
   }
 
-  private pending(specDir: string, phase: ApprovalPhase, specJsonPath: string): ApprovalCheckResult {
-    const artifactPath = join(specDir, artifactFilename(phase));
+  private pending(specDir: string, phase: ApprovalPhase, specJsonPath: string, approvalArtifact?: string): ApprovalCheckResult {
+    const artifactPath = join(specDir, approvalArtifact ?? artifactFilename(phase));
     const field = `approvals.${phase}.approved`;
     const instruction = `Review ${artifactPath}, then set ${field} = true in ${specJsonPath} and re-run to continue.`;
     return { approved: false, artifactPath, instruction };
