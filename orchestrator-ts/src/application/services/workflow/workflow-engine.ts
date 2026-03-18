@@ -1,6 +1,7 @@
 import type { SpecContext } from "@/application/ports/sdd";
 import type { IWorkflowEventBus, IWorkflowStateStore } from "@/application/ports/workflow";
 import type { ApprovalGate } from "@/domain/workflow/approval-gate";
+import { findPhaseDefinition } from "@/domain/workflow/framework";
 import type { FrameworkDefinition } from "@/domain/workflow/framework";
 import type { WorkflowPhase, WorkflowState } from "@/domain/workflow/types";
 import { access, readFile } from "node:fs/promises";
@@ -115,7 +116,7 @@ export class WorkflowEngine {
       eventBus.emit({ type: "phase:complete", phase, durationMs, artifacts: result.artifacts });
 
       // 9. Check approval gate for phases that require human review (Req 5.1–5.6).
-      const approvalType = this.deps.frameworkDefinition.phases.find((p) => p.phase === phase)?.approvalGate;
+      const approvalType = findPhaseDefinition(this.deps.frameworkDefinition, phase)?.approvalGate;
       if (approvalType !== undefined) {
         const gateResult = await this.deps.approvalGate.check(specDir, approvalType);
         if (!gateResult.approved) {
@@ -154,7 +155,7 @@ export class WorkflowEngine {
   private async advancePausedPhase(): Promise<WorkflowResult | null> {
     const pausedPhase = this.currentState.currentPhase;
     const { approvalGate, specDir, frameworkDefinition } = this.deps;
-    const approvalType = frameworkDefinition.phases.find((p) => p.phase === pausedPhase)?.approvalGate;
+    const approvalType = findPhaseDefinition(frameworkDefinition, pausedPhase)?.approvalGate;
 
     if (approvalType === undefined) {
       // No gate for this phase — should not happen; fall through to main loop.
@@ -193,13 +194,15 @@ export class WorkflowEngine {
   /** Phases not yet completed, in framework definition order. */
   private pendingPhases(): readonly WorkflowPhase[] {
     const completed = new Set(this.currentState.completedPhases);
-    return this.deps.frameworkDefinition.phases.map((p) => p.phase).filter((p) => !completed.has(p));
+    return this.deps.frameworkDefinition.phases
+      .filter((p) => !completed.has(p.phase))
+      .map((p) => p.phase);
   }
 
   /** Returns an error message if a required artifact is missing, null otherwise. */
   private async checkRequiredArtifacts(phase: WorkflowPhase): Promise<string | null> {
-    const required = this.deps.frameworkDefinition.phases.find((p) => p.phase === phase)?.requiredArtifacts;
-    if (required === undefined || required.length === 0) return null;
+    const required = findPhaseDefinition(this.deps.frameworkDefinition, phase)?.requiredArtifacts;
+    if (!required?.length) return null;
 
     for (const filename of required) {
       const filePath = join(this.deps.specDir, filename);

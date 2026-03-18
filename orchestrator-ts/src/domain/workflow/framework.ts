@@ -21,6 +21,11 @@ export interface FrameworkDefinition {
   readonly phases: readonly PhaseDefinition[];
 }
 
+/** Returns the PhaseDefinition for the given phase, or undefined if not registered. */
+export function findPhaseDefinition(def: FrameworkDefinition, phase: WorkflowPhase): PhaseDefinition | undefined {
+  return def.phases.find((p) => p.phase === phase);
+}
+
 /**
  * Validates that a FrameworkDefinition is structurally correct.
  * Throws a descriptive error on the first violation found.

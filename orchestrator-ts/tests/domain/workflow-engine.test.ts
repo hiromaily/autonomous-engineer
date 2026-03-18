@@ -1380,6 +1380,7 @@ describe("WorkflowEngine", () => {
       await engine.execute(makeInitialState());
 
       // Framework definition gates: human_interaction, requirements, design, tasks
+      expect(gate.checkedPhases).toContain("human_interaction");
       expect(gate.checkedPhases).toContain("requirements");
       expect(gate.checkedPhases).toContain("design");
       expect(gate.checkedPhases).toContain("tasks");

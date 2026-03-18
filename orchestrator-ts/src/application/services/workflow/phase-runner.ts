@@ -1,6 +1,7 @@
 import type { IImplementationLoop, ImplementationLoopOptions } from "@/application/ports/implementation-loop";
 import type { LlmProviderPort } from "@/application/ports/llm";
 import type { SddFrameworkPort, SddOperationResult, SpecContext } from "@/application/ports/sdd";
+import { findPhaseDefinition } from "@/domain/workflow/framework";
 import type { FrameworkDefinition } from "@/domain/workflow/framework";
 import type { WorkflowPhase } from "@/domain/workflow/types";
 
@@ -35,7 +36,7 @@ export class PhaseRunner {
   }
 
   async execute(phase: WorkflowPhase, ctx: SpecContext): Promise<PhaseResult> {
-    const phaseDef = this.frameworkDefinition.phases.find((p) => p.phase === phase);
+    const phaseDef = findPhaseDefinition(this.frameworkDefinition, phase);
     if (!phaseDef) {
       throw new Error(`Unregistered workflow phase: ${phase} in framework ${this.frameworkDefinition.id}`);
     }

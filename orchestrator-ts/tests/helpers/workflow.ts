@@ -5,8 +5,8 @@ import type { FrameworkDefinition } from "@/domain/workflow/framework";
  *
  * Uses {specDir} placeholder in llm_prompt content so PhaseRunner interpolation
  * tests can verify correct substitution. Mirrors the approval gates from
- * CC_SDD_FRAMEWORK_DEFINITION so approval-gate tests work correctly.
- * Has no required artifacts so tests can exercise phase dispatch without extra setup.
+ * CC_SDD_FRAMEWORK_DEFINITION so approval-gate behavior is realistic.
+ * All phases have empty requiredArtifacts so tests run without artifact file setup.
  */
 export function makeFrameworkDef(): FrameworkDefinition {
   return {
