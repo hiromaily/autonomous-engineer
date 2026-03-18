@@ -76,9 +76,18 @@ export class YamlWorkflowDefinitionLoader implements FrameworkDefinitionPort {
       phase: p["phase"] as string,
       type: type as PhaseExecutionType,
       content: typeof p["content"] === "string" ? p["content"] : "",
-      requiredArtifacts: Array.isArray(p["required_artifacts"])
-        ? (p["required_artifacts"] as string[])
-        : [],
+      requiredArtifacts: ((): string[] => {
+        const artifacts = p["required_artifacts"];
+        if (artifacts === undefined) {
+          return [];
+        }
+        if (!Array.isArray(artifacts) || !artifacts.every((item) => typeof item === "string")) {
+          throw new Error(
+            `Phase at index ${index} in "${filePath}" has invalid "required_artifacts": must be an array of strings.`,
+          );
+        }
+        return artifacts;
+      })(),
       ...(typeof p["approval_gate"] === "string" && { approvalGate: p["approval_gate"] as ApprovalPhase }),
       ...(typeof p["approval_artifact"] === "string" && { approvalArtifact: p["approval_artifact"] }),
       ...(typeof p["output_file"] === "string" && { outputFile: p["output_file"] }),
