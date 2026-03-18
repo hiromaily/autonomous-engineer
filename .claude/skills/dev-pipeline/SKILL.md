@@ -17,6 +17,16 @@ When implementing a feature, fix, or refactoring task that spans multiple files 
 
 ---
 
+## Hard Constraints
+
+> **NEVER pass `isolation: "worktree"` to any Agent tool call in this pipeline.**
+> Worktree isolation creates a detached copy of the repo. Implementation subagents on isolated
+> worktrees cannot see changes made by predecessor tasks, and review subagents end up checking
+> a stale copy rather than the live feature branch. All subagents MUST run directly on the
+> shared feature branch with no isolation parameter.
+
+---
+
 ## Architecture Principles
 
 - **Files are the API**: Every phase writes its output to a file. Subsequent phases read only those files — never the conversation history.
@@ -473,7 +483,7 @@ Before presenting the summary, spawn one `general-purpose` subagent to run a ful
 
 ```
 On branch `feature/{short-description}`, run:
-1. Full typecheck: the project's typecheck command (e.g. `bun run typecheck` or `npx tsc --noEmit`)
+1. Full typecheck: the project's typecheck command (e.g. `make ts-lint`)
 2. Full test suite: the project's test command (e.g. `bun test`)
 3. Report: total pass/fail counts and any failures with their error messages.
    Distinguish pre-existing failures (present on `main` before this branch) from new ones.
