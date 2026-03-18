@@ -56,12 +56,18 @@ describe("CC_SDD_FRAMEWORK_DEFINITION", () => {
     expect(() => validateFrameworkDefinition(CC_SDD_FRAMEWORK_DEFINITION)).not.toThrow();
   });
 
-  it("all llm_slash_command phases have non-empty content", () => {
-    for (const p of CC_SDD_FRAMEWORK_DEFINITION.phases) {
-      if (p.type === "llm_slash_command") {
-        expect(p.content.length).toBeGreaterThan(0);
-      }
-    }
+  it.each(
+    [
+      ["SPEC_INIT", "kiro:spec-init"],
+      ["SPEC_REQUIREMENTS", "kiro:spec-requirements"],
+      ["VALIDATE_GAP", "kiro:validate-gap"],
+      ["SPEC_DESIGN", "kiro:spec-design"],
+      ["VALIDATE_DESIGN", "kiro:validate-design"],
+      ["SPEC_TASKS", "kiro:spec-tasks"],
+    ] as const,
+  )("%s has content '%s'", (phase, expectedContent) => {
+    const p = CC_SDD_FRAMEWORK_DEFINITION.phases.find((x) => x.phase === phase);
+    expect(p?.content).toBe(expectedContent);
   });
 
   it("all llm_prompt phases have non-empty content", () => {
@@ -79,6 +85,16 @@ describe("CC_SDD_FRAMEWORK_DEFINITION", () => {
       }
     }
   });
+
+  // -- requiredArtifacts: phases with no prerequisites --
+
+  it.each(["SPEC_INIT", "HUMAN_INTERACTION", "PULL_REQUEST"] as const)(
+    "%s has empty requiredArtifacts",
+    (phase) => {
+      const p = CC_SDD_FRAMEWORK_DEFINITION.phases.find((x) => x.phase === phase);
+      expect(p?.requiredArtifacts).toHaveLength(0);
+    },
+  );
 
   // -- requiredArtifacts mirrors REQUIRED_ARTIFACTS from workflow-engine.ts --
 

@@ -120,4 +120,4 @@ export const CC_SDD_FRAMEWORK_DEFINITION: FrameworkDefinition = {
       requiredArtifacts: [],
     },
   ],
-} as const;
+};
