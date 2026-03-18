@@ -4,15 +4,22 @@ import type { FrameworkDefinition } from "@/domain/workflow/framework";
  * Minimal 14-phase framework definition for unit/integration tests.
  *
  * Uses {specDir} placeholder in llm_prompt content so PhaseRunner interpolation
- * tests can verify correct substitution. Has no approval gates or required
- * artifacts so tests can exercise phase dispatch without extra setup.
+ * tests can verify correct substitution. Mirrors the approval gates from
+ * CC_SDD_FRAMEWORK_DEFINITION so approval-gate tests work correctly.
+ * Has no required artifacts so tests can exercise phase dispatch without extra setup.
  */
 export function makeFrameworkDef(): FrameworkDefinition {
   return {
     id: "test-fw",
     phases: [
       { phase: "SPEC_INIT", type: "llm_slash_command", content: "kiro:spec-init", requiredArtifacts: [] },
-      { phase: "HUMAN_INTERACTION", type: "human_interaction", content: "", requiredArtifacts: [] },
+      {
+        phase: "HUMAN_INTERACTION",
+        type: "human_interaction",
+        content: "",
+        requiredArtifacts: [],
+        approvalGate: "human_interaction",
+      },
       {
         phase: "VALIDATE_PREREQUISITES",
         type: "llm_prompt",
@@ -24,6 +31,7 @@ export function makeFrameworkDef(): FrameworkDefinition {
         type: "llm_slash_command",
         content: "kiro:spec-requirements",
         requiredArtifacts: [],
+        approvalGate: "requirements",
       },
       {
         phase: "VALIDATE_REQUIREMENTS",
@@ -44,6 +52,7 @@ export function makeFrameworkDef(): FrameworkDefinition {
         type: "llm_slash_command",
         content: "kiro:validate-design",
         requiredArtifacts: [],
+        approvalGate: "design",
       },
       {
         phase: "REFLECT_BEFORE_TASKS",
@@ -51,7 +60,13 @@ export function makeFrameworkDef(): FrameworkDefinition {
         content: "Reflect before tasks for '{specDir}'.",
         requiredArtifacts: [],
       },
-      { phase: "SPEC_TASKS", type: "llm_slash_command", content: "kiro:spec-tasks", requiredArtifacts: [] },
+      {
+        phase: "SPEC_TASKS",
+        type: "llm_slash_command",
+        content: "kiro:spec-tasks",
+        requiredArtifacts: [],
+        approvalGate: "tasks",
+      },
       {
         phase: "VALIDATE_TASKS",
         type: "llm_prompt",

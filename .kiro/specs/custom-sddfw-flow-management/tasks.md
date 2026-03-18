@@ -80,16 +80,16 @@
   - Remove the entire hardcoded switch statement; no `WorkflowPhase` literal strings shall appear in the dispatch logic
   - _Requirements: 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.9_
 
-- [ ] 6. Refactor WorkflowEngine for framework-neutral configuration
+- [x] 6. Refactor WorkflowEngine for framework-neutral configuration
   _(Task 6 works on a different file from Tasks 4 and 5 and can be started in parallel with them after Task 1 is complete.)_
-- [ ] 6.1 Replace hardcoded phase ordering with framework definition phase list
+- [x] 6.1 Replace hardcoded phase ordering with framework definition phase list
   - Add `frameworkDefinition: FrameworkDefinition` to `WorkflowEngineDeps`
   - In `pendingPhases()`, derive the ordered phase list from `frameworkDefinition.phases.map(p => p.phase)` instead of importing and iterating `WORKFLOW_PHASES`
   - In `advancePausedPhase()`, find the current phase index using `frameworkDefinition.phases.findIndex(p => p.phase === pausedPhase)` and read `frameworkDefinition.phases[idx + 1]?.phase` for the next phase, replacing the `WORKFLOW_PHASES.indexOf()` call
   - Retain the `WorkflowPhase` type import from the domain layer for type annotations; do not remove the enum from domain
   - _Requirements: 4.3, 4.5_
 
-- [ ] 6.2 Replace hardcoded artifact and approval gate constants with phase definition lookups
+- [x] 6.2 Replace hardcoded artifact and approval gate constants with phase definition lookups
   - In `checkRequiredArtifacts(phase)`, read `requiredArtifacts` from `frameworkDefinition.phases.find(p => p.phase === phase)?.requiredArtifacts ?? []` instead of `REQUIRED_ARTIFACTS[phase]`
   - In the approval gate lookup (both in `runPendingPhases` and `advancePausedPhase`), read `approvalGate` from `frameworkDefinition.phases.find(p => p.phase === phase)?.approvalGate` instead of `APPROVAL_GATE_PHASES[phase]`
   - Remove the `REQUIRED_ARTIFACTS` and `APPROVAL_GATE_PHASES` constants from the file once all usages have been migrated

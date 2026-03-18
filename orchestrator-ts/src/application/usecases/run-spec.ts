@@ -83,6 +83,7 @@ export class RunSpecUseCase {
       eventBus,
       phaseRunner,
       approvalGate,
+      frameworkDefinition: this.deps.frameworkDefinition,
       specDir,
       language: "en",
     });

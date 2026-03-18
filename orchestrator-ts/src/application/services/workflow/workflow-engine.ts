@@ -1,7 +1,7 @@
 import type { SpecContext } from "@/application/ports/sdd";
 import type { IWorkflowEventBus, IWorkflowStateStore } from "@/application/ports/workflow";
-import type { ApprovalGate, ApprovalPhase } from "@/domain/workflow/approval-gate";
-import { WORKFLOW_PHASES } from "@/domain/workflow/types";
+import type { ApprovalGate } from "@/domain/workflow/approval-gate";
+import type { FrameworkDefinition } from "@/domain/workflow/framework";
 import type { WorkflowPhase, WorkflowState } from "@/domain/workflow/types";
 import { access, readFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -12,37 +12,12 @@ export type WorkflowResult =
   | { readonly status: "paused"; readonly phase: WorkflowPhase; readonly reason: "approval_required" }
   | { readonly status: "failed"; readonly phase: WorkflowPhase; readonly error: string };
 
-/** Artifact filenames (relative to specDir) that must exist before entering each phase. */
-const REQUIRED_ARTIFACTS: Partial<Record<WorkflowPhase, readonly string[]>> = {
-  VALIDATE_PREREQUISITES: ["requirements.md"],
-  SPEC_REQUIREMENTS: ["requirements.md"],
-  VALIDATE_REQUIREMENTS: ["requirements.md"],
-  REFLECT_BEFORE_DESIGN: ["requirements.md"],
-  VALIDATE_GAP: ["requirements.md"],
-  SPEC_DESIGN: ["requirements.md"],
-  VALIDATE_DESIGN: ["design.md"],
-  REFLECT_BEFORE_TASKS: ["design.md"],
-  SPEC_TASKS: ["design.md"],
-  VALIDATE_TASKS: ["tasks.md"],
-  IMPLEMENTATION: ["tasks.md"],
-};
-
-/**
- * Phases that trigger a human approval gate check after successful execution.
- * Maps workflow phase → approval gate key read from spec.json approvals object.
- */
-const APPROVAL_GATE_PHASES: Partial<Record<WorkflowPhase, ApprovalPhase>> = {
-  HUMAN_INTERACTION: "human_interaction",
-  SPEC_REQUIREMENTS: "requirements",
-  VALIDATE_DESIGN: "design",
-  SPEC_TASKS: "tasks",
-};
-
 export interface WorkflowEngineDeps {
   readonly stateStore: IWorkflowStateStore;
   readonly eventBus: IWorkflowEventBus;
   readonly phaseRunner: PhaseRunner;
   readonly approvalGate: ApprovalGate;
+  readonly frameworkDefinition: FrameworkDefinition;
   /** Full path to the spec directory (e.g. `.kiro/specs/my-spec`). */
   readonly specDir: string;
   readonly language: string;
@@ -140,7 +115,7 @@ export class WorkflowEngine {
       eventBus.emit({ type: "phase:complete", phase, durationMs, artifacts: result.artifacts });
 
       // 9. Check approval gate for phases that require human review (Req 5.1–5.6).
-      const approvalType = APPROVAL_GATE_PHASES[phase];
+      const approvalType = this.deps.frameworkDefinition.phases.find((p) => p.phase === phase)?.approvalGate;
       if (approvalType !== undefined) {
         const gateResult = await this.deps.approvalGate.check(specDir, approvalType);
         if (!gateResult.approved) {
@@ -178,8 +153,8 @@ export class WorkflowEngine {
    */
   private async advancePausedPhase(): Promise<WorkflowResult | null> {
     const pausedPhase = this.currentState.currentPhase;
-    const { approvalGate, specDir } = this.deps;
-    const approvalType = APPROVAL_GATE_PHASES[pausedPhase];
+    const { approvalGate, specDir, frameworkDefinition } = this.deps;
+    const approvalType = frameworkDefinition.phases.find((p) => p.phase === pausedPhase)?.approvalGate;
 
     if (approvalType === undefined) {
       // No gate for this phase — should not happen; fall through to main loop.
@@ -200,8 +175,8 @@ export class WorkflowEngine {
     }
 
     // Approved — mark paused phase as completed, update status to running.
-    const currentIndex = WORKFLOW_PHASES.indexOf(pausedPhase);
-    const nextPhase = WORKFLOW_PHASES[currentIndex + 1];
+    const currentIndex = frameworkDefinition.phases.findIndex((p) => p.phase === pausedPhase);
+    const nextPhase = frameworkDefinition.phases[currentIndex + 1]?.phase;
     const advancedState: WorkflowState = {
       ...this.currentState,
       currentPhase: nextPhase ?? pausedPhase,
@@ -215,16 +190,16 @@ export class WorkflowEngine {
     return null; // Continue with main loop.
   }
 
-  /** Phases not yet completed, in WORKFLOW_PHASES order. */
+  /** Phases not yet completed, in framework definition order. */
   private pendingPhases(): readonly WorkflowPhase[] {
     const completed = new Set(this.currentState.completedPhases);
-    return WORKFLOW_PHASES.filter((p) => !completed.has(p));
+    return this.deps.frameworkDefinition.phases.map((p) => p.phase).filter((p) => !completed.has(p));
   }
 
   /** Returns an error message if a required artifact is missing, null otherwise. */
   private async checkRequiredArtifacts(phase: WorkflowPhase): Promise<string | null> {
-    const required = REQUIRED_ARTIFACTS[phase];
-    if (required === undefined) return null;
+    const required = this.deps.frameworkDefinition.phases.find((p) => p.phase === phase)?.requiredArtifacts;
+    if (required === undefined || required.length === 0) return null;
 
     for (const filename of required) {
       const filePath = join(this.deps.specDir, filename);
