@@ -51,6 +51,36 @@ describe("YamlWorkflowDefinitionLoader — integration (real cc-sdd.yaml)", () =
     await expect(loader.load("unknown")).rejects.toThrow("unknown");
     await expect(loader.load("unknown")).rejects.toThrow(".aes/workflow/unknown.yaml");
   });
+
+  it("IMPLEMENTATION phase has 4 loopPhases with correct phase names, types, and non-empty content for llm entries", async () => {
+    const def = await loader.load("cc-sdd");
+    const implPhase = def.phases.find((p) => p.type === "implementation_loop");
+
+    expect(implPhase).toBeDefined();
+    expect(implPhase?.loopPhases).toBeDefined();
+    expect(implPhase?.loopPhases).toHaveLength(4);
+
+    const loopPhases = implPhase!.loopPhases!;
+
+    // Entry 0: SPEC_IMPL — llm_slash_command
+    expect(loopPhases[0].phase).toBe("SPEC_IMPL");
+    expect(loopPhases[0].type).toBe("llm_slash_command");
+    expect(loopPhases[0].content.trim()).not.toBe("");
+
+    // Entry 1: VALIDATE_IMPL — llm_prompt
+    expect(loopPhases[1].phase).toBe("VALIDATE_IMPL");
+    expect(loopPhases[1].type).toBe("llm_prompt");
+    expect(loopPhases[1].content.trim()).not.toBe("");
+
+    // Entry 2: COMMIT — git_command
+    expect(loopPhases[2].phase).toBe("COMMIT");
+    expect(loopPhases[2].type).toBe("git_command");
+
+    // Entry 3: CLEAR_CONTEXT — llm_slash_command
+    expect(loopPhases[3].phase).toBe("CLEAR_CONTEXT");
+    expect(loopPhases[3].type).toBe("llm_slash_command");
+    expect(loopPhases[3].content.trim()).not.toBe("");
+  });
 });
 
 // ─────────────────────────────────────────────────────────
