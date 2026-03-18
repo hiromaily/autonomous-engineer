@@ -9,6 +9,7 @@ import { PhaseRunner } from "@/application/services/workflow/phase-runner";
 import type { FrameworkDefinition } from "@/domain/workflow/framework";
 import type { WorkflowPhase } from "@/domain/workflow/types";
 import { describe, expect, it, mock } from "bun:test";
+import { makeFrameworkDef } from "../helpers/workflow";
 
 const ctx: SpecContext = {
   specName: "my-spec",
@@ -28,63 +29,6 @@ function makeLlmProvider(): LlmProviderPort {
       Promise.resolve({ ok: true as const, value: { content: "", usage: { inputTokens: 0, outputTokens: 0 } } })
     ),
     clearContext: mock(() => {}),
-  };
-}
-
-function makeFrameworkDef(): FrameworkDefinition {
-  return {
-    id: "test-fw",
-    phases: [
-      { phase: "SPEC_INIT", type: "llm_slash_command", content: "kiro:spec-init", requiredArtifacts: [] },
-      { phase: "HUMAN_INTERACTION", type: "human_interaction", content: "", requiredArtifacts: [] },
-      {
-        phase: "VALIDATE_PREREQUISITES",
-        type: "llm_prompt",
-        content: "Verify prerequisites for '{specDir}'.",
-        requiredArtifacts: [],
-      },
-      {
-        phase: "SPEC_REQUIREMENTS",
-        type: "llm_slash_command",
-        content: "kiro:spec-requirements",
-        requiredArtifacts: ["requirements.md"],
-      },
-      {
-        phase: "VALIDATE_REQUIREMENTS",
-        type: "llm_prompt",
-        content: "Validate requirements at '{specDir}/requirements.md'.",
-        requiredArtifacts: [],
-      },
-      {
-        phase: "REFLECT_BEFORE_DESIGN",
-        type: "llm_prompt",
-        content: "Reflect before design for '{specDir}'.",
-        requiredArtifacts: [],
-      },
-      { phase: "VALIDATE_GAP", type: "llm_slash_command", content: "kiro:validate-gap", requiredArtifacts: [] },
-      { phase: "SPEC_DESIGN", type: "llm_slash_command", content: "kiro:spec-design", requiredArtifacts: [] },
-      {
-        phase: "VALIDATE_DESIGN",
-        type: "llm_slash_command",
-        content: "kiro:validate-design",
-        requiredArtifacts: [],
-      },
-      {
-        phase: "REFLECT_BEFORE_TASKS",
-        type: "llm_prompt",
-        content: "Reflect before tasks for '{specDir}'.",
-        requiredArtifacts: [],
-      },
-      { phase: "SPEC_TASKS", type: "llm_slash_command", content: "kiro:spec-tasks", requiredArtifacts: [] },
-      {
-        phase: "VALIDATE_TASKS",
-        type: "llm_prompt",
-        content: "Validate tasks at '{specDir}/tasks.md'.",
-        requiredArtifacts: [],
-      },
-      { phase: "IMPLEMENTATION", type: "implementation_loop", content: "", requiredArtifacts: [] },
-      { phase: "PULL_REQUEST", type: "git_command", content: "", requiredArtifacts: [] },
-    ],
   };
 }
 

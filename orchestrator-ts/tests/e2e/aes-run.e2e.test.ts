@@ -19,7 +19,6 @@ import type { MemoryPort, ShortTermMemoryPort } from "@/application/ports/memory
 import type { SddFrameworkPort } from "@/application/ports/sdd";
 import type { WorkflowEvent } from "@/application/ports/workflow";
 import { RunSpecUseCase } from "@/application/usecases/run-spec";
-import type { FrameworkDefinition } from "@/domain/workflow/framework";
 import type { WorkflowPhase, WorkflowState } from "@/domain/workflow/types";
 import { WorkflowEventBus } from "@/infra/events/workflow-event-bus";
 import { JsonLogWriter } from "@/infra/logger/json-log-writer";
@@ -29,6 +28,7 @@ import { afterAll, beforeAll, describe, expect, it, mock } from "bun:test";
 import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { makeFrameworkDef } from "../helpers/workflow";
 
 // ---------------------------------------------------------------------------
 // Fake cc-sdd binary (reused across E2E tests)
@@ -128,33 +128,6 @@ function makeMemoryPort(): MemoryPort {
 function makeStubSdd(): SddFrameworkPort {
   return {
     executeCommand: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
-  };
-}
-
-function makeFrameworkDef(): FrameworkDefinition {
-  return {
-    id: "test-fw",
-    phases: [
-      { phase: "SPEC_INIT", type: "llm_slash_command", content: "kiro:spec-init", requiredArtifacts: [] },
-      { phase: "HUMAN_INTERACTION", type: "human_interaction", content: "", requiredArtifacts: [] },
-      { phase: "VALIDATE_PREREQUISITES", type: "llm_prompt", content: "Verify prerequisites.", requiredArtifacts: [] },
-      {
-        phase: "SPEC_REQUIREMENTS",
-        type: "llm_slash_command",
-        content: "kiro:spec-requirements",
-        requiredArtifacts: [],
-      },
-      { phase: "VALIDATE_REQUIREMENTS", type: "llm_prompt", content: "Validate requirements.", requiredArtifacts: [] },
-      { phase: "REFLECT_BEFORE_DESIGN", type: "llm_prompt", content: "Reflect before design.", requiredArtifacts: [] },
-      { phase: "VALIDATE_GAP", type: "llm_slash_command", content: "kiro:validate-gap", requiredArtifacts: [] },
-      { phase: "SPEC_DESIGN", type: "llm_slash_command", content: "kiro:spec-design", requiredArtifacts: [] },
-      { phase: "VALIDATE_DESIGN", type: "llm_slash_command", content: "kiro:validate-design", requiredArtifacts: [] },
-      { phase: "REFLECT_BEFORE_TASKS", type: "llm_prompt", content: "Reflect before tasks.", requiredArtifacts: [] },
-      { phase: "SPEC_TASKS", type: "llm_slash_command", content: "kiro:spec-tasks", requiredArtifacts: [] },
-      { phase: "VALIDATE_TASKS", type: "llm_prompt", content: "Validate tasks.", requiredArtifacts: [] },
-      { phase: "IMPLEMENTATION", type: "implementation_loop", content: "", requiredArtifacts: [] },
-      { phase: "PULL_REQUEST", type: "git_command", content: "", requiredArtifacts: [] },
-    ],
   };
 }
 
