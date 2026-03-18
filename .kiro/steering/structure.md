@@ -2,7 +2,7 @@
 
 ## Organization Philosophy
 
-Topic-based documentation structure with bilingual support. Source code will follow Clean/Hexagonal Architecture layers when implemented. Currently the repo is primarily documentation-driven, with implementation design captured in `docs/architecture/`.
+Topic-based documentation structure with bilingual support. Source code follows Clean/Hexagonal Architecture layers in `orchestrator-ts/`. Architecture is documented in `docs/architecture/`.
 
 ## Directory Patterns
 
@@ -28,6 +28,7 @@ Directories are named `<responsibility>-<lang-suffix>`. The prefix reflects doma
   - **Domain Layer**: Core system logic, SDD state machine, agent coordination
   - **Adapter Layer**: LLM providers, Git, SDD framework bridges
   - **Infra Layer**: State persistence, event bus, config loading
+  - **`.aes/workflow/`**: YAML workflow definition files (`<frameworkId>.yaml`) loaded at runtime; add a new file here to support a new SDD framework without code changes
 
 Future additions (not yet implemented):
 - `memory-rs/` — Memory indexing, semantic search, context diffing (Rust, planned)

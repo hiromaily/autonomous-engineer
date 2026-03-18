@@ -42,6 +42,7 @@ Bilingual (English + Japanese) via VitePress. English in `docs/`, Japanese in `d
 - **Custom agent architecture**: Avoids framework lock-in and maintains full control over tool system, memory, context management
 - **SDD-first workflow**: Spec artifacts drive all development phases; reduces hallucination and improves AI reasoning
 - **State machine workflow engine**: Deterministic phase transitions from spec to PR
+- **YAML workflow definitions**: SDD framework phases are defined in `.aes/workflow/<frameworkId>.yaml` files loaded at runtime by `YamlWorkflowDefinitionLoader`. This replaces hardcoded TypeScript definitions and allows framework configuration without code changes.
 
 ## Common Commands
 ```bash
