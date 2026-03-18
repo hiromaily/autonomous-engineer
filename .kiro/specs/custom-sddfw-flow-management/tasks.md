@@ -1,21 +1,21 @@
 # Implementation Plan
 
-- [ ] 1. Establish domain schema and application port foundation
-- [ ] 1.1 Create domain layer types for framework phase configuration
+- [x] 1. Establish domain schema and application port foundation
+- [x] 1.1 Create domain layer types for framework phase configuration
   - Define `PhaseExecutionType` as a discriminated literal union covering all five execution modes: `llm_slash_command`, `llm_prompt`, `human_interaction`, `git_command`, `implementation_loop`
   - Define `PhaseDefinition` interface with `phase`, `type`, `content`, `requiredArtifacts`, and optional `approvalGate` fields
   - Define `FrameworkDefinition` interface with `id` and ordered `phases` list
   - File must live in the domain layer with zero imports from application or infrastructure layers
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5_
 
-- [ ] 1.2 (P) Add runtime validation for framework definition correctness
+- [x] 1.2 (P) Add runtime validation for framework definition correctness
   - Export a `validateFrameworkDefinition(def)` function from the same domain file as the type definitions
   - Validate that all `phase` values within `FrameworkDefinition.phases` are distinct (no duplicates)
   - Validate that `content` is non-empty when `type` is `llm_slash_command` or `llm_prompt`
   - Throw a descriptive error on violation; no return value on success
   - _Requirements: 1.6_
 
-- [ ] 1.3 (P) Define the framework definition loading port in the application layer
+- [x] 1.3 (P) Define the framework definition loading port in the application layer
   - Create a `FrameworkDefinitionPort` interface in the application ports directory
   - Expose a `load(frameworkId: string): Promise<FrameworkDefinition>` method that throws when no matching definition is found
   - The port may only import domain types; no infra imports
