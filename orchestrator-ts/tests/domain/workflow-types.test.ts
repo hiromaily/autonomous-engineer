@@ -1,31 +1,6 @@
 import type { IWorkflowEventBus, IWorkflowStateStore, WorkflowEvent } from "@/application/ports/workflow";
-import { WORKFLOW_PHASES, type WorkflowPhase, type WorkflowState, type WorkflowStatus } from "@/domain/workflow/types";
+import { type WorkflowPhase, type WorkflowState, type WorkflowStatus } from "@/domain/workflow/types";
 import { describe, expect, it } from "bun:test";
-
-describe("WORKFLOW_PHASES", () => {
-  it("contains exactly 14 phases in the correct order", () => {
-    expect(WORKFLOW_PHASES).toHaveLength(14);
-    expect(WORKFLOW_PHASES[0]).toBe("SPEC_INIT");
-    expect(WORKFLOW_PHASES[1]).toBe("HUMAN_INTERACTION");
-    expect(WORKFLOW_PHASES[2]).toBe("VALIDATE_PREREQUISITES");
-    expect(WORKFLOW_PHASES[3]).toBe("SPEC_REQUIREMENTS");
-    expect(WORKFLOW_PHASES[4]).toBe("VALIDATE_REQUIREMENTS");
-    expect(WORKFLOW_PHASES[5]).toBe("REFLECT_BEFORE_DESIGN");
-    expect(WORKFLOW_PHASES[6]).toBe("VALIDATE_GAP");
-    expect(WORKFLOW_PHASES[7]).toBe("SPEC_DESIGN");
-    expect(WORKFLOW_PHASES[8]).toBe("VALIDATE_DESIGN");
-    expect(WORKFLOW_PHASES[9]).toBe("REFLECT_BEFORE_TASKS");
-    expect(WORKFLOW_PHASES[10]).toBe("SPEC_TASKS");
-    expect(WORKFLOW_PHASES[11]).toBe("VALIDATE_TASKS");
-    expect(WORKFLOW_PHASES[12]).toBe("IMPLEMENTATION");
-    expect(WORKFLOW_PHASES[13]).toBe("PULL_REQUEST");
-  });
-
-  it("is frozen (runtime immutable)", () => {
-    expect(Object.isFrozen(WORKFLOW_PHASES)).toBe(true);
-    expect(() => (WORKFLOW_PHASES as unknown as string[]).push("EXTRA")).toThrow();
-  });
-});
 
 describe("WorkflowState shape", () => {
   it("accepts a valid running state", () => {
@@ -78,7 +53,12 @@ describe("WorkflowState shape", () => {
   });
 
   it("accepts a completed state", () => {
-    const allPhases: readonly WorkflowPhase[] = [...WORKFLOW_PHASES];
+    const allPhases: WorkflowPhase[] = [
+      "SPEC_INIT", "HUMAN_INTERACTION", "VALIDATE_PREREQUISITES", "SPEC_REQUIREMENTS",
+      "VALIDATE_REQUIREMENTS", "REFLECT_BEFORE_DESIGN", "VALIDATE_GAP", "SPEC_DESIGN",
+      "VALIDATE_DESIGN", "REFLECT_BEFORE_TASKS", "SPEC_TASKS", "VALIDATE_TASKS",
+      "IMPLEMENTATION", "PULL_REQUEST",
+    ];
     const state: WorkflowState = {
       specName: "my-feature",
       currentPhase: "PULL_REQUEST",
@@ -305,9 +285,9 @@ describe("WorkflowEvent discriminated union — IMPLEMENTATION phase (task 5.1)"
     }
   });
 
-  it("IMPLEMENTATION is in WORKFLOW_PHASES and is a valid WorkflowPhase", () => {
-    expect(WORKFLOW_PHASES).toContain("IMPLEMENTATION");
-    // Type-level check: assign to WorkflowPhase without cast
+  it("IMPLEMENTATION is a valid WorkflowPhase string", () => {
+    // WorkflowPhase is now a string alias — any string is assignable at runtime.
+    // Type-level check: assign to WorkflowPhase without cast.
     const phase: WorkflowPhase = "IMPLEMENTATION";
     expect(phase).toBe("IMPLEMENTATION");
   });

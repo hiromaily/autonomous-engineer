@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import type { AesConfig } from "@/application/ports/config";
 import type { IDebugEventSink } from "@/application/ports/debug";
 import type { FrameworkDefinitionPort } from "@/application/ports/framework";
@@ -32,7 +33,7 @@ import { FileMemoryStore } from "@/infra/memory/file-memory-store";
 import { PlanFileStore, PlanFileStoreAdapter } from "@/infra/planning/plan-file-store";
 import { CcSddAdapter } from "@/infra/sdd/cc-sdd-adapter";
 import { MockSddAdapter } from "@/infra/sdd/mock-sdd-adapter";
-import { TypeScriptFrameworkDefinitionLoader } from "@/infra/sdd/typescript-framework-definition-loader";
+import { YamlWorkflowDefinitionLoader } from "@/infra/sdd/yaml-workflow-definition-loader";
 import { WorkflowStateStore } from "@/infra/state/workflow-state-store";
 import {
   dependencyGraphTool,
@@ -315,7 +316,9 @@ export class RunContainer {
 
   private get frameworkDefinitionLoader(): FrameworkDefinitionPort {
     if (!this._frameworkDefinitionLoader) {
-      this._frameworkDefinitionLoader = new TypeScriptFrameworkDefinitionLoader();
+      this._frameworkDefinitionLoader = new YamlWorkflowDefinitionLoader(
+        join(process.cwd(), ".aes", "workflow"),
+      );
     }
     return this._frameworkDefinitionLoader;
   }

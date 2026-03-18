@@ -2,9 +2,13 @@ import type { IWorkflowEventBus, IWorkflowStateStore, WorkflowEvent } from "@/ap
 import type { PhaseResult, PhaseRunner } from "@/application/services/workflow/phase-runner";
 import { WorkflowEngine } from "@/application/services/workflow/workflow-engine";
 import type { ApprovalGate } from "@/domain/workflow/approval-gate";
-import { WORKFLOW_PHASES } from "@/domain/workflow/types";
 import type { WorkflowPhase, WorkflowState } from "@/domain/workflow/types";
 import { CC_SDD_FRAMEWORK_DEFINITION } from "@/infra/sdd/cc-sdd-framework-definition";
+
+// Derive the ordered phase name list from the framework definition (replaces the
+// deleted CC_SDD_PHASES constant — phase order is now authoritative in the YAML/TS
+// framework definition, not in types.ts).
+const CC_SDD_PHASES = CC_SDD_FRAMEWORK_DEFINITION.phases.map((p) => p.phase);
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -190,21 +194,21 @@ describe("WorkflowEngine", () => {
       const engine = buildEngine();
       await engine.execute(makeInitialState());
       expect(engine.getState().status).toBe("completed");
-      expect(engine.getState().completedPhases).toHaveLength(WORKFLOW_PHASES.length);
+      expect(engine.getState().completedPhases).toHaveLength(CC_SDD_PHASES.length);
     });
   });
 
   // ---- Phase sequence -------------------------------------------------------
 
   describe("phase sequence", () => {
-    it("executes all 7 phases in WORKFLOW_PHASES order", async () => {
+    it("executes all 7 phases in CC_SDD_PHASES order", async () => {
       const { runner, executeCalls } = makePhaseRunner();
       const engine = buildEngine({ phaseRunner: runner });
 
       const result = await engine.execute(makeInitialState());
 
       expect(result.status).toBe("completed");
-      expect(executeCalls).toEqual([...WORKFLOW_PHASES]);
+      expect(executeCalls).toEqual([...CC_SDD_PHASES]);
     });
 
     it("skips phases already in completedPhases", async () => {
@@ -231,7 +235,7 @@ describe("WorkflowEngine", () => {
 
       expect(result.status).toBe("completed");
       if (result.status === "completed") {
-        expect([...result.completedPhases]).toEqual([...WORKFLOW_PHASES]);
+        expect([...result.completedPhases]).toEqual([...CC_SDD_PHASES]);
       }
     });
 
@@ -272,7 +276,7 @@ describe("WorkflowEngine", () => {
 
       const last = stateStore.persisted.at(-1);
       expect(last?.status).toBe("completed");
-      expect(last?.completedPhases).toHaveLength(WORKFLOW_PHASES.length);
+      expect(last?.completedPhases).toHaveLength(CC_SDD_PHASES.length);
     });
 
     it("persists failed state with failureDetail when a phase fails", async () => {
@@ -574,16 +578,16 @@ describe("WorkflowEngine", () => {
       await engine.execute(makeInitialState());
 
       const startEvents = eventBus.events.filter((e) => e.type === "phase:start");
-      expect(startEvents).toHaveLength(WORKFLOW_PHASES.length);
+      expect(startEvents).toHaveLength(CC_SDD_PHASES.length);
       for (const e of startEvents) {
         if (e.type === "phase:start") {
-          expect(WORKFLOW_PHASES).toContain(e.phase);
+          expect(CC_SDD_PHASES).toContain(e.phase);
           expect(new Date(e.timestamp).toISOString()).toBe(e.timestamp);
         }
       }
     });
 
-    it("emits phase:start events in WORKFLOW_PHASES order", async () => {
+    it("emits phase:start events in CC_SDD_PHASES order", async () => {
       const eventBus = makeSpyEventBus();
       const engine = new WorkflowEngine({
         stateStore: makeStateStore(),
@@ -600,7 +604,7 @@ describe("WorkflowEngine", () => {
       const phases = eventBus.events
         .filter((e) => e.type === "phase:start")
         .map((e) => (e as { type: "phase:start"; phase: WorkflowPhase }).phase);
-      expect(phases).toEqual([...WORKFLOW_PHASES]);
+      expect(phases).toEqual([...CC_SDD_PHASES]);
     });
 
     it("emits phase:start before phase runner execute() is called", async () => {
@@ -634,7 +638,7 @@ describe("WorkflowEngine", () => {
       await engine.execute(makeInitialState());
 
       // For each phase, start:<phase> must appear before execute:<phase>
-      for (const phase of WORKFLOW_PHASES) {
+      for (const phase of CC_SDD_PHASES) {
         const startIdx = executeOrder.indexOf(`start:${phase}`);
         const execIdx = executeOrder.indexOf(`execute:${phase}`);
         expect(startIdx).toBeGreaterThanOrEqual(0);
@@ -662,7 +666,7 @@ describe("WorkflowEngine", () => {
       await engine.execute(makeInitialState());
 
       const completeEvents = eventBus.events.filter((e) => e.type === "phase:complete");
-      expect(completeEvents).toHaveLength(WORKFLOW_PHASES.length);
+      expect(completeEvents).toHaveLength(CC_SDD_PHASES.length);
 
       for (const e of completeEvents) {
         if (e.type === "phase:complete") {
@@ -673,7 +677,7 @@ describe("WorkflowEngine", () => {
       }
     });
 
-    it("emits phase:complete events in WORKFLOW_PHASES order", async () => {
+    it("emits phase:complete events in CC_SDD_PHASES order", async () => {
       const eventBus = makeSpyEventBus();
       const engine = new WorkflowEngine({
         stateStore: makeStateStore(),
@@ -690,7 +694,7 @@ describe("WorkflowEngine", () => {
       const phases = eventBus.events
         .filter((e) => e.type === "phase:complete")
         .map((e) => (e as { type: "phase:complete"; phase: WorkflowPhase }).phase);
-      expect(phases).toEqual([...WORKFLOW_PHASES]);
+      expect(phases).toEqual([...CC_SDD_PHASES]);
     });
 
     it("emits phase:error (not phase:complete) when phase runner returns failure", async () => {
@@ -777,7 +781,7 @@ describe("WorkflowEngine", () => {
       expect(completeEvents).toHaveLength(1);
       const completeEvt = completeEvents[0];
       if (completeEvt?.type === "workflow:complete") {
-        expect([...completeEvt.completedPhases]).toEqual([...WORKFLOW_PHASES]);
+        expect([...completeEvt.completedPhases]).toEqual([...CC_SDD_PHASES]);
       }
     });
 
@@ -862,7 +866,7 @@ describe("WorkflowEngine", () => {
       // Last event must be workflow:complete
       expect(types.at(-1)).toBe("workflow:complete");
       // For each phase: phase:start immediately before phase:complete
-      for (const phase of WORKFLOW_PHASES) {
+      for (const phase of CC_SDD_PHASES) {
         const startIdx = eventBus.events.findIndex(
           (e) => e.type === "phase:start" && (e as { phase: WorkflowPhase }).phase === phase,
         );

@@ -170,6 +170,30 @@ describe("ApprovalGate", () => {
   });
 
   // -------------------------------------------------------------------------
+  // approvalArtifact override
+  // -------------------------------------------------------------------------
+
+  describe("approvalArtifact override", () => {
+    it("uses the custom artifact path when approvalArtifact is provided", async () => {
+      // gate.check() should embed the custom filename in the returned artifactPath
+      const result = await gate.check(specDir, "requirements", "custom.md");
+      expect(result.approved).toBe(false);
+      if (!result.approved) {
+        expect(result.artifactPath).toContain("custom.md");
+        expect(result.artifactPath.startsWith(specDir)).toBe(true);
+      }
+    });
+
+    it("falls back to requirements.md when no approvalArtifact is provided", async () => {
+      const result = await gate.check(specDir, "requirements");
+      expect(result.approved).toBe(false);
+      if (!result.approved) {
+        expect(result.artifactPath).toContain("requirements.md");
+      }
+    });
+  });
+
+  // -------------------------------------------------------------------------
   // No caching — reads spec.json fresh each call
   // -------------------------------------------------------------------------
 
