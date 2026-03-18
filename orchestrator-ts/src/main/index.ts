@@ -99,7 +99,7 @@ const runCommand = defineCommand({
       ...(logJsonPath !== undefined ? { logJsonPath } : {}),
       ...(providerOverride !== undefined ? { providerOverride } : {}),
     });
-    const { useCase, eventBus, logWriter, debugWriter, logger } = container.build();
+    const { useCase, eventBus, logWriter, debugWriter, logger } = await container.build();
 
     if (debug) {
       logger.info("Running with mock LLM and auto-approved gates.");

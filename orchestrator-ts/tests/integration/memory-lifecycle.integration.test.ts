@@ -19,6 +19,7 @@ import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { access, mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { makeFrameworkDef } from "../helpers/workflow";
 
 // ---------------------------------------------------------------------------
 // Shared test helpers
@@ -51,17 +52,7 @@ function makeEventBus(): IWorkflowEventBus {
 
 function makeSdd(): SddFrameworkPort {
   return {
-    initSpec: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
-    validatePrerequisites: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
-    generateRequirements: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
-    validateRequirements: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
-    reflectBeforeDesign: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
-    reflectBeforeTasks: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
-    validateGap: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
-    generateDesign: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
-    validateDesign: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
-    generateTasks: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
-    validateTasks: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
+    executeCommand: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
   };
 }
 
@@ -335,6 +326,7 @@ describe("Memory lifecycle - Task 6.2: RunSpecUseCase with real FileMemoryStore"
       stateStore: makeStateStore(),
       eventBus: makeEventBus(),
       sdd: makeSdd(),
+      frameworkDefinition: makeFrameworkDef(),
       createLlmProvider: () => makeLlm(),
       memory: memoryStore,
     });
@@ -398,6 +390,7 @@ describe("Memory lifecycle - Task 6.2: RunSpecUseCase with real FileMemoryStore"
       stateStore: makeStateStore({ persist: mock(() => Promise.resolve()) }),
       eventBus: makeEventBus(),
       sdd: makeSdd(),
+      frameworkDefinition: makeFrameworkDef(),
       createLlmProvider: () => makeLlm(),
       memory: memoryStore,
     });
@@ -419,6 +412,7 @@ describe("Memory lifecycle - Task 6.2: RunSpecUseCase with real FileMemoryStore"
       stateStore: makeStateStore({ persist: mock(() => Promise.resolve()) }),
       eventBus: makeEventBus(),
       sdd: makeSdd(),
+      frameworkDefinition: makeFrameworkDef(),
       createLlmProvider: () => makeLlm(),
       memory: memoryStore,
     });
@@ -440,6 +434,7 @@ describe("Memory lifecycle - Task 6.2: RunSpecUseCase with real FileMemoryStore"
       stateStore: makeStateStore(),
       eventBus: makeEventBus(),
       sdd: makeSdd(),
+      frameworkDefinition: makeFrameworkDef(),
       createLlmProvider: () => makeLlm(),
       memory: memoryStore,
     });

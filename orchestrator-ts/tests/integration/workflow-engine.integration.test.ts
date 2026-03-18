@@ -18,6 +18,7 @@ import { WorkflowEngine } from "@/application/services/workflow/workflow-engine"
 import { ApprovalGate } from "@/domain/workflow/approval-gate";
 import type { WorkflowPhase, WorkflowState } from "@/domain/workflow/types";
 import { WorkflowEventBus } from "@/infra/events/workflow-event-bus";
+import { CC_SDD_FRAMEWORK_DEFINITION } from "@/infra/sdd/cc-sdd-framework-definition";
 import { WorkflowStateStore } from "@/infra/state/workflow-state-store";
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -104,6 +105,7 @@ describe("WorkflowEngine integration — SPEC_INIT → HUMAN_INTERACTION → pau
       approvalGate: new ApprovalGate(),
       specDir,
       language: "en",
+      frameworkDefinition: CC_SDD_FRAMEWORK_DEFINITION,
     });
     const initialState = stateStore.init(SPEC_NAME);
 
@@ -125,6 +127,7 @@ describe("WorkflowEngine integration — SPEC_INIT → HUMAN_INTERACTION → pau
       approvalGate: new ApprovalGate(),
       specDir,
       language: "en",
+      frameworkDefinition: CC_SDD_FRAMEWORK_DEFINITION,
     });
 
     await engine.execute(stateStore.init(SPEC_NAME));
@@ -144,6 +147,7 @@ describe("WorkflowEngine integration — SPEC_INIT → HUMAN_INTERACTION → pau
       approvalGate: new ApprovalGate(),
       specDir,
       language: "en",
+      frameworkDefinition: CC_SDD_FRAMEWORK_DEFINITION,
     });
 
     await engine.execute(stateStore.init(SPEC_NAME));
@@ -167,6 +171,7 @@ describe("WorkflowEngine integration — SPEC_INIT → HUMAN_INTERACTION → pau
       approvalGate: new ApprovalGate(),
       specDir,
       language: "en",
+      frameworkDefinition: CC_SDD_FRAMEWORK_DEFINITION,
     });
 
     await engine.execute(stateStore.init(SPEC_NAME));
@@ -199,6 +204,7 @@ describe("WorkflowEngine integration — SPEC_INIT → HUMAN_INTERACTION → pau
       approvalGate: new ApprovalGate(),
       specDir,
       language: "en",
+      frameworkDefinition: CC_SDD_FRAMEWORK_DEFINITION,
     });
 
     await engine.execute(stateStore.init(SPEC_NAME));
@@ -224,6 +230,7 @@ describe("WorkflowEngine integration — resume after HUMAN_INTERACTION approval
       approvalGate: new ApprovalGate(),
       specDir,
       language: "en",
+      frameworkDefinition: CC_SDD_FRAMEWORK_DEFINITION,
     });
     await engine.execute(stateStore.init(SPEC_NAME));
     return { executedPhases: [...phaseRunner.executedPhases] };
@@ -262,6 +269,7 @@ describe("WorkflowEngine integration — resume after HUMAN_INTERACTION approval
       approvalGate: new ApprovalGate(),
       specDir,
       language: "en",
+      frameworkDefinition: CC_SDD_FRAMEWORK_DEFINITION,
     });
 
     await resumeEngine.execute(restoredState);
@@ -293,6 +301,7 @@ describe("WorkflowEngine integration — resume after HUMAN_INTERACTION approval
       approvalGate: new ApprovalGate(),
       specDir,
       language: "en",
+      frameworkDefinition: CC_SDD_FRAMEWORK_DEFINITION,
     });
 
     const result = await resumeEngine.execute(restoredState);
@@ -335,6 +344,7 @@ describe("WorkflowEngine integration — resume after HUMAN_INTERACTION approval
       approvalGate: new ApprovalGate(),
       specDir,
       language: "en",
+      frameworkDefinition: CC_SDD_FRAMEWORK_DEFINITION,
     });
 
     const result = await engine.execute(stateStore.init(SPEC_NAME));

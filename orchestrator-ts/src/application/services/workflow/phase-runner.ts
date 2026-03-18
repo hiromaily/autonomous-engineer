@@ -1,7 +1,11 @@
 import type { IImplementationLoop, ImplementationLoopOptions } from "@/application/ports/implementation-loop";
 import type { LlmProviderPort } from "@/application/ports/llm";
-import type { SddFrameworkPort, SpecContext } from "@/application/ports/sdd";
+import type { SddFrameworkPort, SddOperationResult, SpecContext } from "@/application/ports/sdd";
+import { findPhaseDefinition } from "@/domain/workflow/framework";
+import type { FrameworkDefinition } from "@/domain/workflow/framework";
 import type { WorkflowPhase } from "@/domain/workflow/types";
+import { writeFile } from "node:fs/promises";
+import { join } from "node:path";
 
 export type PhaseResult =
   | { readonly ok: true; readonly artifacts: readonly string[] }
@@ -10,6 +14,7 @@ export type PhaseResult =
 export interface PhaseRunnerDeps {
   readonly sdd: SddFrameworkPort;
   readonly llm: LlmProviderPort;
+  readonly frameworkDefinition: FrameworkDefinition;
   /** Optional implementation loop service. When provided, the IMPLEMENTATION phase delegates
    *  to `implementationLoop.run(specName)`. When absent, the phase stubs to success. */
   readonly implementationLoop?: IImplementationLoop;
@@ -20,68 +25,51 @@ export interface PhaseRunnerDeps {
 export class PhaseRunner {
   private readonly sdd: SddFrameworkPort;
   private readonly llm: LlmProviderPort;
+  private readonly frameworkDefinition: FrameworkDefinition;
   private readonly implementationLoop: IImplementationLoop | undefined;
   private readonly implementationLoopOptions: Partial<ImplementationLoopOptions> | undefined;
 
   constructor(deps: PhaseRunnerDeps) {
     this.sdd = deps.sdd;
     this.llm = deps.llm;
+    this.frameworkDefinition = deps.frameworkDefinition;
     this.implementationLoop = deps.implementationLoop;
     this.implementationLoopOptions = deps.implementationLoopOptions;
   }
 
   async execute(phase: WorkflowPhase, ctx: SpecContext): Promise<PhaseResult> {
-    switch (phase) {
-      case "VALIDATE_PREREQUISITES": {
-        const result = await this.sdd.validatePrerequisites(ctx);
+    const phaseDef = findPhaseDefinition(this.frameworkDefinition, phase);
+    if (!phaseDef) {
+      throw new Error(`Unregistered workflow phase: ${phase} in framework ${this.frameworkDefinition.id}`);
+    }
+
+    const interpolate = (content: string): string =>
+      content
+        .replaceAll("{specDir}", ctx.specDir)
+        .replaceAll("{specName}", ctx.specName)
+        .replaceAll("{language}", ctx.language);
+
+    switch (phaseDef.type) {
+      case "llm_slash_command": {
+        const result = await this.sdd.executeCommand(interpolate(phaseDef.content), ctx);
         return this.mapSddResult(result);
       }
-      case "SPEC_REQUIREMENTS": {
-        const result = await this.sdd.generateRequirements(ctx);
-        return this.mapSddResult(result);
+      case "llm_prompt": {
+        const result = await this.llm.complete(interpolate(phaseDef.content));
+        if (result.ok) {
+          if (phaseDef.outputFile) {
+            const outputPath = join(ctx.specDir, phaseDef.outputFile);
+            await writeFile(outputPath, result.value.content, "utf-8");
+            return { ok: true, artifacts: [outputPath] };
+          }
+          return { ok: true, artifacts: [] };
+        }
+        return { ok: false, error: result.error.message };
       }
-      case "VALIDATE_REQUIREMENTS": {
-        const result = await this.sdd.validateRequirements(ctx);
-        return this.mapSddResult(result);
-      }
-      case "REFLECT_BEFORE_DESIGN": {
-        const result = await this.sdd.reflectBeforeDesign(ctx);
-        return this.mapSddResult(result);
-      }
-      case "REFLECT_BEFORE_TASKS": {
-        const result = await this.sdd.reflectBeforeTasks(ctx);
-        return this.mapSddResult(result);
-      }
-      case "VALIDATE_GAP": {
-        const result = await this.sdd.validateGap(ctx);
-        return this.mapSddResult(result);
-      }
-      case "SPEC_DESIGN": {
-        const result = await this.sdd.generateDesign(ctx);
-        return this.mapSddResult(result);
-      }
-      case "VALIDATE_DESIGN": {
-        const result = await this.sdd.validateDesign(ctx);
-        return this.mapSddResult(result);
-      }
-      case "SPEC_TASKS": {
-        const result = await this.sdd.generateTasks(ctx);
-        return this.mapSddResult(result);
-      }
-      case "VALIDATE_TASKS": {
-        const result = await this.sdd.validateTasks(ctx);
-        return this.mapSddResult(result);
-      }
-      case "SPEC_INIT": {
-        const result = await this.sdd.initSpec(ctx);
-        return this.mapSddResult(result);
-      }
-      case "HUMAN_INTERACTION":
-      case "PULL_REQUEST":
-        // HUMAN_INTERACTION is a pause point — the approval gate handles the wait.
-        // PULL_REQUEST wired in a future spec.
+      case "human_interaction":
+      case "git_command":
         return { ok: true, artifacts: [] };
-      case "IMPLEMENTATION": {
+      case "implementation_loop": {
         if (this.implementationLoop) {
           const result = await this.implementationLoop.run(ctx.specName, this.implementationLoopOptions);
           if (result.outcome === "completed") {
@@ -93,8 +81,8 @@ export class PhaseRunner {
         return { ok: true, artifacts: [] };
       }
       default: {
-        const _exhaustiveCheck: never = phase;
-        throw new Error(`Unhandled workflow phase: ${_exhaustiveCheck}`);
+        const _exhaustive: never = phaseDef.type;
+        throw new Error(`Unhandled phase execution type: ${_exhaustive}`);
       }
     }
   }
@@ -109,7 +97,7 @@ export class PhaseRunner {
     // Lifecycle hook — extended in future specs
   }
 
-  private mapSddResult(result: Awaited<ReturnType<SddFrameworkPort["generateRequirements"]>>): PhaseResult {
+  private mapSddResult(result: SddOperationResult): PhaseResult {
     if (result.ok) {
       return { ok: true, artifacts: [result.artifactPath] };
     }

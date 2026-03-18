@@ -1,5 +1,6 @@
 import type { AesConfig } from "@/application/ports/config";
 import type { IDebugEventSink } from "@/application/ports/debug";
+import type { FrameworkDefinitionPort } from "@/application/ports/framework";
 import type { IGitController } from "@/application/ports/git-controller";
 import type { IImplementationLoop } from "@/application/ports/implementation-loop";
 import type { LlmProviderPort } from "@/application/ports/llm";
@@ -18,6 +19,7 @@ import { GitValidator } from "@/domain/git/git-validator";
 import { PermissionSystem } from "@/domain/tools/permissions";
 import { ToolRegistry } from "@/domain/tools/registry";
 import type { ToolContext } from "@/domain/tools/types";
+import type { FrameworkDefinition } from "@/domain/workflow/framework";
 import { WorkflowEventBus } from "@/infra/events/workflow-event-bus";
 import { GitControllerAdapter } from "@/infra/git/git-controller-adapter";
 import { ClaudeProvider } from "@/infra/llm/claude-provider";
@@ -30,6 +32,7 @@ import { FileMemoryStore } from "@/infra/memory/file-memory-store";
 import { PlanFileStore, PlanFileStoreAdapter } from "@/infra/planning/plan-file-store";
 import { CcSddAdapter } from "@/infra/sdd/cc-sdd-adapter";
 import { MockSddAdapter } from "@/infra/sdd/mock-sdd-adapter";
+import { TypeScriptFrameworkDefinitionLoader } from "@/infra/sdd/typescript-framework-definition-loader";
 import { WorkflowStateStore } from "@/infra/state/workflow-state-store";
 import {
   dependencyGraphTool,
@@ -102,6 +105,8 @@ export class RunContainer {
   private _implementationLoop?: IImplementationLoop;
   private _memory?: FileMemoryStore;
   private _useCase?: RunSpecUseCase;
+  private _frameworkDefinitionLoader?: FrameworkDefinitionPort;
+  private _frameworkDefinition?: FrameworkDefinition;
 
   // --------------------------------------------------------------------------
   // Private lazy getters
@@ -308,6 +313,20 @@ export class RunContainer {
     return this._memory;
   }
 
+  private get frameworkDefinitionLoader(): FrameworkDefinitionPort {
+    if (!this._frameworkDefinitionLoader) {
+      this._frameworkDefinitionLoader = new TypeScriptFrameworkDefinitionLoader();
+    }
+    return this._frameworkDefinitionLoader;
+  }
+
+  private get frameworkDefinition(): FrameworkDefinition {
+    if (this._frameworkDefinition === undefined) {
+      throw new Error("frameworkDefinition accessed before build() completed");
+    }
+    return this._frameworkDefinition;
+  }
+
   private get useCase(): RunSpecUseCase {
     if (!this._useCase) {
       const debugApprovalGate = this.debugApprovalGate;
@@ -316,6 +335,7 @@ export class RunContainer {
         stateStore: new WorkflowStateStore(),
         eventBus: this.eventBus,
         sdd: this.options.debug ? new MockSddAdapter(this.debugWriter ?? undefined) : new CcSddAdapter(),
+        frameworkDefinition: this.frameworkDefinition,
         memory: this.memory,
         implementationLoop: this.implementationLoop,
         createLlmProvider: (_cfg, override) => this.newLlmProvider(override),
@@ -359,7 +379,11 @@ export class RunContainer {
    * Wire side-effects (event-bus listeners) and return the assembled
    * RunDependencies. Should be called exactly once per container instance.
    */
-  build(): RunDependencies {
+  async build(): Promise<RunDependencies> {
+    // Load the framework definition first; propagates loader errors (e.g. unknown framework ID)
+    // so startup fails fast with a helpful message listing available frameworks.
+    this._frameworkDefinition = await this.frameworkDefinitionLoader.load(this.config.sddFramework);
+
     // Resolve logger first — required for all subsequent DI log entries.
     const logger = this.logger;
     logger.debug("DI resolved", { dependency: "logger", impl: "ConsoleLogger" });

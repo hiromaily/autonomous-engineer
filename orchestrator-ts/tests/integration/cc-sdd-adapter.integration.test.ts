@@ -109,12 +109,12 @@ async function makeSpecDir(specName: string): Promise<{ specDir: string; ctx: Sp
 // Artifact creation tests
 // ---------------------------------------------------------------------------
 
-describe("CcSddAdapter — integration: generateRequirements", () => {
+describe("CcSddAdapter — integration: kiro:spec-requirements", () => {
   it("creates requirements.md on disk and returns ok: true", async () => {
     const { ctx } = await makeSpecDir("my-spec");
     const adapter = new CcSddAdapter(makeRealSpawnWithBinary(fakeBinaryPath));
 
-    const result = await adapter.generateRequirements(ctx);
+    const result = await adapter.executeCommand("kiro:spec-requirements", ctx);
 
     expect(result.ok).toBe(true);
     if (result.ok) {
@@ -125,12 +125,12 @@ describe("CcSddAdapter — integration: generateRequirements", () => {
   });
 });
 
-describe("CcSddAdapter — integration: generateDesign", () => {
+describe("CcSddAdapter — integration: kiro:spec-design", () => {
   it("creates design.md on disk and returns ok: true", async () => {
     const { ctx } = await makeSpecDir("my-spec");
     const adapter = new CcSddAdapter(makeRealSpawnWithBinary(fakeBinaryPath));
 
-    const result = await adapter.generateDesign(ctx);
+    const result = await adapter.executeCommand("kiro:spec-design", ctx);
 
     expect(result.ok).toBe(true);
     if (result.ok) {
@@ -141,12 +141,12 @@ describe("CcSddAdapter — integration: generateDesign", () => {
   });
 });
 
-describe("CcSddAdapter — integration: validateDesign", () => {
+describe("CcSddAdapter — integration: kiro:validate-design", () => {
   it("creates/updates design.md on disk and returns ok: true", async () => {
     const { ctx } = await makeSpecDir("my-spec");
     const adapter = new CcSddAdapter(makeRealSpawnWithBinary(fakeBinaryPath));
 
-    const result = await adapter.validateDesign(ctx);
+    const result = await adapter.executeCommand("kiro:validate-design", ctx);
 
     expect(result.ok).toBe(true);
     if (result.ok) {
@@ -157,12 +157,12 @@ describe("CcSddAdapter — integration: validateDesign", () => {
   });
 });
 
-describe("CcSddAdapter — integration: generateTasks", () => {
+describe("CcSddAdapter — integration: kiro:spec-tasks", () => {
   it("creates tasks.md on disk and returns ok: true", async () => {
     const { ctx } = await makeSpecDir("my-spec");
     const adapter = new CcSddAdapter(makeRealSpawnWithBinary(fakeBinaryPath));
 
-    const result = await adapter.generateTasks(ctx);
+    const result = await adapter.executeCommand("kiro:spec-tasks", ctx);
 
     expect(result.ok).toBe(true);
     if (result.ok) {
@@ -182,7 +182,7 @@ describe("CcSddAdapter — integration: failure (non-zero exit)", () => {
     const { ctx } = await makeSpecDir("my-spec");
     const adapter = new CcSddAdapter(makeRealSpawnWithBinary(failingBinaryPath));
 
-    const result = await adapter.generateRequirements(ctx);
+    const result = await adapter.executeCommand("kiro:spec-requirements", ctx);
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
@@ -191,13 +191,18 @@ describe("CcSddAdapter — integration: failure (non-zero exit)", () => {
     }
   });
 
-  it("all four operations propagate failure result", async () => {
-    const ops = ["generateRequirements", "generateDesign", "validateDesign", "generateTasks"] as const;
+  it("all four commands propagate failure result", async () => {
+    const commands = [
+      "kiro:spec-requirements",
+      "kiro:spec-design",
+      "kiro:validate-design",
+      "kiro:spec-tasks",
+    ] as const;
     const { ctx } = await makeSpecDir("my-spec");
     const adapter = new CcSddAdapter(makeRealSpawnWithBinary(failingBinaryPath));
 
-    for (const op of ops) {
-      const result = await adapter[op](ctx);
+    for (const cmd of commands) {
+      const result = await adapter.executeCommand(cmd, ctx);
       expect(result.ok).toBe(false);
       if (!result.ok) {
         expect(result.error.exitCode).not.toBe(0);
@@ -215,7 +220,7 @@ describe("CcSddAdapter — integration: artifact isolation", () => {
     const { specDir, ctx } = await makeSpecDir("isolated-spec");
     const adapter = new CcSddAdapter(makeRealSpawnWithBinary(fakeBinaryPath));
 
-    const result = await adapter.generateRequirements(ctx);
+    const result = await adapter.executeCommand("kiro:spec-requirements", ctx);
 
     expect(result.ok).toBe(true);
     if (result.ok) {
@@ -228,8 +233,8 @@ describe("CcSddAdapter — integration: artifact isolation", () => {
     const { ctx: ctxB } = await makeSpecDir("spec-beta");
     const adapter = new CcSddAdapter(makeRealSpawnWithBinary(fakeBinaryPath));
 
-    const resultA = await adapter.generateRequirements(ctxA);
-    const resultB = await adapter.generateRequirements(ctxB);
+    const resultA = await adapter.executeCommand("kiro:spec-requirements", ctxA);
+    const resultB = await adapter.executeCommand("kiro:spec-requirements", ctxB);
 
     expect(resultA.ok).toBe(true);
     expect(resultB.ok).toBe(true);

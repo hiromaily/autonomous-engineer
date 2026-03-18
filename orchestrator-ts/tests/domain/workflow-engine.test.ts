@@ -4,6 +4,7 @@ import { WorkflowEngine } from "@/application/services/workflow/workflow-engine"
 import type { ApprovalGate } from "@/domain/workflow/approval-gate";
 import { WORKFLOW_PHASES } from "@/domain/workflow/types";
 import type { WorkflowPhase, WorkflowState } from "@/domain/workflow/types";
+import { CC_SDD_FRAMEWORK_DEFINITION } from "@/infra/sdd/cc-sdd-framework-definition";
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -170,6 +171,7 @@ describe("WorkflowEngine", () => {
       approvalGate: makeApprovalGate(),
       specDir: overrides.specDir ?? tmpDir,
       language: "en",
+      frameworkDefinition: CC_SDD_FRAMEWORK_DEFINITION,
     });
   }
 
@@ -353,6 +355,7 @@ describe("WorkflowEngine", () => {
           approvalGate: makeApprovalGate(),
           specDir: emptyDir,
           language: "en",
+          frameworkDefinition: CC_SDD_FRAMEWORK_DEFINITION,
         });
 
         // Start right before SPEC_DESIGN (simulate all prior phases completed)
@@ -399,6 +402,7 @@ describe("WorkflowEngine", () => {
           approvalGate: makeApprovalGate(),
           specDir,
           language: "en",
+          frameworkDefinition: CC_SDD_FRAMEWORK_DEFINITION,
         });
 
         const stateBeforeDesign: WorkflowState = {
@@ -438,6 +442,7 @@ describe("WorkflowEngine", () => {
           approvalGate: makeApprovalGate(),
           specDir,
           language: "en",
+          frameworkDefinition: CC_SDD_FRAMEWORK_DEFINITION,
         });
 
         const stateBeforeImpl: WorkflowState = {
@@ -484,6 +489,7 @@ describe("WorkflowEngine", () => {
           approvalGate: makeApprovalGate(),
           specDir: emptyDir,
           language: "en",
+          frameworkDefinition: CC_SDD_FRAMEWORK_DEFINITION,
         });
 
         // Run only SPEC_INIT by starting with all others already completed
@@ -562,6 +568,7 @@ describe("WorkflowEngine", () => {
         approvalGate: makeApprovalGate(),
         specDir: tmpDir,
         language: "en",
+        frameworkDefinition: CC_SDD_FRAMEWORK_DEFINITION,
       });
 
       await engine.execute(makeInitialState());
@@ -585,6 +592,7 @@ describe("WorkflowEngine", () => {
         approvalGate: makeApprovalGate(),
         specDir: tmpDir,
         language: "en",
+        frameworkDefinition: CC_SDD_FRAMEWORK_DEFINITION,
       });
 
       await engine.execute(makeInitialState());
@@ -620,6 +628,7 @@ describe("WorkflowEngine", () => {
         approvalGate: makeApprovalGate(),
         specDir: tmpDir,
         language: "en",
+        frameworkDefinition: CC_SDD_FRAMEWORK_DEFINITION,
       });
 
       await engine.execute(makeInitialState());
@@ -647,6 +656,7 @@ describe("WorkflowEngine", () => {
         approvalGate: makeApprovalGate(),
         specDir: tmpDir,
         language: "en",
+        frameworkDefinition: CC_SDD_FRAMEWORK_DEFINITION,
       });
 
       await engine.execute(makeInitialState());
@@ -672,6 +682,7 @@ describe("WorkflowEngine", () => {
         approvalGate: makeApprovalGate(),
         specDir: tmpDir,
         language: "en",
+        frameworkDefinition: CC_SDD_FRAMEWORK_DEFINITION,
       });
 
       await engine.execute(makeInitialState());
@@ -697,6 +708,7 @@ describe("WorkflowEngine", () => {
         approvalGate: makeApprovalGate(),
         specDir: tmpDir,
         language: "en",
+        frameworkDefinition: CC_SDD_FRAMEWORK_DEFINITION,
       });
 
       await engine.execute(makeInitialState());
@@ -733,6 +745,7 @@ describe("WorkflowEngine", () => {
         approvalGate: makeApprovalGate(),
         specDir: tmpDir,
         language: "en",
+        frameworkDefinition: CC_SDD_FRAMEWORK_DEFINITION,
       });
 
       await engine.execute(makeInitialState());
@@ -755,6 +768,7 @@ describe("WorkflowEngine", () => {
         approvalGate: makeApprovalGate(),
         specDir: tmpDir,
         language: "en",
+        frameworkDefinition: CC_SDD_FRAMEWORK_DEFINITION,
       });
 
       await engine.execute(makeInitialState());
@@ -780,6 +794,7 @@ describe("WorkflowEngine", () => {
         approvalGate: makeApprovalGate(),
         specDir: tmpDir,
         language: "en",
+        frameworkDefinition: CC_SDD_FRAMEWORK_DEFINITION,
       });
 
       await engine.execute(makeInitialState());
@@ -798,6 +813,7 @@ describe("WorkflowEngine", () => {
           approvalGate: makeApprovalGate(),
           specDir: emptyDir,
           language: "en",
+          frameworkDefinition: CC_SDD_FRAMEWORK_DEFINITION,
         });
 
         // Start before SPEC_DESIGN — artifact validation will fail (no requirements.md)
@@ -837,6 +853,7 @@ describe("WorkflowEngine", () => {
         approvalGate: makeApprovalGate(),
         specDir: tmpDir,
         language: "en",
+        frameworkDefinition: CC_SDD_FRAMEWORK_DEFINITION,
       });
 
       await engine.execute(makeInitialState());
@@ -872,6 +889,7 @@ describe("WorkflowEngine", () => {
         approvalGate: gate,
         specDir: tmpDir,
         language: "en",
+        frameworkDefinition: CC_SDD_FRAMEWORK_DEFINITION,
       });
 
       await tracked.execute(makeInitialState());
@@ -888,6 +906,7 @@ describe("WorkflowEngine", () => {
         approvalGate: gate,
         specDir: tmpDir,
         language: "en",
+        frameworkDefinition: CC_SDD_FRAMEWORK_DEFINITION,
       });
 
       await tracked.execute(makeInitialState());
@@ -904,6 +923,7 @@ describe("WorkflowEngine", () => {
         approvalGate: gate,
         specDir: tmpDir,
         language: "en",
+        frameworkDefinition: CC_SDD_FRAMEWORK_DEFINITION,
       });
 
       await tracked.execute(makeInitialState());
@@ -920,6 +940,7 @@ describe("WorkflowEngine", () => {
         approvalGate: gate,
         specDir: tmpDir,
         language: "en",
+        frameworkDefinition: CC_SDD_FRAMEWORK_DEFINITION,
       });
 
       await tracked.execute(makeInitialState());
@@ -936,6 +957,7 @@ describe("WorkflowEngine", () => {
         approvalGate: gate,
         specDir: tmpDir,
         language: "en",
+        frameworkDefinition: CC_SDD_FRAMEWORK_DEFINITION,
       });
 
       await tracked.execute(makeInitialState());
@@ -957,6 +979,7 @@ describe("WorkflowEngine", () => {
         approvalGate: makePendingGate("requirements"),
         specDir: tmpDir,
         language: "en",
+        frameworkDefinition: CC_SDD_FRAMEWORK_DEFINITION,
       });
 
       const result = await engine.execute(makeInitialState());
@@ -977,6 +1000,7 @@ describe("WorkflowEngine", () => {
         approvalGate: makePendingGate("requirements"),
         specDir: tmpDir,
         language: "en",
+        frameworkDefinition: CC_SDD_FRAMEWORK_DEFINITION,
       });
 
       await engine.execute(makeInitialState());
@@ -997,6 +1021,7 @@ describe("WorkflowEngine", () => {
         approvalGate: makePendingGate("requirements"),
         specDir: tmpDir,
         language: "en",
+        frameworkDefinition: CC_SDD_FRAMEWORK_DEFINITION,
       });
 
       await engine.execute(makeInitialState());
@@ -1022,6 +1047,7 @@ describe("WorkflowEngine", () => {
         approvalGate: makePendingGate("requirements"),
         specDir: tmpDir,
         language: "en",
+        frameworkDefinition: CC_SDD_FRAMEWORK_DEFINITION,
       });
 
       await engine.execute(makeInitialState());
@@ -1040,6 +1066,7 @@ describe("WorkflowEngine", () => {
         approvalGate: makePendingGate("requirements"),
         specDir: tmpDir,
         language: "en",
+        frameworkDefinition: CC_SDD_FRAMEWORK_DEFINITION,
       });
 
       // Simulate a paused state (SPEC_REQUIREMENTS already ran but not approved)
@@ -1068,6 +1095,7 @@ describe("WorkflowEngine", () => {
         approvalGate: makeApprovalGate(), // always approved
         specDir: tmpDir,
         language: "en",
+        frameworkDefinition: CC_SDD_FRAMEWORK_DEFINITION,
       });
 
       // Simulate a paused state (SPEC_REQUIREMENTS already ran and is now approved)
@@ -1098,6 +1126,7 @@ describe("WorkflowEngine", () => {
         approvalGate: makeApprovalGate(),
         specDir: tmpDir,
         language: "en",
+        frameworkDefinition: CC_SDD_FRAMEWORK_DEFINITION,
       });
 
       const pausedState: WorkflowState = {
@@ -1132,6 +1161,7 @@ describe("WorkflowEngine", () => {
           approvalGate: makeApprovalGate(),
           specDir,
           language: "en",
+          frameworkDefinition: CC_SDD_FRAMEWORK_DEFINITION,
         });
 
         // Start right before IMPLEMENTATION (all prior phases complete)
@@ -1181,6 +1211,7 @@ describe("WorkflowEngine", () => {
           approvalGate: makeApprovalGate(),
           specDir,
           language: "en",
+          frameworkDefinition: CC_SDD_FRAMEWORK_DEFINITION,
         });
 
         const stateBeforeImpl: WorkflowState = {
@@ -1221,6 +1252,7 @@ describe("WorkflowEngine", () => {
         approvalGate: makeApprovalGate(),
         specDir: tmpDir,
         language: "en",
+        frameworkDefinition: CC_SDD_FRAMEWORK_DEFINITION,
       });
 
       await engine.execute(makeInitialState());
@@ -1244,6 +1276,7 @@ describe("WorkflowEngine", () => {
           approvalGate: makeApprovalGate(),
           specDir,
           language: "en",
+          frameworkDefinition: CC_SDD_FRAMEWORK_DEFINITION,
         });
 
         const stateBeforeImpl: WorkflowState = {
@@ -1277,6 +1310,115 @@ describe("WorkflowEngine", () => {
       } finally {
         await rm(specDir, { recursive: true, force: true });
       }
+    });
+  });
+
+  // ---- Framework definition (task 8.2) -------------------------------------
+
+  describe("framework definition configuration", () => {
+    it("pendingPhases() returns phases in the order defined by frameworkDefinition.phases", async () => {
+      const { runner, executeCalls } = makePhaseRunner();
+      const engine = buildEngine({ phaseRunner: runner });
+
+      const result = await engine.execute(makeInitialState());
+
+      expect(result.status).toBe("completed");
+      const expectedOrder = CC_SDD_FRAMEWORK_DEFINITION.phases.map((p) => p.phase);
+      expect(executeCalls).toEqual(expectedOrder);
+    });
+
+    it("checkRequiredArtifacts reads from phaseDefinition.requiredArtifacts", async () => {
+      const emptyDir = await mkdtemp(join(tmpdir(), "aes-engine-fw-art-"));
+      try {
+        const { runner } = makePhaseRunner();
+        const engine = new WorkflowEngine({
+          stateStore: makeStateStore(),
+          eventBus: makeEventBus(),
+          phaseRunner: runner,
+          approvalGate: makeApprovalGate(),
+          specDir: emptyDir,
+          language: "en",
+          frameworkDefinition: CC_SDD_FRAMEWORK_DEFINITION,
+        });
+
+        // SPEC_REQUIREMENTS requires requirements.md per framework definition
+        const stateBeforeRequirements: WorkflowState = {
+          ...makeInitialState(),
+          currentPhase: "SPEC_REQUIREMENTS",
+          completedPhases: [
+            "SPEC_INIT",
+            "HUMAN_INTERACTION",
+            "VALIDATE_PREREQUISITES",
+          ],
+          updatedAt: new Date().toISOString(),
+        };
+
+        const result = await engine.execute(stateBeforeRequirements);
+
+        expect(result.status).toBe("failed");
+        if (result.status === "failed") {
+          expect(result.phase).toBe("SPEC_REQUIREMENTS");
+          expect(result.error).toContain("requirements.md");
+        }
+      } finally {
+        await rm(emptyDir, { recursive: true, force: true });
+      }
+    });
+
+    it("approval gate lookup reads from phaseDefinition.approvalGate", async () => {
+      const gate = makeTrackingGate();
+      const engine = new WorkflowEngine({
+        stateStore: makeStateStore(),
+        eventBus: makeEventBus(),
+        phaseRunner: makePhaseRunner().runner,
+        approvalGate: gate,
+        specDir: tmpDir,
+        language: "en",
+        frameworkDefinition: CC_SDD_FRAMEWORK_DEFINITION,
+      });
+
+      await engine.execute(makeInitialState());
+
+      // Framework definition gates: human_interaction, requirements, design, tasks
+      expect(gate.checkedPhases).toContain("human_interaction");
+      expect(gate.checkedPhases).toContain("requirements");
+      expect(gate.checkedPhases).toContain("design");
+      expect(gate.checkedPhases).toContain("tasks");
+    });
+
+    it("advancePausedPhase() determines the next phase from the framework definition index", async () => {
+      // Pause at SPEC_REQUIREMENTS (approval gate); verify that after approval the next
+      // phase executed is the one immediately following in the framework definition.
+      const gate = makePendingGate("requirements");
+      const { runner, executeCalls } = makePhaseRunner();
+
+      const engine = new WorkflowEngine({
+        stateStore: makeStateStore(),
+        eventBus: makeEventBus(),
+        phaseRunner: runner,
+        approvalGate: gate,
+        specDir: tmpDir,
+        language: "en",
+        frameworkDefinition: CC_SDD_FRAMEWORK_DEFINITION,
+      });
+
+      // First run — pauses at SPEC_REQUIREMENTS
+      const pausedResult = await engine.execute(makeInitialState());
+      expect(pausedResult.status).toBe("paused");
+
+      // Resume — approval gate now approves
+      gate.check = mock(async () => ({ approved: true as const }));
+      gate.checkResume = mock(async () => ({ approved: true as const }));
+      const pausedState = engine.getState();
+
+      const resumeResult = await engine.execute(pausedState);
+      expect(resumeResult.status).toBe("completed");
+
+      // SPEC_REQUIREMENTS index in framework definition is 3; next phase is VALIDATE_REQUIREMENTS (index 4)
+      const fwPhases = CC_SDD_FRAMEWORK_DEFINITION.phases.map((p) => p.phase);
+      const reqIdx = fwPhases.indexOf("SPEC_REQUIREMENTS");
+      const expectedNext = fwPhases[reqIdx + 1]!;
+      expect(executeCalls).toContain(expectedNext);
     });
   });
 });

@@ -15,6 +15,7 @@ import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { makeFrameworkDef } from "../helpers/workflow";
 
 // ─── Stub factories ─────────────────────────────────────────────────────────
 
@@ -45,17 +46,7 @@ function makeEventBus(): IWorkflowEventBus {
 
 function makeSdd(): SddFrameworkPort {
   return {
-    initSpec: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
-    validatePrerequisites: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
-    generateRequirements: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
-    validateRequirements: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
-    reflectBeforeDesign: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
-    reflectBeforeTasks: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
-    validateGap: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
-    generateDesign: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
-    validateDesign: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
-    generateTasks: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
-    validateTasks: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
+    executeCommand: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
   };
 }
 
@@ -114,6 +105,7 @@ describe("RunSpecUseCase", () => {
         stateStore: makeStateStore(),
         eventBus: makeEventBus(),
         sdd: makeSdd(),
+        frameworkDefinition: makeFrameworkDef(),
         createLlmProvider: () => makeLlm(),
         memory: makeMemoryPort(),
       });
@@ -130,6 +122,7 @@ describe("RunSpecUseCase", () => {
         stateStore: makeStateStore(),
         eventBus: makeEventBus(),
         sdd: makeSdd(),
+        frameworkDefinition: makeFrameworkDef(),
         createLlmProvider: () => makeLlm(),
         memory: makeMemoryPort(),
       });
@@ -149,6 +142,7 @@ describe("RunSpecUseCase", () => {
         stateStore,
         eventBus: makeEventBus(),
         sdd: makeSdd(),
+        frameworkDefinition: makeFrameworkDef(),
         createLlmProvider: () => makeLlm(),
         memory: makeMemoryPort(),
       });
@@ -196,6 +190,7 @@ describe("RunSpecUseCase", () => {
         stateStore,
         eventBus: makeEventBus(),
         sdd: makeSdd(),
+        frameworkDefinition: makeFrameworkDef(),
         createLlmProvider: () => makeLlm(),
         memory: makeMemoryPort(),
       });
@@ -215,6 +210,7 @@ describe("RunSpecUseCase", () => {
         stateStore,
         eventBus: makeEventBus(),
         sdd: makeSdd(),
+        frameworkDefinition: makeFrameworkDef(),
         createLlmProvider: () => makeLlm(),
         memory: makeMemoryPort(),
       });
@@ -233,6 +229,7 @@ describe("RunSpecUseCase", () => {
         stateStore: makeStateStore({ persist: mock(() => Promise.resolve()) }),
         eventBus: makeEventBus(),
         sdd: makeSdd(),
+        frameworkDefinition: makeFrameworkDef(),
         createLlmProvider,
         memory: makeMemoryPort(),
       });
@@ -251,6 +248,7 @@ describe("RunSpecUseCase", () => {
         stateStore: makeStateStore({ persist: mock(() => Promise.resolve()) }),
         eventBus: makeEventBus(),
         sdd: makeSdd(),
+        frameworkDefinition: makeFrameworkDef(),
         createLlmProvider,
         memory: makeMemoryPort(),
       });
@@ -289,6 +287,7 @@ describe("RunSpecUseCase", () => {
         stateStore,
         eventBus,
         sdd: makeSdd(),
+        frameworkDefinition: makeFrameworkDef(),
         createLlmProvider: () => makeLlm(),
         memory: makeMemoryPort(),
       });
@@ -309,6 +308,7 @@ describe("RunSpecUseCase", () => {
         stateStore,
         eventBus: makeEventBus(),
         sdd: makeSdd(),
+        frameworkDefinition: makeFrameworkDef(),
         createLlmProvider: () => makeLlm(),
         memory: makeMemoryPort(),
       });
@@ -363,6 +363,7 @@ describe("RunSpecUseCase", () => {
         stateStore: makeStateStore({ persist: mock(() => Promise.resolve()) }),
         eventBus: makeEventBus(),
         sdd: makeSdd(),
+        frameworkDefinition: makeFrameworkDef(),
         createLlmProvider: () => makeLlm(),
         memory: makeMemoryPort(),
         implementationLoop,
@@ -383,6 +384,7 @@ describe("RunSpecUseCase", () => {
         stateStore: makeStateStore({ persist: mock(() => Promise.resolve()) }),
         eventBus: makeEventBus(),
         sdd: makeSdd(),
+        frameworkDefinition: makeFrameworkDef(),
         createLlmProvider: () => makeLlm(),
         memory: makeMemoryPort(),
         implementationLoop,
@@ -402,6 +404,7 @@ describe("RunSpecUseCase", () => {
         stateStore: makeStateStore({ persist: mock(() => Promise.resolve()) }),
         eventBus: makeEventBus(),
         sdd: makeSdd(),
+        frameworkDefinition: makeFrameworkDef(),
         createLlmProvider: () => makeLlm(),
         memory: makeMemoryPort(),
         implementationLoop,
@@ -429,6 +432,7 @@ describe("RunSpecUseCase", () => {
         stateStore: makeStateStore({ persist: mock(() => Promise.resolve()) }),
         eventBus,
         sdd: makeSdd(),
+        frameworkDefinition: makeFrameworkDef(),
         createLlmProvider: () => makeLlm(),
         memory: makeMemoryPort(),
         implementationLoop: makeImplementationLoop("completed"),
@@ -457,6 +461,7 @@ describe("RunSpecUseCase", () => {
         stateStore: makeStateStore({ persist: mock(() => Promise.resolve()) }),
         eventBus,
         sdd: makeSdd(),
+        frameworkDefinition: makeFrameworkDef(),
         createLlmProvider: () => makeLlm(),
         memory: makeMemoryPort(),
         implementationLoop: makeImplementationLoop("section-failed"),
@@ -474,6 +479,7 @@ describe("RunSpecUseCase", () => {
         stateStore: makeStateStore({ persist: mock(() => Promise.resolve()) }),
         eventBus: makeEventBus(),
         sdd: makeSdd(),
+        frameworkDefinition: makeFrameworkDef(),
         createLlmProvider: () => makeLlm(),
         memory: makeMemoryPort(),
         // no implementationLoop
@@ -540,6 +546,7 @@ describe("RunSpecUseCase", () => {
         stateStore: makeStateStore({ persist: mock(() => Promise.resolve()) }),
         eventBus: makeRealEventBus(),
         sdd: makeSdd(),
+        frameworkDefinition: makeFrameworkDef(),
         createLlmProvider: () => makeLlm(),
         memory: makeMemoryPort(),
         logger,
@@ -560,6 +567,7 @@ describe("RunSpecUseCase", () => {
         stateStore: makeStateStore({ persist: mock(() => Promise.resolve()) }),
         eventBus: makeRealEventBus(),
         sdd: makeSdd(),
+        frameworkDefinition: makeFrameworkDef(),
         createLlmProvider: () => makeLlm(),
         memory: makeMemoryPort(),
         logger,
@@ -579,7 +587,7 @@ describe("RunSpecUseCase", () => {
 
     it("emits error log with { phase, reason } when a phase fails", async () => {
       const failingSdd = makeSdd();
-      (failingSdd.initSpec as ReturnType<typeof mock>) = mock(() =>
+      (failingSdd.executeCommand as ReturnType<typeof mock>) = mock(() =>
         Promise.resolve({ ok: false as const, error: { exitCode: 1, stderr: "init failed" } })
       );
       const logger = makeLogger();
@@ -587,6 +595,7 @@ describe("RunSpecUseCase", () => {
         stateStore: makeStateStore({ persist: mock(() => Promise.resolve()) }),
         eventBus: makeRealEventBus(),
         sdd: failingSdd,
+        frameworkDefinition: makeFrameworkDef(),
         createLlmProvider: () => makeLlm(),
         memory: makeMemoryPort(),
         logger,
@@ -607,6 +616,7 @@ describe("RunSpecUseCase", () => {
         stateStore: makeStateStore({ persist: mock(() => Promise.resolve()) }),
         eventBus: makeRealEventBus(),
         sdd: makeSdd(),
+        frameworkDefinition: makeFrameworkDef(),
         createLlmProvider: () => makeLlm(),
         memory: makeMemoryPort(),
       });
@@ -625,6 +635,7 @@ describe("RunSpecUseCase", () => {
         stateStore: makeStateStore({ persist: mock(() => Promise.resolve()) }),
         eventBus: makeEventBus(),
         sdd: makeSdd(),
+        frameworkDefinition: makeFrameworkDef(),
         createLlmProvider: () => makeLlm(),
         memory,
       });
@@ -643,6 +654,7 @@ describe("RunSpecUseCase", () => {
         stateStore: makeStateStore(),
         eventBus: makeEventBus(),
         sdd: makeSdd(),
+        frameworkDefinition: makeFrameworkDef(),
         createLlmProvider: () => makeLlm(),
         memory,
       });

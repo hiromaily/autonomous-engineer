@@ -2,158 +2,147 @@
 
 ## Overview
 
-This document describes which files to modify when adjusting the automated workflow that runs via `aes run <spec>`.
+This document describes how to adjust the automated workflow that runs via `aes run <spec>`.
+
+Since the implementation of the `custom-sddfw-flow-management` feature, **all phase behavior is defined as data** in a framework definition file rather than hardcoded across multiple source files. To change workflow behavior, you primarily edit the framework definition file for your SDD framework.
+
+> **Note:** Framework definitions are currently written as TypeScript files. YAML support is planned as a future enhancement to make them easier to edit without TypeScript knowledge.
 
 ---
 
 ## Quick Reference
 
-| What you want to change | File |
+| What you want to change | Where to change it |
 |---|---|
-| Phase list / order | `orchestrator-ts/src/domain/workflow/types.ts` |
-| Phase sequencing, gates, artifact checks | `orchestrator-ts/src/domain/workflow/workflow-engine.ts` |
-| What each phase runs | `orchestrator-ts/src/domain/workflow/phase-runner.ts` |
-| Approval gate logic | `orchestrator-ts/src/domain/workflow/approval-gate.ts` |
-| SDD subprocess commands | `orchestrator-ts/src/adapters/sdd/cc-sdd-adapter.ts` |
-| Dependency wiring | `orchestrator-ts/src/application/usecases/run-spec.ts` |
-| Terminal output | `orchestrator-ts/src/cli/renderer.ts` |
+| Phase list, order, types, prompts, required artifacts, approval gates | Framework definition file (e.g. `orchestrator-ts/src/infra/sdd/cc-sdd-framework-definition.ts`) |
+| Framework identifier in project config | `.aes/config.json` → `sddFramework` field (defaults to `"cc-sdd"`) |
+| Dispatch logic for a new execution type | `orchestrator-ts/src/application/services/workflow/phase-runner.ts` |
+| Approval gate logic | `orchestrator-ts/src/application/services/workflow/approval-gate.ts` |
+| SDD subprocess commands (for `llm_slash_command` phases) | `orchestrator-ts/src/infra/sdd/cc-sdd-adapter.ts` |
+| Framework loader (TypeScript import strategy) | `orchestrator-ts/src/infra/config/typescript-framework-definition-loader.ts` |
+| Terminal output | `orchestrator-ts/src/adapters/cli/renderer.ts` |
 
 ---
 
-## Phase Sequence
+## Framework Definition Files
 
-The phases are defined as a frozen const array. To add, remove, or reorder phases, edit:
+Phase behavior for each SDD framework is defined in a single TypeScript file implementing the `FrameworkDefinition` interface:
 
-**`orchestrator-ts/src/domain/workflow/types.ts`**
-
-```typescript
-export const WORKFLOW_PHASES = [
-  "SPEC_INIT",
-  "HUMAN_INTERACTION",
-  "VALIDATE_PREREQUISITES",
-  "SPEC_REQUIREMENTS",
-  "VALIDATE_REQUIREMENTS",
-  "REFLECT_BEFORE_DESIGN",
-  "VALIDATE_GAP",
-  "SPEC_DESIGN",
-  "VALIDATE_DESIGN",
-  "REFLECT_BEFORE_TASKS",
-  "SPEC_TASKS",
-  "VALIDATE_TASK",
-  "IMPLEMENTATION",
-  "PULL_REQUEST",
-] as const;
-```
-
-The `WorkflowPhase` type is derived from this array, so TypeScript exhaustiveness checks across the codebase will catch any phase references that need updating.
-
----
-
-## Phase Sequencing, Gates, and Artifact Checks
-
-The core state machine loop is in:
-
-**`orchestrator-ts/src/domain/workflow/workflow-engine.ts`**
-
-Key constants to modify:
+**Domain interface:** `orchestrator-ts/src/domain/workflow/framework.ts`
 
 ```typescript
-// Which files must exist before a phase can run
-REQUIRED_ARTIFACTS: Partial<Record<WorkflowPhase, readonly string[]>> = {
-  VALIDATE_PREREQUISITES: ["requirements.md"],
-  SPEC_REQUIREMENTS:      ["requirements.md"],
-  VALIDATE_REQUIREMENTS:  ["requirements.md"],
-  REFLECT_BEFORE_DESIGN:  ["requirements.md"],
-  VALIDATE_GAP:           ["requirements.md"],
-  SPEC_DESIGN:            ["requirements.md"],
-  VALIDATE_DESIGN:        ["design.md"],
-  REFLECT_BEFORE_TASKS:   ["design.md"],
-  SPEC_TASKS:             ["design.md"],
-  VALIDATE_TASK:          ["tasks.md"],
-  IMPLEMENTATION:         ["tasks.md"],
+export interface PhaseDefinition {
+  readonly phase: WorkflowPhase;         // phase identifier
+  readonly type: PhaseExecutionType;     // dispatch type (see below)
+  readonly content: string;             // slash command name or inline prompt text
+  readonly requiredArtifacts: readonly string[];  // files that must exist before this phase runs
+  readonly approvalGate?: ApprovalPhase; // if set, pauses for human approval after this phase
 }
 
-// Which phases trigger a human approval pause after completing
-APPROVAL_GATE_PHASES: Partial<Record<WorkflowPhase, ApprovalPhase>> = {
-  HUMAN_INTERACTION: "human_interaction",
-  SPEC_REQUIREMENTS: "requirements",
-  VALIDATE_DESIGN:   "design",
-  SPEC_TASKS:        "tasks",
+export interface FrameworkDefinition {
+  readonly id: string;                   // framework identifier (e.g. "cc-sdd")
+  readonly phases: readonly PhaseDefinition[];  // phases in execution order
 }
 ```
 
-An additional gate before IMPLEMENTATION reads `spec.json` for `ready_for_implementation === true` in `checkReadyForImplementation()`. Modify or remove that method to change this behavior.
+**Concrete cc-sdd definition:** `orchestrator-ts/src/infra/sdd/cc-sdd-framework-definition.ts`
+
+This is the **single source of truth** for the cc-sdd workflow — it replaces the `REQUIRED_ARTIFACTS`, `APPROVAL_GATE_PHASES`, and `WORKFLOW_PHASES` constants that were previously scattered across `workflow-engine.ts` and `phase-runner.ts`.
 
 ---
 
-## What Each Phase Runs
+## Phase Execution Types
 
-Individual phase behavior is routed in:
+Each phase declares a `type` that determines how `PhaseRunner` dispatches it:
 
-**`orchestrator-ts/src/domain/workflow/phase-runner.ts`**
-
-The `execute()` method switches on phase name:
-
-| Phase | Current behavior |
+| Type | Dispatch behavior |
 |---|---|
-| `SPEC_INIT` | Stub — returns success immediately |
-| `HUMAN_INTERACTION` | Stub — approval gate pauses for user to seed requirements.md |
-| `VALIDATE_PREREQUISITES` | `sdd.validatePrerequisites(ctx)` |
-| `SPEC_REQUIREMENTS` | `sdd.generateRequirements(ctx)` |
-| `VALIDATE_REQUIREMENTS` | `sdd.validateRequirements(ctx)` |
-| `REFLECT_BEFORE_DESIGN` | `sdd.reflectOnExistingInformation(ctx)` |
-| `VALIDATE_GAP` | `sdd.validateGap(ctx)` |
-| `SPEC_DESIGN` | `sdd.generateDesign(ctx)` |
-| `VALIDATE_DESIGN` | `sdd.validateDesign(ctx)` |
-| `REFLECT_BEFORE_TASKS` | `sdd.reflectOnExistingInformation(ctx)` |
-| `SPEC_TASKS` | `sdd.generateTasks(ctx)` |
-| `VALIDATE_TASK` | `sdd.validateTask(ctx)` |
-| `IMPLEMENTATION` | `implementationLoop.run(ctx.specName)` (stub if not wired) |
-| `PULL_REQUEST` | Stub — returns success immediately |
+| `llm_slash_command` | Invokes `SddFrameworkPort.executeCommand(content, ctx)` — runs a cc-sdd slash command as a subprocess |
+| `llm_prompt` | Invokes `LlmProviderPort.complete(content)` — sends the inline prompt text directly to the LLM |
+| `human_interaction` | Returns `{ ok: true }` immediately; the approval gate (if set) handles the pause |
+| `implementation_loop` | Delegates to `IImplementationLoop.run(ctx.specName)`, or returns `{ ok: true }` as a stub if not wired |
+| `git_command` | Returns `{ ok: true }` as a stub for future git/PR operations |
 
-**Lifecycle hooks** on this class are called at every phase boundary:
-- `onEnter(phase)` — currently clears the LLM context to prevent cross-phase bleed
-- `onExit(phase)` — currently a no-op; available as an extension point
+---
+
+## cc-sdd Phase Reference
+
+The cc-sdd framework defines 14 phases in order:
+
+| Phase | Type | Content / Behavior |
+|---|---|---|
+| `SPEC_INIT` | `llm_slash_command` | `kiro:spec-init` |
+| `HUMAN_INTERACTION` | `human_interaction` | Stub — approval gate pauses for user to seed `requirements.md` |
+| `VALIDATE_PREREQUISITES` | `llm_prompt` | Verifies `requirements.md` exists and is non-empty |
+| `SPEC_REQUIREMENTS` | `llm_slash_command` | `kiro:spec-requirements` |
+| `VALIDATE_REQUIREMENTS` | `llm_prompt` | Reviews `requirements.md` for completeness and testability |
+| `REFLECT_BEFORE_DESIGN` | `llm_prompt` | Synthesizes constraints and open questions from `requirements.md` |
+| `VALIDATE_GAP` | `llm_slash_command` | `kiro:validate-gap` |
+| `SPEC_DESIGN` | `llm_slash_command` | `kiro:spec-design` |
+| `VALIDATE_DESIGN` | `llm_slash_command` | `kiro:validate-design` |
+| `REFLECT_BEFORE_TASKS` | `llm_prompt` | Synthesizes design decisions and patterns from `design.md` |
+| `SPEC_TASKS` | `llm_slash_command` | `kiro:spec-tasks` |
+| `VALIDATE_TASKS` | `llm_prompt` | Reviews `tasks.md` for completeness and implementation readiness |
+| `IMPLEMENTATION` | `implementation_loop` | Delegates to implementation loop service |
+| `PULL_REQUEST` | `git_command` | Stub for future git/PR operation |
+
+Approval gates pause after: `HUMAN_INTERACTION`, `SPEC_REQUIREMENTS`, `VALIDATE_DESIGN`, `SPEC_TASKS`.
+
+Required artifacts are declared per-phase in the definition file. For example, `VALIDATE_DESIGN` requires `design.md` to exist before it can run.
+
+---
+
+## Adding a New SDD Framework
+
+To add support for a new SDD framework (e.g. `open-spec`) without modifying any orchestrator source files:
+
+1. Create a framework definition file: `orchestrator-ts/src/infra/sdd/open-spec-framework-definition.ts`
+2. Implement the `FrameworkDefinition` interface with your framework's phases.
+3. Register it in `TypeScriptFrameworkDefinitionLoader` (`orchestrator-ts/src/infra/config/typescript-framework-definition-loader.ts`).
+4. Set `"sddFramework": "open-spec"` in `.aes/config.json`.
+
+If an unknown framework identifier is configured, the orchestrator will fail at startup with an error listing available frameworks.
+
+---
+
+## Modifying cc-sdd Phase Behavior
+
+**To change a prompt** for an `llm_prompt` phase, edit the `content` field in `cc-sdd-framework-definition.ts`. The content supports `{specDir}` as a runtime placeholder.
+
+**To add or remove required artifacts**, update `requiredArtifacts` for the relevant phase.
+
+**To add or remove an approval gate**, set or clear `approvalGate` on the phase definition. Valid gate values are: `"human_interaction"`, `"requirements"`, `"design"`, `"tasks"`.
+
+**To reorder phases**, change the array order in the `phases` field. `WorkflowEngine` drives execution order from this array.
+
+After editing the definition, run the test suite (`bun test`) to verify structural validity — `validateFrameworkDefinition()` is called at load time and will surface issues such as duplicate phases or empty `content` on `llm_slash_command`/`llm_prompt` phases.
 
 ---
 
 ## Approval Gate Logic
 
-**`orchestrator-ts/src/domain/workflow/approval-gate.ts`**
+**`orchestrator-ts/src/application/services/workflow/approval-gate.ts`**
 
-The `check()` method reads `spec.json` and looks for `approvals[phase].approved === true`.
-Modify here to:
+The `check()` method reads `spec.json` and looks for `approvals[phase].approved === true`. Modify here to:
 - Change the approval key structure
 - Add alternative approval mechanisms (e.g., environment variable bypass, time-based auto-approval)
-- Add or remove which phases require approval
-
----
-
-## SDD Subprocess Commands
-
-**`orchestrator-ts/src/adapters/sdd/cc-sdd-adapter.ts`**
-
-Each `SddFrameworkPort` method maps to a cc-sdd CLI subprocess invocation. Edit here to:
-- Change CLI arguments passed to cc-sdd
-- Add support for a different SDD framework
-- Change how artifacts are parsed or validated after generation
 
 ---
 
 ## Wiring Optional Services
 
-**`orchestrator-ts/src/application/usecases/run-spec.ts`**
+**`orchestrator-ts/src/main/di/run-container.ts`**
 
-The `run()` method constructs all dependencies and passes them to `WorkflowEngine`. Edit here to:
+The DI container builds all dependencies and injects them into `RunSpecUseCase`. Edit here to:
 - Wire in the `implementationLoop` (currently optional)
 - Wire in the self-healing loop service
-- Swap adapters (e.g., replace `CcSddAdapter` with a different SDD adapter)
+- Swap framework adapters
 
 ---
 
 ## Terminal Output
 
-**`orchestrator-ts/src/cli/renderer.ts`**
+**`orchestrator-ts/src/adapters/cli/renderer.ts`**
 
 Handles how workflow events are displayed in the terminal. Edit here to change:
 - Phase start/complete messages
@@ -170,33 +159,33 @@ Event type definitions are in:
 ```
 [Initial State]
   ↓
-SPEC_INIT → (stub)
+SPEC_INIT → llm_slash_command (kiro:spec-init)
   ↓
-HUMAN_INTERACTION → (stub) → [PAUSED: user must seed requirements.md]
+HUMAN_INTERACTION → human_interaction stub → [PAUSED: user must seed requirements.md]
   ↓ (on approval)
-VALIDATE_PREREQUISITES → sdd.validatePrerequisites
+VALIDATE_PREREQUISITES → llm_prompt (verify requirements.md)
   ↓
-SPEC_REQUIREMENTS → sdd.generateRequirements → [PAUSED if not approved]
+SPEC_REQUIREMENTS → llm_slash_command (kiro:spec-requirements) → [PAUSED if not approved]
   ↓ (on approval)
-VALIDATE_REQUIREMENTS → sdd.validateRequirements
+VALIDATE_REQUIREMENTS → llm_prompt (review requirements.md)
   ↓
-REFLECT_BEFORE_DESIGN → sdd.reflectOnExistingInformation
+REFLECT_BEFORE_DESIGN → llm_prompt (synthesize constraints)
   ↓
-VALIDATE_GAP → sdd.validateGap
+VALIDATE_GAP → llm_slash_command (kiro:validate-gap)
   ↓
-SPEC_DESIGN → sdd.generateDesign
+SPEC_DESIGN → llm_slash_command (kiro:spec-design)
   ↓
-VALIDATE_DESIGN → sdd.validateDesign → [PAUSED if not approved]
+VALIDATE_DESIGN → llm_slash_command (kiro:validate-design) → [PAUSED if not approved]
   ↓ (on approval)
-REFLECT_BEFORE_TASKS → sdd.reflectOnExistingInformation
+REFLECT_BEFORE_TASKS → llm_prompt (synthesize design decisions)
   ↓
-SPEC_TASKS → sdd.generateTasks → [PAUSED if not approved]
-  ↓ (on approval, + spec.json ready_for_implementation check)
-VALIDATE_TASK → sdd.validateTask
+SPEC_TASKS → llm_slash_command (kiro:spec-tasks) → [PAUSED if not approved]
+  ↓ (on approval)
+VALIDATE_TASKS → llm_prompt (review tasks.md)
   ↓
-IMPLEMENTATION → implementationLoop.run
+IMPLEMENTATION → implementation_loop
   ↓
-PULL_REQUEST → (stub)
+PULL_REQUEST → git_command stub
   ↓
 [workflow:complete]
 ```

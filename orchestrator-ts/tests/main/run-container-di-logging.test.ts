@@ -9,6 +9,34 @@ const stubConfig: AesConfig = {
   logLevel: "info",
 };
 
+// ---------------------------------------------------------------------------
+// Task 7 — Framework selection via TypeScriptFrameworkDefinitionLoader
+// ---------------------------------------------------------------------------
+
+describe("RunContainer — framework definition loading (Task 7)", () => {
+  it("build() returns a Promise (is async)", () => {
+    const result = new RunContainer(stubConfig, { debug: false }).build();
+    expect(result).toBeInstanceOf(Promise);
+    result.then((deps) => deps.logWriter?.close()).catch(() => {});
+  });
+
+  it("build() resolves successfully when sddFramework is 'cc-sdd'", async () => {
+    const deps = await new RunContainer(stubConfig, { debug: false }).build();
+    expect(deps.useCase).toBeDefined();
+  });
+
+  it("build() rejects with unknown-framework error when sddFramework is not registered", async () => {
+    const config: AesConfig = { ...stubConfig, sddFramework: "openspec" };
+    await expect(new RunContainer(config, { debug: false }).build()).rejects.toThrow("openspec");
+  });
+
+  it("debug mode also loads framework via config.sddFramework", async () => {
+    const deps = await new RunContainer(stubConfig, { debug: true }).build();
+    expect(deps.useCase).toBeDefined();
+    deps.debugWriter?.close().catch(() => {});
+  });
+});
+
 let stderrOutput: string[];
 let stderrSpy: Mock<typeof process.stderr.write>;
 
@@ -29,16 +57,16 @@ afterEach(() => {
 // ---------------------------------------------------------------------------
 
 describe("RunContainer.build() — DI resolution logging", () => {
-  it("emits debug-level DI resolved entries when debug mode is on", () => {
-    new RunContainer(stubConfig, { debug: true }).build();
+  it("emits debug-level DI resolved entries when debug mode is on", async () => {
+    await new RunContainer(stubConfig, { debug: true }).build();
     const debugDiLines = stderrOutput.filter(
       (l) => l.includes("[DEBUG]") && l.includes("DI resolved"),
     );
     expect(debugDiLines.length).toBeGreaterThan(0);
   });
 
-  it("emits a debug entry naming eventBus and its concrete impl", () => {
-    new RunContainer(stubConfig, { debug: true }).build();
+  it("emits a debug entry naming eventBus and its concrete impl", async () => {
+    await new RunContainer(stubConfig, { debug: true }).build();
     const line = stderrOutput.find(
       (l) => l.includes("DI resolved") && l.includes("eventBus"),
     );
@@ -46,8 +74,8 @@ describe("RunContainer.build() — DI resolution logging", () => {
     expect(line).toContain("WorkflowEventBus");
   });
 
-  it("emits a debug entry naming logger and its concrete impl", () => {
-    new RunContainer(stubConfig, { debug: true }).build();
+  it("emits a debug entry naming logger and its concrete impl", async () => {
+    await new RunContainer(stubConfig, { debug: true }).build();
     const line = stderrOutput.find(
       (l) => l.includes("DI resolved") && l.includes("logger"),
     );
@@ -55,8 +83,8 @@ describe("RunContainer.build() — DI resolution logging", () => {
     expect(line).toContain("ConsoleLogger");
   });
 
-  it("emits a debug entry naming useCase and its concrete impl", () => {
-    new RunContainer(stubConfig, { debug: true }).build();
+  it("emits a debug entry naming useCase and its concrete impl", async () => {
+    await new RunContainer(stubConfig, { debug: true }).build();
     const line = stderrOutput.find(
       (l) => l.includes("DI resolved") && l.includes("useCase"),
     );
@@ -64,8 +92,8 @@ describe("RunContainer.build() — DI resolution logging", () => {
     expect(line).toContain("RunSpecUseCase");
   });
 
-  it("emits a debug entry naming memory and its concrete impl", () => {
-    new RunContainer(stubConfig, { debug: true }).build();
+  it("emits a debug entry naming memory and its concrete impl", async () => {
+    await new RunContainer(stubConfig, { debug: true }).build();
     const line = stderrOutput.find(
       (l) => l.includes("DI resolved") && l.includes("memory"),
     );
@@ -73,8 +101,8 @@ describe("RunContainer.build() — DI resolution logging", () => {
     expect(line).toContain("FileMemoryStore");
   });
 
-  it("emits info-level mock substitution entry for LLM provider when debug is true", () => {
-    new RunContainer(stubConfig, { debug: true }).build();
+  it("emits info-level mock substitution entry for LLM provider when debug is true", async () => {
+    await new RunContainer(stubConfig, { debug: true }).build();
     const line = stderrOutput.find(
       (l) =>
         l.includes("[INFO]")
@@ -84,8 +112,8 @@ describe("RunContainer.build() — DI resolution logging", () => {
     expect(line).toBeDefined();
   });
 
-  it("emits info-level mock substitution entry for SDD adapter when debug is true", () => {
-    new RunContainer(stubConfig, { debug: true }).build();
+  it("emits info-level mock substitution entry for SDD adapter when debug is true", async () => {
+    await new RunContainer(stubConfig, { debug: true }).build();
     const line = stderrOutput.find(
       (l) =>
         l.includes("[INFO]")
@@ -95,17 +123,16 @@ describe("RunContainer.build() — DI resolution logging", () => {
     expect(line).toBeDefined();
   });
 
-  it("does not emit mock substitution entries when debug is false", () => {
-    new RunContainer(stubConfig, { debug: false }).build();
+  it("does not emit mock substitution entries when debug is false", async () => {
+    await new RunContainer(stubConfig, { debug: false }).build();
     const mockLine = stderrOutput.find((l) => l.includes("Mock substitution active"));
     expect(mockLine).toBeUndefined();
   });
 
-  it("DI resolution entries are emitted during build() before use case is invoked", () => {
-    // build() emits all DI entries synchronously; any subsequent use case
-    // invocation comes after the build() call returns, so this is structurally
-    // guaranteed. We verify by collecting all output produced during build().
-    new RunContainer(stubConfig, { debug: true }).build();
+  it("DI resolution entries are emitted during build() before use case is invoked", async () => {
+    // build() resolves with all DI entries emitted as a side effect before returning.
+    // We verify by collecting all output produced during build().
+    await new RunContainer(stubConfig, { debug: true }).build();
     const diLines = stderrOutput.filter((l) => l.includes("DI resolved"));
     expect(diLines.length).toBeGreaterThan(0);
     // useCase entry should be present, showing final dep resolved before return

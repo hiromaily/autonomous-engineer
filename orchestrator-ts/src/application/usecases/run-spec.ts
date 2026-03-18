@@ -9,6 +9,7 @@ import { PhaseRunner } from "@/application/services/workflow/phase-runner";
 import type { WorkflowResult } from "@/application/services/workflow/workflow-engine";
 import { WorkflowEngine } from "@/application/services/workflow/workflow-engine";
 import { ApprovalGate } from "@/domain/workflow/approval-gate";
+import type { FrameworkDefinition } from "@/domain/workflow/framework";
 import type { WorkflowPhase } from "@/domain/workflow/types";
 import { access } from "node:fs/promises";
 import { join } from "node:path";
@@ -22,6 +23,7 @@ export interface RunSpecUseCaseDeps {
   readonly stateStore: IWorkflowStateStore;
   readonly eventBus: IWorkflowEventBus;
   readonly sdd: SddFrameworkPort;
+  readonly frameworkDefinition: FrameworkDefinition;
   readonly createLlmProvider: (config: AesConfig, providerOverride?: string) => LlmProviderPort;
   readonly memory: MemoryPort;
   /** Optional implementation loop service injected into the workflow's IMPLEMENTATION phase. */
@@ -68,6 +70,7 @@ export class RunSpecUseCase {
     const phaseRunner = new PhaseRunner({
       sdd,
       llm,
+      frameworkDefinition: this.deps.frameworkDefinition,
       ...(this.deps.implementationLoop !== undefined ? { implementationLoop: this.deps.implementationLoop } : {}),
       ...(this.deps.implementationLoopOptions !== undefined
         ? { implementationLoopOptions: this.deps.implementationLoopOptions }
@@ -80,6 +83,7 @@ export class RunSpecUseCase {
       eventBus,
       phaseRunner,
       approvalGate,
+      frameworkDefinition: this.deps.frameworkDefinition,
       specDir,
       language: "en",
     });
