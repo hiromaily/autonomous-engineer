@@ -9,7 +9,7 @@ import { PhaseRunner } from "@/application/services/workflow/phase-runner";
 import type { FrameworkDefinition } from "@/domain/workflow/framework";
 import type { WorkflowPhase } from "@/domain/workflow/types";
 import { describe, expect, it, mock } from "bun:test";
-import { makeFrameworkDef } from "../helpers/workflow";
+import { makeFrameworkDef, makeLlmProvider } from "../helpers/workflow";
 
 const ctx: SpecContext = {
   specName: "my-spec",
@@ -20,15 +20,6 @@ const ctx: SpecContext = {
 function makeSddAdapter(result: SddOperationResult): SddFrameworkPort {
   return {
     executeCommand: mock(() => Promise.resolve(result)),
-  };
-}
-
-function makeLlmProvider(): LlmProviderPort {
-  return {
-    complete: mock(() =>
-      Promise.resolve({ ok: true as const, value: { content: "", usage: { inputTokens: 0, outputTokens: 0 } } })
-    ),
-    clearContext: mock(() => {}),
   };
 }
 

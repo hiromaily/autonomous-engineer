@@ -1,42 +1,38 @@
-import type { LlmProviderPort } from "@/application/ports/llm";
 import type { SpecContext } from "@/application/ports/sdd";
 import { PhaseRunner } from "@/application/services/workflow/phase-runner";
 import { CC_SDD_FRAMEWORK_DEFINITION } from "@/infra/sdd/cc-sdd-framework-definition";
 import { MockSddAdapter } from "@/infra/sdd/mock-sdd-adapter";
-import { describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { makeLlmProvider } from "../../helpers/workflow";
 
 const ctx: SpecContext = { specName: "test-spec", specDir: ".kiro/specs/test-spec", language: "en" };
-
-function makeLlmProvider(): LlmProviderPort {
-  return {
-    complete: mock(() =>
-      Promise.resolve({ ok: true as const, value: { content: "", usage: { inputTokens: 0, outputTokens: 0 } } })
-    ),
-    clearContext: mock(() => {}),
-  };
-}
 
 // ---------------------------------------------------------------------------
 // MockSddAdapter — invocation recording
 // ---------------------------------------------------------------------------
 
 describe("MockSddAdapter — invocation recording", () => {
+  let tmpDir: string;
+
+  beforeEach(async () => {
+    tmpDir = await mkdtemp(join(tmpdir(), "mock-sdd-"));
+  });
+
+  afterEach(async () => {
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
   it("records each executeCommand call in the invocations array", async () => {
-    const tmpDir = await mkdtemp(join(tmpdir(), "mock-sdd-inv-"));
-    try {
-      const ctxWithDir: SpecContext = { ...ctx, specDir: tmpDir };
-      const adapter = new MockSddAdapter();
+    const ctxWithDir: SpecContext = { ...ctx, specDir: tmpDir };
+    const adapter = new MockSddAdapter();
 
-      await adapter.executeCommand("kiro:spec-init", ctxWithDir);
-      await adapter.executeCommand("kiro:spec-requirements", ctxWithDir);
+    await adapter.executeCommand("kiro:spec-init", ctxWithDir);
+    await adapter.executeCommand("kiro:spec-requirements", ctxWithDir);
 
-      expect(adapter.invocations).toEqual(["kiro:spec-init", "kiro:spec-requirements"]);
-    } finally {
-      await rm(tmpDir, { recursive: true, force: true });
-    }
+    expect(adapter.invocations).toEqual(["kiro:spec-init", "kiro:spec-requirements"]);
   });
 
   it("records unknown command names in invocations", async () => {
@@ -55,17 +51,12 @@ describe("MockSddAdapter — invocation recording", () => {
       "kiro:spec-tasks",
     ] as const,
   )("records '%s' in invocations when called", async (commandName) => {
-    const tmpDir = await mkdtemp(join(tmpdir(), "mock-sdd-cmd-"));
-    try {
-      const ctxWithDir: SpecContext = { ...ctx, specDir: tmpDir };
-      const adapter = new MockSddAdapter();
+    const ctxWithDir: SpecContext = { ...ctx, specDir: tmpDir };
+    const adapter = new MockSddAdapter();
 
-      await adapter.executeCommand(commandName, ctxWithDir);
+    await adapter.executeCommand(commandName, ctxWithDir);
 
-      expect(adapter.invocations).toContain(commandName);
-    } finally {
-      await rm(tmpDir, { recursive: true, force: true });
-    }
+    expect(adapter.invocations).toContain(commandName);
   });
 });
 

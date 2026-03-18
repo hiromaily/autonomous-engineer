@@ -1,4 +1,16 @@
+import type { LlmProviderPort } from "@/application/ports/llm";
 import type { FrameworkDefinition } from "@/domain/workflow/framework";
+import { mock } from "bun:test";
+
+/** Spy-able LlmProviderPort stub that always resolves successfully. */
+export function makeLlmProvider(): LlmProviderPort {
+  return {
+    complete: mock(() =>
+      Promise.resolve({ ok: true as const, value: { content: "", usage: { inputTokens: 0, outputTokens: 0 } } })
+    ),
+    clearContext: mock(() => {}),
+  };
+}
 
 /**
  * Minimal 14-phase framework definition for unit/integration tests.
