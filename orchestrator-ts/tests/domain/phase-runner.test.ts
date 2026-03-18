@@ -17,17 +17,7 @@ const ctx: SpecContext = {
 
 function makeSddAdapter(result: SddOperationResult): SddFrameworkPort {
   return {
-    initSpec: mock(() => Promise.resolve(result)),
-    generateRequirements: mock(() => Promise.resolve(result)),
-    generateDesign: mock(() => Promise.resolve(result)),
-    validateDesign: mock(() => Promise.resolve(result)),
-    generateTasks: mock(() => Promise.resolve(result)),
-    validatePrerequisites: mock(() => Promise.resolve(result)),
-    validateRequirements: mock(() => Promise.resolve(result)),
-    reflectBeforeDesign: mock(() => Promise.resolve(result)),
-    reflectBeforeTasks: mock(() => Promise.resolve(result)),
-    validateGap: mock(() => Promise.resolve(result)),
-    validateTasks: mock(() => Promise.resolve(result)),
+    executeCommand: mock(() => Promise.resolve(result)),
   };
 }
 
@@ -42,93 +32,93 @@ function makeLlmProvider(): LlmProviderPort {
 
 describe("PhaseRunner", () => {
   describe("execute - SDD-backed phases", () => {
-    it("dispatches SPEC_REQUIREMENTS to generateRequirements and returns artifact path", async () => {
+    it("dispatches SPEC_REQUIREMENTS to executeCommand('kiro:spec-requirements') and returns artifact path", async () => {
       const sdd = makeSddAdapter({ ok: true, artifactPath: ".kiro/specs/my-spec/requirements.md" });
       const runner = new PhaseRunner({ sdd, llm: makeLlmProvider() });
       const result = await runner.execute("SPEC_REQUIREMENTS", ctx);
 
-      expect(sdd.generateRequirements).toHaveBeenCalledWith(ctx);
+      expect(sdd.executeCommand).toHaveBeenCalledWith("kiro:spec-requirements", ctx);
       expect(result).toEqual({ ok: true, artifacts: [".kiro/specs/my-spec/requirements.md"] });
     });
 
-    it("dispatches SPEC_DESIGN to generateDesign and returns artifact path", async () => {
+    it("dispatches SPEC_DESIGN to executeCommand('kiro:spec-design') and returns artifact path", async () => {
       const sdd = makeSddAdapter({ ok: true, artifactPath: ".kiro/specs/my-spec/design.md" });
       const runner = new PhaseRunner({ sdd, llm: makeLlmProvider() });
       const result = await runner.execute("SPEC_DESIGN", ctx);
 
-      expect(sdd.generateDesign).toHaveBeenCalledWith(ctx);
+      expect(sdd.executeCommand).toHaveBeenCalledWith("kiro:spec-design", ctx);
       expect(result).toEqual({ ok: true, artifacts: [".kiro/specs/my-spec/design.md"] });
     });
 
-    it("dispatches VALIDATE_DESIGN to validateDesign and returns artifact path", async () => {
+    it("dispatches VALIDATE_DESIGN to executeCommand('kiro:validate-design') and returns artifact path", async () => {
       const sdd = makeSddAdapter({ ok: true, artifactPath: ".kiro/specs/my-spec/design-review.md" });
       const runner = new PhaseRunner({ sdd, llm: makeLlmProvider() });
       const result = await runner.execute("VALIDATE_DESIGN", ctx);
 
-      expect(sdd.validateDesign).toHaveBeenCalledWith(ctx);
+      expect(sdd.executeCommand).toHaveBeenCalledWith("kiro:validate-design", ctx);
       expect(result).toEqual({ ok: true, artifacts: [".kiro/specs/my-spec/design-review.md"] });
     });
 
-    it("dispatches SPEC_TASKS to generateTasks and returns artifact path", async () => {
+    it("dispatches SPEC_TASKS to executeCommand('kiro:spec-tasks') and returns artifact path", async () => {
       const sdd = makeSddAdapter({ ok: true, artifactPath: ".kiro/specs/my-spec/tasks.md" });
       const runner = new PhaseRunner({ sdd, llm: makeLlmProvider() });
       const result = await runner.execute("SPEC_TASKS", ctx);
 
-      expect(sdd.generateTasks).toHaveBeenCalledWith(ctx);
+      expect(sdd.executeCommand).toHaveBeenCalledWith("kiro:spec-tasks", ctx);
       expect(result).toEqual({ ok: true, artifacts: [".kiro/specs/my-spec/tasks.md"] });
     });
 
-    it("dispatches VALIDATE_PREREQUISITES to validatePrerequisites", async () => {
+    it("dispatches VALIDATE_PREREQUISITES to executeCommand('kiro:validate-prerequisites')", async () => {
       const sdd = makeSddAdapter({ ok: true, artifactPath: ".kiro/specs/my-spec/requirements.md" });
       const runner = new PhaseRunner({ sdd, llm: makeLlmProvider() });
       const result = await runner.execute("VALIDATE_PREREQUISITES", ctx);
 
-      expect(sdd.validatePrerequisites).toHaveBeenCalledWith(ctx);
+      expect(sdd.executeCommand).toHaveBeenCalledWith("kiro:validate-prerequisites", ctx);
       expect(result).toEqual({ ok: true, artifacts: [".kiro/specs/my-spec/requirements.md"] });
     });
 
-    it("dispatches VALIDATE_REQUIREMENTS to validateRequirements", async () => {
+    it("dispatches VALIDATE_REQUIREMENTS to executeCommand('kiro:validate-requirements')", async () => {
       const sdd = makeSddAdapter({ ok: true, artifactPath: ".kiro/specs/my-spec/requirements.md" });
       const runner = new PhaseRunner({ sdd, llm: makeLlmProvider() });
       const result = await runner.execute("VALIDATE_REQUIREMENTS", ctx);
 
-      expect(sdd.validateRequirements).toHaveBeenCalledWith(ctx);
+      expect(sdd.executeCommand).toHaveBeenCalledWith("kiro:validate-requirements", ctx);
       expect(result).toEqual({ ok: true, artifacts: [".kiro/specs/my-spec/requirements.md"] });
     });
 
-    it("dispatches REFLECT_BEFORE_DESIGN to reflectBeforeDesign", async () => {
+    it("dispatches REFLECT_BEFORE_DESIGN to executeCommand('kiro:reflect-before-design')", async () => {
       const sdd = makeSddAdapter({ ok: true, artifactPath: ".kiro/specs/my-spec/requirements.md" });
       const runner = new PhaseRunner({ sdd, llm: makeLlmProvider() });
       const result = await runner.execute("REFLECT_BEFORE_DESIGN", ctx);
 
-      expect(sdd.reflectBeforeDesign).toHaveBeenCalledWith(ctx);
+      expect(sdd.executeCommand).toHaveBeenCalledWith("kiro:reflect-before-design", ctx);
       expect(result).toEqual({ ok: true, artifacts: [".kiro/specs/my-spec/requirements.md"] });
     });
 
-    it("dispatches VALIDATE_GAP to validateGap", async () => {
+    it("dispatches VALIDATE_GAP to executeCommand('kiro:validate-gap')", async () => {
       const sdd = makeSddAdapter({ ok: true, artifactPath: ".kiro/specs/my-spec/requirements.md" });
       const runner = new PhaseRunner({ sdd, llm: makeLlmProvider() });
       const result = await runner.execute("VALIDATE_GAP", ctx);
 
-      expect(sdd.validateGap).toHaveBeenCalledWith(ctx);
+      expect(sdd.executeCommand).toHaveBeenCalledWith("kiro:validate-gap", ctx);
       expect(result).toEqual({ ok: true, artifacts: [".kiro/specs/my-spec/requirements.md"] });
     });
 
-    it("dispatches REFLECT_BEFORE_TASKS to reflectBeforeTasks", async () => {
+    it("dispatches REFLECT_BEFORE_TASKS to executeCommand('kiro:reflect-before-tasks')", async () => {
       const sdd = makeSddAdapter({ ok: true, artifactPath: ".kiro/specs/my-spec/design.md" });
       const runner = new PhaseRunner({ sdd, llm: makeLlmProvider() });
       const result = await runner.execute("REFLECT_BEFORE_TASKS", ctx);
 
-      expect(sdd.reflectBeforeTasks).toHaveBeenCalledWith(ctx);
+      expect(sdd.executeCommand).toHaveBeenCalledWith("kiro:reflect-before-tasks", ctx);
       expect(result).toEqual({ ok: true, artifacts: [".kiro/specs/my-spec/design.md"] });
     });
 
-    it("dispatches VALIDATE_TASKS to validateTasks", async () => {
+    it("dispatches VALIDATE_TASKS to executeCommand('kiro:validate-tasks')", async () => {
       const sdd = makeSddAdapter({ ok: true, artifactPath: ".kiro/specs/my-spec/tasks.md" });
       const runner = new PhaseRunner({ sdd, llm: makeLlmProvider() });
       const result = await runner.execute("VALIDATE_TASKS", ctx);
 
-      expect(sdd.validateTasks).toHaveBeenCalledWith(ctx);
+      expect(sdd.executeCommand).toHaveBeenCalledWith("kiro:validate-tasks", ctx);
       expect(result).toEqual({ ok: true, artifacts: [".kiro/specs/my-spec/tasks.md"] });
     });
 
@@ -150,16 +140,16 @@ describe("PhaseRunner", () => {
   });
 
   describe("execute - SPEC_INIT phase", () => {
-    it("dispatches SPEC_INIT to sdd.initSpec and returns artifact path", async () => {
+    it("dispatches SPEC_INIT to executeCommand('kiro:spec-init') and returns artifact path", async () => {
       const sdd = makeSddAdapter({ ok: true, artifactPath: ".kiro/specs/my-spec/spec.json" });
       const runner = new PhaseRunner({ sdd, llm: makeLlmProvider() });
       const result = await runner.execute("SPEC_INIT", ctx);
 
-      expect(sdd.initSpec).toHaveBeenCalledWith(ctx);
+      expect(sdd.executeCommand).toHaveBeenCalledWith("kiro:spec-init", ctx);
       expect(result).toEqual({ ok: true, artifacts: [".kiro/specs/my-spec/spec.json"] });
     });
 
-    it("propagates sdd.initSpec failure as phase failure", async () => {
+    it("propagates executeCommand failure as phase failure", async () => {
       const sdd = makeSddAdapter({ ok: false, error: { exitCode: 1, stderr: "init failed" } });
       const runner = new PhaseRunner({ sdd, llm: makeLlmProvider() });
       const result = await runner.execute("SPEC_INIT", ctx);
@@ -188,7 +178,7 @@ describe("PhaseRunner", () => {
       expect(result).toEqual({ ok: true, artifacts: [] });
     });
 
-    it("does not call any SDD adapter method for HUMAN_INTERACTION, IMPLEMENTATION, PULL_REQUEST", async () => {
+    it("does not call executeCommand for HUMAN_INTERACTION, IMPLEMENTATION, PULL_REQUEST", async () => {
       const sdd = makeSddAdapter({ ok: true, artifactPath: "" });
       const runner = new PhaseRunner({ sdd, llm: makeLlmProvider() });
 
@@ -196,17 +186,7 @@ describe("PhaseRunner", () => {
       await runner.execute("IMPLEMENTATION", ctx);
       await runner.execute("PULL_REQUEST", ctx);
 
-      expect(sdd.initSpec).not.toHaveBeenCalled();
-      expect(sdd.generateRequirements).not.toHaveBeenCalled();
-      expect(sdd.generateDesign).not.toHaveBeenCalled();
-      expect(sdd.validateDesign).not.toHaveBeenCalled();
-      expect(sdd.generateTasks).not.toHaveBeenCalled();
-      expect(sdd.validatePrerequisites).not.toHaveBeenCalled();
-      expect(sdd.validateRequirements).not.toHaveBeenCalled();
-      expect(sdd.reflectBeforeDesign).not.toHaveBeenCalled();
-      expect(sdd.reflectBeforeTasks).not.toHaveBeenCalled();
-      expect(sdd.validateGap).not.toHaveBeenCalled();
-      expect(sdd.validateTasks).not.toHaveBeenCalled();
+      expect(sdd.executeCommand).not.toHaveBeenCalled();
     });
   });
 

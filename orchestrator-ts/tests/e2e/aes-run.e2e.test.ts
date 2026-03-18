@@ -126,17 +126,7 @@ function makeMemoryPort(): MemoryPort {
 
 function makeStubSdd(): SddFrameworkPort {
   return {
-    initSpec: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
-    validatePrerequisites: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
-    generateRequirements: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
-    validateRequirements: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
-    reflectBeforeDesign: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
-    reflectBeforeTasks: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
-    validateGap: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
-    generateDesign: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
-    validateDesign: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
-    generateTasks: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
-    validateTasks: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
+    executeCommand: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
   };
 }
 
@@ -407,49 +397,23 @@ describe("E2E: auto-resume after simulated SPEC_REQUIREMENTS interruption", () =
       // Track SDD calls to verify SPEC_INIT is not re-executed
       const sddCalls: string[] = [];
       const trackingSdd: SddFrameworkPort = {
-        initSpec: mock(async () => {
-          sddCalls.push("initSpec");
-          return { ok: true as const, artifactPath: join(env.specDir, "spec.json") };
-        }),
-        validatePrerequisites: mock(async () => {
-          sddCalls.push("validatePrerequisites");
-          return { ok: true as const, artifactPath: join(env.specDir, "requirements.md") };
-        }),
-        generateRequirements: mock(async () => {
-          sddCalls.push("generateRequirements");
-          return { ok: true as const, artifactPath: join(env.specDir, "requirements.md") };
-        }),
-        validateRequirements: mock(async () => {
-          sddCalls.push("validateRequirements");
-          return { ok: true as const, artifactPath: join(env.specDir, "requirements.md") };
-        }),
-        reflectBeforeDesign: mock(async () => {
-          sddCalls.push("reflectBeforeDesign");
-          return { ok: true as const, artifactPath: join(env.specDir, "requirements.md") };
-        }),
-        reflectBeforeTasks: mock(async () => {
-          sddCalls.push("reflectBeforeTasks");
-          return { ok: true as const, artifactPath: join(env.specDir, "design.md") };
-        }),
-        validateGap: mock(async () => {
-          sddCalls.push("validateGap");
-          return { ok: true as const, artifactPath: join(env.specDir, "requirements.md") };
-        }),
-        generateDesign: mock(async () => {
-          sddCalls.push("generateDesign");
-          return { ok: true as const, artifactPath: join(env.specDir, "design.md") };
-        }),
-        validateDesign: mock(async () => {
-          sddCalls.push("validateDesign");
-          return { ok: true as const, artifactPath: join(env.specDir, "design.md") };
-        }),
-        generateTasks: mock(async () => {
-          sddCalls.push("generateTasks");
-          return { ok: true as const, artifactPath: join(env.specDir, "tasks.md") };
-        }),
-        validateTasks: mock(async () => {
-          sddCalls.push("validateTasks");
-          return { ok: true as const, artifactPath: join(env.specDir, "tasks.md") };
+        executeCommand: mock(async (commandName: string) => {
+          sddCalls.push(commandName);
+          // Return appropriate artifact path based on command
+          const artifactMap: Record<string, string> = {
+            "kiro:spec-init": join(env.specDir, "spec.json"),
+            "kiro:validate-prerequisites": join(env.specDir, "requirements.md"),
+            "kiro:spec-requirements": join(env.specDir, "requirements.md"),
+            "kiro:validate-requirements": join(env.specDir, "requirements.md"),
+            "kiro:reflect-before-design": join(env.specDir, "requirements.md"),
+            "kiro:reflect-before-tasks": join(env.specDir, "design.md"),
+            "kiro:validate-gap": join(env.specDir, "requirements.md"),
+            "kiro:spec-design": join(env.specDir, "design.md"),
+            "kiro:validate-design": join(env.specDir, "design.md"),
+            "kiro:spec-tasks": join(env.specDir, "tasks.md"),
+            "kiro:validate-tasks": join(env.specDir, "tasks.md"),
+          };
+          return { ok: true as const, artifactPath: artifactMap[commandName] ?? "" };
         }),
       };
 
@@ -466,11 +430,11 @@ describe("E2E: auto-resume after simulated SPEC_REQUIREMENTS interruption", () =
       expect(result.status).toBe("completed");
 
       // SPEC_INIT/HUMAN_INTERACTION/VALIDATE_PREREQUISITES are in completedPhases and
-      // SPEC_REQUIREMENTS is the paused phase, so initSpec and generateRequirements must not run.
-      expect(sddCalls).not.toContain("initSpec");
-      expect(sddCalls).not.toContain("generateRequirements");
+      // SPEC_REQUIREMENTS is the paused phase, so kiro:spec-init and kiro:spec-requirements must not run.
+      expect(sddCalls).not.toContain("kiro:spec-init");
+      expect(sddCalls).not.toContain("kiro:spec-requirements");
       // SPEC_DESIGN and onwards should be executed
-      expect(sddCalls).toContain("generateDesign");
+      expect(sddCalls).toContain("kiro:spec-design");
     } finally {
       await env.cleanup();
     }
@@ -507,48 +471,8 @@ describe("E2E: auto-resume after simulated SPEC_REQUIREMENTS interruption", () =
 
       const sddCalls: string[] = [];
       const trackingSdd: SddFrameworkPort = {
-        initSpec: mock(async () => {
-          sddCalls.push("initSpec");
-          return { ok: true as const, artifactPath: "" };
-        }),
-        validatePrerequisites: mock(async () => {
-          sddCalls.push("validatePrerequisites");
-          return { ok: true as const, artifactPath: "" };
-        }),
-        generateRequirements: mock(async () => {
-          sddCalls.push("generateRequirements");
-          return { ok: true as const, artifactPath: "" };
-        }),
-        validateRequirements: mock(async () => {
-          sddCalls.push("validateRequirements");
-          return { ok: true as const, artifactPath: "" };
-        }),
-        reflectBeforeDesign: mock(async () => {
-          sddCalls.push("reflectBeforeDesign");
-          return { ok: true as const, artifactPath: "" };
-        }),
-        reflectBeforeTasks: mock(async () => {
-          sddCalls.push("reflectBeforeTasks");
-          return { ok: true as const, artifactPath: "" };
-        }),
-        validateGap: mock(async () => {
-          sddCalls.push("validateGap");
-          return { ok: true as const, artifactPath: "" };
-        }),
-        generateDesign: mock(async () => {
-          sddCalls.push("generateDesign");
-          return { ok: true as const, artifactPath: "" };
-        }),
-        validateDesign: mock(async () => {
-          sddCalls.push("validateDesign");
-          return { ok: true as const, artifactPath: "" };
-        }),
-        generateTasks: mock(async () => {
-          sddCalls.push("generateTasks");
-          return { ok: true as const, artifactPath: "" };
-        }),
-        validateTasks: mock(async () => {
-          sddCalls.push("validateTasks");
+        executeCommand: mock(async (commandName: string) => {
+          sddCalls.push(commandName);
           return { ok: true as const, artifactPath: "" };
         }),
       };

@@ -39,7 +39,7 @@ describe("CcSddAdapter — argument structure", () => {
     const { fn, argv } = makeSpawn(0);
     const adapter = new CcSddAdapter(fn);
 
-    await adapter.generateRequirements(ctx);
+    await adapter.executeCommand("kiro:spec-requirements", ctx);
 
     const args = argv[0];
     // Must be an array with at least: binary, subcommand, specName, specDir, language
@@ -59,14 +59,18 @@ describe("CcSddAdapter — argument structure", () => {
   it("always uses cc-sdd as the binary", async () => {
     const { fn, argv } = makeSpawn(0);
     const adapter = new CcSddAdapter(fn);
-    await adapter.generateRequirements(ctx);
+    await adapter.executeCommand("kiro:spec-requirements", ctx);
     expect(argv[0]?.[0]).toBe("cc-sdd");
   });
 
   it("includes specName, specDir, and language as separate args", async () => {
     const { fn, argv } = makeSpawn(0);
     const adapter = new CcSddAdapter(fn);
-    await adapter.generateRequirements({ specName: "test-spec", specDir: "/custom/path", language: "ja" });
+    await adapter.executeCommand("kiro:spec-requirements", {
+      specName: "test-spec",
+      specDir: "/custom/path",
+      language: "ja",
+    });
 
     const args = argv[0] ?? [];
     expect(args).toContain("test-spec");
@@ -81,21 +85,16 @@ describe("CcSddAdapter — argument structure", () => {
 
 describe("CcSddAdapter — operation subcommands", () => {
   it.each([
-    ["initSpec", "spec-init"] as const,
-    ["validatePrerequisites", "validate-prerequisites"] as const,
-    ["generateRequirements", "requirements"] as const,
-    ["validateRequirements", "validate-requirements"] as const,
-    ["reflectBeforeDesign", "reflect"] as const,
-    ["reflectBeforeTasks", "reflect"] as const,
-    ["validateGap", "validate-gap"] as const,
-    ["generateDesign", "design"] as const,
-    ["validateDesign", "validate-design"] as const,
-    ["generateTasks", "tasks"] as const,
-    ["validateTasks", "validate-task"] as const,
-  ])("%s uses subcommand %s", async (method, subcommand) => {
+    ["kiro:spec-init", "spec-init"] as const,
+    ["kiro:spec-requirements", "requirements"] as const,
+    ["kiro:validate-gap", "validate-gap"] as const,
+    ["kiro:spec-design", "design"] as const,
+    ["kiro:validate-design", "validate-design"] as const,
+    ["kiro:spec-tasks", "tasks"] as const,
+  ])("executeCommand('%s') uses subcommand '%s'", async (commandName, subcommand) => {
     const { fn, argv } = makeSpawn(0);
     const adapter = new CcSddAdapter(fn);
-    await adapter[method](ctx);
+    await adapter.executeCommand(commandName, ctx);
     expect(argv[0]).toContain(subcommand);
   });
 });
@@ -105,10 +104,10 @@ describe("CcSddAdapter — operation subcommands", () => {
 // ---------------------------------------------------------------------------
 
 describe("CcSddAdapter — success (exit code 0)", () => {
-  it("initSpec returns ok: true with spec.json artifact", async () => {
+  it("kiro:spec-init returns ok: true with spec.json artifact", async () => {
     const { fn } = makeSpawn(0);
     const adapter = new CcSddAdapter(fn);
-    const result = await adapter.initSpec(ctx);
+    const result = await adapter.executeCommand("kiro:spec-init", ctx);
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.artifactPath).toContain("spec.json");
@@ -116,11 +115,11 @@ describe("CcSddAdapter — success (exit code 0)", () => {
     }
   });
 
-  it("generateRequirements returns ok: true with requirements.md artifact", async () => {
+  it("kiro:spec-requirements returns ok: true with requirements.md artifact", async () => {
     const { fn } = makeSpawn(0);
     const adapter = new CcSddAdapter(fn);
 
-    const result = await adapter.generateRequirements(ctx);
+    const result = await adapter.executeCommand("kiro:spec-requirements", ctx);
 
     expect(result.ok).toBe(true);
     if (result.ok) {
@@ -129,26 +128,26 @@ describe("CcSddAdapter — success (exit code 0)", () => {
     }
   });
 
-  it("generateDesign returns ok: true with design.md artifact", async () => {
+  it("kiro:spec-design returns ok: true with design.md artifact", async () => {
     const { fn } = makeSpawn(0);
     const adapter = new CcSddAdapter(fn);
-    const result = await adapter.generateDesign(ctx);
+    const result = await adapter.executeCommand("kiro:spec-design", ctx);
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.artifactPath).toContain("design.md");
   });
 
-  it("validateDesign returns ok: true with design.md artifact", async () => {
+  it("kiro:validate-design returns ok: true with design.md artifact", async () => {
     const { fn } = makeSpawn(0);
     const adapter = new CcSddAdapter(fn);
-    const result = await adapter.validateDesign(ctx);
+    const result = await adapter.executeCommand("kiro:validate-design", ctx);
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.artifactPath).toContain("design.md");
   });
 
-  it("generateTasks returns ok: true with tasks.md artifact", async () => {
+  it("kiro:spec-tasks returns ok: true with tasks.md artifact", async () => {
     const { fn } = makeSpawn(0);
     const adapter = new CcSddAdapter(fn);
-    const result = await adapter.generateTasks(ctx);
+    const result = await adapter.executeCommand("kiro:spec-tasks", ctx);
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.artifactPath).toContain("tasks.md");
   });
@@ -156,11 +155,29 @@ describe("CcSddAdapter — success (exit code 0)", () => {
   it("artifactPath is rooted under specDir/specName", async () => {
     const { fn } = makeSpawn(0);
     const adapter = new CcSddAdapter(fn);
-    const result = await adapter.generateRequirements(ctx);
+    const result = await adapter.executeCommand("kiro:spec-requirements", ctx);
     expect(result.ok).toBe(true);
     if (result.ok) {
       const expected = join(ctx.specDir, ctx.specName);
       expect(result.artifactPath.startsWith(expected)).toBe(true);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Unknown command
+// ---------------------------------------------------------------------------
+
+describe("CcSddAdapter — unknown command", () => {
+  it("returns ok: false without spawning a subprocess for unrecognized command", async () => {
+    const { fn, argv } = makeSpawn(0);
+    const adapter = new CcSddAdapter(fn);
+    const result = await adapter.executeCommand("unknown-command", ctx);
+    expect(result.ok).toBe(false);
+    expect(argv).toHaveLength(0); // no subprocess spawned
+    if (!result.ok) {
+      expect(result.error.exitCode).toBe(1);
+      expect(result.error.stderr).toContain("Unknown command: unknown-command");
     }
   });
 });
@@ -174,7 +191,7 @@ describe("CcSddAdapter — failure (non-zero exit code)", () => {
     const { fn } = makeSpawn(1, "cc-sdd: command not found");
     const adapter = new CcSddAdapter(fn);
 
-    const result = await adapter.generateRequirements(ctx);
+    const result = await adapter.executeCommand("kiro:spec-requirements", ctx);
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
@@ -186,33 +203,28 @@ describe("CcSddAdapter — failure (non-zero exit code)", () => {
   it("exit code 127 (binary missing) maps to failure", async () => {
     const { fn } = makeSpawn(127, "bun: command not found: cc-sdd");
     const adapter = new CcSddAdapter(fn);
-    const result = await adapter.generateDesign(ctx);
+    const result = await adapter.executeCommand("kiro:spec-design", ctx);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.exitCode).toBe(127);
   });
 
-  it("all ten operations propagate failure correctly", async () => {
-    const ops = [
-      "initSpec",
-      "validatePrerequisites",
-      "generateRequirements",
-      "validateRequirements",
-      "reflectBeforeDesign",
-      "reflectBeforeTasks",
-      "validateGap",
-      "generateDesign",
-      "validateDesign",
-      "generateTasks",
-      "validateTasks",
+  it("all six commands propagate failure correctly", async () => {
+    const commands = [
+      "kiro:spec-init",
+      "kiro:spec-requirements",
+      "kiro:validate-gap",
+      "kiro:spec-design",
+      "kiro:validate-design",
+      "kiro:spec-tasks",
     ] as const;
-    for (const op of ops) {
-      const { fn } = makeSpawn(2, `${op} failed`);
+    for (const cmd of commands) {
+      const { fn } = makeSpawn(2, `${cmd} failed`);
       const adapter = new CcSddAdapter(fn);
-      const result = await adapter[op](ctx);
+      const result = await adapter.executeCommand(cmd, ctx);
       expect(result.ok).toBe(false);
       if (!result.ok) {
         expect(result.error.exitCode).toBe(2);
-        expect(result.error.stderr).toBe(`${op} failed`);
+        expect(result.error.stderr).toBe(`${cmd} failed`);
       }
     }
   });

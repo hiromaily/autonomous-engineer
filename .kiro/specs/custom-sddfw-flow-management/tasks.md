@@ -40,19 +40,19 @@
   - Call `validateFrameworkDefinition()` on the loaded definition before returning it
   - _Requirements: 5.4, 5.5_
 
-- [ ] 4. Simplify the SDD framework execution interface and update adapters
-- [ ] 4.1 Replace the named-method SDD port with a single executeCommand interface
+- [x] 4. Simplify the SDD framework execution interface and update adapters
+- [x] 4.1 Replace the named-method SDD port with a single executeCommand interface
   - Update `SddFrameworkPort` in application ports to replace all 11 named methods (`initSpec`, `validatePrerequisites`, `generateRequirements`, `validateRequirements`, `reflectBeforeDesign`, `validateGap`, `generateDesign`, `validateDesign`, `reflectBeforeTasks`, `generateTasks`, `validateTasks`) with one method: `executeCommand(commandName: string, ctx: SpecContext): Promise<SddOperationResult>`
   - _Requirements: 3.4_
 
-- [ ] 4.2 (P) Update the cc-sdd adapter to implement the simplified interface
+- [x] 4.2 (P) Update the cc-sdd adapter to implement the simplified interface
   - Replace all 11 named method implementations with a single `executeCommand` method
   - Add a private 6-entry map from `commandName` to `{ subcommand: string, artifactFile: string }`, covering only the `llm_slash_command` phases: `kiro:spec-init`, `kiro:spec-requirements`, `kiro:validate-gap`, `kiro:spec-design`, `kiro:validate-design`, `kiro:spec-tasks`
   - Retain the existing `private run()` execution primitive unchanged
   - Return `{ ok: false, error: { exitCode: 1, stderr: "Unknown command: <commandName>" } }` for unrecognized command names
   - _Requirements: 2.1, 3.4_
 
-- [ ] 4.3 (P) Update the mock SDD adapter to implement the simplified interface
+- [x] 4.3 (P) Update the mock SDD adapter to implement the simplified interface
   - Replace all 11 named method stubs with a single `executeCommand` method using an internal 6-entry command-to-stub mapping (same `kiro:` command names as the cc-sdd adapter)
   - Retain artifact stub creation: commands that generate content (`kiro:spec-requirements`, `kiro:spec-design`, `kiro:spec-tasks`) write stub file content; validation-only commands do not write
   - When `kiro:spec-tasks` completes successfully, continue to call `setReadyForImplementation()` and `writeStubTaskPlan()` as before
@@ -60,7 +60,7 @@
   - Retain `setReadyForImplementation()` and `writeStubTaskPlan()` private helpers unchanged
   - _Requirements: 6.1, 6.3, 6.5_
 
-- [ ] 4.4 Restore build validity after port simplification
+- [x] 4.4 Restore build validity after port simplification
   - Update `PhaseRunner.mapSddResult()`'s parameter type from `Awaited<ReturnType<SddFrameworkPort["generateRequirements"]>>` to `SddOperationResult` directly
   - This is a type-only change with no behavioral impact; it resolves the broken type reference that Task 4.1 introduces when named methods are removed from the port
   - _Requirements: 3.9_

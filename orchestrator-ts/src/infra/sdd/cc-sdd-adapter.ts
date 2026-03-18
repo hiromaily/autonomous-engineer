@@ -8,51 +8,27 @@ export type SpawnFn = (argv: readonly string[]) => {
 
 const defaultSpawn: SpawnFn = (argv) => Bun.spawn(argv as string[], { stderr: "pipe" });
 
+const COMMAND_MAP: ReadonlyMap<string, { readonly subcommand: string; readonly artifactFile: string }> = new Map([
+  ["kiro:spec-init", { subcommand: "spec-init", artifactFile: "spec.json" }],
+  ["kiro:spec-requirements", { subcommand: "requirements", artifactFile: "requirements.md" }],
+  ["kiro:validate-gap", { subcommand: "validate-gap", artifactFile: "requirements.md" }],
+  ["kiro:spec-design", { subcommand: "design", artifactFile: "design.md" }],
+  ["kiro:validate-design", { subcommand: "validate-design", artifactFile: "design.md" }],
+  ["kiro:spec-tasks", { subcommand: "tasks", artifactFile: "tasks.md" }],
+]);
+
 export class CcSddAdapter implements SddFrameworkPort {
   constructor(private readonly spawnFn: SpawnFn = defaultSpawn) {}
 
-  initSpec(ctx: SpecContext): Promise<SddOperationResult> {
-    return this.run("spec-init", ctx, "spec.json");
-  }
-
-  validatePrerequisites(ctx: SpecContext): Promise<SddOperationResult> {
-    return this.run("validate-prerequisites", ctx, "requirements.md");
-  }
-
-  generateRequirements(ctx: SpecContext): Promise<SddOperationResult> {
-    return this.run("requirements", ctx, "requirements.md");
-  }
-
-  validateRequirements(ctx: SpecContext): Promise<SddOperationResult> {
-    return this.run("validate-requirements", ctx, "requirements.md");
-  }
-
-  reflectBeforeDesign(ctx: SpecContext): Promise<SddOperationResult> {
-    return this.run("reflect", ctx, "requirements.md");
-  }
-
-  validateGap(ctx: SpecContext): Promise<SddOperationResult> {
-    return this.run("validate-gap", ctx, "requirements.md");
-  }
-
-  generateDesign(ctx: SpecContext): Promise<SddOperationResult> {
-    return this.run("design", ctx, "design.md");
-  }
-
-  validateDesign(ctx: SpecContext): Promise<SddOperationResult> {
-    return this.run("validate-design", ctx, "design.md");
-  }
-
-  reflectBeforeTasks(ctx: SpecContext): Promise<SddOperationResult> {
-    return this.run("reflect", ctx, "design.md");
-  }
-
-  generateTasks(ctx: SpecContext): Promise<SddOperationResult> {
-    return this.run("tasks", ctx, "tasks.md");
-  }
-
-  validateTasks(ctx: SpecContext): Promise<SddOperationResult> {
-    return this.run("validate-task", ctx, "tasks.md");
+  executeCommand(commandName: string, ctx: SpecContext): Promise<SddOperationResult> {
+    const entry = COMMAND_MAP.get(commandName);
+    if (!entry) {
+      return Promise.resolve({
+        ok: false,
+        error: { exitCode: 1, stderr: `Unknown command: ${commandName}` },
+      });
+    }
+    return this.run(entry.subcommand, ctx, entry.artifactFile);
   }
 
   private async run(

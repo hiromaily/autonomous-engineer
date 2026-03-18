@@ -67,117 +67,43 @@ describe("SpecContext", () => {
 describe("SddFrameworkPort contract (mock implementation)", () => {
   function makeAdapter(result: SddOperationResult): SddFrameworkPort {
     return {
-      initSpec: async (_ctx: SpecContext) => result,
-      validatePrerequisites: async (_ctx: SpecContext) => result,
-      generateRequirements: async (_ctx: SpecContext) => result,
-      validateRequirements: async (_ctx: SpecContext) => result,
-      reflectBeforeDesign: async (_ctx: SpecContext) => result,
-      reflectBeforeTasks: async (_ctx: SpecContext) => result,
-      validateGap: async (_ctx: SpecContext) => result,
-      generateDesign: async (_ctx: SpecContext) => result,
-      validateDesign: async (_ctx: SpecContext) => result,
-      generateTasks: async (_ctx: SpecContext) => result,
-      validateTasks: async (_ctx: SpecContext) => result,
+      executeCommand: async (_commandName: string, _ctx: SpecContext) => result,
     };
   }
 
   const ctx: SpecContext = { specName: "test", specDir: ".kiro/specs", language: "en" };
 
-  it("initSpec returns SddOperationResult", async () => {
-    const adapter = makeAdapter({ ok: true, artifactPath: "spec.json" });
-    const result = await adapter.initSpec(ctx);
-    expect(result.ok).toBe(true);
-    if (result.ok) expect(result.artifactPath).toBe("spec.json");
-  });
-
-  it("validatePrerequisites returns SddOperationResult", async () => {
+  it("executeCommand returns SddOperationResult on success", async () => {
     const adapter = makeAdapter({ ok: true, artifactPath: "requirements.md" });
-    const result = await adapter.validatePrerequisites(ctx);
-    expect(result.ok).toBe(true);
-  });
-
-  it("generateRequirements returns SddOperationResult", async () => {
-    const adapter = makeAdapter({ ok: true, artifactPath: "requirements.md" });
-    const result = await adapter.generateRequirements(ctx);
+    const result = await adapter.executeCommand("kiro:spec-requirements", ctx);
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.artifactPath).toBe("requirements.md");
   });
 
-  it("validateRequirements returns SddOperationResult", async () => {
-    const adapter = makeAdapter({ ok: true, artifactPath: "requirements.md" });
-    const result = await adapter.validateRequirements(ctx);
-    expect(result.ok).toBe(true);
-  });
-
-  it("reflectBeforeDesign returns SddOperationResult", async () => {
-    const adapter = makeAdapter({ ok: true, artifactPath: "requirements.md" });
-    const result = await adapter.reflectBeforeDesign(ctx);
-    expect(result.ok).toBe(true);
-  });
-
-  it("reflectBeforeTasks returns SddOperationResult", async () => {
-    const adapter = makeAdapter({ ok: true, artifactPath: "design.md" });
-    const result = await adapter.reflectBeforeTasks(ctx);
-    expect(result.ok).toBe(true);
-  });
-
-  it("validateGap returns SddOperationResult", async () => {
-    const adapter = makeAdapter({ ok: true, artifactPath: "requirements.md" });
-    const result = await adapter.validateGap(ctx);
-    expect(result.ok).toBe(true);
-  });
-
-  it("generateDesign returns SddOperationResult", async () => {
-    const adapter = makeAdapter({ ok: true, artifactPath: "design.md" });
-    const result = await adapter.generateDesign(ctx);
-    expect(result.ok).toBe(true);
-    if (result.ok) expect(result.artifactPath).toBe("design.md");
-  });
-
-  it("validateDesign returns SddOperationResult", async () => {
-    const adapter = makeAdapter({ ok: true, artifactPath: "design.md" });
-    const result = await adapter.validateDesign(ctx);
-    expect(result.ok).toBe(true);
-  });
-
-  it("generateTasks returns SddOperationResult", async () => {
-    const adapter = makeAdapter({ ok: true, artifactPath: "tasks.md" });
-    const result = await adapter.generateTasks(ctx);
-    expect(result.ok).toBe(true);
-    if (result.ok) expect(result.artifactPath).toBe("tasks.md");
-  });
-
-  it("validateTasks returns SddOperationResult", async () => {
-    const adapter = makeAdapter({ ok: true, artifactPath: "tasks.md" });
-    const result = await adapter.validateTasks(ctx);
-    expect(result.ok).toBe(true);
-  });
-
-  it("all operations can return failure result", async () => {
+  it("executeCommand can return failure result", async () => {
     const failure: SddOperationResult = { ok: false, error: { exitCode: 127, stderr: "not found" } };
     const adapter = makeAdapter(failure);
+    const result = await adapter.executeCommand("kiro:spec-requirements", ctx);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.exitCode).toBe(127);
+      expect(result.error.stderr).toBe("not found");
+    }
+  });
 
-    for (
-      const op of [
-        adapter.initSpec(ctx),
-        adapter.validatePrerequisites(ctx),
-        adapter.generateRequirements(ctx),
-        adapter.validateRequirements(ctx),
-        adapter.reflectBeforeDesign(ctx),
-        adapter.reflectBeforeTasks(ctx),
-        adapter.validateGap(ctx),
-        adapter.generateDesign(ctx),
-        adapter.validateDesign(ctx),
-        adapter.generateTasks(ctx),
-        adapter.validateTasks(ctx),
-      ]
-    ) {
-      const result = await op;
-      expect(result.ok).toBe(false);
-      if (!result.ok) {
-        expect(result.error.exitCode).toBe(127);
-        expect(result.error.stderr).toBe("not found");
-      }
+  it("executeCommand accepts any command name string", async () => {
+    const adapter = makeAdapter({ ok: true, artifactPath: "spec.json" });
+    const commands = [
+      "kiro:spec-init",
+      "kiro:spec-requirements",
+      "kiro:validate-gap",
+      "kiro:spec-design",
+      "kiro:validate-design",
+      "kiro:spec-tasks",
+    ];
+    for (const cmd of commands) {
+      const result = await adapter.executeCommand(cmd, ctx);
+      expect(result.ok).toBe(true);
     }
   });
 });

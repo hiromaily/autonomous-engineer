@@ -45,17 +45,7 @@ function makeEventBus(): IWorkflowEventBus {
 
 function makeSdd(): SddFrameworkPort {
   return {
-    initSpec: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
-    validatePrerequisites: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
-    generateRequirements: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
-    validateRequirements: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
-    reflectBeforeDesign: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
-    reflectBeforeTasks: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
-    validateGap: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
-    generateDesign: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
-    validateDesign: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
-    generateTasks: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
-    validateTasks: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
+    executeCommand: mock(() => Promise.resolve({ ok: true as const, artifactPath: "" })),
   };
 }
 
@@ -579,7 +569,7 @@ describe("RunSpecUseCase", () => {
 
     it("emits error log with { phase, reason } when a phase fails", async () => {
       const failingSdd = makeSdd();
-      (failingSdd.initSpec as ReturnType<typeof mock>) = mock(() =>
+      (failingSdd.executeCommand as ReturnType<typeof mock>) = mock(() =>
         Promise.resolve({ ok: false as const, error: { exitCode: 1, stderr: "init failed" } })
       );
       const logger = makeLogger();

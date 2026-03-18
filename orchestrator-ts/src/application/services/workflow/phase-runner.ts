@@ -1,6 +1,6 @@
 import type { IImplementationLoop, ImplementationLoopOptions } from "@/application/ports/implementation-loop";
 import type { LlmProviderPort } from "@/application/ports/llm";
-import type { SddFrameworkPort, SpecContext } from "@/application/ports/sdd";
+import type { SddFrameworkPort, SddOperationResult, SpecContext } from "@/application/ports/sdd";
 import type { WorkflowPhase } from "@/domain/workflow/types";
 
 export type PhaseResult =
@@ -33,47 +33,47 @@ export class PhaseRunner {
   async execute(phase: WorkflowPhase, ctx: SpecContext): Promise<PhaseResult> {
     switch (phase) {
       case "VALIDATE_PREREQUISITES": {
-        const result = await this.sdd.validatePrerequisites(ctx);
+        const result = await this.sdd.executeCommand("kiro:validate-prerequisites", ctx);
         return this.mapSddResult(result);
       }
       case "SPEC_REQUIREMENTS": {
-        const result = await this.sdd.generateRequirements(ctx);
+        const result = await this.sdd.executeCommand("kiro:spec-requirements", ctx);
         return this.mapSddResult(result);
       }
       case "VALIDATE_REQUIREMENTS": {
-        const result = await this.sdd.validateRequirements(ctx);
+        const result = await this.sdd.executeCommand("kiro:validate-requirements", ctx);
         return this.mapSddResult(result);
       }
       case "REFLECT_BEFORE_DESIGN": {
-        const result = await this.sdd.reflectBeforeDesign(ctx);
+        const result = await this.sdd.executeCommand("kiro:reflect-before-design", ctx);
         return this.mapSddResult(result);
       }
       case "REFLECT_BEFORE_TASKS": {
-        const result = await this.sdd.reflectBeforeTasks(ctx);
+        const result = await this.sdd.executeCommand("kiro:reflect-before-tasks", ctx);
         return this.mapSddResult(result);
       }
       case "VALIDATE_GAP": {
-        const result = await this.sdd.validateGap(ctx);
+        const result = await this.sdd.executeCommand("kiro:validate-gap", ctx);
         return this.mapSddResult(result);
       }
       case "SPEC_DESIGN": {
-        const result = await this.sdd.generateDesign(ctx);
+        const result = await this.sdd.executeCommand("kiro:spec-design", ctx);
         return this.mapSddResult(result);
       }
       case "VALIDATE_DESIGN": {
-        const result = await this.sdd.validateDesign(ctx);
+        const result = await this.sdd.executeCommand("kiro:validate-design", ctx);
         return this.mapSddResult(result);
       }
       case "SPEC_TASKS": {
-        const result = await this.sdd.generateTasks(ctx);
+        const result = await this.sdd.executeCommand("kiro:spec-tasks", ctx);
         return this.mapSddResult(result);
       }
       case "VALIDATE_TASKS": {
-        const result = await this.sdd.validateTasks(ctx);
+        const result = await this.sdd.executeCommand("kiro:validate-tasks", ctx);
         return this.mapSddResult(result);
       }
       case "SPEC_INIT": {
-        const result = await this.sdd.initSpec(ctx);
+        const result = await this.sdd.executeCommand("kiro:spec-init", ctx);
         return this.mapSddResult(result);
       }
       case "HUMAN_INTERACTION":
@@ -109,7 +109,7 @@ export class PhaseRunner {
     // Lifecycle hook — extended in future specs
   }
 
-  private mapSddResult(result: Awaited<ReturnType<SddFrameworkPort["generateRequirements"]>>): PhaseResult {
+  private mapSddResult(result: SddOperationResult): PhaseResult {
     if (result.ok) {
       return { ok: true, artifacts: [result.artifactPath] };
     }
