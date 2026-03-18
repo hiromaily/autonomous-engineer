@@ -21,7 +21,7 @@
   - The port may only import domain types; no infra imports
   - _Requirements: 5.1, 5.2, 5.3_
 
-- [ ] 2. Create the cc-sdd framework definition data file
+- [x] 2. Create the cc-sdd framework definition data file
   - Create a typed constant `CC_SDD_FRAMEWORK_DEFINITION` in the infrastructure SDD directory that satisfies `FrameworkDefinition`
   - Define all 14 phases in execution order, each with correct `type` and `content`: 6 `llm_slash_command`, 5 `llm_prompt`, 1 `human_interaction`, 1 `implementation_loop`, 1 `git_command`
   - Provide non-empty inline prompt text for each of the 5 `llm_prompt` phases; each prompt may use `{specDir}`, `{specName}`, and `{language}` placeholders where runtime values are needed
