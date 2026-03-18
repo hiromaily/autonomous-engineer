@@ -1,5 +1,7 @@
 import type { AgentLoopResult, IAgentEventBus } from "@/application/ports/agent-loop";
 import type { IContextEngine } from "@/application/ports/context";
+import type { LlmProviderPort } from "@/application/ports/llm";
+import type { SddFrameworkPort } from "@/application/ports/sdd";
 import type {
   ImplementationLoopEvent,
   ReviewCheckResult,
@@ -10,6 +12,7 @@ import type {
   SelfHealingResult,
 } from "@/domain/implementation-loop/types";
 import type { Task, TaskPlan } from "@/domain/planning/types";
+import type { LoopPhaseDefinition } from "@/domain/workflow/framework";
 
 // Re-export shared domain types for convenience so consumers can import from one place.
 export type {
@@ -255,12 +258,28 @@ export interface ISelfHealingLoop {
 /**
  * Configuration for a single implementation loop run.
  * All fields except `maxRetriesPerSection` and `qualityGateConfig` are optional.
+ *
+ * The five fields `loopPhases`, `sdd`, `llm`, `specDir`, and `language` enable YAML-configured
+ * per-task execution. When `loopPhases` is provided and non-empty, the service executes the
+ * configured sub-phase sequence instead of the hardcoded default (implement → review → commit).
+ * `sdd` is required when any sub-phase has type `llm_slash_command`;
+ * `llm` is required when any sub-phase has type `llm_prompt`.
  */
 export type ImplementationLoopOptions = Readonly<{
   /** Max implement-review-improve cycles per section before escalation. Default: 3. */
   maxRetriesPerSection: number;
   /** Named quality gate checks to run after each implement step. */
   qualityGateConfig: QualityGateConfig;
+  /** Sub-phases to execute in each task iteration. When absent, uses hardcoded default sequence. */
+  loopPhases?: readonly LoopPhaseDefinition[];
+  /** SDD adapter for executing llm_slash_command loop-phases. Required when loopPhases includes llm_slash_command. */
+  sdd?: SddFrameworkPort;
+  /** LLM provider for executing llm_prompt loop-phases. Required when loopPhases includes llm_prompt. */
+  llm?: LlmProviderPort;
+  /** Spec directory path for SpecContext construction inside the loop. */
+  specDir?: string;
+  /** Language code for SpecContext construction and interpolation. */
+  language?: string;
   /** Optional spec10 self-healing loop; when absent, exhausted sections halt with `"section-failed"`. */
   selfHealingLoop?: ISelfHealingLoop;
   /** Optional event bus; when absent, lifecycle events are silently dropped. */

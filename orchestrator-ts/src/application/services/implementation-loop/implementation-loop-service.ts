@@ -21,6 +21,7 @@ import type {
   SelfHealingResult,
 } from "@/domain/implementation-loop/types";
 import type { Task, TaskPlan } from "@/domain/planning/types";
+import type { LoopPhaseDefinition } from "@/domain/workflow/framework";
 
 // ---------------------------------------------------------------------------
 // Internal discriminated union for escalation results
@@ -36,12 +37,34 @@ type EscalationDecision =
   | { action: "retry"; improvePrompt: string };
 
 // ---------------------------------------------------------------------------
+// Module-level interpolation helper for configured loop phases
+// ---------------------------------------------------------------------------
+
+function interpolateLoopPhase(template: string, vars: {
+  specName: string;
+  specDir: string;
+  language: string;
+  taskId: string;
+}): string {
+  return template
+    .replaceAll("{specName}", vars.specName)
+    .replaceAll("{specDir}", vars.specDir)
+    .replaceAll("{language}", vars.language)
+    .replaceAll("{taskId}", vars.taskId);
+}
+
+// ---------------------------------------------------------------------------
 // Default option values
 // ---------------------------------------------------------------------------
 
 const DEFAULT_OPTIONS: Required<ImplementationLoopOptions> = {
   maxRetriesPerSection: 3,
   qualityGateConfig: { checks: [] },
+  loopPhases: undefined as never,
+  sdd: undefined as never,
+  llm: undefined as never,
+  specDir: undefined as never,
+  language: undefined as never,
   selfHealingLoop: undefined as never,
   eventBus: undefined as never,
   logger: undefined as never,
@@ -292,11 +315,18 @@ export class ImplementationLoopService implements IImplementationLoop {
     const allFeedback: ReviewFeedbackItem[] = [];
 
     // Context isolation: reset the context engine at section start so accumulated
-    // context from the previous section is discarded. The contextProvider built here
-    // is reused for ALL iterations (implement + improve) of this section so that
-    // context accumulates within the section rather than being reset on each retry.
+    // context from the previous section is discarded.
+    // Note: resetTask is called unconditionally for both paths; contextProvider is only
+    // built in the hardcoded path where #agentLoop.run() is called.
     options.contextEngine?.resetTask(task.id);
-    const contextProvider: IContextProvider | undefined = options.contextEngine
+
+    // Determine whether to use the YAML-configured phases path or the hardcoded agent loop path.
+    const useConfiguredPhases =
+      options.loopPhases !== undefined && options.loopPhases.length > 0;
+
+    // contextProvider is constructed only for the hardcoded path (used by #agentLoop.run()).
+    // In the configured-phases path, #agentLoop.run() is never called so this is not needed.
+    const contextProvider: IContextProvider | undefined = !useConfiguredPhases && options.contextEngine
       ? buildContextProvider(options.contextEngine, plan.id, task.id, completedSummaries)
       : undefined;
 
@@ -304,47 +334,255 @@ export class ImplementationLoopService implements IImplementationLoop {
       const iterationNumber = iterations.length + 1;
       const iterationStartMs = Date.now();
 
-      // Emit section:improve-start before each retry (not before the first attempt)
-      if (improvePrompt !== undefined) {
-        options.eventBus?.emit({
-          type: "section:improve-start",
-          sectionId: task.id,
-          iteration: iterationNumber,
-        });
-      }
+      if (useConfiguredPhases) {
+        // ---------------------------------------------------------------------------
+        // Configured loop phases path
+        // ---------------------------------------------------------------------------
+        const result = await this.#executeConfiguredPhases(options.loopPhases!, task, plan, options);
+        if (result.ok) {
+          await this.#planStore.updateSectionStatus(plan.id, task.id, "completed");
+          return buildSectionRecord(
+            task,
+            plan.id,
+            "completed",
+            retryCount,
+            iterations,
+            sectionStartAt,
+            result.commitSha,
+            undefined,
+          );
+        }
 
-      // Invoke agent loop with improve prompt (or original task title on first attempt).
-      // Pass the pre-built contextProvider so the agent loop queries the context engine.
-      const agentInput = improvePrompt ?? task.title;
-      const agentResult = await this.#agentLoop.run(agentInput, {
-        ...(contextProvider !== undefined ? { contextProvider } : {}),
-        ...(options.agentEventBus !== undefined ? { eventBus: options.agentEventBus } : {}),
-      });
-      const iterationDurationMs = Date.now() - iterationStartMs;
+        // Sub-phase failed — increment retry, possibly escalate
+        retryCount++;
+        const feedback: ReviewFeedbackItem[] = [{
+          category: "requirement-alignment",
+          description: result.error,
+          severity: "blocking",
+        }];
+        allFeedback.push(...feedback);
 
-      // Accumulate agent observations across all attempts for escalation payloads.
-      allObservations.push(...agentResult.finalState.observations);
-
-      // Non-TASK_COMPLETED termination → increment retry, possibly escalate
-      if (!agentResult.taskCompleted) {
-        const failureReview = buildAgentFailureReview(agentResult.terminationCondition);
+        const failureReview: ReviewResult = {
+          outcome: "failed",
+          checks: [{
+            checkName: "configured-loop-phase",
+            outcome: "failed",
+            required: true,
+            details: result.error,
+          }],
+          feedback,
+          durationMs: Date.now() - iterationStartMs,
+        };
         const iterRecord = buildIterationRecord(
           iterationNumber,
           failureReview,
+          undefined,
+          Date.now() - iterationStartMs,
+          new Date().toISOString(),
+        );
+        iterations.push(iterRecord);
+
+        if (retryCount >= options.maxRetriesPerSection) {
+          const decision = await this.#escalateSection(
+            task,
+            plan,
+            iterations,
+            retryCount,
+            sectionStartAt,
+            options,
+            allObservations,
+            allFeedback,
+            hasHealed,
+          );
+          if (decision.action === "halt") {
+            return decision.record;
+          }
+          // Self-healing resolved: reset retry counter and continue from the first sub-phase.
+          retryCount = 0;
+          hasHealed = true;
+          continue;
+        }
+
+        continue;
+      } else {
+        // ---------------------------------------------------------------------------
+        // Hardcoded agent loop path (existing behavior — unchanged)
+        // ---------------------------------------------------------------------------
+
+        // Emit section:improve-start before each retry (not before the first attempt)
+        if (improvePrompt !== undefined) {
+          options.eventBus?.emit({
+            type: "section:improve-start",
+            sectionId: task.id,
+            iteration: iterationNumber,
+          });
+        }
+
+        // Invoke agent loop with improve prompt (or original task title on first attempt).
+        // Pass the pre-built contextProvider so the agent loop queries the context engine.
+        const agentInput = improvePrompt ?? task.title;
+        const agentResult = await this.#agentLoop.run(agentInput, {
+          ...(contextProvider !== undefined ? { contextProvider } : {}),
+          ...(options.agentEventBus !== undefined ? { eventBus: options.agentEventBus } : {}),
+        });
+        const iterationDurationMs = Date.now() - iterationStartMs;
+
+        // Accumulate agent observations across all attempts for escalation payloads.
+        allObservations.push(...agentResult.finalState.observations);
+
+        // Non-TASK_COMPLETED termination → increment retry, possibly escalate
+        if (!agentResult.taskCompleted) {
+          const failureReview = buildAgentFailureReview(agentResult.terminationCondition);
+          const iterRecord = buildIterationRecord(
+            iterationNumber,
+            failureReview,
+            improvePrompt,
+            iterationDurationMs,
+            new Date().toISOString(),
+          );
+          iterations.push(iterRecord);
+          allFeedback.push(...failureReview.feedback);
+          retryCount++;
+
+          options.logger?.logIteration({
+            planId: plan.id,
+            sectionId: task.id,
+            iterationNumber,
+            reviewOutcome: "failed",
+            gateCheckResults: failureReview.checks,
+            durationMs: iterationDurationMs,
+            timestamp: iterRecord.timestamp,
+          });
+
+          if (retryCount >= options.maxRetriesPerSection) {
+            const decision = await this.#escalateSection(
+              task,
+              plan,
+              iterations,
+              retryCount,
+              sectionStartAt,
+              options,
+              allObservations,
+              allFeedback,
+              hasHealed,
+            );
+            if (decision.action === "halt") {
+              return decision.record;
+            }
+            // Self-healing resolved: reset retry counter and apply the new improve prompt.
+            retryCount = 0;
+            hasHealed = true;
+            improvePrompt = decision.improvePrompt;
+            continue;
+          }
+
+          improvePrompt = buildImprovePrompt(task.title, failureReview.feedback);
+          continue;
+        }
+
+        // Review the agent output
+        const reviewResult = await this.#reviewEngine.review(agentResult, task, options.qualityGateConfig);
+        const iterRecord = buildIterationRecord(
+          iterationNumber,
+          reviewResult,
           improvePrompt,
           iterationDurationMs,
           new Date().toISOString(),
         );
         iterations.push(iterRecord);
-        allFeedback.push(...failureReview.feedback);
+
+        if (reviewResult.outcome === "passed") {
+          // Emit review-passed signal
+          options.eventBus?.emit({
+            type: "section:review-passed",
+            sectionId: task.id,
+            iteration: iterationNumber,
+          });
+
+          // Build commit message including the section title
+          const commitMessage = `feat: ${task.title}`;
+
+          // Detect changed files and commit
+          const changesResult = await this.#gitController.detectChanges();
+          const files: string[] = changesResult.ok
+            ? [
+              ...changesResult.value.staged,
+              ...changesResult.value.unstaged,
+              ...changesResult.value.untracked,
+            ]
+            : [];
+
+          const commitResult = await this.#gitController.stageAndCommit(files, commitMessage);
+
+          if (!commitResult.ok) {
+            // Git failure → halt; no retry (risk of duplicate commits)
+            await this.#planStore.updateSectionStatus(plan.id, task.id, "failed");
+            return buildSectionRecord(
+              task,
+              plan.id,
+              "failed",
+              retryCount,
+              iterations,
+              sectionStartAt,
+              undefined,
+              `Git commit failed: ${commitResult.error.message}`,
+            );
+          }
+
+          const commitSha = commitResult.value.hash;
+          const sectionDurationMs = Date.now() - sectionStartMs;
+
+          await this.#planStore.updateSectionStatus(plan.id, task.id, "completed");
+
+          options.eventBus?.emit({
+            type: "section:completed",
+            sectionId: task.id,
+            commitSha,
+            durationMs: sectionDurationMs,
+          });
+
+          options.logger?.logIteration({
+            planId: plan.id,
+            sectionId: task.id,
+            iterationNumber,
+            reviewOutcome: "passed",
+            gateCheckResults: reviewResult.checks,
+            commitSha,
+            durationMs: iterationDurationMs,
+            timestamp: iterRecord.timestamp,
+          });
+
+          const completedRecord = buildSectionRecord(
+            task,
+            plan.id,
+            "completed",
+            retryCount,
+            iterations,
+            sectionStartAt,
+            commitSha,
+            undefined,
+          );
+          options.logger?.logSectionComplete(completedRecord);
+          return completedRecord;
+        }
+
+        // Review failed — increment retry counter, emit event, possibly escalate
         retryCount++;
+        allFeedback.push(...reviewResult.feedback);
+
+        options.eventBus?.emit({
+          type: "section:review-failed",
+          sectionId: task.id,
+          iteration: iterationNumber,
+          feedback: reviewResult.feedback,
+        });
 
         options.logger?.logIteration({
           planId: plan.id,
           sectionId: task.id,
           iterationNumber,
           reviewOutcome: "failed",
-          gateCheckResults: failureReview.checks,
+          gateCheckResults: reviewResult.checks,
           durationMs: iterationDurationMs,
           timestamp: iterRecord.timestamp,
         });
@@ -371,140 +609,8 @@ export class ImplementationLoopService implements IImplementationLoop {
           continue;
         }
 
-        improvePrompt = buildImprovePrompt(task.title, failureReview.feedback);
-        continue;
+        improvePrompt = buildImprovePrompt(task.title, reviewResult.feedback);
       }
-
-      // Review the agent output
-      const reviewResult = await this.#reviewEngine.review(agentResult, task, options.qualityGateConfig);
-      const iterRecord = buildIterationRecord(
-        iterationNumber,
-        reviewResult,
-        improvePrompt,
-        iterationDurationMs,
-        new Date().toISOString(),
-      );
-      iterations.push(iterRecord);
-
-      if (reviewResult.outcome === "passed") {
-        // Emit review-passed signal
-        options.eventBus?.emit({
-          type: "section:review-passed",
-          sectionId: task.id,
-          iteration: iterationNumber,
-        });
-
-        // Build commit message including the section title
-        const commitMessage = `feat: ${task.title}`;
-
-        // Detect changed files and commit
-        const changesResult = await this.#gitController.detectChanges();
-        const files: string[] = changesResult.ok
-          ? [
-            ...changesResult.value.staged,
-            ...changesResult.value.unstaged,
-            ...changesResult.value.untracked,
-          ]
-          : [];
-
-        const commitResult = await this.#gitController.stageAndCommit(files, commitMessage);
-
-        if (!commitResult.ok) {
-          // Git failure → halt; no retry (risk of duplicate commits)
-          await this.#planStore.updateSectionStatus(plan.id, task.id, "failed");
-          return buildSectionRecord(
-            task,
-            plan.id,
-            "failed",
-            retryCount,
-            iterations,
-            sectionStartAt,
-            undefined,
-            `Git commit failed: ${commitResult.error.message}`,
-          );
-        }
-
-        const commitSha = commitResult.value.hash;
-        const sectionDurationMs = Date.now() - sectionStartMs;
-
-        await this.#planStore.updateSectionStatus(plan.id, task.id, "completed");
-
-        options.eventBus?.emit({
-          type: "section:completed",
-          sectionId: task.id,
-          commitSha,
-          durationMs: sectionDurationMs,
-        });
-
-        options.logger?.logIteration({
-          planId: plan.id,
-          sectionId: task.id,
-          iterationNumber,
-          reviewOutcome: "passed",
-          gateCheckResults: reviewResult.checks,
-          commitSha,
-          durationMs: iterationDurationMs,
-          timestamp: iterRecord.timestamp,
-        });
-
-        const completedRecord = buildSectionRecord(
-          task,
-          plan.id,
-          "completed",
-          retryCount,
-          iterations,
-          sectionStartAt,
-          commitSha,
-          undefined,
-        );
-        options.logger?.logSectionComplete(completedRecord);
-        return completedRecord;
-      }
-
-      // Review failed — increment retry counter, emit event, possibly escalate
-      retryCount++;
-      allFeedback.push(...reviewResult.feedback);
-
-      options.eventBus?.emit({
-        type: "section:review-failed",
-        sectionId: task.id,
-        iteration: iterationNumber,
-        feedback: reviewResult.feedback,
-      });
-
-      options.logger?.logIteration({
-        planId: plan.id,
-        sectionId: task.id,
-        iterationNumber,
-        reviewOutcome: "failed",
-        gateCheckResults: reviewResult.checks,
-        durationMs: iterationDurationMs,
-        timestamp: iterRecord.timestamp,
-      });
-
-      if (retryCount >= options.maxRetriesPerSection) {
-        const decision = await this.#escalateSection(
-          task,
-          plan,
-          iterations,
-          retryCount,
-          sectionStartAt,
-          options,
-          allObservations,
-          allFeedback,
-          hasHealed,
-        );
-        if (decision.action === "halt") {
-          return decision.record;
-        }
-        // Self-healing resolved: reset retry counter and apply the new improve prompt.
-        retryCount = 0;
-        hasHealed = true;
-        improvePrompt = decision.improvePrompt;
-        continue;
-      }
-
-      improvePrompt = buildImprovePrompt(task.title, reviewResult.feedback);
     }
   }
 
@@ -690,6 +796,86 @@ export class ImplementationLoopService implements IImplementationLoop {
       durationMs: Date.now() - startedAt,
       haltReason,
     };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Configured loop phases execution
+  //
+  // Executes the user-configured sub-phase sequence for a single task iteration.
+  // Each sub-phase type dispatches to the appropriate adapter:
+  //   - llm_slash_command → SddFrameworkPort.executeCommand
+  //   - llm_prompt        → LlmProviderPort.complete
+  //   - git_command       → IGitController.detectChanges + stageAndCommit
+  // ---------------------------------------------------------------------------
+
+  async #executeConfiguredPhases(
+    loopPhases: readonly LoopPhaseDefinition[],
+    task: Task,
+    plan: TaskPlan,
+    options: Required<ImplementationLoopOptions>,
+  ): Promise<{ ok: true; commitSha?: string } | { ok: false; error: string }> {
+    const vars = {
+      specName: plan.id,
+      specDir: options.specDir ?? "",
+      language: options.language ?? "en",
+      taskId: task.id,
+    };
+
+    let commitSha: string | undefined;
+
+    for (const lp of loopPhases) {
+      if (lp.type === "llm_slash_command") {
+        if (options.sdd === undefined) {
+          return {
+            ok: false,
+            error: `SDD adapter not configured for llm_slash_command loop-phase "${lp.phase}"`,
+          };
+        }
+        const specCtx = {
+          specName: plan.id,
+          specDir: options.specDir ?? "",
+          language: options.language ?? "en",
+        };
+        const commandName = interpolateLoopPhase(lp.content, vars) + " " + task.id;
+        const result = await options.sdd.executeCommand(commandName, specCtx);
+        if (!result.ok) {
+          return {
+            ok: false,
+            error: result.error.stderr.trim() || `SDD adapter failed (exit ${result.error.exitCode})`,
+          };
+        }
+      } else if (lp.type === "llm_prompt") {
+        if (options.llm === undefined) {
+          return {
+            ok: false,
+            error: `LLM provider not configured for llm_prompt loop-phase "${lp.phase}"`,
+          };
+        }
+        const prompt = interpolateLoopPhase(lp.content, vars);
+        const result = await options.llm.complete(prompt);
+        if (!result.ok) {
+          return { ok: false, error: result.error.message };
+        }
+        // Response content is discarded — ok status is the sole pass/fail signal.
+      } else if (lp.type === "git_command") {
+        const changesResult = await this.#gitController.detectChanges();
+        const files: string[] = changesResult.ok
+          ? [
+            ...changesResult.value.staged,
+            ...changesResult.value.unstaged,
+            ...changesResult.value.untracked,
+          ]
+          : [];
+
+        const commitResult = await this.#gitController.stageAndCommit(files, `feat: ${task.title}`);
+        if (!commitResult.ok) {
+          return { ok: false, error: `Git commit failed: ${commitResult.error.message}` };
+        }
+        commitSha = commitResult.value.hash;
+      }
+    }
+
+    return { ok: true, ...(commitSha !== undefined ? { commitSha } : {}) };
   }
 }
 
