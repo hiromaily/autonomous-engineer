@@ -2,69 +2,40 @@ import type { AesConfig } from "@/application/ports/config";
 import { RunContainer } from "@/main/di/run-container";
 import { afterEach, beforeEach, describe, expect, it, type Mock, spyOn } from "bun:test";
 
-// ---------------------------------------------------------------------------
-// Task 7 — Framework selection via TypeScriptFrameworkDefinitionLoader
-// ---------------------------------------------------------------------------
-
-describe("RunContainer — framework definition loading (Task 7)", () => {
-  it("build() returns a Promise (is async)", () => {
-    const result = new RunContainer(
-      {
-        llm: { provider: "claude", modelName: "__test__", apiKey: "__test__" },
-        specDir: ".kiro/specs",
-        sddFramework: "cc-sdd",
-        logLevel: "info",
-      },
-      { debug: false },
-    ).build();
-    expect(result).toBeInstanceOf(Promise);
-    result.then((deps) => deps.logWriter?.close()).catch(() => {});
-  });
-
-  it("build() resolves successfully when sddFramework is 'cc-sdd'", async () => {
-    const deps = await new RunContainer(
-      {
-        llm: { provider: "claude", modelName: "__test__", apiKey: "__test__" },
-        specDir: ".kiro/specs",
-        sddFramework: "cc-sdd",
-        logLevel: "info",
-      },
-      { debug: false },
-    ).build();
-    expect(deps.useCase).toBeDefined();
-  });
-
-  it("build() rejects with unknown-framework error when sddFramework is not registered", async () => {
-    const config: AesConfig = {
-      llm: { provider: "claude", modelName: "__test__", apiKey: "__test__" },
-      specDir: ".kiro/specs",
-      sddFramework: "openspec", // valid in AesConfig type but not registered in loader
-      logLevel: "info",
-    };
-    await expect(new RunContainer(config, { debug: false }).build()).rejects.toThrow("openspec");
-  });
-
-  it("debug mode also loads framework via config.sddFramework", async () => {
-    const deps = await new RunContainer(
-      {
-        llm: { provider: "claude", modelName: "__test__", apiKey: "__test__" },
-        specDir: ".kiro/specs",
-        sddFramework: "cc-sdd",
-        logLevel: "info",
-      },
-      { debug: true },
-    ).build();
-    expect(deps.useCase).toBeDefined();
-    deps.debugWriter?.close().catch(() => {});
-  });
-});
-
 const stubConfig: AesConfig = {
   llm: { provider: "claude", modelName: "__test__", apiKey: "__test__" },
   specDir: ".kiro/specs",
   sddFramework: "cc-sdd",
   logLevel: "info",
 };
+
+// ---------------------------------------------------------------------------
+// Task 7 — Framework selection via TypeScriptFrameworkDefinitionLoader
+// ---------------------------------------------------------------------------
+
+describe("RunContainer — framework definition loading (Task 7)", () => {
+  it("build() returns a Promise (is async)", () => {
+    const result = new RunContainer(stubConfig, { debug: false }).build();
+    expect(result).toBeInstanceOf(Promise);
+    result.then((deps) => deps.logWriter?.close()).catch(() => {});
+  });
+
+  it("build() resolves successfully when sddFramework is 'cc-sdd'", async () => {
+    const deps = await new RunContainer(stubConfig, { debug: false }).build();
+    expect(deps.useCase).toBeDefined();
+  });
+
+  it("build() rejects with unknown-framework error when sddFramework is not registered", async () => {
+    const config: AesConfig = { ...stubConfig, sddFramework: "openspec" };
+    await expect(new RunContainer(config, { debug: false }).build()).rejects.toThrow("openspec");
+  });
+
+  it("debug mode also loads framework via config.sddFramework", async () => {
+    const deps = await new RunContainer(stubConfig, { debug: true }).build();
+    expect(deps.useCase).toBeDefined();
+    deps.debugWriter?.close().catch(() => {});
+  });
+});
 
 let stderrOutput: string[];
 let stderrSpy: Mock<typeof process.stderr.write>;

@@ -1,5 +1,6 @@
 import type { AesConfig } from "@/application/ports/config";
 import type { IDebugEventSink } from "@/application/ports/debug";
+import type { FrameworkDefinitionPort } from "@/application/ports/framework";
 import type { IGitController } from "@/application/ports/git-controller";
 import type { IImplementationLoop } from "@/application/ports/implementation-loop";
 import type { LlmProviderPort } from "@/application/ports/llm";
@@ -104,7 +105,7 @@ export class RunContainer {
   private _implementationLoop?: IImplementationLoop;
   private _memory?: FileMemoryStore;
   private _useCase?: RunSpecUseCase;
-  private _frameworkDefinitionLoader?: TypeScriptFrameworkDefinitionLoader;
+  private _frameworkDefinitionLoader?: FrameworkDefinitionPort;
   private _frameworkDefinition?: FrameworkDefinition;
 
   // --------------------------------------------------------------------------
@@ -312,7 +313,7 @@ export class RunContainer {
     return this._memory;
   }
 
-  private get frameworkDefinitionLoader(): TypeScriptFrameworkDefinitionLoader {
+  private get frameworkDefinitionLoader(): FrameworkDefinitionPort {
     if (!this._frameworkDefinitionLoader) {
       this._frameworkDefinitionLoader = new TypeScriptFrameworkDefinitionLoader();
     }
@@ -320,10 +321,9 @@ export class RunContainer {
   }
 
   private get frameworkDefinition(): FrameworkDefinition {
-    if (!this._frameworkDefinition) {
-      throw new Error("frameworkDefinition accessed before build() completed");
-    }
-    return this._frameworkDefinition;
+    // Precondition: only accessed from useCase getter, which is constructed inside build()
+    // after _frameworkDefinition has been set.
+    return this._frameworkDefinition!;
   }
 
   private get useCase(): RunSpecUseCase {
