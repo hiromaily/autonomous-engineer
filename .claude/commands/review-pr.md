@@ -35,16 +35,10 @@ Fix all review comments at **$ARGUMENTS** and reply inline to each one.
      -f body="Done. <one-sentence description of what was changed>"
    ```
 
-6. **Verify** by running the project's typecheck and test suite if applicable:
-
-   ```sh
-   cd orchestrator-ts && bun run typecheck && bun test
-   ```
-
-7. **Report** a summary of all changes made and replies posted.
+6. **Report** a summary of all changes made and replies posted.
 
 ## Notes
 
 - Reply to every comment, even if no code change was needed (explain why).
 - Keep reply messages concise and factual.
-- Do not push or create commits unless explicitly asked.
+- Commit and push all changes at the end.
