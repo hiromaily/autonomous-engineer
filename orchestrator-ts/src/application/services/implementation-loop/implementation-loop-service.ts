@@ -382,6 +382,16 @@ export class ImplementationLoopService implements IImplementationLoop {
         );
         iterations.push(iterRecord);
 
+        options.logger?.logIteration({
+          planId: plan.id,
+          sectionId: task.id,
+          iterationNumber,
+          reviewOutcome: "failed",
+          gateCheckResults: failureReview.checks,
+          durationMs: iterRecord.durationMs,
+          timestamp: iterRecord.timestamp,
+        });
+
         if (retryCount >= options.maxRetriesPerSection) {
           const decision = await this.#escalateSection(
             task,
@@ -499,20 +509,8 @@ export class ImplementationLoopService implements IImplementationLoop {
             iteration: iterationNumber,
           });
 
-          // Build commit message including the section title
-          const commitMessage = `feat: ${task.title}`;
-
           // Detect changed files and commit
-          const changesResult = await this.#gitController.detectChanges();
-          const files: string[] = changesResult.ok
-            ? [
-              ...changesResult.value.staged,
-              ...changesResult.value.unstaged,
-              ...changesResult.value.untracked,
-            ]
-            : [];
-
-          const commitResult = await this.#gitController.stageAndCommit(files, commitMessage);
+          const commitResult = await this.#commitChanges(task.title);
 
           if (!commitResult.ok) {
             // Git failure → halt; no retry (risk of duplicate commits)
@@ -525,11 +523,11 @@ export class ImplementationLoopService implements IImplementationLoop {
               iterations,
               sectionStartAt,
               undefined,
-              `Git commit failed: ${commitResult.error.message}`,
+              commitResult.error,
             );
           }
 
-          const commitSha = commitResult.value.hash;
+          const commitSha = commitResult.hash;
           const sectionDurationMs = Date.now() - sectionStartMs;
 
           await this.#planStore.updateSectionStatus(plan.id, task.id, "completed");
@@ -858,24 +856,32 @@ export class ImplementationLoopService implements IImplementationLoop {
         }
         // Response content is discarded — ok status is the sole pass/fail signal.
       } else if (lp.type === "git_command") {
-        const changesResult = await this.#gitController.detectChanges();
-        const files: string[] = changesResult.ok
-          ? [
-            ...changesResult.value.staged,
-            ...changesResult.value.unstaged,
-            ...changesResult.value.untracked,
-          ]
-          : [];
-
-        const commitResult = await this.#gitController.stageAndCommit(files, `feat: ${task.title}`);
-        if (!commitResult.ok) {
-          return { ok: false, error: `Git commit failed: ${commitResult.error.message}` };
+        const result = await this.#commitChanges(task.title);
+        if (!result.ok) {
+          return { ok: false, error: result.error };
         }
-        commitSha = commitResult.value.hash;
+        commitSha = result.hash;
       }
     }
 
     return { ok: true, ...(commitSha !== undefined ? { commitSha } : {}) };
+  }
+
+  async #commitChanges(taskTitle: string): Promise<{ ok: true; hash: string } | { ok: false; error: string }> {
+    const changesResult = await this.#gitController.detectChanges();
+    const files: string[] = changesResult.ok
+      ? [
+        ...changesResult.value.staged,
+        ...changesResult.value.unstaged,
+        ...changesResult.value.untracked,
+      ]
+      : [];
+
+    const commitResult = await this.#gitController.stageAndCommit(files, `feat: ${taskTitle}`);
+    if (!commitResult.ok) {
+      return { ok: false, error: `Git commit failed: ${commitResult.error.message}` };
+    }
+    return { ok: true, hash: commitResult.value.hash };
   }
 }
 
