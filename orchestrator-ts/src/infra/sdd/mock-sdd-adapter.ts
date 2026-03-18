@@ -10,9 +10,13 @@ import { dirname, join } from "node:path";
  * so the full workflow can run offline without any external tools installed.
  */
 export class MockSddAdapter implements SddFrameworkPort {
+  /** All command names passed to executeCommand(), in call order. Useful for assertions in tests. */
+  readonly invocations: string[] = [];
+
   constructor(private readonly sink?: IDebugEventSink) {}
 
   async executeCommand(commandName: string, ctx: SpecContext): Promise<SddOperationResult> {
+    this.invocations.push(commandName);
     switch (commandName) {
       case "kiro:spec-init":
         return this.runSpecInit(ctx);

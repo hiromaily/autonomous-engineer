@@ -103,8 +103,8 @@
   - Ensure debug mode also selects the framework via `config.sddFramework` before constructing mock adapters
   - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
 
-- [ ] 8. Update and add tests for all modified components
-- [ ] 8.1 (P) Update PhaseRunner tests for data-driven dispatch
+- [x] 8. Update and add tests for all modified components
+- [x] 8.1 (P) Update PhaseRunner tests for data-driven dispatch
   - Reconstruct `PhaseRunner` in all existing tests to include a stub `frameworkDefinition` dependency
   - Add a test asserting `sdd.executeCommand()` is called with the correct command name for a representative `llm_slash_command` phase
   - Add a test asserting `llm.complete()` is called with the correct interpolated prompt text for a representative `llm_prompt` phase
@@ -113,7 +113,7 @@
   - Add a test asserting an explicit error is thrown when `execute()` is called with a phase not present in the framework definition
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9_
 
-- [ ] 8.2 (P) Update WorkflowEngine tests for framework definition configuration
+- [x] 8.2 (P) Update WorkflowEngine tests for framework definition configuration
   - Update `WorkflowEngineDeps` construction in all existing tests to include a stub `frameworkDefinition`
   - Add a test asserting `pendingPhases()` returns phases in the order defined by `frameworkDefinition.phases`
   - Add a test asserting `checkRequiredArtifacts()` reads from `phaseDefinition.requiredArtifacts`
@@ -122,14 +122,14 @@
   - Confirm that no references to `REQUIRED_ARTIFACTS` or `APPROVAL_GATE_PHASES` remain in the production file
   - _Requirements: 4.1, 4.2, 4.3, 4.4_
 
-- [ ] 8.3 (P) Add unit tests for the framework definition types and loader
+- [x] 8.3 (P) Add unit tests for the framework definition types and loader
   - Test `validateFrameworkDefinition` directly: assert it throws when two `PhaseDefinition` entries have the same `phase` value (covers duplicate check)
   - Test `validateFrameworkDefinition` directly: assert it throws when `content` is empty and `type` is `llm_slash_command` or `llm_prompt`
   - Test that `load("cc-sdd")` returns a validated `FrameworkDefinition` with exactly 14 phases
   - Test that `load("unknown-fw")` throws with a message containing `"cc-sdd"` in the available frameworks list
   - _Requirements: 1.6, 5.1, 5.2, 5.3, 5.4, 5.5_
 
-- [ ] 8.4 (P) Update adapter tests for the simplified interface
+- [x] 8.4 (P) Update adapter tests for the simplified interface
   - Add a test asserting `CcSddAdapter.executeCommand("kiro:spec-requirements", ctx)` spawns the correct subcommand and returns an artifact path pointing to `requirements.md`
   - Add a test asserting `CcSddAdapter.executeCommand("unknown-command", ctx)` returns `{ ok: false }` without spawning a subprocess
   - Add tests asserting `MockSddAdapter.executeCommand()` records invocations so tests can assert the correct `kiro:` command name was used for an `llm_slash_command` phase

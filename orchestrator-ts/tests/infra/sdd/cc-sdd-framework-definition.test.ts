@@ -1,4 +1,5 @@
 import { validateFrameworkDefinition } from "@/domain/workflow/framework";
+import type { FrameworkDefinition } from "@/domain/workflow/framework";
 import { WORKFLOW_PHASES } from "@/domain/workflow/types";
 import { CC_SDD_FRAMEWORK_DEFINITION } from "@/infra/sdd/cc-sdd-framework-definition";
 import { describe, expect, it } from "bun:test";
@@ -192,5 +193,40 @@ describe("CC_SDD_FRAMEWORK_DEFINITION", () => {
       const p = CC_SDD_FRAMEWORK_DEFINITION.phases.find((x) => x.phase === name);
       expect(p?.approvalGate).toBeUndefined();
     }
+  });
+});
+
+// -- validateFrameworkDefinition failure cases --------------------------------
+
+describe("validateFrameworkDefinition — failure cases", () => {
+  it("throws when two PhaseDefinition entries have the same phase value", () => {
+    const def: FrameworkDefinition = {
+      id: "dup-fw",
+      phases: [
+        { phase: "SPEC_INIT", type: "llm_slash_command", content: "kiro:spec-init", requiredArtifacts: [] },
+        { phase: "SPEC_INIT", type: "llm_slash_command", content: "kiro:spec-init", requiredArtifacts: [] },
+      ],
+    };
+    expect(() => validateFrameworkDefinition(def)).toThrow("SPEC_INIT");
+  });
+
+  it("throws when content is empty and type is llm_slash_command", () => {
+    const def: FrameworkDefinition = {
+      id: "empty-cmd-fw",
+      phases: [
+        { phase: "SPEC_INIT", type: "llm_slash_command", content: "", requiredArtifacts: [] },
+      ],
+    };
+    expect(() => validateFrameworkDefinition(def)).toThrow("llm_slash_command");
+  });
+
+  it("throws when content is empty and type is llm_prompt", () => {
+    const def: FrameworkDefinition = {
+      id: "empty-prompt-fw",
+      phases: [
+        { phase: "VALIDATE_PREREQUISITES", type: "llm_prompt", content: "", requiredArtifacts: [] },
+      ],
+    };
+    expect(() => validateFrameworkDefinition(def)).toThrow("llm_prompt");
   });
 });
