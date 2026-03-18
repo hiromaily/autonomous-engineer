@@ -29,6 +29,7 @@ Fix all review comments at **$ARGUMENTS** and reply inline to each one.
    - Keep changes minimal and focused — fix exactly what was asked.
 
 5. **Reply inline to each comment** using the GitHub API:
+
    ```sh
    gh api repos/{owner}/{repo}/pulls/{pr_number}/comments/{comment_id}/replies \
      -f body="Done. <one-sentence description of what was changed>"
