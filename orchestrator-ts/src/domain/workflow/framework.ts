@@ -14,6 +14,9 @@ export interface PhaseDefinition {
   readonly content: string;
   readonly requiredArtifacts: readonly string[];
   readonly approvalGate?: ApprovalPhase;
+  /** For llm_prompt phases: filename relative to specDir where the LLM response will be written.
+   *  When set, the response is persisted so subsequent phases (e.g. SDD commands) can read it. */
+  readonly outputFile?: string;
 }
 
 export interface FrameworkDefinition {

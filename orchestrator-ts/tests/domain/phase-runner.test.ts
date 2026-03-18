@@ -9,6 +9,9 @@ import { PhaseRunner } from "@/application/services/workflow/phase-runner";
 import type { FrameworkDefinition } from "@/domain/workflow/framework";
 import type { WorkflowPhase } from "@/domain/workflow/types";
 import { describe, expect, it, mock } from "bun:test";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { makeFrameworkDef, makeLlmProvider } from "../helpers/workflow";
 
 const ctx: SpecContext = {
@@ -186,6 +189,100 @@ describe("PhaseRunner", () => {
       }
 
       expect(sdd.executeCommand).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("execute - llm_prompt phases with outputFile", () => {
+    it("writes LLM response content to outputFile in specDir", async () => {
+      const tmpDir = await mkdtemp(join(tmpdir(), "phase-runner-test-"));
+      try {
+        const llm: LlmProviderPort = {
+          complete: mock(() =>
+            Promise.resolve({
+              ok: true as const,
+              value: { content: "reflection output text", usage: { inputTokens: 5, outputTokens: 10 } },
+            })
+          ),
+          clearContext: mock(() => {}),
+        };
+        const frameworkDef: FrameworkDefinition = {
+          id: "test-fw",
+          phases: [
+            {
+              phase: "REFLECT_BEFORE_DESIGN",
+              type: "llm_prompt",
+              content: "Reflect before design.",
+              requiredArtifacts: [],
+              outputFile: "reflect-before-design.md",
+            },
+          ],
+        };
+        const runner = new PhaseRunner({
+          sdd: makeSddAdapter({ ok: true, artifactPath: "" }),
+          llm,
+          frameworkDefinition: frameworkDef,
+        });
+        await runner.execute("REFLECT_BEFORE_DESIGN", { specName: "my-spec", specDir: tmpDir, language: "en" });
+
+        const written = await readFile(join(tmpDir, "reflect-before-design.md"), "utf-8");
+        expect(written).toBe("reflection output text");
+      } finally {
+        await rm(tmpDir, { recursive: true });
+      }
+    });
+
+    it("returns outputFile path in artifacts when outputFile is set", async () => {
+      const tmpDir = await mkdtemp(join(tmpdir(), "phase-runner-test-"));
+      try {
+        const frameworkDef: FrameworkDefinition = {
+          id: "test-fw",
+          phases: [
+            {
+              phase: "REFLECT_BEFORE_DESIGN",
+              type: "llm_prompt",
+              content: "Reflect before design.",
+              requiredArtifacts: [],
+              outputFile: "reflect-before-design.md",
+            },
+          ],
+        };
+        const runner = new PhaseRunner({
+          sdd: makeSddAdapter({ ok: true, artifactPath: "" }),
+          llm: makeLlmProvider(),
+          frameworkDefinition: frameworkDef,
+        });
+        const result = await runner.execute("REFLECT_BEFORE_DESIGN", {
+          specName: "my-spec",
+          specDir: tmpDir,
+          language: "en",
+        });
+
+        expect(result).toEqual({ ok: true, artifacts: [join(tmpDir, "reflect-before-design.md")] });
+      } finally {
+        await rm(tmpDir, { recursive: true });
+      }
+    });
+
+    it("returns empty artifacts when outputFile is not set", async () => {
+      const frameworkDef: FrameworkDefinition = {
+        id: "test-fw",
+        phases: [
+          {
+            phase: "REFLECT_BEFORE_DESIGN",
+            type: "llm_prompt",
+            content: "Reflect before design.",
+            requiredArtifacts: [],
+            // no outputFile
+          },
+        ],
+      };
+      const runner = new PhaseRunner({
+        sdd: makeSddAdapter({ ok: true, artifactPath: "" }),
+        llm: makeLlmProvider(),
+        frameworkDefinition: frameworkDef,
+      });
+      const result = await runner.execute("REFLECT_BEFORE_DESIGN", ctx);
+      expect(result).toEqual({ ok: true, artifacts: [] });
     });
   });
 

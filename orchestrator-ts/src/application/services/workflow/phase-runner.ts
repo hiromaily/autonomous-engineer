@@ -4,6 +4,8 @@ import type { SddFrameworkPort, SddOperationResult, SpecContext } from "@/applic
 import { findPhaseDefinition } from "@/domain/workflow/framework";
 import type { FrameworkDefinition } from "@/domain/workflow/framework";
 import type { WorkflowPhase } from "@/domain/workflow/types";
+import { writeFile } from "node:fs/promises";
+import { join } from "node:path";
 
 export type PhaseResult =
   | { readonly ok: true; readonly artifacts: readonly string[] }
@@ -55,6 +57,11 @@ export class PhaseRunner {
       case "llm_prompt": {
         const result = await this.llm.complete(interpolate(phaseDef.content));
         if (result.ok) {
+          if (phaseDef.outputFile) {
+            const outputPath = join(ctx.specDir, phaseDef.outputFile);
+            await writeFile(outputPath, result.value.content, "utf-8");
+            return { ok: true, artifacts: [outputPath] };
+          }
           return { ok: true, artifacts: [] };
         }
         return { ok: false, error: result.error.message };

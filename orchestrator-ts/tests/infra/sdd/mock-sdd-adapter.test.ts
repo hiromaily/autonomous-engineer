@@ -66,23 +66,29 @@ describe("MockSddAdapter — invocation recording", () => {
 
 describe("PhaseRunner with CC_SDD_FRAMEWORK_DEFINITION — exact prompt dispatch", () => {
   it("calls llm.complete() with the exact interpolated prompt from CC_SDD_FRAMEWORK_DEFINITION for VALIDATE_PREREQUISITES", async () => {
-    const llm = makeLlmProvider();
-    const runner = new PhaseRunner({
-      sdd: new MockSddAdapter(),
-      llm,
-      frameworkDefinition: CC_SDD_FRAMEWORK_DEFINITION,
-    });
+    const tmpDir = await mkdtemp(join(tmpdir(), "mock-sdd-prompt-"));
+    try {
+      const ctxWithDir: SpecContext = { ...ctx, specDir: tmpDir };
+      const llm = makeLlmProvider();
+      const runner = new PhaseRunner({
+        sdd: new MockSddAdapter(),
+        llm,
+        frameworkDefinition: CC_SDD_FRAMEWORK_DEFINITION,
+      });
 
-    await runner.execute("VALIDATE_PREREQUISITES", ctx);
+      await runner.execute("VALIDATE_PREREQUISITES", ctxWithDir);
 
-    const phaseDef = CC_SDD_FRAMEWORK_DEFINITION.phases.find((p) => p.phase === "VALIDATE_PREREQUISITES");
-    expect(phaseDef).toBeDefined();
-    const expectedPrompt = phaseDef!.content
-      .replaceAll("{specDir}", ctx.specDir)
-      .replaceAll("{specName}", ctx.specName)
-      .replaceAll("{language}", ctx.language);
+      const phaseDef = CC_SDD_FRAMEWORK_DEFINITION.phases.find((p) => p.phase === "VALIDATE_PREREQUISITES");
+      expect(phaseDef).toBeDefined();
+      const expectedPrompt = phaseDef!.content
+        .replaceAll("{specDir}", ctxWithDir.specDir)
+        .replaceAll("{specName}", ctxWithDir.specName)
+        .replaceAll("{language}", ctxWithDir.language);
 
-    expect(llm.complete).toHaveBeenCalledWith(expectedPrompt);
+      expect(llm.complete).toHaveBeenCalledWith(expectedPrompt);
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
   });
 
   it("calls sdd.executeCommand() with the correct kiro: command for SPEC_REQUIREMENTS llm_slash_command phase", async () => {

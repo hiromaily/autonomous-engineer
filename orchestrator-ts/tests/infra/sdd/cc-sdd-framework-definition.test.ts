@@ -87,6 +87,28 @@ describe("CC_SDD_FRAMEWORK_DEFINITION", () => {
     }
   });
 
+  it("all llm_prompt phases have an outputFile set", () => {
+    for (const p of CC_SDD_FRAMEWORK_DEFINITION.phases) {
+      if (p.type === "llm_prompt") {
+        expect(p.outputFile).toBeDefined();
+        expect((p.outputFile ?? "").length).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it.each(
+    [
+      ["VALIDATE_PREREQUISITES", "prerequisite-check.md"],
+      ["VALIDATE_REQUIREMENTS", "validation-requirements.md"],
+      ["REFLECT_BEFORE_DESIGN", "reflect-before-design.md"],
+      ["REFLECT_BEFORE_TASKS", "reflect-before-tasks.md"],
+      ["VALIDATE_TASKS", "validation-tasks.md"],
+    ] as const,
+  )("%s has outputFile '%s'", (phase, expectedFile) => {
+    const p = CC_SDD_FRAMEWORK_DEFINITION.phases.find((x) => x.phase === phase);
+    expect(p?.outputFile).toBe(expectedFile);
+  });
+
   // -- requiredArtifacts: phases with no prerequisites --
 
   it.each(["SPEC_INIT", "HUMAN_INTERACTION", "PULL_REQUEST"] as const)(
