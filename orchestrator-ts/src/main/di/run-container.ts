@@ -321,9 +321,10 @@ export class RunContainer {
   }
 
   private get frameworkDefinition(): FrameworkDefinition {
-    // Precondition: only accessed from useCase getter, which is constructed inside build()
-    // after _frameworkDefinition has been set.
-    return this._frameworkDefinition!;
+    if (this._frameworkDefinition === undefined) {
+      throw new Error("frameworkDefinition accessed before build() completed");
+    }
+    return this._frameworkDefinition;
   }
 
   private get useCase(): RunSpecUseCase {
