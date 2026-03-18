@@ -432,6 +432,109 @@ describe("PhaseRunner", () => {
       const result = await runner.execute("IMPLEMENTATION", ctx);
       expect(result).toEqual({ ok: true, artifacts: [] });
     });
+
+    it("threads phaseDef.loopPhases into implementationLoop.run options", async () => {
+      const loopPhases = [
+        { phase: "SPEC_IMPL", type: "llm_slash_command" as const, content: "kiro:spec-impl" },
+      ];
+      const loop = makeImplementationLoop("completed");
+      const runner = new PhaseRunner({
+        sdd: makeSddAdapter({ ok: true, artifactPath: "" }),
+        llm: makeLlmProvider(),
+        frameworkDefinition: makeFrameworkDef({ loopPhases }),
+        implementationLoop: loop,
+      });
+      await runner.execute("IMPLEMENTATION", ctx);
+      const [, optionsArg] = (loop.run as ReturnType<typeof mock>).mock.calls[0] ?? [];
+      expect((optionsArg as Partial<{ loopPhases: unknown }>)?.loopPhases).toBe(loopPhases);
+    });
+
+    it("calls run without loopPhases when phaseDef.loopPhases is absent", async () => {
+      const loop = makeImplementationLoop("completed");
+      const runner = new PhaseRunner({
+        sdd: makeSddAdapter({ ok: true, artifactPath: "" }),
+        llm: makeLlmProvider(),
+        frameworkDefinition: makeFrameworkDef(), // no loopPhases
+        implementationLoop: loop,
+      });
+      await runner.execute("IMPLEMENTATION", ctx);
+      const [, optionsArg] = (loop.run as ReturnType<typeof mock>).mock.calls[0] ?? [];
+      expect((optionsArg as Partial<{ loopPhases: unknown }> | undefined)?.loopPhases).toBeUndefined();
+    });
+
+    it("YAML loopPhases wins over DI implementationLoopOptions.loopPhases", async () => {
+      const yamlLoopPhases = [
+        { phase: "SPEC_IMPL", type: "llm_slash_command" as const, content: "kiro:spec-impl" },
+      ];
+      const diLoopPhases = [
+        { phase: "DI_PHASE", type: "llm_prompt" as const, content: "DI prompt" },
+      ];
+      const loop = makeImplementationLoop("completed");
+      const runner = new PhaseRunner({
+        sdd: makeSddAdapter({ ok: true, artifactPath: "" }),
+        llm: makeLlmProvider(),
+        frameworkDefinition: makeFrameworkDef({ loopPhases: yamlLoopPhases }),
+        implementationLoop: loop,
+        implementationLoopOptions: { loopPhases: diLoopPhases } as never,
+      });
+      await runner.execute("IMPLEMENTATION", ctx);
+      const [, optionsArg] = (loop.run as ReturnType<typeof mock>).mock.calls[0] ?? [];
+      expect((optionsArg as Partial<{ loopPhases: unknown }>)?.loopPhases).toBe(yamlLoopPhases);
+    });
+
+    it("threads ctx.specDir as specDir into implementationLoop.run options", async () => {
+      const loop = makeImplementationLoop("completed");
+      const runner = new PhaseRunner({
+        sdd: makeSddAdapter({ ok: true, artifactPath: "" }),
+        llm: makeLlmProvider(),
+        frameworkDefinition: makeFrameworkDef(),
+        implementationLoop: loop,
+      });
+      await runner.execute("IMPLEMENTATION", ctx);
+      const [, optionsArg] = (loop.run as ReturnType<typeof mock>).mock.calls[0] ?? [];
+      expect((optionsArg as Partial<{ specDir: unknown }>)?.specDir).toBe(ctx.specDir);
+    });
+
+    it("threads ctx.language as language into implementationLoop.run options", async () => {
+      const loop = makeImplementationLoop("completed");
+      const runner = new PhaseRunner({
+        sdd: makeSddAdapter({ ok: true, artifactPath: "" }),
+        llm: makeLlmProvider(),
+        frameworkDefinition: makeFrameworkDef(),
+        implementationLoop: loop,
+      });
+      await runner.execute("IMPLEMENTATION", ctx);
+      const [, optionsArg] = (loop.run as ReturnType<typeof mock>).mock.calls[0] ?? [];
+      expect((optionsArg as Partial<{ language: unknown }>)?.language).toBe(ctx.language);
+    });
+
+    it("threads this.sdd as sdd into implementationLoop.run options", async () => {
+      const sdd = makeSddAdapter({ ok: true, artifactPath: "" });
+      const loop = makeImplementationLoop("completed");
+      const runner = new PhaseRunner({
+        sdd,
+        llm: makeLlmProvider(),
+        frameworkDefinition: makeFrameworkDef(),
+        implementationLoop: loop,
+      });
+      await runner.execute("IMPLEMENTATION", ctx);
+      const [, optionsArg] = (loop.run as ReturnType<typeof mock>).mock.calls[0] ?? [];
+      expect((optionsArg as Partial<{ sdd: unknown }>)?.sdd).toBe(sdd);
+    });
+
+    it("threads this.llm as llm into implementationLoop.run options", async () => {
+      const llm = makeLlmProvider();
+      const loop = makeImplementationLoop("completed");
+      const runner = new PhaseRunner({
+        sdd: makeSddAdapter({ ok: true, artifactPath: "" }),
+        llm,
+        frameworkDefinition: makeFrameworkDef(),
+        implementationLoop: loop,
+      });
+      await runner.execute("IMPLEMENTATION", ctx);
+      const [, optionsArg] = (loop.run as ReturnType<typeof mock>).mock.calls[0] ?? [];
+      expect((optionsArg as Partial<{ llm: unknown }>)?.llm).toBe(llm);
+    });
   });
 
   describe("onEnter / onExit lifecycle hooks", () => {

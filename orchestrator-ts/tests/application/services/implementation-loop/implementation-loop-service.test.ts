@@ -64,6 +64,8 @@ import type {
   ReviewResult,
   SectionIterationLogEntry,
 } from "@/application/ports/implementation-loop";
+import type { LlmProviderPort, LlmResult } from "@/application/ports/llm";
+import type { SddFrameworkPort, SddOperationResult, SpecContext } from "@/application/ports/sdd";
 import { ImplementationLoopService } from "@/application/services/implementation-loop/implementation-loop-service";
 import type { AgentState, Observation, TerminationCondition } from "@/domain/agent/types";
 import type {
@@ -73,6 +75,7 @@ import type {
   SelfHealingResult,
 } from "@/domain/implementation-loop/types";
 import type { Task, TaskPlan } from "@/domain/planning/types";
+import type { LoopPhaseDefinition } from "@/domain/workflow/framework";
 import { describe, expect, it } from "bun:test";
 
 // ---------------------------------------------------------------------------
@@ -2261,5 +2264,375 @@ describe("ImplementationLoopService (task 4.7) — self-healing loop throws", ()
       (u) => u.sectionId === "t1" && u.status === "failed",
     );
     expect(failedUpdate).toBeDefined();
+  });
+});
+
+// ===========================================================================
+// Task 8d: Configured loop-phases path tests
+// ===========================================================================
+
+// ---------------------------------------------------------------------------
+// Helpers specific to loop-phases tests
+// ---------------------------------------------------------------------------
+
+/** Creates a spy SddFrameworkPort that records executeCommand calls and returns success. */
+function makeSpySdd(
+  result: SddOperationResult = { ok: true, artifactPath: "" },
+): SddFrameworkPort & { calls: Array<{ commandName: string; ctx: SpecContext }> } {
+  const calls: Array<{ commandName: string; ctx: SpecContext }> = [];
+  return {
+    calls,
+    async executeCommand(commandName: string, ctx: SpecContext): Promise<SddOperationResult> {
+      calls.push({ commandName, ctx });
+      return result;
+    },
+  };
+}
+
+/** Creates a spy LlmProviderPort that records complete calls and returns success. */
+function makeSpyLlm(
+  result: LlmResult = {
+    ok: true,
+    value: { content: "ok", usage: { inputTokens: 10, outputTokens: 5 } },
+  },
+): LlmProviderPort & { prompts: string[] } {
+  const prompts: string[] = [];
+  return {
+    prompts,
+    async complete(prompt: string): Promise<LlmResult> {
+      prompts.push(prompt);
+      return result;
+    },
+    clearContext() {},
+  };
+}
+
+/** Creates a stub IGitController that returns a deterministic commit SHA. */
+function makeCommitGitController(sha = "configured-sha-001"): IGitController & {
+  commitCalls: Array<{ files: readonly string[]; message: string }>;
+} {
+  const commitCalls: Array<{ files: readonly string[]; message: string }> = [];
+  return {
+    commitCalls,
+    async listBranches() {
+      return { ok: true, value: [] };
+    },
+    async detectChanges() {
+      return { ok: true, value: { staged: ["src/impl.ts"], unstaged: [], untracked: [] } };
+    },
+    async createAndCheckoutBranch() {
+      return {
+        ok: true,
+        value: { branchName: "feature/test", baseBranch: "main", conflictResolved: false },
+      };
+    },
+    async stageAndCommit(files, message) {
+      commitCalls.push({ files, message });
+      return { ok: true, value: { hash: sha, message, fileCount: files.length } };
+    },
+    async push() {
+      return {
+        ok: true,
+        value: { branchName: "feature/test", remote: "origin", commitHash: sha },
+      };
+    },
+  };
+}
+
+/** Loop phase definitions covering all three sub-phase types. */
+function makeAllThreeLoopPhases(): readonly LoopPhaseDefinition[] {
+  return [
+    { phase: "SPEC_IMPL", type: "llm_slash_command", content: "kiro:spec-impl" },
+    {
+      phase: "VALIDATE",
+      type: "llm_prompt",
+      content: "Validate task {taskId} in spec {specName} (dir:{specDir}, lang:{language})",
+    },
+    { phase: "COMMIT", type: "git_command", content: "" },
+  ];
+}
+
+// ---------------------------------------------------------------------------
+// Configured loop-phases path
+// ---------------------------------------------------------------------------
+
+describe("ImplementationLoopService — configured loop-phases path", () => {
+  it("returns outcome: completed when all sub-phases succeed (happy path)", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", title: "Task one", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const service = makeService(store, { gitController: makeCommitGitController() });
+
+    const result = await service.run(plan.id, {
+      loopPhases: makeAllThreeLoopPhases(),
+      sdd: makeSpySdd(),
+      llm: makeSpyLlm(),
+    });
+
+    expect(result.outcome).toBe("completed");
+  });
+
+  it("dispatches llm_slash_command with content + ' ' + task.id", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "task-42", title: "Build feature", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const spySdd = makeSpySdd();
+    const service = makeService(store, { gitController: makeCommitGitController() });
+
+    await service.run(plan.id, {
+      loopPhases: [{ phase: "SPEC_IMPL", type: "llm_slash_command", content: "kiro:spec-impl" }],
+      sdd: spySdd,
+    });
+
+    expect(spySdd.calls).toHaveLength(1);
+    expect(spySdd.calls[0]?.commandName).toBe("kiro:spec-impl task-42");
+  });
+
+  it("passes correct SpecContext fields (specName, specDir, language) to llm_slash_command", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", title: "Feature", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const spySdd = makeSpySdd();
+    const service = makeService(store, { gitController: makeCommitGitController() });
+
+    await service.run(plan.id, {
+      loopPhases: [{ phase: "SPEC_IMPL", type: "llm_slash_command", content: "kiro:spec-impl" }],
+      sdd: spySdd,
+      specDir: "/specs/my-feature",
+      language: "ja",
+    });
+
+    expect(spySdd.calls[0]?.ctx).toEqual({
+      specName: plan.id,
+      specDir: "/specs/my-feature",
+      language: "ja",
+    });
+  });
+
+  it("dispatches llm_prompt with interpolated content including {taskId}", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "task-99", title: "Validate step", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const spyLlm = makeSpyLlm();
+    const service = makeService(store);
+
+    await service.run(plan.id, {
+      loopPhases: [{ phase: "VALIDATE", type: "llm_prompt", content: "Review task {taskId}" }],
+      llm: spyLlm,
+    });
+
+    expect(spyLlm.prompts).toHaveLength(1);
+    expect(spyLlm.prompts[0]).toBe("Review task task-99");
+  });
+
+  it("interpolates {specName}, {specDir}, {language} in llm_prompt content", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", title: "Step", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const spyLlm = makeSpyLlm();
+    const service = makeService(store);
+
+    await service.run(plan.id, {
+      loopPhases: [{
+        phase: "VALIDATE",
+        type: "llm_prompt",
+        content: "spec={specName} dir={specDir} lang={language} task={taskId}",
+      }],
+      llm: spyLlm,
+      specDir: "/work/specs",
+      language: "en",
+    });
+
+    expect(spyLlm.prompts[0]).toBe(`spec=${plan.id} dir=/work/specs lang=en task=t1`);
+  });
+
+  it("dispatches git_command by calling stageAndCommit with feat: <title>", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", title: "Add login page", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const gitCtrl = makeCommitGitController();
+    const service = makeService(store, { gitController: gitCtrl });
+
+    await service.run(plan.id, {
+      loopPhases: [{ phase: "COMMIT", type: "git_command", content: "" }],
+    });
+
+    expect(gitCtrl.commitCalls).toHaveLength(1);
+    expect(gitCtrl.commitCalls[0]?.message).toBe("feat: Add login page");
+  });
+
+  it("returns section status 'completed' when all sub-phases succeed", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", title: "Complete task", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const service = makeService(store, { gitController: makeCommitGitController() });
+
+    const result = await service.run(plan.id, {
+      loopPhases: makeAllThreeLoopPhases(),
+      sdd: makeSpySdd(),
+      llm: makeSpyLlm(),
+    });
+
+    expect(result.sections[0]?.status).toBe("completed");
+  });
+
+  it("increments retryCount when llm_slash_command fails", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", title: "Task", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const failingSdd = makeSpySdd({ ok: false, error: { exitCode: 1, stderr: "sdd error" } });
+    const service = makeService(store);
+
+    const result = await service.run(plan.id, {
+      loopPhases: [{ phase: "SPEC_IMPL", type: "llm_slash_command", content: "kiro:spec-impl" }],
+      sdd: failingSdd,
+      maxRetriesPerSection: 2,
+    });
+
+    // After maxRetriesPerSection failures, the loop escalates and halts
+    expect(result.outcome).toBe("section-failed");
+    const section = result.sections[0];
+    expect(section?.retryCount).toBeGreaterThanOrEqual(1);
+  });
+
+  it("increments retryCount when llm_prompt fails", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", title: "Task", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const failingLlm = makeSpyLlm({
+      ok: false,
+      error: { category: "api_error", message: "LLM unavailable", originalError: null },
+    });
+    const service = makeService(store);
+
+    const result = await service.run(plan.id, {
+      loopPhases: [{ phase: "VALIDATE", type: "llm_prompt", content: "validate task {taskId}" }],
+      llm: failingLlm,
+      maxRetriesPerSection: 2,
+    });
+
+    expect(result.outcome).toBe("section-failed");
+    const section = result.sections[0];
+    expect(section?.retryCount).toBeGreaterThanOrEqual(1);
+  });
+
+  it("halts section when git_command fails", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", title: "Task", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const failingGit: IGitController = {
+      async listBranches() { return { ok: true, value: [] }; },
+      async detectChanges() {
+        return { ok: true, value: { staged: [], unstaged: [], untracked: [] } };
+      },
+      async createAndCheckoutBranch() {
+        return { ok: true, value: { branchName: "b", baseBranch: "main", conflictResolved: false } };
+      },
+      async stageAndCommit() {
+        return { ok: false, error: { type: "runtime", message: "Nothing to commit" } };
+      },
+      async push() { return { ok: true, value: { branchName: "b", remote: "origin", commitHash: "" } }; },
+    };
+    const service = makeService(store, { gitController: failingGit });
+
+    const result = await service.run(plan.id, {
+      loopPhases: [{ phase: "COMMIT", type: "git_command", content: "" }],
+      maxRetriesPerSection: 2,
+    });
+
+    // git failure causes escalation/halt
+    expect(result.outcome).toBe("section-failed");
+  });
+
+  it("falls back to agentLoop.run when loopPhases is absent", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", title: "Task", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const spyAgentLoop = makeSpyAgentLoop();
+    const service = makeService(store, {
+      agentLoop: spyAgentLoop,
+      reviewEngine: makeSpyReviewEngine(),
+      gitController: makeSpyGitController(),
+    });
+
+    // No loopPhases in options — hardcoded agent loop path
+    await service.run(plan.id, { maxRetriesPerSection: 3 });
+
+    expect(spyAgentLoop.calls.length).toBeGreaterThan(0);
+  });
+
+  it("falls back to agentLoop.run when loopPhases is empty array", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", title: "Task", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const spyAgentLoop = makeSpyAgentLoop();
+    const service = makeService(store, {
+      agentLoop: spyAgentLoop,
+      reviewEngine: makeSpyReviewEngine(),
+      gitController: makeSpyGitController(),
+    });
+
+    await service.run(plan.id, { loopPhases: [], maxRetriesPerSection: 3 });
+
+    expect(spyAgentLoop.calls.length).toBeGreaterThan(0);
+  });
+
+  it("respects maxRetriesPerSection in the configured-phases path", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", title: "Task", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const failingSdd = makeSpySdd({ ok: false, error: { exitCode: 1, stderr: "error" } });
+    const service = makeService(store);
+
+    const maxRetries = 2;
+    const result = await service.run(plan.id, {
+      loopPhases: [{ phase: "SPEC_IMPL", type: "llm_slash_command", content: "kiro:spec-impl" }],
+      sdd: failingSdd,
+      maxRetriesPerSection: maxRetries,
+    });
+
+    // Loop should have halted at section-failed after maxRetries exhausted
+    expect(result.outcome).toBe("section-failed");
+    // The SDD should have been called exactly maxRetries times (one per attempt until halt)
+    expect(failingSdd.calls.length).toBe(maxRetries);
+  });
+
+  it("returns descriptive error when sdd is absent and llm_slash_command sub-phase is reached", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", title: "Task", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const service = makeService(store);
+
+    const result = await service.run(plan.id, {
+      loopPhases: [{ phase: "SPEC_IMPL", type: "llm_slash_command", content: "kiro:spec-impl" }],
+      // sdd intentionally omitted
+      maxRetriesPerSection: 1,
+    });
+
+    expect(result.outcome).toBe("section-failed");
+    const section = result.sections[0];
+    // The descriptive error surfaces in the iteration feedback description
+    const iterFeedback = section?.iterations[0]?.reviewResult.feedback[0]?.description ?? "";
+    expect(iterFeedback).toContain("SDD adapter not configured");
+    expect(iterFeedback).toContain("SPEC_IMPL");
+  });
+
+  it("returns descriptive error when llm is absent and llm_prompt sub-phase is reached", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", title: "Task", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const service = makeService(store);
+
+    const result = await service.run(plan.id, {
+      loopPhases: [{ phase: "VALIDATE", type: "llm_prompt", content: "validate {taskId}" }],
+      // llm intentionally omitted
+      maxRetriesPerSection: 1,
+    });
+
+    expect(result.outcome).toBe("section-failed");
+    const section = result.sections[0];
+    // The descriptive error surfaces in the iteration feedback description
+    const iterFeedback = section?.iterations[0]?.reviewResult.feedback[0]?.description ?? "";
+    expect(iterFeedback).toContain("LLM provider not configured");
+    expect(iterFeedback).toContain("VALIDATE");
+  });
+
+  it("propagates commit SHA from git_command sub-phase into SectionExecutionRecord.commitSha", async () => {
+    const plan = makeTaskPlan([makeTask({ id: "t1", title: "Task with commit", status: "pending" })]);
+    const store = makePlanStore(plan);
+    const expectedSha = "deadbeef1234567";
+    const service = makeService(store, { gitController: makeCommitGitController(expectedSha) });
+
+    const result = await service.run(plan.id, {
+      loopPhases: [{ phase: "COMMIT", type: "git_command", content: "" }],
+    });
+
+    expect(result.outcome).toBe("completed");
+    expect(result.sections[0]?.commitSha).toBe(expectedSha);
   });
 });

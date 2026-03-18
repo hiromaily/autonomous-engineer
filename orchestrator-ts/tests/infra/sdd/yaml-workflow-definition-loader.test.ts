@@ -178,4 +178,166 @@ phases:
     expect(phase).toBeDefined();
     expect(phase?.approvalArtifact).toBe("custom.md");
   });
+
+  // ── loop-phases unit tests ──────────────────────────────
+
+  it("loop-phases: parses loop-phases array into loopPhases on the PhaseDefinition", async () => {
+    const yaml = `
+id: loop-test
+phases:
+  - phase: IMPLEMENTATION
+    type: implementation_loop
+    content: ""
+    required_artifacts: []
+    loop-phases:
+      - phase: SPEC_IMPL
+        type: llm_slash_command
+        content: "kiro:spec-impl"
+      - phase: COMMIT
+        type: git_command
+        content: ""
+`;
+    const filePath = path.join(tmpDir, "loop-test.yaml");
+    fs.writeFileSync(filePath, yaml);
+    const loader = new YamlWorkflowDefinitionLoader(tmpDir);
+    const def = await loader.load("loop-test");
+
+    const phase = def.phases.find((p) => p.phase === "IMPLEMENTATION");
+    expect(phase).toBeDefined();
+    expect(phase?.loopPhases).toBeDefined();
+    expect(phase?.loopPhases).toHaveLength(2);
+  });
+
+  it("loop-phases: entries have correct phase, type, and content fields", async () => {
+    const yaml = `
+id: loop-fields-test
+phases:
+  - phase: IMPLEMENTATION
+    type: implementation_loop
+    content: ""
+    required_artifacts: []
+    loop-phases:
+      - phase: SPEC_IMPL
+        type: llm_slash_command
+        content: "kiro:spec-impl"
+      - phase: VALIDATE_IMPL
+        type: llm_prompt
+        content: "Review task {taskId}"
+      - phase: COMMIT
+        type: git_command
+        content: ""
+`;
+    const filePath = path.join(tmpDir, "loop-fields-test.yaml");
+    fs.writeFileSync(filePath, yaml);
+    const loader = new YamlWorkflowDefinitionLoader(tmpDir);
+    const def = await loader.load("loop-fields-test");
+
+    const loopPhases = def.phases.find((p) => p.phase === "IMPLEMENTATION")?.loopPhases;
+    expect(loopPhases).toBeDefined();
+    expect(loopPhases![0].phase).toBe("SPEC_IMPL");
+    expect(loopPhases![0].type).toBe("llm_slash_command");
+    expect(loopPhases![0].content).toBe("kiro:spec-impl");
+    expect(loopPhases![1].phase).toBe("VALIDATE_IMPL");
+    expect(loopPhases![1].type).toBe("llm_prompt");
+    expect(loopPhases![1].content).toBe("Review task {taskId}");
+    expect(loopPhases![2].phase).toBe("COMMIT");
+    expect(loopPhases![2].type).toBe("git_command");
+    expect(loopPhases![2].content).toBe("");
+  });
+
+  it("loop-phases: throws when loop-phases is not an array", async () => {
+    const yaml = `
+id: loop-not-array
+phases:
+  - phase: IMPLEMENTATION
+    type: implementation_loop
+    content: ""
+    required_artifacts: []
+    loop-phases: "not-an-array"
+`;
+    const filePath = path.join(tmpDir, "loop-not-array.yaml");
+    fs.writeFileSync(filePath, yaml);
+    const loader = new YamlWorkflowDefinitionLoader(tmpDir);
+    await expect(loader.load("loop-not-array")).rejects.toThrow("loop-phases");
+    await expect(loader.load("loop-not-array")).rejects.toThrow("array");
+  });
+
+  it("loop-phases: throws on unknown type in an entry", async () => {
+    const yaml = `
+id: loop-bad-type
+phases:
+  - phase: IMPLEMENTATION
+    type: implementation_loop
+    content: ""
+    required_artifacts: []
+    loop-phases:
+      - phase: SPEC_IMPL
+        type: unknown_type
+        content: "something"
+`;
+    const filePath = path.join(tmpDir, "loop-bad-type.yaml");
+    fs.writeFileSync(filePath, yaml);
+    const loader = new YamlWorkflowDefinitionLoader(tmpDir);
+    await expect(loader.load("loop-bad-type")).rejects.toThrow("unknown_type");
+  });
+
+  it("loop-phases: throws on missing phase name in an entry", async () => {
+    const yaml = `
+id: loop-no-phase-name
+phases:
+  - phase: IMPLEMENTATION
+    type: implementation_loop
+    content: ""
+    required_artifacts: []
+    loop-phases:
+      - type: git_command
+        content: ""
+`;
+    const filePath = path.join(tmpDir, "loop-no-phase-name.yaml");
+    fs.writeFileSync(filePath, yaml);
+    const loader = new YamlWorkflowDefinitionLoader(tmpDir);
+    await expect(loader.load("loop-no-phase-name")).rejects.toThrow("phase");
+  });
+
+  it("loop-phases: absence of loop-phases yields loopPhases === undefined", async () => {
+    const yaml = `
+id: loop-absent
+phases:
+  - phase: IMPLEMENTATION
+    type: implementation_loop
+    content: ""
+    required_artifacts: []
+`;
+    const filePath = path.join(tmpDir, "loop-absent.yaml");
+    fs.writeFileSync(filePath, yaml);
+    const loader = new YamlWorkflowDefinitionLoader(tmpDir);
+    const def = await loader.load("loop-absent");
+
+    const phase = def.phases.find((p) => p.phase === "IMPLEMENTATION");
+    expect(phase).toBeDefined();
+    expect(phase?.loopPhases).toBeUndefined();
+  });
+
+  it("loop-phases: loop-phases on non-implementation_loop phase is silently ignored (loopPhases undefined)", async () => {
+    const yaml = `
+id: loop-ignored
+phases:
+  - phase: REQUIREMENTS
+    type: llm_slash_command
+    content: "kiro:spec-requirements"
+    required_artifacts: []
+    loop-phases:
+      - phase: SPEC_IMPL
+        type: llm_slash_command
+        content: "kiro:spec-impl"
+`;
+    const filePath = path.join(tmpDir, "loop-ignored.yaml");
+    fs.writeFileSync(filePath, yaml);
+    const loader = new YamlWorkflowDefinitionLoader(tmpDir);
+    const def = await loader.load("loop-ignored");
+
+    const phase = def.phases.find((p) => p.phase === "REQUIREMENTS");
+    expect(phase).toBeDefined();
+    expect(phase?.loopPhases).toBeUndefined();
+  });
 });
