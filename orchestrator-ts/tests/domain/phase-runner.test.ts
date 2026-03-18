@@ -6,12 +6,13 @@ import type {
 import type { LlmProviderPort } from "@/application/ports/llm";
 import type { SddFrameworkPort, SddOperationResult, SpecContext } from "@/application/ports/sdd";
 import { PhaseRunner } from "@/application/services/workflow/phase-runner";
+import type { FrameworkDefinition } from "@/domain/workflow/framework";
 import type { WorkflowPhase } from "@/domain/workflow/types";
 import { describe, expect, it, mock } from "bun:test";
 
 const ctx: SpecContext = {
   specName: "my-spec",
-  specDir: ".kiro/specs",
+  specDir: ".kiro/specs/my-spec",
   language: "en",
 };
 
@@ -30,11 +31,68 @@ function makeLlmProvider(): LlmProviderPort {
   };
 }
 
+function makeFrameworkDef(): FrameworkDefinition {
+  return {
+    id: "test-fw",
+    phases: [
+      { phase: "SPEC_INIT", type: "llm_slash_command", content: "kiro:spec-init", requiredArtifacts: [] },
+      { phase: "HUMAN_INTERACTION", type: "human_interaction", content: "", requiredArtifacts: [] },
+      {
+        phase: "VALIDATE_PREREQUISITES",
+        type: "llm_prompt",
+        content: "Verify prerequisites for '{specDir}'.",
+        requiredArtifacts: [],
+      },
+      {
+        phase: "SPEC_REQUIREMENTS",
+        type: "llm_slash_command",
+        content: "kiro:spec-requirements",
+        requiredArtifacts: ["requirements.md"],
+      },
+      {
+        phase: "VALIDATE_REQUIREMENTS",
+        type: "llm_prompt",
+        content: "Validate requirements at '{specDir}/requirements.md'.",
+        requiredArtifacts: [],
+      },
+      {
+        phase: "REFLECT_BEFORE_DESIGN",
+        type: "llm_prompt",
+        content: "Reflect before design for '{specDir}'.",
+        requiredArtifacts: [],
+      },
+      { phase: "VALIDATE_GAP", type: "llm_slash_command", content: "kiro:validate-gap", requiredArtifacts: [] },
+      { phase: "SPEC_DESIGN", type: "llm_slash_command", content: "kiro:spec-design", requiredArtifacts: [] },
+      {
+        phase: "VALIDATE_DESIGN",
+        type: "llm_slash_command",
+        content: "kiro:validate-design",
+        requiredArtifacts: [],
+      },
+      {
+        phase: "REFLECT_BEFORE_TASKS",
+        type: "llm_prompt",
+        content: "Reflect before tasks for '{specDir}'.",
+        requiredArtifacts: [],
+      },
+      { phase: "SPEC_TASKS", type: "llm_slash_command", content: "kiro:spec-tasks", requiredArtifacts: [] },
+      {
+        phase: "VALIDATE_TASKS",
+        type: "llm_prompt",
+        content: "Validate tasks at '{specDir}/tasks.md'.",
+        requiredArtifacts: [],
+      },
+      { phase: "IMPLEMENTATION", type: "implementation_loop", content: "", requiredArtifacts: [] },
+      { phase: "PULL_REQUEST", type: "git_command", content: "", requiredArtifacts: [] },
+    ],
+  };
+}
+
 describe("PhaseRunner", () => {
   describe("execute - SDD-backed phases", () => {
     it("dispatches SPEC_REQUIREMENTS to executeCommand('kiro:spec-requirements') and returns artifact path", async () => {
       const sdd = makeSddAdapter({ ok: true, artifactPath: ".kiro/specs/my-spec/requirements.md" });
-      const runner = new PhaseRunner({ sdd, llm: makeLlmProvider() });
+      const runner = new PhaseRunner({ sdd, llm: makeLlmProvider(), frameworkDefinition: makeFrameworkDef() });
       const result = await runner.execute("SPEC_REQUIREMENTS", ctx);
 
       expect(sdd.executeCommand).toHaveBeenCalledWith("kiro:spec-requirements", ctx);
@@ -43,7 +101,7 @@ describe("PhaseRunner", () => {
 
     it("dispatches SPEC_DESIGN to executeCommand('kiro:spec-design') and returns artifact path", async () => {
       const sdd = makeSddAdapter({ ok: true, artifactPath: ".kiro/specs/my-spec/design.md" });
-      const runner = new PhaseRunner({ sdd, llm: makeLlmProvider() });
+      const runner = new PhaseRunner({ sdd, llm: makeLlmProvider(), frameworkDefinition: makeFrameworkDef() });
       const result = await runner.execute("SPEC_DESIGN", ctx);
 
       expect(sdd.executeCommand).toHaveBeenCalledWith("kiro:spec-design", ctx);
@@ -52,7 +110,7 @@ describe("PhaseRunner", () => {
 
     it("dispatches VALIDATE_DESIGN to executeCommand('kiro:validate-design') and returns artifact path", async () => {
       const sdd = makeSddAdapter({ ok: true, artifactPath: ".kiro/specs/my-spec/design-review.md" });
-      const runner = new PhaseRunner({ sdd, llm: makeLlmProvider() });
+      const runner = new PhaseRunner({ sdd, llm: makeLlmProvider(), frameworkDefinition: makeFrameworkDef() });
       const result = await runner.execute("VALIDATE_DESIGN", ctx);
 
       expect(sdd.executeCommand).toHaveBeenCalledWith("kiro:validate-design", ctx);
@@ -61,7 +119,7 @@ describe("PhaseRunner", () => {
 
     it("dispatches SPEC_TASKS to executeCommand('kiro:spec-tasks') and returns artifact path", async () => {
       const sdd = makeSddAdapter({ ok: true, artifactPath: ".kiro/specs/my-spec/tasks.md" });
-      const runner = new PhaseRunner({ sdd, llm: makeLlmProvider() });
+      const runner = new PhaseRunner({ sdd, llm: makeLlmProvider(), frameworkDefinition: makeFrameworkDef() });
       const result = await runner.execute("SPEC_TASKS", ctx);
 
       expect(sdd.executeCommand).toHaveBeenCalledWith("kiro:spec-tasks", ctx);
@@ -70,7 +128,7 @@ describe("PhaseRunner", () => {
 
     it("dispatches VALIDATE_GAP to executeCommand('kiro:validate-gap')", async () => {
       const sdd = makeSddAdapter({ ok: true, artifactPath: ".kiro/specs/my-spec/requirements.md" });
-      const runner = new PhaseRunner({ sdd, llm: makeLlmProvider() });
+      const runner = new PhaseRunner({ sdd, llm: makeLlmProvider(), frameworkDefinition: makeFrameworkDef() });
       const result = await runner.execute("VALIDATE_GAP", ctx);
 
       expect(sdd.executeCommand).toHaveBeenCalledWith("kiro:validate-gap", ctx);
@@ -79,7 +137,7 @@ describe("PhaseRunner", () => {
 
     it("maps SDD failure to PhaseResult error", async () => {
       const sdd = makeSddAdapter({ ok: false, error: { exitCode: 1, stderr: "cc-sdd: spec not found" } });
-      const runner = new PhaseRunner({ sdd, llm: makeLlmProvider() });
+      const runner = new PhaseRunner({ sdd, llm: makeLlmProvider(), frameworkDefinition: makeFrameworkDef() });
       const result = await runner.execute("SPEC_REQUIREMENTS", ctx);
 
       expect(result).toEqual({ ok: false, error: "cc-sdd: spec not found (exit 1)" });
@@ -87,7 +145,7 @@ describe("PhaseRunner", () => {
 
     it("maps SDD failure with empty stderr gracefully", async () => {
       const sdd = makeSddAdapter({ ok: false, error: { exitCode: 2, stderr: "" } });
-      const runner = new PhaseRunner({ sdd, llm: makeLlmProvider() });
+      const runner = new PhaseRunner({ sdd, llm: makeLlmProvider(), frameworkDefinition: makeFrameworkDef() });
       const result = await runner.execute("SPEC_DESIGN", ctx);
 
       expect(result).toEqual({ ok: false, error: "SDD adapter failed (exit 2)" });
@@ -97,7 +155,7 @@ describe("PhaseRunner", () => {
   describe("execute - SPEC_INIT phase", () => {
     it("dispatches SPEC_INIT to executeCommand('kiro:spec-init') and returns artifact path", async () => {
       const sdd = makeSddAdapter({ ok: true, artifactPath: ".kiro/specs/my-spec/spec.json" });
-      const runner = new PhaseRunner({ sdd, llm: makeLlmProvider() });
+      const runner = new PhaseRunner({ sdd, llm: makeLlmProvider(), frameworkDefinition: makeFrameworkDef() });
       const result = await runner.execute("SPEC_INIT", ctx);
 
       expect(sdd.executeCommand).toHaveBeenCalledWith("kiro:spec-init", ctx);
@@ -106,7 +164,7 @@ describe("PhaseRunner", () => {
 
     it("propagates executeCommand failure as phase failure", async () => {
       const sdd = makeSddAdapter({ ok: false, error: { exitCode: 1, stderr: "init failed" } });
-      const runner = new PhaseRunner({ sdd, llm: makeLlmProvider() });
+      const runner = new PhaseRunner({ sdd, llm: makeLlmProvider(), frameworkDefinition: makeFrameworkDef() });
       const result = await runner.execute("SPEC_INIT", ctx);
 
       expect(result.ok).toBe(false);
@@ -114,26 +172,50 @@ describe("PhaseRunner", () => {
     });
   });
 
-  describe("execute - stub phases", () => {
-    it("returns success with empty artifacts for IMPLEMENTATION", async () => {
-      const runner = new PhaseRunner({ sdd: makeSddAdapter({ ok: true, artifactPath: "" }), llm: makeLlmProvider() });
-      const result = await runner.execute("IMPLEMENTATION", ctx);
+  describe("execute - llm_prompt phases (data-driven dispatch)", () => {
+    it("calls llm.complete() with interpolated prompt for VALIDATE_PREREQUISITES", async () => {
+      const llm = makeLlmProvider();
+      const runner = new PhaseRunner({
+        sdd: makeSddAdapter({ ok: true, artifactPath: "" }),
+        llm,
+        frameworkDefinition: makeFrameworkDef(),
+      });
+
+      await runner.execute("VALIDATE_PREREQUISITES", ctx);
+
+      // ctx.specDir = ".kiro/specs/my-spec"
+      expect(llm.complete).toHaveBeenCalledWith("Verify prerequisites for '.kiro/specs/my-spec'.");
+    });
+
+    it("returns { ok: true, artifacts: [] } when llm.complete() succeeds for a llm_prompt phase", async () => {
+      const runner = new PhaseRunner({
+        sdd: makeSddAdapter({ ok: true, artifactPath: "" }),
+        llm: makeLlmProvider(),
+        frameworkDefinition: makeFrameworkDef(),
+      });
+      const result = await runner.execute("VALIDATE_PREREQUISITES", ctx);
       expect(result).toEqual({ ok: true, artifacts: [] });
     });
 
-    it("returns success with empty artifacts for PULL_REQUEST", async () => {
-      const runner = new PhaseRunner({ sdd: makeSddAdapter({ ok: true, artifactPath: "" }), llm: makeLlmProvider() });
-      const result = await runner.execute("PULL_REQUEST", ctx);
-      expect(result).toEqual({ ok: true, artifacts: [] });
+    it("returns { ok: false, error } when llm.complete() fails for a llm_prompt phase", async () => {
+      const llm: LlmProviderPort = {
+        complete: mock(() =>
+          Promise.resolve({
+            ok: false as const,
+            error: { category: "api_error" as const, message: "LLM unavailable", originalError: null },
+          })
+        ),
+        clearContext: mock(() => {}),
+      };
+      const runner = new PhaseRunner({
+        sdd: makeSddAdapter({ ok: true, artifactPath: "" }),
+        llm,
+        frameworkDefinition: makeFrameworkDef(),
+      });
+      const result = await runner.execute("VALIDATE_REQUIREMENTS", ctx);
+      expect(result).toEqual({ ok: false, error: "LLM unavailable" });
     });
 
-    it("returns success with empty artifacts for HUMAN_INTERACTION", async () => {
-      const runner = new PhaseRunner({ sdd: makeSddAdapter({ ok: true, artifactPath: "" }), llm: makeLlmProvider() });
-      const result = await runner.execute("HUMAN_INTERACTION", ctx);
-      expect(result).toEqual({ ok: true, artifacts: [] });
-    });
-
-    // llm_prompt phases are stubbed until task 5 wires LLM dispatch
     it.each(
       [
         "VALIDATE_PREREQUISITES",
@@ -142,21 +224,22 @@ describe("PhaseRunner", () => {
         "REFLECT_BEFORE_TASKS",
         "VALIDATE_TASKS",
       ] as const,
-    )("%s returns success with empty artifacts (llm_prompt stub)", async (phase) => {
-      const runner = new PhaseRunner({ sdd: makeSddAdapter({ ok: true, artifactPath: "" }), llm: makeLlmProvider() });
+    )("%s returns success with empty artifacts when llm succeeds", async (phase) => {
+      const runner = new PhaseRunner({
+        sdd: makeSddAdapter({ ok: true, artifactPath: "" }),
+        llm: makeLlmProvider(),
+        frameworkDefinition: makeFrameworkDef(),
+      });
       const result = await runner.execute(phase, ctx);
       expect(result).toEqual({ ok: true, artifacts: [] });
     });
 
-    it("does not call executeCommand for llm_prompt, human_interaction, or non-SDD phases", async () => {
+    it("does not call sdd.executeCommand for llm_prompt phases", async () => {
       const sdd = makeSddAdapter({ ok: true, artifactPath: "" });
-      const runner = new PhaseRunner({ sdd, llm: makeLlmProvider() });
+      const runner = new PhaseRunner({ sdd, llm: makeLlmProvider(), frameworkDefinition: makeFrameworkDef() });
 
       for (
         const phase of [
-          "HUMAN_INTERACTION",
-          "IMPLEMENTATION",
-          "PULL_REQUEST",
           "VALIDATE_PREREQUISITES",
           "VALIDATE_REQUIREMENTS",
           "REFLECT_BEFORE_DESIGN",
@@ -168,6 +251,52 @@ describe("PhaseRunner", () => {
       }
 
       expect(sdd.executeCommand).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("execute - human_interaction and git_command phases", () => {
+    it("returns { ok: true, artifacts: [] } for HUMAN_INTERACTION without calling sdd or llm", async () => {
+      const sdd = makeSddAdapter({ ok: true, artifactPath: "" });
+      const llm = makeLlmProvider();
+      const runner = new PhaseRunner({ sdd, llm, frameworkDefinition: makeFrameworkDef() });
+
+      const result = await runner.execute("HUMAN_INTERACTION", ctx);
+
+      expect(result).toEqual({ ok: true, artifacts: [] });
+      expect(sdd.executeCommand).not.toHaveBeenCalled();
+      expect(llm.complete).not.toHaveBeenCalled();
+    });
+
+    it("returns { ok: true, artifacts: [] } for PULL_REQUEST without calling sdd or llm", async () => {
+      const sdd = makeSddAdapter({ ok: true, artifactPath: "" });
+      const llm = makeLlmProvider();
+      const runner = new PhaseRunner({ sdd, llm, frameworkDefinition: makeFrameworkDef() });
+
+      const result = await runner.execute("PULL_REQUEST", ctx);
+
+      expect(result).toEqual({ ok: true, artifacts: [] });
+      expect(sdd.executeCommand).not.toHaveBeenCalled();
+      expect(llm.complete).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("execute - unregistered phase", () => {
+    it("throws an error when execute() is called with a phase not present in framework definition", async () => {
+      const frameworkDef: FrameworkDefinition = {
+        id: "minimal-fw",
+        phases: [
+          { phase: "SPEC_INIT", type: "llm_slash_command", content: "kiro:spec-init", requiredArtifacts: [] },
+        ],
+      };
+      const runner = new PhaseRunner({
+        sdd: makeSddAdapter({ ok: true, artifactPath: "" }),
+        llm: makeLlmProvider(),
+        frameworkDefinition: frameworkDef,
+      });
+
+      await expect(runner.execute("SPEC_REQUIREMENTS", ctx)).rejects.toThrow(
+        "Unregistered workflow phase: SPEC_REQUIREMENTS in framework minimal-fw",
+      );
     });
   });
 
@@ -186,6 +315,7 @@ describe("PhaseRunner", () => {
       const runner = new PhaseRunner({
         sdd: makeSddAdapter({ ok: true, artifactPath: "" }),
         llm: makeLlmProvider(),
+        frameworkDefinition: makeFrameworkDef(),
         implementationLoop: loop,
       });
       await runner.execute("IMPLEMENTATION", ctx);
@@ -197,6 +327,7 @@ describe("PhaseRunner", () => {
       const runner = new PhaseRunner({
         sdd: makeSddAdapter({ ok: true, artifactPath: "" }),
         llm: makeLlmProvider(),
+        frameworkDefinition: makeFrameworkDef(),
         implementationLoop: loop,
       });
       await runner.execute("IMPLEMENTATION", ctx);
@@ -208,6 +339,7 @@ describe("PhaseRunner", () => {
       const runner = new PhaseRunner({
         sdd: makeSddAdapter({ ok: true, artifactPath: "" }),
         llm: makeLlmProvider(),
+        frameworkDefinition: makeFrameworkDef(),
         implementationLoop: makeImplementationLoop("completed"),
       });
       const result = await runner.execute("IMPLEMENTATION", ctx);
@@ -218,6 +350,7 @@ describe("PhaseRunner", () => {
       const runner = new PhaseRunner({
         sdd: makeSddAdapter({ ok: true, artifactPath: "" }),
         llm: makeLlmProvider(),
+        frameworkDefinition: makeFrameworkDef(),
         implementationLoop: makeImplementationLoop("section-failed"),
       });
       const result = await runner.execute("IMPLEMENTATION", ctx);
@@ -228,6 +361,7 @@ describe("PhaseRunner", () => {
       const runner = new PhaseRunner({
         sdd: makeSddAdapter({ ok: true, artifactPath: "" }),
         llm: makeLlmProvider(),
+        frameworkDefinition: makeFrameworkDef(),
         implementationLoop: makeImplementationLoop("human-intervention-required"),
       });
       const result = await runner.execute("IMPLEMENTATION", ctx);
@@ -249,6 +383,7 @@ describe("PhaseRunner", () => {
       const runner = new PhaseRunner({
         sdd: makeSddAdapter({ ok: true, artifactPath: "" }),
         llm: makeLlmProvider(),
+        frameworkDefinition: makeFrameworkDef(),
         implementationLoop: loop,
       });
       const result = await runner.execute("IMPLEMENTATION", ctx);
@@ -257,7 +392,11 @@ describe("PhaseRunner", () => {
     });
 
     it("stubs to success when implementationLoop is not provided", async () => {
-      const runner = new PhaseRunner({ sdd: makeSddAdapter({ ok: true, artifactPath: "" }), llm: makeLlmProvider() });
+      const runner = new PhaseRunner({
+        sdd: makeSddAdapter({ ok: true, artifactPath: "" }),
+        llm: makeLlmProvider(),
+        frameworkDefinition: makeFrameworkDef(),
+      });
       const result = await runner.execute("IMPLEMENTATION", ctx);
       expect(result).toEqual({ ok: true, artifacts: [] });
     });
@@ -265,7 +404,11 @@ describe("PhaseRunner", () => {
 
   describe("onEnter / onExit lifecycle hooks", () => {
     it("onEnter resolves without error for any phase", async () => {
-      const runner = new PhaseRunner({ sdd: makeSddAdapter({ ok: true, artifactPath: "" }), llm: makeLlmProvider() });
+      const runner = new PhaseRunner({
+        sdd: makeSddAdapter({ ok: true, artifactPath: "" }),
+        llm: makeLlmProvider(),
+        frameworkDefinition: makeFrameworkDef(),
+      });
       const phases: WorkflowPhase[] = [
         "SPEC_INIT",
         "HUMAN_INTERACTION",
@@ -288,7 +431,11 @@ describe("PhaseRunner", () => {
     });
 
     it("onExit resolves without error for any phase", async () => {
-      const runner = new PhaseRunner({ sdd: makeSddAdapter({ ok: true, artifactPath: "" }), llm: makeLlmProvider() });
+      const runner = new PhaseRunner({
+        sdd: makeSddAdapter({ ok: true, artifactPath: "" }),
+        llm: makeLlmProvider(),
+        frameworkDefinition: makeFrameworkDef(),
+      });
       const phases: WorkflowPhase[] = [
         "SPEC_INIT",
         "HUMAN_INTERACTION",
@@ -332,7 +479,11 @@ describe("PhaseRunner", () => {
     it("onEnter calls llm.clearContext() for every phase", async () => {
       for (const phase of allPhases) {
         const llm = makeLlmProvider();
-        const runner = new PhaseRunner({ sdd: makeSddAdapter({ ok: true, artifactPath: "" }), llm });
+        const runner = new PhaseRunner({
+          sdd: makeSddAdapter({ ok: true, artifactPath: "" }),
+          llm,
+          frameworkDefinition: makeFrameworkDef(),
+        });
         await runner.onEnter(phase);
         expect(llm.clearContext).toHaveBeenCalledTimes(1);
       }
@@ -341,7 +492,11 @@ describe("PhaseRunner", () => {
     it("onExit does not call llm.clearContext()", async () => {
       for (const phase of allPhases) {
         const llm = makeLlmProvider();
-        const runner = new PhaseRunner({ sdd: makeSddAdapter({ ok: true, artifactPath: "" }), llm });
+        const runner = new PhaseRunner({
+          sdd: makeSddAdapter({ ok: true, artifactPath: "" }),
+          llm,
+          frameworkDefinition: makeFrameworkDef(),
+        });
         await runner.onExit(phase);
         expect(llm.clearContext).not.toHaveBeenCalled();
       }
@@ -350,7 +505,7 @@ describe("PhaseRunner", () => {
     it("execute() does not call llm.clearContext() directly (clearContext is the onEnter concern)", async () => {
       const llm = makeLlmProvider();
       const sdd = makeSddAdapter({ ok: true, artifactPath: "some/path.md" });
-      const runner = new PhaseRunner({ sdd, llm });
+      const runner = new PhaseRunner({ sdd, llm, frameworkDefinition: makeFrameworkDef() });
       await runner.execute("SPEC_REQUIREMENTS", ctx);
       // clearContext is not called inside execute — it is the caller's (WorkflowEngine's) responsibility
       // to call onEnter before execute; verify that execute itself does not double-clear
@@ -359,7 +514,11 @@ describe("PhaseRunner", () => {
 
     it("calling onEnter twice resets context twice (each transition is independent)", async () => {
       const llm = makeLlmProvider();
-      const runner = new PhaseRunner({ sdd: makeSddAdapter({ ok: true, artifactPath: "" }), llm });
+      const runner = new PhaseRunner({
+        sdd: makeSddAdapter({ ok: true, artifactPath: "" }),
+        llm,
+        frameworkDefinition: makeFrameworkDef(),
+      });
       await runner.onEnter("SPEC_REQUIREMENTS");
       await runner.onEnter("SPEC_DESIGN");
       expect(llm.clearContext).toHaveBeenCalledTimes(2);

@@ -29,6 +29,7 @@ import { NdjsonFileLogger } from "@/infra/logger/ndjson-file-logger";
 import { FileMemoryStore } from "@/infra/memory/file-memory-store";
 import { PlanFileStore, PlanFileStoreAdapter } from "@/infra/planning/plan-file-store";
 import { CcSddAdapter } from "@/infra/sdd/cc-sdd-adapter";
+import { CC_SDD_FRAMEWORK_DEFINITION } from "@/infra/sdd/cc-sdd-framework-definition";
 import { MockSddAdapter } from "@/infra/sdd/mock-sdd-adapter";
 import { WorkflowStateStore } from "@/infra/state/workflow-state-store";
 import {
@@ -316,6 +317,7 @@ export class RunContainer {
         stateStore: new WorkflowStateStore(),
         eventBus: this.eventBus,
         sdd: this.options.debug ? new MockSddAdapter(this.debugWriter ?? undefined) : new CcSddAdapter(),
+        frameworkDefinition: CC_SDD_FRAMEWORK_DEFINITION,
         memory: this.memory,
         implementationLoop: this.implementationLoop,
         createLlmProvider: (_cfg, override) => this.newLlmProvider(override),

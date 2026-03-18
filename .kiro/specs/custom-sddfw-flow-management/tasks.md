@@ -65,14 +65,14 @@
   - This is a type-only change with no behavioral impact; it resolves the broken type reference that Task 4.1 introduces when named methods are removed from the port
   - _Requirements: 3.9_
 
-- [ ] 5. Refactor PhaseRunner with data-driven dispatch
-- [ ] 5.1 Add framework definition as a required PhaseRunner dependency
+- [x] 5. Refactor PhaseRunner with data-driven dispatch
+- [x] 5.1 Add framework definition as a required PhaseRunner dependency
   - Add `frameworkDefinition: FrameworkDefinition` to `PhaseRunnerDeps` and store it on the instance
   - At the start of `execute(phase, ctx)`, look up the matching `PhaseDefinition` in `frameworkDefinition.phases`; if not found, throw `Error("Unregistered workflow phase: ${phase} in framework ${frameworkDefinition.id}")`
   - Verify that `onEnter()` still calls `this.llm.clearContext()` unchanged — this behavior must be preserved through the refactoring
   - _Requirements: 3.1, 3.8_
 
-- [ ] 5.2 Implement type-based dispatch and remove the hardcoded switch statement
+- [x] 5.2 Implement type-based dispatch and remove the hardcoded switch statement
   - For `llm_slash_command`: interpolate `{specDir}`, `{specName}`, `{language}` placeholders in `content` using `ctx`, then call `sdd.executeCommand(interpolatedContent, ctx)` and map the result through `mapSddResult()`
   - For `llm_prompt`: apply the same placeholder interpolation on `content`, call `llm.complete(interpolatedPrompt)`, and return `{ ok: true, artifacts: [] }` on success or `{ ok: false, error: llmError.message }` on failure
   - For `human_interaction` and `git_command`: return `{ ok: true, artifacts: [] }` without calling any external port

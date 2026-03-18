@@ -1,6 +1,7 @@
 import type { IImplementationLoop, ImplementationLoopOptions } from "@/application/ports/implementation-loop";
 import type { LlmProviderPort } from "@/application/ports/llm";
 import type { SddFrameworkPort, SddOperationResult, SpecContext } from "@/application/ports/sdd";
+import type { FrameworkDefinition } from "@/domain/workflow/framework";
 import type { WorkflowPhase } from "@/domain/workflow/types";
 
 export type PhaseResult =
@@ -10,6 +11,7 @@ export type PhaseResult =
 export interface PhaseRunnerDeps {
   readonly sdd: SddFrameworkPort;
   readonly llm: LlmProviderPort;
+  readonly frameworkDefinition: FrameworkDefinition;
   /** Optional implementation loop service. When provided, the IMPLEMENTATION phase delegates
    *  to `implementationLoop.run(specName)`. When absent, the phase stubs to success. */
   readonly implementationLoop?: IImplementationLoop;
@@ -20,56 +22,46 @@ export interface PhaseRunnerDeps {
 export class PhaseRunner {
   private readonly sdd: SddFrameworkPort;
   private readonly llm: LlmProviderPort;
+  private readonly frameworkDefinition: FrameworkDefinition;
   private readonly implementationLoop: IImplementationLoop | undefined;
   private readonly implementationLoopOptions: Partial<ImplementationLoopOptions> | undefined;
 
   constructor(deps: PhaseRunnerDeps) {
     this.sdd = deps.sdd;
     this.llm = deps.llm;
+    this.frameworkDefinition = deps.frameworkDefinition;
     this.implementationLoop = deps.implementationLoop;
     this.implementationLoopOptions = deps.implementationLoopOptions;
   }
 
   async execute(phase: WorkflowPhase, ctx: SpecContext): Promise<PhaseResult> {
-    switch (phase) {
-      // llm_slash_command phases — delegated to the SDD framework adapter
-      case "SPEC_INIT": {
-        const result = await this.sdd.executeCommand("kiro:spec-init", ctx);
+    const phaseDef = this.frameworkDefinition.phases.find((p) => p.phase === phase);
+    if (!phaseDef) {
+      throw new Error(`Unregistered workflow phase: ${phase} in framework ${this.frameworkDefinition.id}`);
+    }
+
+    const interpolate = (content: string): string =>
+      content
+        .replaceAll("{specDir}", ctx.specDir)
+        .replaceAll("{specName}", ctx.specName)
+        .replaceAll("{language}", ctx.language);
+
+    switch (phaseDef.type) {
+      case "llm_slash_command": {
+        const result = await this.sdd.executeCommand(interpolate(phaseDef.content), ctx);
         return this.mapSddResult(result);
       }
-      case "SPEC_REQUIREMENTS": {
-        const result = await this.sdd.executeCommand("kiro:spec-requirements", ctx);
-        return this.mapSddResult(result);
+      case "llm_prompt": {
+        const result = await this.llm.complete(interpolate(phaseDef.content));
+        if (result.ok) {
+          return { ok: true, artifacts: [] };
+        }
+        return { ok: false, error: result.error.message };
       }
-      case "VALIDATE_GAP": {
-        const result = await this.sdd.executeCommand("kiro:validate-gap", ctx);
-        return this.mapSddResult(result);
-      }
-      case "SPEC_DESIGN": {
-        const result = await this.sdd.executeCommand("kiro:spec-design", ctx);
-        return this.mapSddResult(result);
-      }
-      case "VALIDATE_DESIGN": {
-        const result = await this.sdd.executeCommand("kiro:validate-design", ctx);
-        return this.mapSddResult(result);
-      }
-      case "SPEC_TASKS": {
-        const result = await this.sdd.executeCommand("kiro:spec-tasks", ctx);
-        return this.mapSddResult(result);
-      }
-      // llm_prompt phases — stub until task 5 wires LLM dispatch
-      case "VALIDATE_PREREQUISITES":
-      case "VALIDATE_REQUIREMENTS":
-      case "REFLECT_BEFORE_DESIGN":
-      case "REFLECT_BEFORE_TASKS":
-      case "VALIDATE_TASKS":
+      case "human_interaction":
+      case "git_command":
         return { ok: true, artifacts: [] };
-      case "HUMAN_INTERACTION":
-      case "PULL_REQUEST":
-        // HUMAN_INTERACTION is a pause point — the approval gate handles the wait.
-        // PULL_REQUEST wired in a future spec.
-        return { ok: true, artifacts: [] };
-      case "IMPLEMENTATION": {
+      case "implementation_loop": {
         if (this.implementationLoop) {
           const result = await this.implementationLoop.run(ctx.specName, this.implementationLoopOptions);
           if (result.outcome === "completed") {
@@ -81,8 +73,8 @@ export class PhaseRunner {
         return { ok: true, artifacts: [] };
       }
       default: {
-        const _exhaustiveCheck: never = phase;
-        throw new Error(`Unhandled workflow phase: ${_exhaustiveCheck}`);
+        const _exhaustive: never = phaseDef.type;
+        throw new Error(`Unhandled phase execution type: ${_exhaustive}`);
       }
     }
   }
