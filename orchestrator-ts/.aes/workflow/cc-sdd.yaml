@@ -110,6 +110,22 @@ phases:
     content: ""
     required_artifacts:
       - tasks.md
+    loop-phases:
+      - phase: SPEC_IMPL
+        type: llm_slash_command
+        content: "kiro:spec-impl"
+      - phase: VALIDATE_IMPL
+        type: llm_prompt
+        content: |
+          Review the implementation of task {taskId} in spec {specName}.
+          Check that the implementation satisfies the requirements and follows the design.
+          Identify any gaps, errors, or quality issues.
+      - phase: COMMIT
+        type: git_command
+        content: ""
+      - phase: CLEAR_CONTEXT
+        type: llm_slash_command
+        content: "clear"
 
   - phase: PULL_REQUEST
     type: git_command

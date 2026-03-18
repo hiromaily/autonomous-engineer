@@ -1,5 +1,5 @@
 import type { LlmProviderPort } from "@/application/ports/llm";
-import type { FrameworkDefinition } from "@/domain/workflow/framework";
+import type { FrameworkDefinition, LoopPhaseDefinition } from "@/domain/workflow/framework";
 import { mock } from "bun:test";
 
 /** Spy-able LlmProviderPort stub that always resolves successfully. */
@@ -20,7 +20,7 @@ export function makeLlmProvider(): LlmProviderPort {
  * CC_SDD_FRAMEWORK_DEFINITION so approval-gate behavior is realistic.
  * All phases have empty requiredArtifacts so tests run without artifact file setup.
  */
-export function makeFrameworkDef(): FrameworkDefinition {
+export function makeFrameworkDef(options?: { loopPhases?: readonly LoopPhaseDefinition[] }): FrameworkDefinition {
   return {
     id: "test-fw",
     phases: [
@@ -85,7 +85,13 @@ export function makeFrameworkDef(): FrameworkDefinition {
         content: "Validate tasks at '{specDir}/tasks.md'.",
         requiredArtifacts: [],
       },
-      { phase: "IMPLEMENTATION", type: "implementation_loop", content: "", requiredArtifacts: [] },
+      {
+        phase: "IMPLEMENTATION",
+        type: "implementation_loop",
+        content: "",
+        requiredArtifacts: [],
+        ...(options?.loopPhases !== undefined ? { loopPhases: options.loopPhases } : {}),
+      },
       { phase: "PULL_REQUEST", type: "git_command", content: "", requiredArtifacts: [] },
     ],
   };

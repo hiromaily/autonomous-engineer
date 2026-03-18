@@ -71,7 +71,26 @@ export class PhaseRunner {
         return { ok: true, artifacts: [] };
       case "implementation_loop": {
         if (this.implementationLoop) {
-          const result = await this.implementationLoop.run(ctx.specName, this.implementationLoopOptions);
+          // DI-provided options win on most fields, but loopPhases from YAML must NOT be
+          // overridden by DI (DI containers never carry loopPhases intentionally; if they did
+          // it would silently discard the user's YAML configuration). loopPhases is therefore
+          // spread AFTER the DI options so it always takes final precedence.
+          const mergedOptions: Partial<ImplementationLoopOptions> = {
+            // Thread SpecContext fields and service adapters from PhaseRunner's own deps
+            specDir: ctx.specDir,
+            language: ctx.language,
+            sdd: this.sdd,
+            llm: this.llm,
+            // DI-provided options take precedence over the above defaults
+            ...(this.implementationLoopOptions ?? {}),
+            // YAML-configured loop phases always win — spread last so DI cannot accidentally
+            // override the user's explicit YAML configuration
+            ...(phaseDef.loopPhases !== undefined ? { loopPhases: phaseDef.loopPhases } : {}),
+          };
+          const result = await this.implementationLoop.run(
+            ctx.specName,
+            Object.keys(mergedOptions).length > 0 ? mergedOptions : undefined,
+          );
           if (result.outcome === "completed") {
             return { ok: true, artifacts: [] };
           }
