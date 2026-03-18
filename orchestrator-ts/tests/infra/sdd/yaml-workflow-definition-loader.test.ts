@@ -63,23 +63,23 @@ describe("YamlWorkflowDefinitionLoader — integration (real cc-sdd.yaml)", () =
     const loopPhases = implPhase!.loopPhases!;
 
     // Entry 0: SPEC_IMPL — llm_slash_command
-    expect(loopPhases[0].phase).toBe("SPEC_IMPL");
-    expect(loopPhases[0].type).toBe("llm_slash_command");
-    expect(loopPhases[0].content.trim()).not.toBe("");
+    expect(loopPhases[0]!.phase).toBe("SPEC_IMPL");
+    expect(loopPhases[0]!.type).toBe("llm_slash_command");
+    expect(loopPhases[0]!.content.trim()).not.toBe("");
 
     // Entry 1: VALIDATE_IMPL — llm_prompt
-    expect(loopPhases[1].phase).toBe("VALIDATE_IMPL");
-    expect(loopPhases[1].type).toBe("llm_prompt");
-    expect(loopPhases[1].content.trim()).not.toBe("");
+    expect(loopPhases[1]!.phase).toBe("VALIDATE_IMPL");
+    expect(loopPhases[1]!.type).toBe("llm_prompt");
+    expect(loopPhases[1]!.content.trim()).not.toBe("");
 
     // Entry 2: COMMIT — git_command
-    expect(loopPhases[2].phase).toBe("COMMIT");
-    expect(loopPhases[2].type).toBe("git_command");
+    expect(loopPhases[2]!.phase).toBe("COMMIT");
+    expect(loopPhases[2]!.type).toBe("git_command");
 
     // Entry 3: CLEAR_CONTEXT — llm_slash_command
-    expect(loopPhases[3].phase).toBe("CLEAR_CONTEXT");
-    expect(loopPhases[3].type).toBe("llm_slash_command");
-    expect(loopPhases[3].content.trim()).not.toBe("");
+    expect(loopPhases[3]!.phase).toBe("CLEAR_CONTEXT");
+    expect(loopPhases[3]!.type).toBe("llm_slash_command");
+    expect(loopPhases[3]!.content.trim()).not.toBe("");
   });
 });
 
@@ -234,15 +234,15 @@ phases:
 
     const loopPhases = def.phases.find((p) => p.phase === "IMPLEMENTATION")?.loopPhases;
     expect(loopPhases).toBeDefined();
-    expect(loopPhases![0].phase).toBe("SPEC_IMPL");
-    expect(loopPhases![0].type).toBe("llm_slash_command");
-    expect(loopPhases![0].content).toBe("kiro:spec-impl");
-    expect(loopPhases![1].phase).toBe("VALIDATE_IMPL");
-    expect(loopPhases![1].type).toBe("llm_prompt");
-    expect(loopPhases![1].content).toBe("Review task {taskId}");
-    expect(loopPhases![2].phase).toBe("COMMIT");
-    expect(loopPhases![2].type).toBe("git_command");
-    expect(loopPhases![2].content).toBe("");
+    expect(loopPhases![0]!.phase).toBe("SPEC_IMPL");
+    expect(loopPhases![0]!.type).toBe("llm_slash_command");
+    expect(loopPhases![0]!.content).toBe("kiro:spec-impl");
+    expect(loopPhases![1]!.phase).toBe("VALIDATE_IMPL");
+    expect(loopPhases![1]!.type).toBe("llm_prompt");
+    expect(loopPhases![1]!.content).toBe("Review task {taskId}");
+    expect(loopPhases![2]!.phase).toBe("COMMIT");
+    expect(loopPhases![2]!.type).toBe("git_command");
+    expect(loopPhases![2]!.content).toBe("");
   });
 
   it("loop-phases: throws when loop-phases is not an array", async () => {
