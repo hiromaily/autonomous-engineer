@@ -399,19 +399,14 @@ describe("E2E: auto-resume after simulated SPEC_REQUIREMENTS interruption", () =
       const trackingSdd: SddFrameworkPort = {
         executeCommand: mock(async (commandName: string) => {
           sddCalls.push(commandName);
-          // Return appropriate artifact path based on command
+          // llm_slash_command phases only — llm_prompt phases are stubbed in PhaseRunner
           const artifactMap: Record<string, string> = {
             "kiro:spec-init": join(env.specDir, "spec.json"),
-            "kiro:validate-prerequisites": join(env.specDir, "requirements.md"),
             "kiro:spec-requirements": join(env.specDir, "requirements.md"),
-            "kiro:validate-requirements": join(env.specDir, "requirements.md"),
-            "kiro:reflect-before-design": join(env.specDir, "requirements.md"),
-            "kiro:reflect-before-tasks": join(env.specDir, "design.md"),
             "kiro:validate-gap": join(env.specDir, "requirements.md"),
             "kiro:spec-design": join(env.specDir, "design.md"),
             "kiro:validate-design": join(env.specDir, "design.md"),
             "kiro:spec-tasks": join(env.specDir, "tasks.md"),
-            "kiro:validate-tasks": join(env.specDir, "tasks.md"),
           };
           return { ok: true as const, artifactPath: artifactMap[commandName] ?? "" };
         }),

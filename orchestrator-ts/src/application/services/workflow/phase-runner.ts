@@ -32,24 +32,13 @@ export class PhaseRunner {
 
   async execute(phase: WorkflowPhase, ctx: SpecContext): Promise<PhaseResult> {
     switch (phase) {
-      case "VALIDATE_PREREQUISITES": {
-        const result = await this.sdd.executeCommand("kiro:validate-prerequisites", ctx);
+      // llm_slash_command phases — delegated to the SDD framework adapter
+      case "SPEC_INIT": {
+        const result = await this.sdd.executeCommand("kiro:spec-init", ctx);
         return this.mapSddResult(result);
       }
       case "SPEC_REQUIREMENTS": {
         const result = await this.sdd.executeCommand("kiro:spec-requirements", ctx);
-        return this.mapSddResult(result);
-      }
-      case "VALIDATE_REQUIREMENTS": {
-        const result = await this.sdd.executeCommand("kiro:validate-requirements", ctx);
-        return this.mapSddResult(result);
-      }
-      case "REFLECT_BEFORE_DESIGN": {
-        const result = await this.sdd.executeCommand("kiro:reflect-before-design", ctx);
-        return this.mapSddResult(result);
-      }
-      case "REFLECT_BEFORE_TASKS": {
-        const result = await this.sdd.executeCommand("kiro:reflect-before-tasks", ctx);
         return this.mapSddResult(result);
       }
       case "VALIDATE_GAP": {
@@ -68,14 +57,13 @@ export class PhaseRunner {
         const result = await this.sdd.executeCommand("kiro:spec-tasks", ctx);
         return this.mapSddResult(result);
       }
-      case "VALIDATE_TASKS": {
-        const result = await this.sdd.executeCommand("kiro:validate-tasks", ctx);
-        return this.mapSddResult(result);
-      }
-      case "SPEC_INIT": {
-        const result = await this.sdd.executeCommand("kiro:spec-init", ctx);
-        return this.mapSddResult(result);
-      }
+      // llm_prompt phases — stub until task 5 wires LLM dispatch
+      case "VALIDATE_PREREQUISITES":
+      case "VALIDATE_REQUIREMENTS":
+      case "REFLECT_BEFORE_DESIGN":
+      case "REFLECT_BEFORE_TASKS":
+      case "VALIDATE_TASKS":
+        return { ok: true, artifacts: [] };
       case "HUMAN_INTERACTION":
       case "PULL_REQUEST":
         // HUMAN_INTERACTION is a pause point — the approval gate handles the wait.
