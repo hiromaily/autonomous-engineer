@@ -16,11 +16,12 @@ import type { WorkflowEvent } from "@/application/ports/workflow";
 import type { PhaseResult, PhaseRunner } from "@/application/services/workflow/phase-runner";
 import { WorkflowEngine } from "@/application/services/workflow/workflow-engine";
 import { ApprovalGate } from "@/domain/workflow/approval-gate";
+import type { FrameworkDefinition } from "@/domain/workflow/framework";
 import type { WorkflowPhase, WorkflowState } from "@/domain/workflow/types";
 import { WorkflowEventBus } from "@/infra/events/workflow-event-bus";
-import { CC_SDD_FRAMEWORK_DEFINITION } from "@/infra/sdd/cc-sdd-framework-definition";
+import { YamlWorkflowDefinitionLoader } from "@/infra/sdd/yaml-workflow-definition-loader";
 import { WorkflowStateStore } from "@/infra/state/workflow-state-store";
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -53,6 +54,17 @@ function makeStubPhaseRunner(opts?: {
 
   return Object.assign(runner, { executedPhases, enteredPhases });
 }
+
+// ---------------------------------------------------------------------------
+// Framework definition (loaded once via YamlWorkflowDefinitionLoader)
+// ---------------------------------------------------------------------------
+
+let CC_SDD_FRAMEWORK_DEFINITION: FrameworkDefinition;
+
+beforeAll(async () => {
+  const loader = new YamlWorkflowDefinitionLoader(join(process.cwd(), ".aes", "workflow"));
+  CC_SDD_FRAMEWORK_DEFINITION = await loader.load("cc-sdd");
+});
 
 // ---------------------------------------------------------------------------
 // Test setup

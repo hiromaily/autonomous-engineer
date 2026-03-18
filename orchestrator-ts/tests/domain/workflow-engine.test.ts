@@ -2,17 +2,24 @@ import type { IWorkflowEventBus, IWorkflowStateStore, WorkflowEvent } from "@/ap
 import type { PhaseResult, PhaseRunner } from "@/application/services/workflow/phase-runner";
 import { WorkflowEngine } from "@/application/services/workflow/workflow-engine";
 import type { ApprovalGate } from "@/domain/workflow/approval-gate";
+import type { FrameworkDefinition } from "@/domain/workflow/framework";
 import type { WorkflowPhase, WorkflowState } from "@/domain/workflow/types";
-import { CC_SDD_FRAMEWORK_DEFINITION } from "@/infra/sdd/cc-sdd-framework-definition";
-
-// Derive the ordered phase name list from the framework definition (replaces the
-// deleted CC_SDD_PHASES constant — phase order is now authoritative in the YAML/TS
-// framework definition, not in types.ts).
-const CC_SDD_PHASES = CC_SDD_FRAMEWORK_DEFINITION.phases.map((p) => p.phase);
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { YamlWorkflowDefinitionLoader } from "@/infra/sdd/yaml-workflow-definition-loader";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+
+// ---- Framework definition (loaded once via YamlWorkflowDefinitionLoader) ---
+
+let CC_SDD_FRAMEWORK_DEFINITION: FrameworkDefinition;
+let CC_SDD_PHASES: string[];
+
+beforeAll(async () => {
+  const loader = new YamlWorkflowDefinitionLoader(join(process.cwd(), ".aes", "workflow"));
+  CC_SDD_FRAMEWORK_DEFINITION = await loader.load("cc-sdd");
+  CC_SDD_PHASES = CC_SDD_FRAMEWORK_DEFINITION.phases.map((p) => p.phase);
+});
 
 // ---- Stub factories --------------------------------------------------------
 
