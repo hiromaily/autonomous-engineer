@@ -46,5 +46,7 @@ pre-commit:
       glob:
         - "orchestrator-ts/src/**/*.ts"
         - "orchestrator-ts/tests/**/*.ts"
-      run: make -C orchestrator-ts ts-lint
+      run: |
+        make -C orchestrator-ts ts-lint
+        make -C orchestrator-ts ts-lint-arch
       stage_fixed: true

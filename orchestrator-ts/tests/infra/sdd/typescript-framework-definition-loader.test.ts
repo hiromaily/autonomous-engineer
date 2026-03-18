@@ -1,4 +1,4 @@
-import { TypeScriptFrameworkDefinitionLoader } from "@/infra/config/typescript-framework-definition-loader";
+import { TypeScriptFrameworkDefinitionLoader } from "@/infra/sdd/typescript-framework-definition-loader";
 import { describe, expect, it } from "bun:test";
 
 describe("TypeScriptFrameworkDefinitionLoader", () => {

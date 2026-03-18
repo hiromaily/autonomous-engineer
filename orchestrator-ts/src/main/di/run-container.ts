@@ -20,7 +20,6 @@ import { PermissionSystem } from "@/domain/tools/permissions";
 import { ToolRegistry } from "@/domain/tools/registry";
 import type { ToolContext } from "@/domain/tools/types";
 import type { FrameworkDefinition } from "@/domain/workflow/framework";
-import { TypeScriptFrameworkDefinitionLoader } from "@/infra/config/typescript-framework-definition-loader";
 import { WorkflowEventBus } from "@/infra/events/workflow-event-bus";
 import { GitControllerAdapter } from "@/infra/git/git-controller-adapter";
 import { ClaudeProvider } from "@/infra/llm/claude-provider";
@@ -33,6 +32,7 @@ import { FileMemoryStore } from "@/infra/memory/file-memory-store";
 import { PlanFileStore, PlanFileStoreAdapter } from "@/infra/planning/plan-file-store";
 import { CcSddAdapter } from "@/infra/sdd/cc-sdd-adapter";
 import { MockSddAdapter } from "@/infra/sdd/mock-sdd-adapter";
+import { TypeScriptFrameworkDefinitionLoader } from "@/infra/sdd/typescript-framework-definition-loader";
 import { WorkflowStateStore } from "@/infra/state/workflow-state-store";
 import {
   dependencyGraphTool,
