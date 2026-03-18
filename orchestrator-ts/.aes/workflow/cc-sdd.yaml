@@ -1,0 +1,117 @@
+id: cc-sdd
+
+phases:
+  - phase: SPEC_INIT
+    type: llm_slash_command
+    content: "kiro:spec-init"
+    required_artifacts: []
+
+  - phase: HUMAN_INTERACTION
+    type: suspension
+    content: ""
+    required_artifacts: []
+    approval_gate: human_interaction
+    approval_artifact: requirements.md
+
+  - phase: VALIDATE_PREREQUISITES
+    type: llm_prompt
+    content: |
+      Verify that the specification prerequisites are in place for '{specDir}'.
+      Check that '{specDir}/requirements.md' exists and is non-empty.
+      If the file is missing or empty, report what is missing and stop.
+      If the file exists and has content, confirm that prerequisites are satisfied.
+    required_artifacts:
+      - requirements.md
+    output_file: prerequisite-check.md
+
+  - phase: SPEC_REQUIREMENTS
+    type: llm_slash_command
+    content: "kiro:spec-requirements"
+    required_artifacts:
+      - requirements.md
+    approval_gate: requirements
+    approval_artifact: requirements.md
+
+  - phase: VALIDATE_REQUIREMENTS
+    type: llm_prompt
+    content: |
+      Review the requirements document at '{specDir}/requirements.md' for completeness and testability.
+      Check that each requirement is unambiguous, measurable, and independently testable.
+      Identify any gaps, contradictions, or requirements that cannot be verified by tests.
+      Provide a structured review report; flag any items that need revision before design begins.
+    required_artifacts:
+      - requirements.md
+    output_file: validation-requirements.md
+
+  - phase: REFLECT_BEFORE_DESIGN
+    type: llm_prompt
+    content: |
+      Before starting the technical design for '{specDir}', synthesize the key constraints and open questions from '{specDir}/requirements.md'.
+      Identify the top architectural drivers, non-functional requirements, and any requirements that introduce design risk.
+      List open questions that the design must resolve, and note any assumptions being made.
+      This reflection will be used as context when generating the design document.
+    required_artifacts:
+      - requirements.md
+    output_file: reflect-before-design.md
+
+  - phase: VALIDATE_GAP
+    type: llm_slash_command
+    content: "kiro:validate-gap"
+    required_artifacts:
+      - requirements.md
+
+  - phase: SPEC_DESIGN
+    type: llm_slash_command
+    content: "kiro:spec-design"
+    required_artifacts:
+      - requirements.md
+
+  - phase: VALIDATE_DESIGN
+    type: llm_slash_command
+    content: "kiro:validate-design"
+    required_artifacts:
+      - design.md
+    approval_gate: design
+    approval_artifact: design.md
+
+  - phase: REFLECT_BEFORE_TASKS
+    type: llm_prompt
+    content: |
+      Before generating the implementation task breakdown for '{specDir}', synthesize the key design decisions and patterns from '{specDir}/design.md'.
+      Identify the major components, interfaces, and their responsibilities as established by the design.
+      Note any design patterns, constraints, or ordering dependencies that will affect how tasks must be sequenced.
+      This reflection will be used as context when generating the tasks document.
+    required_artifacts:
+      - design.md
+    output_file: reflect-before-tasks.md
+
+  - phase: SPEC_TASKS
+    type: llm_slash_command
+    content: "kiro:spec-tasks"
+    required_artifacts:
+      - design.md
+    approval_gate: tasks
+    approval_artifact: tasks.md
+
+  - phase: VALIDATE_TASKS
+    type: llm_prompt
+    content: |
+      Review the implementation task breakdown at '{specDir}/tasks.md' for completeness and implementation readiness.
+      Check that every requirement from '{specDir}/requirements.md' is covered by at least one task.
+      Verify that task dependencies are correctly ordered and that no task depends on an unimplemented component.
+      Confirm that each task is small enough to implement and test independently.
+      Provide a structured review report; flag any gaps or sequencing issues before implementation begins.
+    required_artifacts:
+      - tasks.md
+    output_file: validation-tasks.md
+
+  - phase: IMPLEMENTATION
+    type: implementation_loop
+    content: ""
+    required_artifacts:
+      - tasks.md
+
+  - phase: PULL_REQUEST
+    type: git_command
+    content: ""
+    required_artifacts: []

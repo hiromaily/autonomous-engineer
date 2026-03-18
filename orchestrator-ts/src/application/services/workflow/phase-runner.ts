@@ -67,6 +67,7 @@ export class PhaseRunner {
         return { ok: false, error: result.error.message };
       }
       case "human_interaction":
+      case "suspension":
       case "git_command":
         return { ok: true, artifacts: [] };
       case "implementation_loop": {
