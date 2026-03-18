@@ -13,6 +13,6 @@ export function createConfigureDependencies(): ConfigureDependencies {
 export function createRunDependencies(
   config: AesConfig,
   options: RunOptions,
-): RunDependencies {
+): Promise<RunDependencies> {
   return new RunContainer(config, options).build();
 }

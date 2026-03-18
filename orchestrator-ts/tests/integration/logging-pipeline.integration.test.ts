@@ -46,13 +46,13 @@ describe("logging pipeline: RunContainer.build() returns ConsoleLogger", () => {
     stderrSpy.mockRestore();
   });
 
-  it("returns a ConsoleLogger instance as RunDependencies.logger", () => {
-    const { logger } = new RunContainer(stubConfig, { debug: false }).build();
+  it("returns a ConsoleLogger instance as RunDependencies.logger", async () => {
+    const { logger } = await new RunContainer(stubConfig, { debug: false }).build();
     expect(logger).toBeInstanceOf(ConsoleLogger);
   });
 
-  it("returns a defined, non-null logger", () => {
-    const { logger } = new RunContainer(stubConfig, { debug: false }).build();
+  it("returns a defined, non-null logger", async () => {
+    const { logger } = await new RunContainer(stubConfig, { debug: false }).build();
     expect(logger).toBeDefined();
     expect(logger).not.toBeNull();
   });
@@ -80,28 +80,28 @@ describe("logging pipeline: stderr-capturing RunContainer tests", () => {
   });
 
   describe("9.3.2 — debug mode activates mock LLM and debug log level", () => {
-    it("emits debug-level DI log entries when debug: true (confirms debug level is active)", () => {
-      new RunContainer(stubConfig, { debug: true }).build();
+    it("emits debug-level DI log entries when debug: true (confirms debug level is active)", async () => {
+      await new RunContainer(stubConfig, { debug: true }).build();
       const debugLines = stderrOutput.filter((l) => l.includes("[DEBUG]"));
       expect(debugLines.length).toBeGreaterThan(0);
     });
 
-    it("does not emit debug-level entries when debug: false and config logLevel is info", () => {
-      new RunContainer(stubConfig, { debug: false }).build();
+    it("does not emit debug-level entries when debug: false and config logLevel is info", async () => {
+      await new RunContainer(stubConfig, { debug: false }).build();
       const debugLines = stderrOutput.filter((l) => l.includes("[DEBUG]"));
       expect(debugLines.length).toBe(0);
     });
 
-    it("emits info-level mock substitution entries when debug: true", () => {
-      new RunContainer(stubConfig, { debug: true }).build();
+    it("emits info-level mock substitution entries when debug: true", async () => {
+      await new RunContainer(stubConfig, { debug: true }).build();
       const mockLines = stderrOutput.filter(
         (l) => l.includes("[INFO]") && l.includes("Mock substitution active"),
       );
       expect(mockLines.length).toBeGreaterThan(0);
     });
 
-    it("announces MockLlmProvider as the active LLM when debug: true", () => {
-      new RunContainer(stubConfig, { debug: true }).build();
+    it("announces MockLlmProvider as the active LLM when debug: true", async () => {
+      await new RunContainer(stubConfig, { debug: true }).build();
       const line = stderrOutput.find(
         (l) => l.includes("Mock substitution active") && l.includes("MockLlmProvider"),
       );
@@ -110,14 +110,14 @@ describe("logging pipeline: stderr-capturing RunContainer tests", () => {
   });
 
   describe("9.3.3 — DI resolution entries emitted during build()", () => {
-    it("all DI resolution entries are present in output collected during build()", () => {
-      new RunContainer(stubConfig, { debug: true }).build();
+    it("all DI resolution entries are present in output collected during build()", async () => {
+      await new RunContainer(stubConfig, { debug: true }).build();
       const diLines = stderrOutput.filter((l) => l.includes("DI resolved"));
       expect(diLines.length).toBeGreaterThan(0);
     });
 
-    it("useCase DI entry is present, confirming final dep resolved before build() returns", () => {
-      new RunContainer(stubConfig, { debug: true }).build();
+    it("useCase DI entry is present, confirming final dep resolved before build() returns", async () => {
+      await new RunContainer(stubConfig, { debug: true }).build();
       const useCaseLine = stderrOutput.find(
         (l) => l.includes("DI resolved") && l.includes("useCase"),
       );
@@ -186,7 +186,7 @@ describe("logging pipeline: configure wizard saves logLevel; ConfigLoader reads 
       return true;
     });
     try {
-      new RunContainer(config, { debug: false }).build();
+      await new RunContainer(config, { debug: false }).build();
     } finally {
       spy.mockRestore();
     }

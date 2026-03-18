@@ -95,7 +95,7 @@
   - Remove the `REQUIRED_ARTIFACTS` and `APPROVAL_GATE_PHASES` constants from the file once all usages have been migrated
   - _Requirements: 4.1, 4.2, 4.4_
 
-- [ ] 7. Wire framework selection into the DI container
+- [x] 7. Wire framework selection into the DI container
   - Add `frameworkDefinitionLoader: TypeScriptFrameworkDefinitionLoader` and a cached `frameworkDefinition: FrameworkDefinition` lazy getter to `RunContainer`
   - In `build()` or an async initialization step, call `frameworkDefinitionLoader.load(config.sddFramework)` to load the configured framework; if the identifier is unknown, let the loader's error propagate to fail startup with the available-frameworks list
   - Pass the loaded `frameworkDefinition` to the `PhaseRunner` and `WorkflowEngine` constructors
