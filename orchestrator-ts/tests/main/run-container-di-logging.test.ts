@@ -10,10 +10,10 @@ const stubConfig: AesConfig = {
 };
 
 // ---------------------------------------------------------------------------
-// Task 7 — Framework selection via TypeScriptFrameworkDefinitionLoader
+// Task 9 — Framework selection via YamlWorkflowDefinitionLoader
 // ---------------------------------------------------------------------------
 
-describe("RunContainer — framework definition loading (Task 7)", () => {
+describe("RunContainer — framework definition loading (Task 9)", () => {
   it("build() returns a Promise (is async)", () => {
     const result = new RunContainer(stubConfig, { debug: false }).build();
     expect(result).toBeInstanceOf(Promise);

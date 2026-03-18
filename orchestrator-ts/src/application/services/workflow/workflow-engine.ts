@@ -116,9 +116,10 @@ export class WorkflowEngine {
       eventBus.emit({ type: "phase:complete", phase, durationMs, artifacts: result.artifacts });
 
       // 9. Check approval gate for phases that require human review (Req 5.1–5.6).
-      const approvalType = findPhaseDefinition(this.deps.frameworkDefinition, phase)?.approvalGate;
+      const phaseDef = findPhaseDefinition(this.deps.frameworkDefinition, phase);
+      const approvalType = phaseDef?.approvalGate;
       if (approvalType !== undefined) {
-        const gateResult = await this.deps.approvalGate.check(specDir, approvalType);
+        const gateResult = await this.deps.approvalGate.check(specDir, approvalType, phaseDef?.approvalArtifact);
         if (!gateResult.approved) {
           return await this.pauseAt(phase, gateResult.artifactPath, gateResult.instruction);
         }
@@ -162,7 +163,8 @@ export class WorkflowEngine {
       return null;
     }
 
-    const gateResult = await approvalGate.checkResume(specDir, approvalType);
+    const pausedPhaseDef = findPhaseDefinition(frameworkDefinition, pausedPhase);
+    const gateResult = await approvalGate.checkResume(specDir, approvalType, pausedPhaseDef?.approvalArtifact);
     if (!gateResult.approved) {
       return await this.pauseAt(pausedPhase, gateResult.artifactPath, gateResult.instruction);
     }
@@ -192,7 +194,7 @@ export class WorkflowEngine {
   }
 
   /** Phases not yet completed, in framework definition order. */
-  private pendingPhases(): readonly WorkflowPhase[] {
+  private pendingPhases(): readonly string[] {
     const completed = new Set(this.currentState.completedPhases);
     return this.deps.frameworkDefinition.phases
       .filter((p) => !completed.has(p.phase))
@@ -200,7 +202,7 @@ export class WorkflowEngine {
   }
 
   /** Returns an error message if a required artifact is missing, null otherwise. */
-  private async checkRequiredArtifacts(phase: WorkflowPhase): Promise<string | null> {
+  private async checkRequiredArtifacts(phase: string): Promise<string | null> {
     const required = findPhaseDefinition(this.deps.frameworkDefinition, phase)?.requiredArtifacts;
     if (!required?.length) return null;
 

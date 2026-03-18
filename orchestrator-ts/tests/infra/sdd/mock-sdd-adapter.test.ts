@@ -1,12 +1,22 @@
 import type { SpecContext } from "@/application/ports/sdd";
 import { PhaseRunner } from "@/application/services/workflow/phase-runner";
-import { CC_SDD_FRAMEWORK_DEFINITION } from "@/infra/sdd/cc-sdd-framework-definition";
+import type { FrameworkDefinition } from "@/domain/workflow/framework";
+import { YamlWorkflowDefinitionLoader } from "@/infra/sdd/yaml-workflow-definition-loader";
 import { MockSddAdapter } from "@/infra/sdd/mock-sdd-adapter";
-import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { makeLlmProvider } from "../../helpers/workflow";
+
+// ---- Framework definition (loaded once via YamlWorkflowDefinitionLoader) ---
+
+let CC_SDD_FRAMEWORK_DEFINITION: FrameworkDefinition;
+
+beforeAll(async () => {
+  const loader = new YamlWorkflowDefinitionLoader(join(process.cwd(), ".aes", "workflow"));
+  CC_SDD_FRAMEWORK_DEFINITION = await loader.load("cc-sdd");
+});
 
 const ctx: SpecContext = { specName: "test-spec", specDir: ".kiro/specs/test-spec", language: "en" };
 

@@ -3,7 +3,6 @@ import type { LlmProviderPort } from "@/application/ports/llm";
 import type { SddFrameworkPort, SddOperationResult, SpecContext } from "@/application/ports/sdd";
 import { findPhaseDefinition } from "@/domain/workflow/framework";
 import type { FrameworkDefinition } from "@/domain/workflow/framework";
-import type { WorkflowPhase } from "@/domain/workflow/types";
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -37,7 +36,7 @@ export class PhaseRunner {
     this.implementationLoopOptions = deps.implementationLoopOptions;
   }
 
-  async execute(phase: WorkflowPhase, ctx: SpecContext): Promise<PhaseResult> {
+  async execute(phase: string, ctx: SpecContext): Promise<PhaseResult> {
     const phaseDef = findPhaseDefinition(this.frameworkDefinition, phase);
     if (!phaseDef) {
       throw new Error(`Unregistered workflow phase: ${phase} in framework ${this.frameworkDefinition.id}`);
@@ -67,6 +66,7 @@ export class PhaseRunner {
         return { ok: false, error: result.error.message };
       }
       case "human_interaction":
+      case "suspension":
       case "git_command":
         return { ok: true, artifacts: [] };
       case "implementation_loop": {
@@ -87,13 +87,13 @@ export class PhaseRunner {
     }
   }
 
-  async onEnter(_phase: WorkflowPhase): Promise<void> {
+  async onEnter(_phase: string): Promise<void> {
     // Reset LLM context at every phase transition to prevent accumulated
     // conversation state from carrying over between phases (Req 4.2, 4.3)
     this.llm.clearContext();
   }
 
-  async onExit(_phase: WorkflowPhase): Promise<void> {
+  async onExit(_phase: string): Promise<void> {
     // Lifecycle hook — extended in future specs
   }
 

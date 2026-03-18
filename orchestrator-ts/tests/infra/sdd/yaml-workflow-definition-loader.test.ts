@@ -1,0 +1,151 @@
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
+import { YamlWorkflowDefinitionLoader } from "@/infra/sdd/yaml-workflow-definition-loader";
+
+// Path to the real workflow directory shipped with the project
+const REAL_WORKFLOW_DIR = path.join(
+  import.meta.dir,
+  "..",
+  "..",
+  "..",
+  ".aes",
+  "workflow",
+);
+
+// ─────────────────────────────────────────────────────────
+// Integration tests — use the real cc-sdd.yaml
+// ─────────────────────────────────────────────────────────
+describe("YamlWorkflowDefinitionLoader — integration (real cc-sdd.yaml)", () => {
+  const loader = new YamlWorkflowDefinitionLoader(REAL_WORKFLOW_DIR);
+
+  it("happy path: returns definition with id === 'cc-sdd' and exactly 14 phases", async () => {
+    const def = await loader.load("cc-sdd");
+
+    expect(def.id).toBe("cc-sdd");
+    expect(def.phases).toHaveLength(14);
+  });
+
+  it("type distribution: all llm_prompt phases have a non-undefined outputFile", async () => {
+    const def = await loader.load("cc-sdd");
+    const llmPromptPhases = def.phases.filter((p) => p.type === "llm_prompt");
+
+    expect(llmPromptPhases.length).toBeGreaterThan(0);
+    for (const phase of llmPromptPhases) {
+      expect(phase.outputFile).toBeDefined();
+    }
+  });
+
+  it("type distribution: all phases with approvalGate also have approvalArtifact", async () => {
+    const def = await loader.load("cc-sdd");
+    const gatedPhases = def.phases.filter((p) => p.approvalGate !== undefined);
+
+    expect(gatedPhases.length).toBeGreaterThan(0);
+    for (const phase of gatedPhases) {
+      expect(phase.approvalArtifact).toBeDefined();
+    }
+  });
+
+  it("unknown framework: rejects with message containing the file path and a creation hint", async () => {
+    await expect(loader.load("unknown")).rejects.toThrow("unknown");
+    await expect(loader.load("unknown")).rejects.toThrow(".aes/workflow/unknown.yaml");
+  });
+});
+
+// ─────────────────────────────────────────────────────────
+// Unit tests — fully isolated tmpdir
+// ─────────────────────────────────────────────────────────
+describe("YamlWorkflowDefinitionLoader — unit (tmpdir)", () => {
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "yaml-loader-test-"));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("missing file: rejects with file-not-found error", async () => {
+    const loader = new YamlWorkflowDefinitionLoader(tmpDir);
+    await expect(loader.load("nonexistent")).rejects.toThrow("nonexistent");
+  });
+
+  it("malformed YAML: throws parse error referencing the file path", async () => {
+    const filePath = path.join(tmpDir, "bad.yaml");
+    fs.writeFileSync(filePath, "id: bad\nphases: [\n  - : {\n"); // invalid YAML
+    const loader = new YamlWorkflowDefinitionLoader(tmpDir);
+    await expect(loader.load("bad")).rejects.toThrow("bad.yaml");
+  });
+
+  it("duplicate phase: throws when two phases share the same name", async () => {
+    const yaml = `
+id: dup-test
+phases:
+  - phase: PHASE_A
+    type: git_command
+    content: ""
+    required_artifacts: []
+  - phase: PHASE_A
+    type: git_command
+    content: ""
+    required_artifacts: []
+`;
+    const filePath = path.join(tmpDir, "dup-test.yaml");
+    fs.writeFileSync(filePath, yaml);
+    const loader = new YamlWorkflowDefinitionLoader(tmpDir);
+    await expect(loader.load("dup-test")).rejects.toThrow("PHASE_A");
+  });
+
+  it("unknown execution type: throws listing valid types", async () => {
+    const yaml = `
+id: bad-type
+phases:
+  - phase: PHASE_X
+    type: not_a_type
+    content: ""
+    required_artifacts: []
+`;
+    const filePath = path.join(tmpDir, "bad-type.yaml");
+    fs.writeFileSync(filePath, yaml);
+    const loader = new YamlWorkflowDefinitionLoader(tmpDir);
+    await expect(loader.load("bad-type")).rejects.toThrow("not_a_type");
+  });
+
+  it("missing id: throws when YAML has no top-level id field", async () => {
+    const yaml = `
+phases:
+  - phase: PHASE_A
+    type: git_command
+    content: ""
+    required_artifacts: []
+`;
+    const filePath = path.join(tmpDir, "no-id.yaml");
+    fs.writeFileSync(filePath, yaml);
+    const loader = new YamlWorkflowDefinitionLoader(tmpDir);
+    await expect(loader.load("no-id")).rejects.toThrow("id");
+  });
+
+  it("approvalArtifact override preserved: approval_artifact maps to approvalArtifact field", async () => {
+    const yaml = `
+id: override-test
+phases:
+  - phase: SPEC_REQUIREMENTS
+    type: llm_slash_command
+    content: "kiro:spec-requirements"
+    required_artifacts:
+      - requirements.md
+    approval_gate: requirements
+    approval_artifact: custom.md
+`;
+    const filePath = path.join(tmpDir, "override-test.yaml");
+    fs.writeFileSync(filePath, yaml);
+    const loader = new YamlWorkflowDefinitionLoader(tmpDir);
+    const def = await loader.load("override-test");
+
+    const phase = def.phases.find((p) => p.phase === "SPEC_REQUIREMENTS");
+    expect(phase).toBeDefined();
+    expect(phase?.approvalArtifact).toBe("custom.md");
+  });
+});

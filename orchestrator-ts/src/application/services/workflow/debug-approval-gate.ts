@@ -27,7 +27,7 @@ export class DebugApprovalGate extends ApprovalGate {
     this.#sink = sink;
   }
 
-  override async check(specDir: string, phase: ApprovalPhase): Promise<ApprovalCheckResult> {
+  override async check(specDir: string, phase: ApprovalPhase, approvalArtifact?: string): Promise<ApprovalCheckResult> {
     if (phase === "human_interaction") {
       return {
         approved: false,

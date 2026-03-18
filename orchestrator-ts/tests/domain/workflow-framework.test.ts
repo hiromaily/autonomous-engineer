@@ -15,6 +15,8 @@ const _exhaustivePhaseTypeCheck = (t: PhaseExecutionType): string => {
       return "llm_prompt";
     case "human_interaction":
       return "human_interaction";
+    case "suspension":
+      return "suspension";
     case "git_command":
       return "git_command";
     case "implementation_loop":
@@ -25,15 +27,16 @@ const _exhaustivePhaseTypeCheck = (t: PhaseExecutionType): string => {
 // ---- Task 1.1: PhaseExecutionType and FrameworkDefinition shape ----
 
 describe("PhaseExecutionType", () => {
-  it("accepts all five execution type literal values", () => {
+  it("accepts all six execution type literal values", () => {
     const types: PhaseExecutionType[] = [
       "llm_slash_command",
       "llm_prompt",
       "human_interaction",
+      "suspension",
       "git_command",
       "implementation_loop",
     ];
-    expect(types).toHaveLength(5);
+    expect(types).toHaveLength(6);
   });
 });
 
@@ -183,6 +186,39 @@ describe("validateFrameworkDefinition", () => {
         {
           phase: "IMPLEMENTATION",
           type: "implementation_loop",
+          content: "",
+          requiredArtifacts: [],
+        },
+      ],
+    };
+    expect(() => validateFrameworkDefinition(def)).not.toThrow();
+  });
+
+  it("throws when a phase has an unknown approvalGate value", () => {
+    const def: FrameworkDefinition = {
+      id: "test-fw",
+      phases: [
+        {
+          phase: "SPEC_REQUIREMENTS",
+          type: "llm_slash_command",
+          content: "kiro:spec-requirements",
+          requiredArtifacts: [],
+          // Cast needed: TypeScript would normally catch the invalid literal at
+          // compile time, but we're testing the runtime validation path.
+          approvalGate: "not_a_real_gate" as "requirements",
+        },
+      ],
+    };
+    expect(() => validateFrameworkDefinition(def)).toThrow(/approvalGate/i);
+  });
+
+  it("allows empty content for suspension phase", () => {
+    const def: FrameworkDefinition = {
+      id: "test-fw",
+      phases: [
+        {
+          phase: "HUMAN_INTERACTION",
+          type: "suspension",
           content: "",
           requiredArtifacts: [],
         },

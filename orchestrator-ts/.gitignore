@@ -1,5 +1,7 @@
 .kiro
-.aes
+.aes/**
+!.aes/workflow/
+!.aes/workflow/**
 .memory
 
 aes.config.json
