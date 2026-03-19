@@ -6,6 +6,8 @@ The `orchestrator-ts` system is structured around Clean Architecture with four l
 
 The five diagrams below partition the architecture by concern. Each interface carries `<<interface>>` and each domain value object carries `<<type>>`. Dependency arrows are labeled to distinguish `implements` relationships from runtime `uses` (composition) relationships.
 
+> **Reading note:** Diagram 1 contains all port interfaces with full method signatures. Diagrams 2–5 show ports already documented in Diagram 1 as thin stubs (name + `<<interface>>` only) to reduce width — refer to Diagram 1 for full signatures.
+
 ---
 
 ## Diagram 1: Core Ports and Their Infrastructure Implementations
@@ -14,6 +16,8 @@ This diagram shows every abstract port in `application/ports/` together with its
 
 ```mermaid
 classDiagram
+    direction TB
+
     %% ── Core execution ports ─────────────────────────────────────────────────
 
     class LlmProviderPort {
@@ -324,6 +328,8 @@ This diagram shows how the `WorkflowEngine` drives phase execution through `Phas
 
 ```mermaid
 classDiagram
+    direction TB
+
     %% ── Domain types ─────────────────────────────────────────────────────────
 
     class AgentState {
@@ -402,14 +408,15 @@ classDiagram
     FrameworkDefinition *-- PhaseDefinition : contains
     PhaseDefinition *-- LoopPhaseDefinition : optional sub-phases
 
-    %% ── Ports used by this subsystem ─────────────────────────────────────────
+    %% ── Ports (stubs — see Diagram 1 for full signatures) ───────────────────
 
-    class IAgentLoop {
-        <<interface>>
-        +run(task, options?) Promise~AgentLoopResult~
-        +stop() void
-        +getState() AgentState | null
-    }
+    class IAgentLoop { <<interface>> }
+    class IWorkflowStateStore { <<interface>> }
+    class IWorkflowEventBus { <<interface>> }
+    class SddFrameworkPort { <<interface>> }
+    class LlmProviderPort { <<interface>> }
+    class IImplementationLoop { <<interface>> }
+    class IToolExecutor { <<interface>> }
 
     class IContextProvider {
         <<interface>>
@@ -421,43 +428,6 @@ classDiagram
         +emit(event AgentLoopEvent) void
         +on(handler) void
         +off(handler) void
-    }
-
-    class IWorkflowStateStore {
-        <<interface>>
-        +persist(state) Promise~void~
-        +restore(specName) Promise~WorkflowState | null~
-        +init(specName) WorkflowState
-    }
-
-    class IWorkflowEventBus {
-        <<interface>>
-        +emit(event WorkflowEvent) void
-        +on(handler) void
-        +off(handler) void
-    }
-
-    class SddFrameworkPort {
-        <<interface>>
-        +executeCommand(commandName, ctx) Promise~SddOperationResult~
-    }
-
-    class LlmProviderPort {
-        <<interface>>
-        +complete(prompt, options?) Promise~LlmResult~
-        +clearContext() void
-    }
-
-    class IImplementationLoop {
-        <<interface>>
-        +run(planId, options?) Promise~ImplementationLoopResult~
-        +resume(planId, options?) Promise~ImplementationLoopResult~
-        +stop() void
-    }
-
-    class IToolExecutor {
-        <<interface>>
-        +invoke(name, rawInput, context) Promise~ToolResult~
     }
 
     class IToolRegistry {
@@ -527,6 +497,8 @@ This diagram covers the `ImplementationLoopService` and all of its dependencies:
 
 ```mermaid
 classDiagram
+    direction TB
+
     %% ── Domain record types ──────────────────────────────────────────────────
 
     class ReviewResult {
@@ -578,50 +550,23 @@ classDiagram
 
     SectionExecutionRecord *-- SectionIterationRecord : iterations
 
-    %% ── Ports ────────────────────────────────────────────────────────────────
+    %% ── Ports (stubs — see Diagram 1 for full signatures) ───────────────────
 
-    class IImplementationLoop {
-        <<interface>>
-        +run(planId, options?) Promise~ImplementationLoopResult~
-        +resume(planId, options?) Promise~ImplementationLoopResult~
-        +stop() void
-    }
-
-    class IAgentLoop {
-        <<interface>>
-        +run(task, options?) Promise~AgentLoopResult~
-        +stop() void
-        +getState() AgentState | null
-    }
-
-    class IReviewEngine {
-        <<interface>>
-        +review(result, section, config) Promise~ReviewResult~
-    }
-
-    class IQualityGate {
-        <<interface>>
-        +run(config QualityGateConfig) Promise~ReviewCheckResult[]~
-    }
+    class IImplementationLoop { <<interface>> }
+    class IAgentLoop { <<interface>> }
+    class IReviewEngine { <<interface>> }
+    class IQualityGate { <<interface>> }
+    class IGitController { <<interface>> }
+    class ISelfHealingLoop { <<interface>> }
+    class IContextEngine { <<interface>> }
+    class SddFrameworkPort { <<interface>> }
+    class LlmProviderPort { <<interface>> }
+    class IToolExecutor { <<interface>> }
 
     class IPlanStore {
         <<interface>>
         +loadPlan(planId) Promise~TaskPlan | null~
         +updateSectionStatus(planId, sectionId, status) Promise~void~
-    }
-
-    class IGitController {
-        <<interface>>
-        +listBranches() Promise~GitResult~
-        +detectChanges() Promise~GitResult~
-        +createAndCheckoutBranch(name, base) Promise~GitResult~
-        +stageAndCommit(files, message) Promise~GitResult~
-        +push(branch, remote) Promise~GitResult~
-    }
-
-    class ISelfHealingLoop {
-        <<interface>>
-        +escalate(escalation SectionEscalation) Promise~SelfHealingResult~
     }
 
     class IImplementationLoopLogger {
@@ -636,35 +581,11 @@ classDiagram
         +emit(event ImplementationLoopEvent) void
     }
 
-    class IContextEngine {
-        <<interface>>
-        +buildContext(request) Promise~ContextAssemblyResult~
-        +expandContext(request) Promise~ExpansionResult~
-        +resetPhase(phaseId) void
-        +resetTask(taskId) void
-    }
-
     class IAgentEventBus {
         <<interface>>
         +emit(event) void
         +on(handler) void
         +off(handler) void
-    }
-
-    class SddFrameworkPort {
-        <<interface>>
-        +executeCommand(commandName, ctx) Promise~SddOperationResult~
-    }
-
-    class LlmProviderPort {
-        <<interface>>
-        +complete(prompt, options?) Promise~LlmResult~
-        +clearContext() void
-    }
-
-    class IToolExecutor {
-        <<interface>>
-        +invoke(name, rawInput, context) Promise~ToolResult~
     }
 
     %% ── Service implementations ───────────────────────────────────────────────
@@ -729,6 +650,8 @@ This diagram shows the `ContextEngineService` and its five sub-interfaces — to
 
 ```mermaid
 classDiagram
+    direction TB
+
     %% ── Domain types ─────────────────────────────────────────────────────────
 
     class LayerId {
@@ -780,15 +703,13 @@ classDiagram
         +omittedLayers ReadonlyArray~LayerId~
     }
 
-    %% ── Sub-interfaces ───────────────────────────────────────────────────────
+    %% ── Ports (stubs — see Diagram 1 for full signatures) ───────────────────
 
-    class IContextEngine {
-        <<interface>>
-        +buildContext(request) Promise~ContextAssemblyResult~
-        +expandContext(request) Promise~ExpansionResult~
-        +resetPhase(phaseId) void
-        +resetTask(taskId) void
-    }
+    class IContextEngine { <<interface>> }
+    class MemoryPort { <<interface>> }
+    class IToolExecutor { <<interface>> }
+
+    %% ── Sub-interfaces (unique to this subsystem) ────────────────────────────
 
     class IContextCache {
         <<interface>>
@@ -825,17 +746,6 @@ classDiagram
         +allocate(config) LayerBudgetMap
         +checkBudget(content, budget) object
         +checkTotal(layerTokenCounts, totalBudget) number
-    }
-
-    class MemoryPort {
-        <<interface>>
-        +query(query) Promise~MemoryQueryResult~
-        +append(target, entry, trigger) Promise~MemoryWriteResult~
-    }
-
-    class IToolExecutor {
-        <<interface>>
-        +invoke(name, rawInput, context) Promise~ToolResult~
     }
 
     %% ── Service implementation ────────────────────────────────────────────────
@@ -879,6 +789,8 @@ This diagram shows the `TaskPlanningService`, its sub-ports for plan persistence
 
 ```mermaid
 classDiagram
+    direction TB
+
     %% ── Domain types ─────────────────────────────────────────────────────────
 
     class TaskPlan {
@@ -916,15 +828,14 @@ classDiagram
     TaskPlan *-- Task : contains
     Task *-- Step : contains
 
-    %% ── Planning ports ───────────────────────────────────────────────────────
+    %% ── Ports (stubs — see Diagram 1 for full signatures) ───────────────────
 
-    class ITaskPlanner {
-        <<interface>>
-        +run(goal, options?) Promise~TaskPlanResult~
-        +resume(planId, options?) Promise~TaskPlanResult~
-        +listResumable() Promise~string[]~
-        +stop() void
-    }
+    class ITaskPlanner { <<interface>> }
+    class IAgentLoop { <<interface>> }
+    class LlmProviderPort { <<interface>> }
+    class IToolExecutor { <<interface>> }
+
+    %% ── Planning ports (unique to this subsystem) ────────────────────────────
 
     class ITaskPlanStore {
         <<interface>>
@@ -951,25 +862,7 @@ classDiagram
         +off(handler) void
     }
 
-    class IAgentLoop {
-        <<interface>>
-        +run(task, options?) Promise~AgentLoopResult~
-        +stop() void
-        +getState() AgentState | null
-    }
-
-    class LlmProviderPort {
-        <<interface>>
-        +complete(prompt, options?) Promise~LlmResult~
-        +clearContext() void
-    }
-
     %% ── Tool ports ───────────────────────────────────────────────────────────
-
-    class IToolExecutor {
-        <<interface>>
-        +invoke(name, rawInput, context) Promise~ToolResult~
-    }
 
     class IToolRegistry {
         <<interface>>
