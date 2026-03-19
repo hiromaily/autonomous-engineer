@@ -34,7 +34,7 @@ When implementing a feature, fix, or refactoring task that spans multiple files 
 - **Human checkpoints**: The pipeline pauses after Design and after Task Decomposition. The user reviews and approves before execution continues.
 - **Single feature branch for implementation**: All tasks run directly on one shared feature branch (not isolated worktrees). This ensures dependent tasks see the changes from their predecessors and review agents check the right location.
 - **Parallel tasks do not self-commit**: When running parallel task groups, each agent writes its file changes but does NOT run `git commit`. The main agent does one batch commit after each parallel group completes, eliminating git race conditions.
-- **Parallel where safe**: Investigation can run in parallel with the workspace setup. Independent tasks can be implemented in parallel.
+- **Parallel where safe**: Independent implementation tasks within Phase 5 can run in parallel. Phases 1–4 are strictly sequential (each phase depends on the previous phase's output file).
 
 ---
 
@@ -91,7 +91,7 @@ flowchart TD
 
     FAIL{"PASS / FAIL?"}
     FV["**Final Verification**<br>① one general-purpose subagent<br>full typecheck + test suite"]
-    FS["**Final Summary**<br>main agent"]
+    FS["**Final Summary**<br>main agent · writes summary.md"]
 ```
 
 ### Agent Roles at a Glance
@@ -110,7 +110,7 @@ flowchart TD
 | 5 — Implementation | Subagents | `general-purpose` | **1 per task** (parallel where safe; re-run on FAIL) | `request.md`, `design.md`, `tasks.md`, `review-{dep}.md` | code files, `impl-{N}.md` |
 | 6 — Review | Subagents | `general-purpose` | **1 per task** (re-run after impl fix) | `tasks.md`, `design.md`, `impl-{N}.md`, code files | `review-{N}.md` |
 | Final Verification | Subagent | `general-purpose` | **1** | feature branch | — |
-| Final Summary | **Main agent** | — | 1 | all `review-{N}.md` | — |
+| Final Summary | **Main agent** | — | 1 | all `review-{N}.md` | `summary.md` |
 
 **Key constraint:** The main agent never reads code files directly. It only reads the small artifact files
 (`analysis.md`, `design.md`, `tasks.md`, `review-{N}.md`) to stay token-efficient.
@@ -128,9 +128,9 @@ Before running any phase, establish the workspace:
 1. Derive a short `{spec-name}` slug from `$ARGUMENTS` — 2–4 lowercase words joined by hyphens
    that capture the essence of the work (e.g. `yaml-workflow-loader`, `fix-auth-timeout`,
    `refactor-dry-run`). Do this now, before reading any code.
-2. Run `date +"%Y%m%d_%H%M%S"` to get a timestamp.
-3. Create directory: `.specs/{spec-name}-{timestamp}/`
-4. Write `.specs/{spec-name}-{timestamp}/request.md` containing `$ARGUMENTS` and any relevant
+2. Run `date +"%Y%m%d"` and store the result as `{date}`.
+3. Create directory: `.specs/{date}-{spec-name}/`
+4. Write `.specs/{date}-{spec-name}/request.md` containing `$ARGUMENTS` and any relevant
    context extracted from the current conversation (git branch, relevant spec or issue links, etc.).
 5. Store the workspace path as `{workspace}` — all subsequent phases read from and write to this
    directory. Use `{workspace}` as the shorthand in all prompts below.
@@ -142,7 +142,7 @@ Before running any phase, establish the workspace:
 ### Phase 1 — Situation Analysis
 
 **Subagent**: `Explore` (fast, read-only — no file writes needed)
-**Output**: Return value from the subagent (main agent writes to `analysis.md`)
+**Output**: Return value → write to `analysis.md`
 
 Spawn an `Explore` subagent with this prompt structure:
 
@@ -161,7 +161,7 @@ Cover:
 Return a structured markdown report. Be concise — this is an index, not a full code read.
 ```
 
-When the subagent returns, write its output to `{workspace}/analysis.md`.
+Write the return value to `{workspace}/analysis.md`.
 
 ---
 
@@ -274,7 +274,7 @@ Write the return value to `{workspace}/review-design.md`.
 >
 > **If the conversation is interrupted** (session reset, tab closed, etc.), the main agent's
 > context is lost. To recover: re-invoke the skill and pass the existing workspace path as
-> the argument, e.g. `@.specs/{spec-name}-{timestamp}/design.md is done, go on next phase`.
+> the argument, e.g. `@.specs/{date}-{spec-name}/design.md is done, go on next phase`.
 > The main agent should read the existing artifact files to reconstruct state.
 
 1. Read `{workspace}/review-design.md` for the AI reviewer's verdict and notes.
@@ -394,7 +394,7 @@ Write the return value to `{workspace}/review-tasks.md`.
 
 **Before the first task:** create a feature branch and check it out:
 ```
-git checkout -b feature/{short-description}
+git checkout -b feature/{spec-name}
 ```
 All implementation agents work on this branch. Do NOT use `isolation: worktree` — worktree
 isolation prevents dependent tasks from seeing each other's changes and causes review agents to
@@ -418,7 +418,7 @@ Read these files first (do NOT skip any):
 
 Also read any project-wide conventions files present (e.g. `CLAUDE.md`, `.kiro/steering/`, `AGENTS.md`).
 
-First, check out the feature branch: `git checkout feature/{short-description}`
+First, check out the feature branch: `git checkout feature/{spec-name}`
 
 Dependencies: Tasks {deps} are already complete. Read their review files for context:
 {for each dep: `{workspace}/review-{dep}.md`}
@@ -482,7 +482,7 @@ If a review returns `FAIL`: re-run Phase 5 for that task, passing the review fil
 Before presenting the summary, spawn one `general-purpose` subagent to run a full clean check:
 
 ```
-On branch `feature/{short-description}`, run:
+On branch `feature/{spec-name}`, run:
 1. Full typecheck: the project's typecheck command (e.g. `make ts-lint`)
 2. Full test suite: the project's test command (e.g. `bun test`)
 3. Report: total pass/fail counts and any failures with their error messages.
@@ -499,12 +499,34 @@ test suite — the feature branch must be green (or match the baseline on `main`
 After all tasks, reviews, and final verification are complete:
 
 1. Read all `review-{N}.md` files.
-2. Present a pipeline summary to the user:
-   - Tasks completed and their verdicts
-   - Any PASS_WITH_NOTES items to be aware of
-   - Feature branch name (so the user knows where to find the code)
-   - Final test counts from the verification step
-3. Suggest next steps (e.g., open a PR, run e2e tests).
+2. Write a summary report to `{workspace}/summary.md` with this structure:
+   ```markdown
+   # Pipeline Summary
+
+   **Request:** <one-line description from request.md>
+   **Feature branch:** `feature/{spec-name}`
+   **Date:** {date}
+
+   ## Tasks
+
+   | # | Title | Verdict |
+   |---|-------|---------|
+   | 1 | … | PASS / PASS_WITH_NOTES / FAIL |
+   …
+
+   ## Notes
+
+   <Any PASS_WITH_NOTES items or observations worth recording>
+
+   ## Test Results
+
+   <Final pass/fail counts from the verification step>
+
+   ## Next Steps
+
+   <Suggested follow-up actions, e.g. open PR, run e2e tests>
+   ```
+3. Present the contents of `summary.md` to the user.
 
 ---
 
@@ -527,4 +549,4 @@ After all tasks, reviews, and final verification are complete:
 | Implementation FAIL review | Re-implement with review as context (max 2 attempts per task) |
 | Test suite fails after implementation | Stop; present the failure to the user and ask how to proceed |
 | Final verification finds new failures | Fix before summarizing — do not leave a broken branch |
-| Residual imports of deleted code found in final run | Spawn a fix agent to update all callers; re-run verification |
+| Residual imports of deleted code found in final verification | Spawn a fix agent to update all callers; re-run verification |

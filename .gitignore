@@ -143,3 +143,7 @@ vite.config.ts.timestamp-*
 
 # Local Claude Code settings (developer-specific, not portable across OS)
 .claude/settings.local.json
+
+# dev-pipeline workspace artifacts (only summary.md is committed)
+.specs/**
+!.specs/**/summary.md
